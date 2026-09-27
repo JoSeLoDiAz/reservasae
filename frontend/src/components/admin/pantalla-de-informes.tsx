@@ -656,7 +656,35 @@ export function PantallaDeInformes({ vista }: { vista?: Pestana }) {
         <p className="rounded-xl bg-aviso-suave px-3 py-2 text-xs text-aviso">
           <strong className="font-semibold">Los dos periodos no duran lo mismo:</strong>{" "}
           {ETIQUETA_RANGO[rango].toLowerCase()} abarca {textoDuracion(diasA)} y{" "}
-          {ETIQUETA_RANGO[contra as Rango].toLowerCase()} abarca {textoDuracion(diasB)}.
+          {/* `anterior` CUANDO NO SE ELIGIO, y no el `as Rango`.
+
+              Aqui ponia `ETIQUETA_RANGO[contra as Rango]`, y ese
+              `as` era una mentira al compilador que costaba la
+              pantalla entera: `contra` arranca en "AUTO" y los
+              cuatro `setContra` de este fichero solo escriben
+              "AUTO" o "NINGUNO" --el desplegable que ponia un
+              `Rango` ya no existe--. `ETIQUETA_RANGO` solo tiene
+              las nueve claves de `Rango`, asi que en este bloque
+              `contra` valia siempre "AUTO",
+              `ETIQUETA_RANGO["AUTO"]` era `undefined` y
+              `.toLowerCase()` lanzaba DURANTE EL RENDER. Sin
+              `error.tsx` en el arbol, eso no es un hueco vacio:
+              es «Application error» y el panel entero en blanco.
+
+              Y no se veia: este parrafo solo se pinta cuando los
+              dos periodos duran distinto. Hoy --27 sep-- agosto y
+              julio tienen 31 dias los dos y no salta; desde el 1
+              de octubre, septiembre (30) contra agosto (31) si.
+              O sea que se subia sin sintoma y reventaba solo
+              cuatro dias despues, eligiendo «El mes pasado» en
+              Control de inscritos: dos clics.
+
+              `anterior` no puede ser vacia aqui, que es lo que
+              hace correcto el cambio: `sePuedeComparar` se define
+              como `anterior !== ""` y `duracionDistinta` exige
+              `!sinComparar`. */}
+          {(eligio ? ETIQUETA_RANGO[contra as Rango] : anterior).toLowerCase()} abarca{" "}
+          {textoDuracion(diasB)}.
           Comparar volumen entre ventanas de distinta duración no significa nada —la más
           larga gana siempre—; la media de días de lead a inscrito sí se puede leer.
         </p>
