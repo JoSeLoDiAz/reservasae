@@ -42,6 +42,12 @@ import { tablerosApi } from "@/lib/tableros-api";
 
 import { Desplegable } from "./desplegable";
 import { colorEtapa } from "./etapa";
+import {
+  FiltroDePeriodo,
+  PERIODO_INICIAL,
+  ventanaDe,
+  type Periodo,
+} from "./filtro-de-periodo";
 import { Donut, n, SERIE } from "./graficos";
 import { Aviso } from "./marco-admin";
 import { Bloque, Encabezado, Esqueleto, Vacio } from "./piezas";
@@ -125,6 +131,13 @@ export function TableroSeguimientoAcademico() {
   const [accionFormacionId, setAccion] = useState(TODOS);
   const [grupoId, setGrupo] = useState(TODOS);
 
+  /// EL PERIODO, con el control compartido de los demás tableros: es el
+  /// mismo dato ---cuándo llegó la persona--- y escribirlo aquí otra vez
+  /// es cómo se acaba con cinco filtros que contestan distinto. Arranca
+  /// en «TODO» para que la pantalla siga abriendo con todo, que es lo
+  /// que ya hacía.
+  const [periodo, setPeriodo] = useState<Periodo>(PERIODO_INICIAL);
+
   /**
    * Los cupos apartados de cada acción, para poder decir «142 de 160».
    *
@@ -184,10 +197,17 @@ export function TableroSeguimientoAcademico() {
     () => ({
       accionFormacionId: accionFormacionId || undefined,
       grupoId: grupoId || undefined,
+      /// Con «TODO» esto no añade nada ---devuelve `{}`---, así que la
+      /// llamada sale igual que antes de que existiera el filtro.
+      ...ventanaDe(periodo),
     }),
-    [accionFormacionId, grupoId],
+    [accionFormacionId, grupoId, periodo],
   );
-  const clave = `${accionFormacionId}|${grupoId}`;
+  /// El periodo entra en la clave POR SUS TRES CAMPOS y no por la
+  /// ventana ya calculada: las fechas de `ventanaDe` se mueven con el
+  /// reloj, y una clave que cambia sola vuelve a pedir los datos sin que
+  /// nadie haya tocado nada.
+  const clave = `${accionFormacionId}|${grupoId}|${periodo.rango}|${periodo.desde}|${periodo.hasta}`;
   const cargar = useCallback(() => crmApi.academico(filtros), [clave]); // eslint-disable-line react-hooks/exhaustive-deps
   const vivos = useDatosVivos<Academico>(cargar, { clave: `tablero-academico:${clave}` });
 
@@ -253,6 +273,14 @@ export function TableroSeguimientoAcademico() {
             ]}
             alElegir={setGrupo}
           />
+          {/* EL PERIODO, EN LA MISMA REJILLA que los dos desplegables:
+              es un filtro más de esta tarjeta y en una caja aparte se
+              leería como si recortara otra cosa.
+
+              SIN `alComparar`: este tablero no sabe comparar todavía, y
+              un enlace que no hace nada al pulsarlo es peor que no
+              tenerlo. */}
+          <FiltroDePeriodo periodo={periodo} alCambiar={setPeriodo} />
         </div>
       </div>
 

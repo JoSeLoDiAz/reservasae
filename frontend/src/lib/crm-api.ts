@@ -1446,6 +1446,16 @@ export type FilaDeAsesor = {
   porAccion?: CargaEnUnaAccion[];
 };
 
+/**
+ * El periodo, tal como viaja al servidor.
+ *
+ * Instantes ISO ya resueltos en hora de Bogotá por `ventanaDe`. No se
+ * manda el rango en crudo a propósito: si el servidor volviera a
+ * decidir qué es «hoy», habría dos sitios decidiéndolo y el día que
+ * discrepen nadie sabría cuál manda.
+ */
+export type VentanaDeLlegada = { llegoDesde?: string; llegoHasta?: string };
+
 /** Si una acción llega a sus cupos antes de cerrar, y con qué holgura. */
 export type Veredicto =
   | "SIN_FECHA"
@@ -1545,14 +1555,23 @@ export const crmApi = {
     pedir<Control>(`/admin/participantes/control${consulta(ventana)}`),
 
   /// EL TABLERO DE ASESORES, en sus subvistas.
-  asesoresDeInscripciones: () =>
-    pedir<FilaDeAsesor[]>(`/admin/participantes/asesores/inscripciones`),
-  asesoresAcademicos: () =>
-    pedir<FilaDeAsesorAcademico[]>(`/admin/participantes/asesores/academicos`),
+  /// LAS TRES ACEPTAN PERIODO. Son dos instantes ya resueltos en
+  /// hora de Bogotá por el filtro compartido del panel; sin ellos la
+  /// consulta sale igual que siempre.
+  asesoresDeInscripciones: (v: VentanaDeLlegada = {}) =>
+    pedir<FilaDeAsesor[]>(
+      `/admin/participantes/asesores/inscripciones${consulta(v)}`,
+    ),
+  asesoresAcademicos: (v: VentanaDeLlegada = {}) =>
+    pedir<FilaDeAsesorAcademico[]>(
+      `/admin/participantes/asesores/academicos${consulta(v)}`,
+    ),
   /// La proyección: aquí el asesor pasa a segundo plano y lo macro es
   /// la acción de formación.
-  proyeccionDeInscripciones: () =>
-    pedir<FilaDeProyeccion[]>(`/admin/participantes/asesores/proyeccion`),
+  proyeccionDeInscripciones: (v: VentanaDeLlegada = {}) =>
+    pedir<FilaDeProyeccion[]>(
+      `/admin/participantes/asesores/proyeccion${consulta(v)}`,
+    ),
 
   /// EL RESUMEN GENERAL: siete cifras macro por acción de formación.
   /// Toma los mismos cortes que el resto de la pantalla.

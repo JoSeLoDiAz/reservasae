@@ -4,6 +4,11 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { Cajon, Dato } from "@/components/admin/cajon";
 import { ConfirmarBorrado } from "@/components/admin/confirmar-borrado";
+import {
+  FiltroDePeriodo,
+  PERIODO_INICIAL,
+  type Periodo,
+} from "@/components/admin/filtro-de-periodo";
 import { IndicadorActualizacion } from "@/components/admin/indicador-actualizacion";
 import { Aviso, useAdmin } from "@/components/admin/marco-admin";
 import { Cifra } from "@/components/admin/piezas";
@@ -59,6 +64,26 @@ export default function PaginaReservas() {
   );
   const [abierta, setAbierta] = useState<FilaReserva | null>(null);
   const { admin } = useAdmin();
+
+  /**
+   * EL PERIODO, AQUÍ TODAVÍA SIN RECORTAR.
+   *
+   * El control es el mismo de los demás tableros ---uno solo y no
+   * cinco--- pero esta pantalla no cuelga del CRM: come de
+   * `/admin/tableros/reservas` y `/reservas-agrupadas`, que reciben
+   * `FiltrosReservas` (buscar, estado, convenio, accionId, formulario)
+   * y NO la ventana de fechas. `llegoDesde`/`llegoHasta` viven en el
+   * `Filtros` del CRM, que es otro objeto y otro servicio.
+   *
+   * Se pinta igual, y debajo se dice que aún no recorta. Mandarle las
+   * dos fechas al servidor sería peor: las ignoraría en silencio y la
+   * tabla se quedaría igual mientras el control asegura un periodo ---
+   * exactamente el «filtros que no funcionan» del que se quejó el
+   * cliente. Para que recorte de verdad hace falta que
+   * `FiltrosReservas` acepte las fechas y `donde()` las lleve a
+   * `creadoEn gte/lt`, que es servidor y no se toca desde aquí.
+   */
+  const [periodo, setPeriodo] = useState<Periodo>(PERIODO_INICIAL);
 
   /// Arranca en la unificada y se corrige en el primer pintado con lo
   /// que guardó la última vez. Leer `localStorage` durante el render
@@ -337,6 +362,24 @@ export default function PaginaReservas() {
   return (
     <div className="flex min-h-0 grow flex-col gap-3 px-4 pt-3">
       <ElegirVista vista={vista} alElegir={elegirVista} />
+
+      {/* El periodo junto a las dos vistas, que es donde están los
+          filtros de pantalla, con el aviso pegado debajo: quien lo
+          mueva tiene que leer en el mismo sitio que la tabla no se
+          entera. El aviso no espera a que elija: si solo saliera con un
+          rango puesto, ya habría creído el recorte antes de leerlo. */}
+      <div className="flex flex-col gap-1">
+        <FiltroDePeriodo periodo={periodo} alCambiar={setPeriodo} />
+        <p
+          className={
+            "text-[0.78125rem] " +
+            (periodo.rango === "TODO" ? "text-texto-suave" : "text-aviso")
+          }
+        >
+          Esta vista todavía no se recorta por periodo: la tabla y las cifras
+          traen todas las reservas.
+        </p>
+      </div>
 
       {/* Sin título ni conteo: lo dice la miga, y la cifra
           va en el pie de la tabla. El aviso solo aparece si

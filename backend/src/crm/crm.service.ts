@@ -394,6 +394,34 @@ const CAMPOS_DE_EMPRESA = {
   contactoCorreo: true,
 } as const;
 
+/**
+ * EL PERIODO, tal como llega de la pantalla.
+ *
+ * Instantes ISO ya calculados en hora de Bogotá por el filtro
+ * compartido del panel. Aquí no se vuelve a interpretar la zona: un
+ * segundo sitio que decida qué es «hoy» es un segundo sitio que puede
+ * contestar otra cosa.
+ */
+export type VentanaDeLlegada = { llegoDesde?: string; llegoHasta?: string };
+
+/**
+ * El recorte por cuándo LLEGÓ el lead, para meter en un `where`.
+ *
+ * Sin ventana devuelve un objeto vacío, así que la consulta sale
+ * exactamente igual que antes de que existiera el filtro. Es la misma
+ * traducción que ya hace `donde()` con `llegoDesde`/`llegoHasta`, y
+ * se escribe aquí porque estas tres rutas no pasan por `donde()`.
+ */
+function cuandoLlego(v: VentanaDeLlegada) {
+  if (!v.llegoDesde && !v.llegoHasta) return {};
+  return {
+    creadoEn: {
+      ...(v.llegoDesde ? { gte: new Date(v.llegoDesde) } : {}),
+      ...(v.llegoHasta ? { lt: new Date(v.llegoHasta) } : {}),
+    },
+  };
+}
+
 @Injectable()
 export class CrmService {
   private readonly log = new Logger('CRM');
@@ -709,9 +737,13 @@ export class CrmService {
    * `groupBy` sobre las mismas dos tablas cuestan mas que esto, y
    * «gestionado» no es una columna sino una regla.
    */
-  async asesoresDeInscripciones(ambito: Ambito, ahora = new Date()): Promise<FilaDeAsesor[]> {
+  async asesoresDeInscripciones(
+    ambito: Ambito,
+    ventana: VentanaDeLlegada = {},
+    ahora = new Date(),
+  ): Promise<FilaDeAsesor[]> {
     if (ambito.convenios.length === 0) return [];
-    const donde = { convenioId: { in: ambito.convenios } };
+    const donde = { convenioId: { in: ambito.convenios }, ...cuandoLlego(ventana) };
 
     const [leads, grupos] = await Promise.all([
       this.prisma.participante.findMany({
@@ -768,10 +800,11 @@ export class CrmService {
    */
   async proyeccionDeInscripciones(
     ambito: Ambito,
+    ventana: VentanaDeLlegada = {},
     ahora = new Date(),
   ): Promise<FilaDeProyeccion[]> {
     if (ambito.convenios.length === 0) return [];
-    const donde = { convenioId: { in: ambito.convenios } };
+    const donde = { convenioId: { in: ambito.convenios }, ...cuandoLlego(ventana) };
 
     /// EL ARRANQUE DE LA VENTANA DEL RITMO, en dias de TRABAJO.
     const desdeRitmo = diasDeTrabajoAtras(hoyEnColombia(ahora), DIAS_DE_RITMO);
@@ -854,10 +887,15 @@ export class CrmService {
    */
   async asesoresAcademicos(
     ambito: Ambito,
+    ventana: VentanaDeLlegada = {},
     ahora = new Date(),
   ): Promise<FilaDeAsesorAcademico[]> {
     if (ambito.convenios.length === 0) return [];
 
+    /// EL RECORTE VA EN LOS PARTICIPANTES, no en el grupo: el periodo
+    /// pregunta por cuándo llegó la GENTE, y un grupo no llega, se
+    /// dicta. Así un grupo viejo con gente nueva sigue saliendo.
+    const cuando = cuandoLlego(ventana);
     const grupos = await this.prisma.grupo.findMany({
       where: { accionFormacion: { convenioId: { in: ambito.convenios } } },
       select: {
@@ -869,6 +907,7 @@ export class CrmService {
         coberturas: {
           select: {
             participantes: {
+              where: cuando,
               select: { etapa: true, _count: { select: { notas: true } } },
             },
           },

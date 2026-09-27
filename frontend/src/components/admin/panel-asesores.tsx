@@ -30,12 +30,19 @@ import {
   type FilaDeAsesor,
   type FilaDeAsesorAcademico,
   type FilaDeProyeccion,
+  type VentanaDeLlegada,
   type Veredicto,
   type RitmoDeAsesor,
 } from "@/lib/crm-api";
 import { useDatosVivos } from "@/lib/datos-vivos";
 
 import { DesgloseDelAsesor } from "./desglose-del-asesor";
+import {
+  FiltroDePeriodo,
+  PERIODO_INICIAL,
+  ventanaDe,
+  type Periodo,
+} from "./filtro-de-periodo";
 import { n } from "./graficos";
 import { Aviso } from "./marco-admin";
 import { SelectorBuscable } from "./selector-buscable";
@@ -114,6 +121,30 @@ const dia = (iso: string | null) =>
 export function PanelAsesores() {
   const [subvista, setSubvista] = useState<Subvista>("inscripciones");
 
+  /// EL PERIODO VIVE AQUÍ, NO DENTRO DE CADA SUBVISTA: «en todos los
+  /// tableros debo tener filtros» (cliente, 27 sep 2026), y un filtro
+  /// que se reinicia al cambiar de pestaña obliga a elegirlo tres
+  /// veces para comparar las tres caras del mismo mes.
+  const [periodo, setPeriodo] = useState<Periodo>(PERIODO_INICIAL);
+
+  /// SE DICE LA VERDAD: NINGUNA DE LAS TRES SE RECORTA TODAVÍA.
+  ///
+  /// «Deben funcionar porque lo probé y no es así» (cliente, 27 sep
+  /// 2026) fue precisamente esta queja, y recortar en la pantalla no
+  /// la arregla: los tres endpoints ---`asesores/inscripciones`,
+  /// `asesores/academicos` y `asesores/proyeccion`--- no aceptan
+  /// filtros, y sus filas NO traen ninguna fecha de llegada por la que
+  /// cortar. `limite` y `cierre` son plazos, no cuándo entró la gente;
+  /// filtrar por ellos daría un número que nadie pidió con el rótulo
+  /// de otro, que es peor que no filtrar.
+  ///
+  /// Así que el control se pinta ---ya queda puesto para cuando el
+  /// servidor acepte `llegoDesde`/`llegoHasta`--- y debajo se avisa.
+  /// Decirlo cuesta un renglón; que el usuario crea que filtró cuesta
+  /// una decisión tomada sobre cifras equivocadas.
+  const ventana = ventanaDe(periodo);
+  const sinRecortar = ventana.llegoDesde !== undefined;
+
   return (
     <div className="flex flex-col gap-3 px-4 pt-3 pb-6 [&>header]:mx-0 [&>header]:mb-0">
       {/* SIN FRASE DEBAJO DEL TÍTULO (cliente, 23 sep 2026). Cada
@@ -125,27 +156,40 @@ export function PanelAsesores() {
           Iba debajo, a todo el ancho, y eso partía la caja en dos
           renglones para decir siete palabras: espacio vertical que se
           gana sin perder nada. */}
-      <div className="flex flex-wrap gap-1 rounded-xl border border-borde bg-superficie px-2 py-1.5">
-        {SUBVISTAS.map((s) => (
-          <button
-            key={s.clave}
-            type="button"
-            onClick={() => setSubvista(s.clave)}
-            className={
-              "rounded-lg px-3 py-1 text-[0.8125rem] font-medium transition " +
-              (subvista === s.clave
-                ? "bg-marca text-marca-texto"
-                : "text-texto-suave hover:bg-superficie-alterna hover:text-texto")
-            }
-          >
-            {s.etiqueta}
-          </button>
-        ))}
+      {/* EL PERIODO, EN LA MISMA CAJA QUE LAS SUBVISTAS y no en una
+          tarjeta propia: es un solo control para las tres, y en su
+          propio bloque se leería como si fuera de la pestaña abierta.
+          Con `justify-between` el selector queda a la izquierda y el
+          periodo a la derecha; en pantalla estrecha el `wrap` lo baja
+          a su propio renglón. */}
+      <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-borde bg-superficie px-2 py-1.5">
+        <div className="flex flex-wrap gap-1">
+          {SUBVISTAS.map((s) => (
+            <button
+              key={s.clave}
+              type="button"
+              onClick={() => setSubvista(s.clave)}
+              className={
+                "rounded-lg px-3 py-1 text-[0.8125rem] font-medium transition " +
+                (subvista === s.clave
+                  ? "bg-marca text-marca-texto"
+                  : "text-texto-suave hover:bg-superficie-alterna hover:text-texto")
+              }
+            >
+              {s.etiqueta}
+            </button>
+          ))}
+        </div>
+
+        <FiltroDePeriodo periodo={periodo} alCambiar={setPeriodo} />
       </div>
 
-      {subvista === "inscripciones" && <DeInscripciones />}
-      {subvista === "academicos" && <Academicos />}
-      {subvista === "proyeccion" && <Proyeccion />}
+      {/* LA VENTANA BAJA A LAS TRES. Se pasa el objeto ya resuelto y
+          no el periodo: así la subvista no tiene que saber qué es
+          «el mes pasado», solo pedir lo que le digan. */}
+      {subvista === "inscripciones" && <DeInscripciones ventana={ventana} />}
+      {subvista === "academicos" && <Academicos ventana={ventana} />}
+      {subvista === "proyeccion" && <Proyeccion ventana={ventana} />}
     </div>
   );
 }
@@ -172,9 +216,13 @@ type Vista = FilaDeAsesor & {
   };
 };
 
-function DeInscripciones() {
-  const cargar = useCallback(() => crmApi.asesoresDeInscripciones(), []);
-  const vivos = useDatosVivos<FilaDeAsesor[]>(cargar, { clave: "asesores-inscripciones" });
+function DeInscripciones({ ventana }: { ventana: VentanaDeLlegada }) {
+  /// La clave lleva el periodo dentro: sin eso, cambiarlo no vuelve
+  /// a pedir y la tabla se queda enseñando el periodo de antes.
+  const cargar = useCallback(() => crmApi.asesoresDeInscripciones(ventana), [ventana]);
+  const vivos = useDatosVivos<FilaDeAsesor[]>(cargar, {
+    clave: `asesores-inscripciones-${JSON.stringify(ventana)}`,
+  });
 
   /// EL FILTRO POR ACCIÓN, SIN TOCAR EL SERVIDOR (cliente, 23 sep
   /// 2026: «que tenga filtros, y no sé si se puede como Control de
@@ -517,9 +565,11 @@ function DeInscripciones() {
   );
 }
 
-function Academicos() {
-  const cargar = useCallback(() => crmApi.asesoresAcademicos(), []);
-  const vivos = useDatosVivos<FilaDeAsesorAcademico[]>(cargar, { clave: "asesores-academicos" });
+function Academicos({ ventana }: { ventana: VentanaDeLlegada }) {
+  const cargar = useCallback(() => crmApi.asesoresAcademicos(ventana), [ventana]);
+  const vivos = useDatosVivos<FilaDeAsesorAcademico[]>(cargar, {
+    clave: `asesores-academicos-${JSON.stringify(ventana)}`,
+  });
 
   if (vivos.error) return <Aviso tipo="error">{vivos.error}</Aviso>;
   if (!vivos.datos) return <Esqueleto />;
@@ -757,9 +807,11 @@ const columnasAcademicas: Columna<FilaDeAsesorAcademico>[] = [
  * cifras para la misma pregunta, que es el defecto que ya costó una
  * vuelta en Tráfico.
  */
-function Proyeccion() {
-  const cargar = useCallback(() => crmApi.proyeccionDeInscripciones(), []);
-  const vivos = useDatosVivos<FilaDeProyeccion[]>(cargar, { clave: "proyeccion" });
+function Proyeccion({ ventana }: { ventana: VentanaDeLlegada }) {
+  const cargar = useCallback(() => crmApi.proyeccionDeInscripciones(ventana), [ventana]);
+  const vivos = useDatosVivos<FilaDeProyeccion[]>(cargar, {
+    clave: `proyeccion-${JSON.stringify(ventana)}`,
+  });
 
   if (vivos.error) return <Aviso tipo="error">{vivos.error}</Aviso>;
   if (!vivos.datos) return <Esqueleto />;

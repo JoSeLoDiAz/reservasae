@@ -289,13 +289,21 @@ export class CrmController {
   ///
   /// Se recorta AQUÍ, en el servidor, y no en la pantalla: el menú
   /// es comodidad, la ruta se llama directo.
+  /// EL PERIODO ENTRA POR LA URL, como en el resto del panel: son
+  /// dos instantes ya resueltos en hora de Bogotá por el filtro
+  /// compartido. Sin ellos la consulta sale igual que siempre.
   @Get('asesores/inscripciones')
   @Requiere('inscritos')
   async asesoresDeInscripciones(
     @AdminActual() admin: Admin,
     @AmbitoActual() ambito: Ambito,
+    @Query('llegoDesde') llegoDesde?: string,
+    @Query('llegoHasta') llegoHasta?: string,
   ) {
-    const filas = await this.crm.asesoresDeInscripciones(ambito);
+    const filas = await this.crm.asesoresDeInscripciones(ambito, {
+      llegoDesde,
+      llegoHasta,
+    });
     return soloLoSuyoSiNoVeElEquipo(filas, admin, ambito);
   }
 
@@ -304,8 +312,13 @@ export class CrmController {
   async asesoresAcademicos(
     @AdminActual() admin: Admin,
     @AmbitoActual() ambito: Ambito,
+    @Query('llegoDesde') llegoDesde?: string,
+    @Query('llegoHasta') llegoHasta?: string,
   ) {
-    const filas = await this.crm.asesoresAcademicos(ambito);
+    const filas = await this.crm.asesoresAcademicos(ambito, {
+      llegoDesde,
+      llegoHasta,
+    });
     return soloLoSuyoSiNoVeElEquipo(filas, admin, ambito);
   }
 
@@ -321,8 +334,12 @@ export class CrmController {
    */
   @Get('asesores/proyeccion')
   @Requiere('inscritos')
-  proyeccionDeInscripciones(@AmbitoActual() ambito: Ambito) {
-    return this.crm.proyeccionDeInscripciones(ambito);
+  proyeccionDeInscripciones(
+    @AmbitoActual() ambito: Ambito,
+    @Query('llegoDesde') llegoDesde?: string,
+    @Query('llegoHasta') llegoHasta?: string,
+  ) {
+    return this.crm.proyeccionDeInscripciones(ambito, { llegoDesde, llegoHasta });
   }
 
   /** Cuantos inscritos hay y como se reparten. */
