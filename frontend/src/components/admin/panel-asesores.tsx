@@ -122,7 +122,15 @@ export function PanelAsesores() {
  * cambia de significado sin avisar es peor que no tenerlo.
  */
 type Vista = FilaDeAsesor & {
-  visto: { total: number; gestionados: number; resueltos: number; pendientes: number };
+  visto: {
+    total: number;
+    gestionados: number;
+    resueltos: number;
+    /// Los dos lados de `resueltos`, que son dos columnas.
+    inscritos: number;
+    descartados: number;
+    pendientes: number;
+  };
 };
 
 function DeInscripciones() {
@@ -191,6 +199,8 @@ function DeInscripciones() {
             total: f.carga.total,
             gestionados: f.carga.gestionados,
             resueltos: f.carga.resueltos,
+            inscritos: f.inscritos ?? 0,
+            descartados: f.descartados ?? 0,
             pendientes: f.ritmo.pendientes,
           },
         };
@@ -205,6 +215,8 @@ function DeInscripciones() {
           total: suya.total,
           gestionados: suya.gestionados,
           resueltos: suya.resueltos,
+          inscritos: suya.inscritos,
+          descartados: suya.descartados,
           pendientes: suya.pendientes,
         },
       };
@@ -264,14 +276,29 @@ function DeInscripciones() {
       numerica: true,
       valor: (f) => f.visto.gestionados,
     },
+    /// DOS COLUMNAS Y NO UNA (cliente, 26 sep 2026: «esto es
+    /// separado, o sea una columna Inscritos y en otro Descartados»).
+    /// Juntas sumaban bien y no decían nada: quince resueltos pueden
+    /// ser quince inscritos o quince caídos, y son dos
+    /// conversaciones distintas con el asesor.
     {
-      clave: "resueltos",
-      titulo: "Inscritos y descartados",
-      ancho: "160px",
+      clave: "inscritos",
+      titulo: "Inscritos",
+      ancho: "110px",
       numerica: true,
-      valor: (f) => f.visto.resueltos,
+      valor: (f) => f.visto.inscritos,
       pinta: (f) => (
-        <span className="font-medium text-exito tabular-nums">{n(f.visto.resueltos)}</span>
+        <span className="font-medium text-exito tabular-nums">{n(f.visto.inscritos)}</span>
+      ),
+    },
+    {
+      clave: "descartados",
+      titulo: "Descartados",
+      ancho: "118px",
+      numerica: true,
+      valor: (f) => f.visto.descartados,
+      pinta: (f) => (
+        <span className="tabular-nums text-texto-suave">{n(f.visto.descartados)}</span>
       ),
     },
     {
@@ -341,7 +368,10 @@ function DeInscripciones() {
       ancho: "175px",
       numerica: true,
       valor: (f) => f.ritmo.realPorDia,
-      pinta: (f) => <span className="tabular-nums">{dec(f.ritmo.realPorDia)}</span>,
+      /// ENTERO (cliente, 26 sep 2026). Es «cuánta gente inscribe al
+      /// día»: un 16,9 promete una precisión que el dato no tiene, y
+      /// un 0,1 se lee como cero con ruido detrás.
+      pinta: (f) => <span className="tabular-nums">{f.ritmo.realPorDia === null ? "—" : n(Math.round(f.ritmo.realPorDia))}</span>,
     },
     {
       clave: "estado",
@@ -654,7 +684,8 @@ const columnasAcademicas: Columna<FilaDeAsesorAcademico>[] = [
     ancho: "150px",
     numerica: true,
     valor: (f) => f.ritmo.realPorDia,
-    pinta: (f) => <span className="tabular-nums">{dec(f.ritmo.realPorDia)}</span>,
+    /// ENTERO, igual que en la otra pestaña.
+    pinta: (f) => <span className="tabular-nums">{f.ritmo.realPorDia === null ? "—" : n(Math.round(f.ritmo.realPorDia))}</span>,
   },
   {
     clave: "estado",

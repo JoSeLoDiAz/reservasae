@@ -28,7 +28,7 @@
  * en sus notas. Por eso aquí no hay ningún botón que cambie nada.
  */
 
-import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import {
   crmApi,
@@ -45,6 +45,7 @@ import { colorEtapa } from "./etapa";
 import { Donut, n, SERIE } from "./graficos";
 import { Aviso } from "./marco-admin";
 import { Bloque, Encabezado, Esqueleto, Vacio } from "./piezas";
+import { TiradorDeAncho } from "./tabla";
 
 /// «AF1 · GESTIÓN DE LA ATENCIÓN…» llega en un solo texto, y el nombre
 /// entero son noventa letras que se comen la primera columna de la
@@ -321,6 +322,36 @@ function Cuerpo({
   /// informe de reservas para tener sentido.
   cuposPorAccion: Map<string, number> | null;
 }) {
+  /// LOS HOOKS, ANTES DE CUALQUIER `return`.
+  ///
+  /// Estaban más abajo, junto a la tabla que los usa, y eso los
+  /// dejaba detrás del «no hay nadie matriculado»: el día que el
+  /// filtro se queda sin gente, React llama a tres hooks menos y
+  /// se le descuadra el orden para siempre. Aquí arriba se llaman
+  /// siempre, salga la tabla o no.
+  /// AJUSTAR EL ANCHO DE LAS COLUMNAS, arrastrando el borde.
+  ///
+  /// Vacío = cada columna mide por su contenido. En cuanto se toca
+  /// una, se congelan todas ---medidas como estaban--- y la tabla
+  /// pasa a `fixed`: si no, mover una columna reparte el sobrante
+  /// entre las demás y se mueven solas. Doble clic las suelta.
+  const [anchos, setAnchos] = useState<Record<string, number>>({});
+  const aMano = Object.keys(anchos).length > 0;
+
+  /// El alto de la tabla, para que la línea del tirador baje hasta
+  /// la última fila y pare ahí. Con un ref de función, como en
+  /// `Tabla`: la tabla no existe hasta que hay filas.
+  const observador = useRef<ResizeObserver | null>(null);
+  const [altoTabla, setAltoTabla] = useState<number | null>(null);
+  const tablaRef = useCallback((el: HTMLTableElement | null) => {
+    observador.current?.disconnect();
+    observador.current = null;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    setAltoTabla(el.offsetHeight);
+    observador.current = new ResizeObserver(() => setAltoTabla(el.offsetHeight));
+    observador.current.observe(el);
+  }, []);
+
   const r = datos.resumen;
   if (r.total === 0) {
     return (
@@ -456,17 +487,6 @@ function Cuerpo({
   };
   const general = sumar(ordenadas);
 
-  /* ── el embudo: hasta dónde llega la gente ────────────────────── */
-  const embudo = columnas.map((c) => {
-    /// El divisor es quién TIENE esa actividad, no el total: con dos
-    /// temarios distintos a la vista, dividir por todos haría que una
-    /// actividad que solo existe en una acción saliera siempre baja.
-    const conElla = personas.filter((p) =>
-      actividadesDeAccion.get(p.accionFormacionId ?? "—")?.has(c.titulo),
-    ).length;
-    return { titulo: c.titulo, hechas: general.hechas.get(c.titulo) ?? 0, de: conElla };
-  });
-
   /// El rótulo de un grupo, en UN solo sitio: lo piden la tajada de
   /// la torta y el renglón de la lista, y escrito dos veces es como
   /// se acaba con una leyenda que no dice lo mismo que su dibujo.
@@ -532,7 +552,21 @@ function Cuerpo({
     ...accionesConCifras.map((a) => Math.max(a.cupos ?? 0, a.inscritos)),
   );
 
-  const celda = "px-3 py-1.5 text-right tabular-nums whitespace-nowrap";
+  /// Lo que cada rótulo necesita para dejarse ajustar. En un solo
+  /// sitio: son seis llamadas y repetir cinco props en cada una es
+  /// como se acaba con una columna que no se puede mover.
+  const ajuste = (clave: string) => ({
+    clave,
+    ancho: anchos[clave],
+    alto: altoTabla,
+    alEmpezar: (medidas: Record<string, number>) => setAnchos(medidas),
+    alArrastrar: (px: number) => setAnchos((v) => ({ ...v, [clave]: px })),
+    alSoltarDobleClic: () => setAnchos({}),
+  });
+
+  /// Centradas, como sus rótulos: una cifra a la derecha bajo un
+  /// rótulo centrado se lee descolgada de su columna.
+  const celda = "px-3 py-1.5 text-center tabular-nums whitespace-nowrap";
 
   return (
     <>
@@ -576,89 +610,76 @@ function Cuerpo({
 
           `imprimible`: en papel, globals.css esconde todo `button`
           que no la lleve, y sin ella esta lista salía en blanco. */}
+
+      {/* 3 · LAS ACCIONES Y SUS GRUPOS, EN UNA SOLA CAJA ----------
+
+          «Fusiona Acciones de Formación y Avance por Grupo: arriba
+          las acciones, abajo el avance» (cliente, 26 sep 2026).
+
+          Y tiene sentido leerlas juntas: la lista de arriba es el
+          filtro ---se pulsa una acción y todo se recorta--- y el
+          anillo de abajo es lo que queda dentro de esa elección.
+          Separadas en dos cajas, la de la derecha parecía otra cosa
+          en vez de la consecuencia de la de la izquierda. */}
       <Bloque titulo="Acciones de Formación">
-        <ul className="space-y-2.5">
-          {accionesConCifras.map((a) => {
-            const tope = Math.max(a.cupos ?? 0, a.inscritos);
-            const suya = accionElegida === a.id;
-            return (
-              <li key={a.id}>
-                <button
-                  type="button"
-                  onClick={() => alElegirAccion(a.id)}
-                  aria-pressed={suya}
-                  className={`imprimible -mx-2 block w-full rounded-lg px-2 py-1 text-left transition hover:bg-superficie-alterna ${
-                    suya ? "bg-marca-suave" : ""
-                  }`}
-                >
-                  <span className="flex items-baseline justify-between gap-3 text-[0.8125rem] leading-snug">
-                    <span
-                      className={`min-w-0 truncate ${suya ? "font-semibold text-marca-fuerte" : ""}`}
-                      title={a.nombre}
-                    >
-                      <span className="font-mono text-xs font-normal text-texto-suave">
-                        {a.codigo}
-                      </span>{" "}
-                      {a.nombre}
-                    </span>
-                    <span className="shrink-0 whitespace-nowrap tabular-nums">
-                      <span className="font-semibold text-titulo">{n(a.inscritos)}</span>
-                      {a.cupos !== null && (
-                        <span className="text-[0.75rem] text-texto-suave"> de {n(a.cupos)}</span>
-                      )}
-                    </span>
-                  </span>
-                  {/* La verde DENTRO de la gris: los matriculados son
-                      una parte de los cupos apartados, no una cantidad
-                      que se le sume. */}
-                  <span className="mt-1 block h-2.5 w-full overflow-hidden rounded-full bg-superficie-alterna">
-                    <span
-                      className="block h-full rounded-full bg-marca/25"
-                      style={{ width: `${Math.max((tope / topeCupos) * 100, 1)}%` }}
-                    >
+          <ul className="space-y-2.5">
+            {accionesConCifras.map((a) => {
+              const tope = Math.max(a.cupos ?? 0, a.inscritos);
+              const suya = accionElegida === a.id;
+              return (
+                <li key={a.id}>
+                  <button
+                    type="button"
+                    onClick={() => alElegirAccion(a.id)}
+                    aria-pressed={suya}
+                    className={`imprimible -mx-2 block w-full rounded-lg px-2 py-1 text-left transition hover:bg-superficie-alterna ${
+                      suya ? "bg-marca-suave" : ""
+                    }`}
+                  >
+                    <span className="flex items-baseline justify-between gap-3 text-[0.8125rem] leading-snug">
                       <span
-                        className="block h-full rounded-full bg-exito"
-                        style={{ width: `${tope > 0 ? (a.inscritos / tope) * 100 : 0}%` }}
-                      />
+                        className={`min-w-0 truncate ${suya ? "font-semibold text-marca-fuerte" : ""}`}
+                        title={a.nombre}
+                      >
+                        <span className="font-mono text-xs font-normal text-texto-suave">
+                          {a.codigo}
+                        </span>{" "}
+                        {a.nombre}
+                      </span>
+                      <span className="shrink-0 whitespace-nowrap tabular-nums">
+                        <span className="font-semibold text-titulo">{n(a.inscritos)}</span>
+                        {a.cupos !== null && (
+                          <span className="text-[0.75rem] text-texto-suave"> de {n(a.cupos)}</span>
+                        )}
+                      </span>
                     </span>
-                  </span>
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-      </Bloque>
-
-      {/* 3 · LAS DOS GRÁFICAS ------------------------------------- */}
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-stretch">
-        <div className="min-w-0 lg:flex-1">
-          <Bloque estirado titulo="Avance por Unidades Temáticas">
-            <ul className="space-y-2.5">
-              {embudo.map((e) => (
-                <li key={e.titulo}>
-                  <div className="flex items-baseline justify-between gap-3 text-[0.8125rem]">
-                    <span className="min-w-0 truncate" title={e.titulo}>
-                      {e.titulo}
+                    {/* La verde DENTRO de la gris: los matriculados son
+                        una parte de los cupos apartados, no una cantidad
+                        que se le sume. */}
+                    <span className="mt-1 block h-2.5 w-full overflow-hidden rounded-full bg-superficie-alterna">
+                      <span
+                        className="block h-full rounded-full bg-marca/25"
+                        style={{ width: `${Math.max((tope / topeCupos) * 100, 1)}%` }}
+                      >
+                        <span
+                          className="block h-full rounded-full bg-exito"
+                          style={{ width: `${tope > 0 ? (a.inscritos / tope) * 100 : 0}%` }}
+                        />
+                      </span>
                     </span>
-                    <span className="shrink-0 tabular-nums">
-                      <span className="font-semibold text-titulo">{n(e.hechas)}</span>
-                      <span className="text-[0.75rem] text-texto-suave"> de {n(e.de)}</span>
-                    </span>
-                  </div>
-                  <div className="mt-1 h-2.5 w-full overflow-hidden rounded-full bg-superficie-alterna">
-                    <div
-                      className="h-full rounded-full bg-marca"
-                      style={{ width: `${e.de > 0 ? (e.hechas / e.de) * 100 : 0}%` }}
-                    />
-                  </div>
+                  </button>
                 </li>
-              ))}
-            </ul>
-          </Bloque>
-        </div>
+              );
+            })}
+          </ul>
 
-        <div className="min-w-0 lg:flex-1">
-          <Bloque estirado titulo="Avance por Grupo">
+        {/* ABAJO, EL AVANCE POR GRUPO. Lleva rótulo propio aunque
+            comparta caja: sin él, el anillo quedaría colgando de
+            «Acciones de Formación», que es otra cosa. */}
+        <div className="mt-4 border-t border-borde pt-4">
+          <p className="mb-3 text-[0.8125rem] font-semibold text-titulo">
+            Avance por Grupo
+          </p>
             {/* EL ANILLO CON SU LEYENDA AL LADO, como el de «Datos
                 completos» que él señaló (25 sep 2026: «así no, como la
                 segunda captura»).
@@ -687,9 +708,8 @@ function Cuerpo({
               detalleCentro="matriculados"
               vacio="Todavía no hay grupos con participantes."
             />
-          </Bloque>
         </div>
-      </div>
+      </Bloque>
 
       {/* 4 · LA TABLA QUE DIBUJÓ ---------------------------------- */}
       <Bloque
@@ -703,19 +723,54 @@ function Cuerpo({
         }
       >
         <div className="caja-scroll overflow-x-auto">
-          <table className="w-full">
+          {/* SIN `w-full`: CADA COLUMNA MIDE LO SUYO.
+
+              Estirarla obliga a que alguna columna se trague el
+              sobrante, y en 1.600 px son cientos de píxeles: con el
+              filtro en una sola acción, «AF» quedaba como una franja
+              vacía con un «AF2» flotando en mitad ---«¿pero qué es
+              eso?» (cliente, 26 sep 2026)---. Midiendo por contenido
+              no hay sobrante que repartir y las trece columnas salen
+              parejas. El `overflow-x-auto` de fuera responde cuando
+              no cabe, que es lo que ya hacía.
+
+              CON CUADRÍCULA, como «Cupos e inscritos por acción»
+              (cliente, 26 sep 2026: «con líneas de separación como
+              control de inscritos»). Trece columnas de cifras sin
+              raya vertical se leen en diagonal. */}
+          <table
+            ref={tablaRef}
+            className="tabla-cuadricula"
+            style={aMano ? { tableLayout: "fixed" } : undefined}
+          >
             <thead className="border-b border-borde">
               <tr>
-                <Cab>AF</Cab>
-                <Cab>Grupo</Cab>
-                <Cab derecha>Sin ingreso</Cab>
-                <Cab derecha>Sin actividad</Cab>
+                {/* EL COLOR VA POR LO QUE MIDE LA COLUMNA, no por
+                    adorno: en ámbar lo que va mal ---quien no entró y
+                    quien entró y no hizo nada---, en el color de la
+                    casa el avance por unidad, en verde el cierre y en
+                    negro el total, que no es avance sino cuánta gente
+                    hay. La misma lectura que las tarjetas de arriba. */}
+                <Cab {...ajuste("af")}>AF</Cab>
+                <Cab {...ajuste("grupo")}>Grupo</Cab>
+                <Cab {...ajuste("sinIngreso")} tono="text-aviso">
+                  Sin ingreso
+                </Cab>
+                <Cab {...ajuste("sinActividad")} tono="text-aviso">
+                  Sin actividad
+                </Cab>
                 {columnas.map((c) => (
-                  <Cab key={c.titulo} derecha>
+                  <Cab
+                    key={c.titulo}
+                    {...ajuste(c.titulo)}
+                    tono={/eval/i.test(c.titulo) ? "text-exito" : "text-marca"}
+                  >
                     {c.titulo}
                   </Cab>
                 ))}
-                <Cab derecha>Total pax</Cab>
+                <Cab {...ajuste("total")} tono="text-titulo">
+                  Total pax
+                </Cab>
               </tr>
             </thead>
             <tbody>
@@ -788,15 +843,52 @@ function Cuerpo({
   );
 }
 
-function Cab({ children, derecha }: { children: React.ReactNode; derecha?: boolean }) {
+/**
+ * Un rótulo de la cabecera.
+ *
+ * CENTRADO Y CON COLOR (cliente, 26 sep 2026: «color en los títulos:
+ * títulos y textos y centrados»). El color no es adorno: dice de qué
+ * es cada columna sin subir la vista, que es el mismo motivo por el
+ * que Control de inscritos colorea sus separaciones.
+ */
+function Cab({
+  children,
+  tono = "text-texto-suave",
+  clave,
+  ancho,
+  alto,
+  alEmpezar,
+  alArrastrar,
+  alSoltarDobleClic,
+}: {
+  children: React.ReactNode;
+  tono?: string;
+  clave: string;
+  ancho?: number;
+  alto: number | null;
+  alEmpezar: (medidas: Record<string, number>) => void;
+  alArrastrar: (px: number) => void;
+  alSoltarDobleClic: () => void;
+}) {
   return (
     <th
       scope="col"
-      className={`px-3 py-2 align-bottom text-[0.625rem] font-semibold tracking-[0.08em] text-texto-suave uppercase ${
-        derecha ? "text-right" : "text-left"
-      }`}
+      data-columna={clave}
+      style={ancho ? { width: ancho } : undefined}
+      className={`relative px-3 py-2 text-center align-bottom text-[0.625rem] font-semibold tracking-[0.08em] uppercase ${tono}`}
     >
       {children}
+      {/* EL MISMO TIRADOR QUE GESTIÓN DE LEADS. Se agarra el borde
+          derecho de la columna, en la cabecera o a la altura de
+          cualquier fila, y se arrastra. Doble clic y todas vuelven a
+          ajustarse solas. */}
+      <TiradorDeAncho
+        titulo={typeof children === "string" ? children : clave}
+        alto={alto}
+        alEmpezar={alEmpezar}
+        alArrastrar={alArrastrar}
+        alSoltarDobleClic={alSoltarDobleClic}
+      />
     </th>
   );
 }
