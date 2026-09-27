@@ -10,6 +10,7 @@ import { CajonDelAula } from "@/components/admin/cajon-del-aula";
 import { columnasDelAula } from "@/components/admin/columnas-del-aula";
 import { Tabla } from "@/components/admin/tabla";
 import { SelectorBuscable } from "@/components/admin/selector-buscable";
+import { GruposDeLaAccion } from "@/components/admin/grupos-de-la-accion";
 import { useDatosVivos } from "@/lib/datos-vivos";
 import {
   type Academico,
@@ -141,6 +142,11 @@ function Seguimiento() {
   /// acción, se despliega el grupo, y queda su gente.
   const [accionFormacionId, setAccion] = useState("");
   const [grupoId, setGrupo] = useState("");
+  /// LA TABLA ARRANCA PLEGADA (Josse, 26 sep 2026: «solo un boton
+  /// abajo que diga ver inscritos y salga o despliegue ahora si la
+  /// tabla»). Lo de arriba responde «como va el grupo»; la tabla
+  /// responde «quien», que es la segunda pregunta y no la primera.
+  const [verInscritos, setVerInscritos] = useState(false);
 
   const cargar = useCallback(
     () =>
@@ -422,6 +428,22 @@ function Seguimiento() {
           ))}
         </div>
 
+      <GruposDeLaAccion
+        accionFormacionId={accionFormacionId}
+        grupoId={grupoId}
+        acciones={datos.acciones}
+        grupos={datos.grupos}
+        personas={datos.personas}
+        alElegirGrupo={(id) => {
+          setGrupo(id);
+          /// Entrar a un grupo ES querer ver a su gente: plegarla
+          /// otra vez obligaría a dos clics para lo mismo.
+          if (id) setVerInscritos(true);
+        }}
+        verInscritos={verInscritos}
+        alAlternarTabla={() => setVerInscritos((v) => !v)}
+      />
+
       {/* LA TABLA SE PINTA SIEMPRE, también sin nadie dentro.
           Antes, con cero filas, en su sitio salía una tarjeta de
           «Nadie aquí» y la tabla desaparecía --y con ella su barra--.
@@ -430,6 +452,7 @@ function Seguimiento() {
           que se deshace: quien filtrara de más quedaba encerrado.
           `Tabla` trae su propio estado vacío; esto le pasa el texto y
           la barra se queda donde está. */}
+      {verInscritos && (
       <Tabla
         /// LA MISMA TABLA DE GESTIÓN DE LEADS, no una parecida:
         /// «prácticamente es como la tabla de Gestión de leads, su
@@ -551,6 +574,7 @@ function Seguimiento() {
           </>
         }
       />
+      )}
 
       {enElCajon && (
         <CajonDelAula fila={enElCajon} alCerrar={() => setEnElCajon(null)} />
