@@ -89,7 +89,7 @@ export function Cajon({
             type="button"
             onClick={alCerrar}
             aria-label="Cerrar"
-            className="rounded-lg p-1 transition hover:bg-superficie-alterna"
+            className="-m-[9px] grid size-[44px] shrink-0 place-items-center rounded-lg transition hover:bg-superficie-alterna"
           >
             <IconoCerrar tamano={18} />
           </button>

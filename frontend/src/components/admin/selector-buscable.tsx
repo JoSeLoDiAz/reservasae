@@ -186,7 +186,7 @@ export function SelectorBuscable({
       </button>
 
       {abierto && !desactivado && (
-        <div className="absolute z-40 mt-1 w-full min-w-64 max-w-[90vw] overflow-hidden rounded-xl border border-borde bg-superficie shadow-lg">
+        <div className="absolute z-40 mt-1 w-full min-w-0 max-w-[90vw] overflow-hidden rounded-xl border border-borde bg-superficie shadow-lg sm:min-w-64">
           {/* EL BUSCADOR, SOLO CUANDO HAY ALGO QUE BUSCAR.
               «¿Para qué el título en el desplegable, esto, para
               acción de formación y grupo?» (cliente, 24 sep 2026).
@@ -209,7 +209,11 @@ export function SelectorBuscable({
                 value={escrito}
                 onChange={(e) => setEscrito(e.target.value)}
                 placeholder={marcador}
-                className={CLASE_CONTROL}
+                /// 16 px EN EL TELEFONO, y en px y no en rem: iOS
+                /// amplia la pagina al enfocar un campo de menos de
+                /// 16, y con el panel al 80 % un `1rem` volveria a
+                /// quedarse en 12,8. Solo por debajo de 640 px.
+                className={`${CLASE_CONTROL} max-sm:text-[16px]`}
                 aria-label="Buscar en la lista"
               />
             </div>

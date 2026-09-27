@@ -321,7 +321,7 @@ function Seguimiento() {
                 Apagado y no escondido: el hueco se queda para que se
                 vea que existe y de qué depende. */}
             <SelectorBuscable
-              clase="w-[11.5rem] shrink-0"
+              clase="w-full shrink-0 sm:w-[11.5rem]"
               etiqueta="Grupo"
               valor={grupoId}
               alElegir={setGrupo}
@@ -418,7 +418,13 @@ function Seguimiento() {
           {puesto.map((q) => (
             <span
               key={q}
-              className="rounded-full bg-superficie px-2.5 py-0.5 text-texto"
+              title={q}
+              /// Truncada y no desbordada: el nombre de una accion son
+              /// noventa letras y a 390 px sacaba la pildora de la
+              /// pantalla. El `title` devuelve el texto entero con el
+              /// puntero; en el telefono esta a un toque en el propio
+              /// desplegable.
+              className="min-w-0 max-w-full truncate rounded-full bg-superficie px-2.5 py-0.5 text-texto"
             >
               {q}
             </span>
@@ -465,7 +471,7 @@ function Seguimiento() {
             el cliente lo paró tres veces. Se quedan en `<div>` para
             que ni el teclado ni el lector de pantalla las anuncien
             como algo que hacer. */}
-        <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-6">
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
           {ORDEN.map((estado) => (
             <div
               key={estado}

@@ -106,7 +106,7 @@ export function CampanaDeAvisos() {
         aria-label={
           sinLeer > 0 ? `Avisos: ${sinLeer} sin leer` : "Avisos, ninguno sin leer"
         }
-        className="relative flex items-center rounded-xl px-2 py-2 transition hover:bg-current/10"
+        className="relative flex items-center rounded-xl px-2.5 py-2.5 transition hover:bg-current/10"
       >
         <IconoCampana tamano={19} />
         {sinLeer > 0 && (
@@ -124,11 +124,11 @@ export function CampanaDeAvisos() {
           subtitulo="Lo que les pasa a las fichas que usted lleva."
           alCerrar={() => setAbierto(false)}
           pie={
-            <div className="flex items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
               <Link
                 href="/admin/notificaciones"
                 onClick={() => setAbierto(false)}
-                className="text-[0.8125rem] font-medium text-marca underline hover:no-underline"
+                className="shrink-0 text-[0.8125rem] font-medium text-marca underline hover:no-underline"
               >
                 Ver todas
               </Link>
@@ -167,15 +167,28 @@ export function CampanaDeAvisos() {
                     }}
                     className="block px-3 py-2.5 hover:bg-superficie-alterna"
                   >
-                    <span className="flex flex-wrap items-center gap-x-2">
-                      <span className="font-medium">{n.quien}</span>
-                      <PildoraEtapa etapa={n.etapa} />
-                      {!n.leida && (
-                        <span className="text-[0.6875rem] font-semibold text-marca">
-                          Nuevo
-                        </span>
-                      )}
-                      <span className="ml-auto text-[0.75rem] text-texto-suave tabular-nums">
+                    {/* LA HORA VA FUERA DEL GRUPO QUE ENVUELVE.
+                        Estaba dentro con `ml-auto`, y en un flex con
+                        `flex-wrap` los margenes automaticos se
+                        resuelven POR LINEA: al envolver --y a 317 px
+                        utiles envuelve con cualquier nombre de unas
+                        veinte letras, que aqui es lo normal-- la hora
+                        caia sola en la linea de abajo pegada al borde
+                        derecho, leyendose como si fuera del aviso
+                        siguiente. Sacandola al eje de fuera, que no
+                        envuelve, queda siempre arriba a la derecha y
+                        el nombre no se corta nunca. */}
+                    <span className="flex items-start gap-x-2">
+                      <span className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1">
+                        <span className="font-medium">{n.quien}</span>
+                        <PildoraEtapa etapa={n.etapa} />
+                        {!n.leida && (
+                          <span className="text-[0.6875rem] font-semibold text-marca">
+                            Nuevo
+                          </span>
+                        )}
+                      </span>
+                      <span className="shrink-0 text-[0.75rem] leading-[1.45] text-texto-suave tabular-nums">
                         {cuando(n.creadoEn)}
                       </span>
                     </span>

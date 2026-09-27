@@ -85,6 +85,17 @@ export default function Notificaciones() {
         )}
       </Encabezado>
 
+      {/* LA BANDA PONE SU PROPIO RELLENO LATERAL.
+          `<main>` va A SANGRE a proposito --«el relleno lo pone
+          cada banda por dentro», marco-admin-- y esta pantalla
+          no lo ponia en ninguna: en el telefono la lista pegaba
+          con el canto de la pantalla, sin los 16 px de guardia.
+
+          `px-4` y no `px-7`: es el mismo canto que el `mx-4` del
+          encabezado de arriba, y con mas la lista quedaria mas
+          adentro que su propio titulo. */}
+      <section className="px-4 pt-1 pb-6">
+
       {error && <Aviso tipo="error">{error}</Aviso>}
 
       <div className="mb-4 flex flex-wrap items-center gap-2 text-sm">
@@ -105,6 +116,12 @@ export default function Notificaciones() {
         )}
       </div>
 
+      {/* LAS ESQUINAS DE LA LISTA SE RECORTAN FILA A FILA, y no con
+          `overflow-hidden`: aquello se llevaria por delante el aro de
+          foco de todas las filas. El fondo de una fila sin leer se
+          pinta DESPUES del borde del padre, asi que sin esto la
+          primera y la ultima salen en pico --y en la pestana «Sin
+          leer» van todas sin leer--. */}
       {filas.length === 0 ? (
         /// Un bloque vacío dice POR QUÉ lo está, que es la regla
         /// del handoff. «Sin notificaciones» a secas se lee como
@@ -125,7 +142,7 @@ export default function Notificaciones() {
               : "Aquí saldrá cuando alguien de sus fichas complete sus datos, escriba por WhatsApp o revoque su autorización. Si no lleva ninguna ficha asignada, no recibirá avisos."}
         </Vacio>
       ) : (
-        <ul className="divide-y divide-borde rounded-2xl border border-borde">
+        <ul className="divide-y divide-borde rounded-2xl border border-borde [&>li:first-child]:rounded-t-2xl [&>li:first-child>a]:rounded-t-2xl [&>li:last-child]:rounded-b-2xl [&>li:last-child>a]:rounded-b-2xl">
           {filas.map((n) => (
             <Fila
               key={n.id}
@@ -136,6 +153,7 @@ export default function Notificaciones() {
           ))}
         </ul>
       )}
+      </section>
     </div>
   );
 }
@@ -180,7 +198,7 @@ function Fila({
       <Link
         href={`/admin/participantes/${n.participanteId}`}
         onClick={alAbrir}
-        className="flex items-start gap-3 px-4 py-3 hover:bg-superficie-alterna"
+        className="flex flex-wrap items-start gap-x-3 gap-y-1 px-4 py-3 hover:bg-superficie-alterna"
       >
         {/* El punto acompaña; lo que distingue es la palabra «Nuevo». */}
         <span
@@ -189,8 +207,8 @@ function Fila({
             n.leida ? "bg-transparent" : "bg-marca"
           }`}
         />
-        <span className="min-w-0 flex-1">
-          <span className="flex flex-wrap items-center gap-x-2">
+        <span className="min-w-0 flex-1 basis-[15rem]">
+          <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
             <span className="font-medium">{n.quien}</span>
             <span className="text-sm text-texto-suave tabular-nums">
               {n.documento}
