@@ -80,14 +80,37 @@ export function GruposDeLaAccion({
           tarjetas y sobre la tabla: los dos van al servidor. */}
       <div className="flex flex-wrap items-end gap-2">{controles}</div>
 
-      {grupoId && (
-        <button
-          type="button"
-          onClick={() => alElegirGrupo("")}
-          className="self-start text-[0.8125rem] font-medium text-marca underline hover:no-underline"
-        >
-          ← Ver todos los grupos
-        </button>
+      {/* VOLVER A LOS GRUPOS Y CERRAR LA TABLA, en la misma fila y
+          como ENLACES, no como botones: la navegación hacia atrás es
+          un enlace y los botones son acciones --regla del handoff--.
+          Aquí estaba el segundo «Ver inscritos» y se fue: dos cosas
+          con el mismo nombre en la misma pantalla es lo primero que
+          confunde (lo señalaron el 27 sep 2026). Ahora la única
+          puerta a la tabla es el botón de cada tarjeta, y de ahí se
+          sale por «Ver todos los grupos», que la deja abierta con
+          todo el mundo dentro. */}
+      {(grupoId || verInscritos) && (
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[0.8125rem]">
+          {grupoId && (
+            <button
+              type="button"
+              onClick={() => alElegirGrupo("")}
+              className="font-medium text-marca underline hover:no-underline"
+            >
+              ← Ver todos los grupos
+            </button>
+          )}
+          {verInscritos && (
+            <button
+              type="button"
+              onClick={alAlternarTabla}
+              aria-expanded
+              className="text-texto-suave underline hover:text-texto"
+            >
+              Ocultar la tabla
+            </button>
+          )}
+        </div>
       )}
 
       {aPintar.length === 0 ? (
@@ -99,7 +122,7 @@ export function GruposDeLaAccion({
           </p>
         </div>
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
           {aPintar.map((g) => (
             <TarjetaDeGrupo
               key={g.id}
@@ -121,20 +144,6 @@ export function GruposDeLaAccion({
         </div>
       )}
 
-      {/* EL DE ABAJO ABRE LA TABLA ENTERA, y por eso ya no se llama
-          igual que el de la tarjeta. Los dos decían «Ver inscritos»
-          y hacen cosas distintas --aquel entra a UN grupo, este
-          enseña a todos--: dos cosas con el mismo nombre en la misma
-          pantalla es lo primero que confunde, que es lo que el
-          propio cliente señaló del menú el 24 de septiembre. */}
-      <button
-        type="button"
-        onClick={alAlternarTabla}
-        aria-expanded={verInscritos}
-        className="self-start rounded-lg border border-borde bg-superficie px-3.5 py-2 text-[0.8125rem] font-medium transition hover:border-marca/40"
-      >
-        {verInscritos ? "Ocultar la tabla" : "Ver todos los inscritos"}
-      </button>
     </section>
   );
 }
@@ -233,13 +242,13 @@ function TarjetaDeGrupo({
         }}
       />
 
-      <div className="p-3.5">
+      <div className="p-3">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
             <span className="block text-[0.625rem] font-semibold tracking-[0.08em] text-texto-suave uppercase">
               {codigo ? `${codigo} · Grupo` : "Grupo"}
             </span>
-            <span className="mt-0.5 block text-[1.75rem] leading-none font-bold text-titulo tabular-nums">
+            <span className="mt-0.5 block text-[1.375rem] leading-none font-bold text-titulo tabular-nums">
               {grupo.numero}
             </span>
           </div>
@@ -269,7 +278,7 @@ function TarjetaDeGrupo({
           </div>
         </div>
 
-        <div className="mt-3.5">
+        <div className="mt-2.5">
           <CifraConBarra
             etiqueta="Inscritos"
             valor={cupos > 0 ? `${dentro} de ${cupos}` : String(dentro)}
@@ -281,7 +290,7 @@ function TarjetaDeGrupo({
           />
         </div>
 
-        <div className="mt-3 border-t border-hairline pt-3">
+        <div className="mt-2.5 border-t border-hairline pt-2.5">
           <CifraConBarra
             etiqueta="Avance"
             valor={avance === null ? "—" : `${avance} %`}
@@ -306,12 +315,12 @@ function TarjetaDeGrupo({
             un grupo sería un control en pie y vacío de efecto.
             El color sale de `--marca`, o sea del gremio: escrito a
             fuego, este botón se quedaría verde en el gremio azul. */}
-        <div className="mt-3.5 border-t border-hairline pt-3">
+        <div className="mt-2.5 border-t border-hairline pt-2.5">
           <button
             type="button"
             onClick={alVerInscritos}
             title={`Ver a las ${dentro} personas del grupo ${grupo.numero}`}
-            className="flex w-full items-center justify-center gap-2 rounded-lg border border-marca/35 px-2 py-2 text-[0.8125rem] font-medium text-marca transition hover:border-marca hover:bg-marca-suave"
+            className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-marca/35 px-2 py-1.5 text-[0.75rem] font-medium text-marca transition hover:border-marca hover:bg-marca-suave"
           >
             <IconoMatriculados tamano={15} />
             Ver inscritos
@@ -344,14 +353,14 @@ function CifraConBarra({
         <span className="text-texto-suave">{etiqueta}</span>
         <span className="font-semibold tabular-nums">{valor}</span>
       </span>
-      <span className="mt-1.5 block h-1.5 overflow-hidden rounded-full bg-superficie-alterna">
+      <span className="mt-1 block h-1 overflow-hidden rounded-full bg-superficie-alterna">
         <span
           className="block h-full rounded-full"
           style={{ width: `${porcentaje ?? 0}%`, background: tono }}
         />
       </span>
       {pie && (
-        <span className="mt-1.5 block text-[0.6875rem] text-texto-suave">
+        <span className="mt-1 block text-[0.6875rem] leading-snug text-texto-suave">
           {pie}
         </span>
       )}
