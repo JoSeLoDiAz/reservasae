@@ -40,6 +40,26 @@ import { SelectorBuscable } from "./selector-buscable";
 import { CifraCompacta, Encabezado, Esqueleto, Vacio } from "./piezas";
 import { type Columna, Tabla } from "./tabla";
 
+/**
+ * LOS DOS RITMOS, AL MES Y NO AL DÍA.
+ *
+ * «¿Esto no es lo mismo?» (cliente, 26 sep 2026), sobre «Debe hacer
+ * al día» y el promedio. No lo son ---uno es la meta que queda por
+ * delante y el otro lo que viene haciendo---, pero se leían igual
+ * porque los dos salían en cero.
+ *
+ * El motivo es la unidad. Un asesor resuelve del orden de 0,1 al día
+ * hábil: en decimales es ruido y redondeado a entero es un cero que
+ * miente. Al mes son 2, que es entero Y quiere decir algo. La cifra
+ * es la misma, contada en la unidad en la que se piensa el trabajo.
+ *
+ * Veintiún días hábiles: el mes laboral colombiano corriente. No hace
+ * falta más precisión para una cifra que se lee de un vistazo.
+ */
+const DIAS_HABILES_AL_MES = 21;
+const alMes = (porDia: number | null) =>
+  porDia === null ? "—" : n(Math.round(porDia * DIAS_HABILES_AL_MES));
+
 type Subvista = "inscripciones" | "academicos";
 
 /// SIN FRASE AL LADO (cliente, 23 sep 2026). Cada tabla ya dice contra
@@ -354,24 +374,23 @@ function DeInscripciones() {
     },
     {
       clave: "exigido",
-      titulo: "Debe hacer al día",
-      ancho: "130px",
+      /// LOS DOS RÓTULOS DICEN QUÉ SON, y en la misma unidad: así se
+      /// leen uno contra otro, que es para lo que están al lado.
+      titulo: "Debe inscribir al mes",
+      ancho: "150px",
       numerica: true,
       valor: (f) => f.ritmo.exigidoPorDia,
       pinta: (f) => (
-        <span className="font-semibold tabular-nums">{dec(f.ritmo.exigidoPorDia)}</span>
+        <span className="font-semibold tabular-nums">{alMes(f.ritmo.exigidoPorDia)}</span>
       ),
     },
     {
       clave: "real",
-      titulo: "Promedio Cantidad inscripción",
-      ancho: "175px",
+      titulo: "Viene inscribiendo al mes",
+      ancho: "165px",
       numerica: true,
       valor: (f) => f.ritmo.realPorDia,
-      /// ENTERO (cliente, 26 sep 2026). Es «cuánta gente inscribe al
-      /// día»: un 16,9 promete una precisión que el dato no tiene, y
-      /// un 0,1 se lee como cero con ruido detrás.
-      pinta: (f) => <span className="tabular-nums">{f.ritmo.realPorDia === null ? "—" : n(Math.round(f.ritmo.realPorDia))}</span>,
+      pinta: (f) => <span className="tabular-nums">{alMes(f.ritmo.realPorDia)}</span>,
     },
     {
       clave: "estado",
@@ -672,20 +691,23 @@ const columnasAcademicas: Columna<FilaDeAsesorAcademico>[] = [
   },
   {
     clave: "exigido",
-    titulo: "Debe hacer al día",
-    ancho: "130px",
+    /// AQUÍ NO SE INSCRIBE, SE CERTIFICA. En esta pestaña «resuelto»
+    /// es «certificado» ---lo dice `repartirAcademicos`---, así que
+    /// «Promedio Cantidad inscripción» estaba nombrando una cosa por
+    /// otra desde que existe la pestaña.
+    titulo: "Debe certificar al mes",
+    ancho: "150px",
     numerica: true,
     valor: (f) => f.ritmo.exigidoPorDia,
-    pinta: (f) => <span className="font-semibold tabular-nums">{dec(f.ritmo.exigidoPorDia)}</span>,
+    pinta: (f) => <span className="font-semibold tabular-nums">{alMes(f.ritmo.exigidoPorDia)}</span>,
   },
   {
     clave: "real",
-    titulo: "Promedio Cantidad inscripción",
-    ancho: "150px",
+    titulo: "Viene certificando al mes",
+    ancho: "165px",
     numerica: true,
     valor: (f) => f.ritmo.realPorDia,
-    /// ENTERO, igual que en la otra pestaña.
-    pinta: (f) => <span className="tabular-nums">{f.ritmo.realPorDia === null ? "—" : n(Math.round(f.ritmo.realPorDia))}</span>,
+    pinta: (f) => <span className="tabular-nums">{alMes(f.ritmo.realPorDia)}</span>,
   },
   {
     clave: "estado",
