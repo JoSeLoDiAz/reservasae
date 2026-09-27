@@ -1,5 +1,6 @@
 "use client";
 
+import { IconoCheckCirculo, IconoReloj } from "./iconos";
 import type { FilaAcademica } from "@/lib/crm-api";
 
 type Grupo = {
@@ -129,6 +130,23 @@ export function GruposDeLaAccion({
   );
 }
 
+
+/**
+ * Una tarjeta de grupo, con la forma que pidió Josse (26 sep 2026).
+ *
+ * Sale del SEP —otro proyecto, del que se copia SOLO LA FORMA—:
+ * franja de color arriba, el número grande, dos píldoras de
+ * porcentaje en la esquina, y cada cifra con su barra y su pie.
+ *
+ * LO QUE NO SE COPIA, y conviene decirlo: allá la tarjeta lleva tres
+ * botones dentro —Beneficiarios, Cobertura, Certificar—. Aquí la
+ * acción es UNA y vive abajo, fuera de las tarjetas, porque así se
+ * pidió: «solo un botón abajo que diga ver inscritos».
+ *
+ * Y NINGUNA CIFRA ES INVENTADA. Las dos píldoras salen de estados
+ * que el aula ya calcula por persona; si un grupo no tiene a nadie
+ * en ese estado, la píldora NO se pinta en vez de decir 0 %.
+ */
 function TarjetaDeGrupo({
   grupo,
   codigo,
@@ -152,8 +170,8 @@ function TarjetaDeGrupo({
    *
    * Josse lo pidió así: «el avance general de las unidades temáticas
    * cumplidas, o sea el promedio de todos los participantes de ese
-   * grupo». Sumar hechas contra totales daría otra cifra --pesa más
-   * quien tiene más actividades-- y las dos son ciertas, así que se
+   * grupo». Sumar hechas contra totales daría otra cifra —pesa más
+   * quien tiene más actividades— y las dos son ciertas, así que se
    * calcula la que se pidió y se nombra por lo que es.
    *
    * Solo cuenta a quien TIENE actividades cargadas: con el LMS sin
@@ -169,60 +187,174 @@ function TarjetaDeGrupo({
         )
       : null;
 
+  /// Las dos de la esquina, del reparto que el aula ya calcula por
+  /// persona. No es una cuenta nueva: son dos de los seis estados
+  /// que ya se pintan arriba en las tarjetas grandes.
+  const certificados = suya.filter((p) => p.estado === "CERTIFICADO").length;
+  const atrasados = suya.filter((p) => p.estado === "ATRASADO").length;
+  const pct = (n: number) => (dentro > 0 ? Math.round((n / dentro) * 100) : 0);
+
   return (
     <button
       type="button"
       onClick={alPulsar}
       aria-pressed={elegido}
-      className={`rounded-xl border bg-superficie p-3.5 text-left transition hover:border-marca/40 ${
+      /// `overflow-hidden` para que la franja de arriba siga la curva
+      /// del borde. SIN SOMBRA: la regla del handoff la reserva para
+      /// lo que FLOTA, y una tarjeta no flota.
+      className={`overflow-hidden rounded-xl border bg-superficie text-left transition hover:border-marca/40 ${
         elegido ? "border-marca" : "border-borde"
       }`}
     >
-      <span className="text-[0.625rem] font-semibold tracking-[0.08em] text-texto-suave uppercase">
-        {/* El código de la acción cuando se ven todas: sin él, dos
-            «Grupo 4» de acciones distintas se leen como el mismo. */}
-        {codigo ? `${codigo} · Grupo` : "Grupo"}
-      </span>
-      <span className="mt-0.5 block text-[1.5rem] leading-none font-bold tabular-nums">
-        {grupo.numero}
-      </span>
+      {/* LA FRANJA, que es lo que le gustó de aquella pantalla. Tres
+          píxeles, de marca a éxito, y SALE DE LOS TOKENS: con un
+          gradiente escrito a fuego, el día que un gremio cambie de
+          color esta línea se quedaría con el de otro. */}
+      <span
+        aria-hidden
+        className="block h-[3px] w-full"
+        style={{
+          background:
+            "linear-gradient(90deg, var(--marca) 0%, var(--exito) 100%)",
+        }}
+      />
 
-      <span className="mt-3 flex items-baseline justify-between gap-2 text-[0.8125rem]">
-        <span className="text-texto-suave">Inscritos</span>
-        <span className="font-semibold tabular-nums">
-          {/* Sin cupo del servidor se dice la cifra sola: «de 0» sería
-              falso y «de —» no se lee. */}
-          {cupos > 0 ? `${dentro} de ${cupos}` : dentro}
+      <span className="block p-3.5">
+        <span className="flex items-start justify-between gap-2">
+          <span className="min-w-0">
+            <span className="block text-[0.625rem] font-semibold tracking-[0.08em] text-texto-suave uppercase">
+              {codigo ? `${codigo} · Grupo` : "Grupo"}
+            </span>
+            <span className="mt-0.5 block text-[1.75rem] leading-none font-bold text-titulo tabular-nums">
+              {grupo.numero}
+            </span>
+          </span>
+
+          {/* LAS DOS PÍLDORAS, cada una solo si tiene a alguien
+              detrás: un «0 %» repetido en doce tarjetas es ruido, y
+              encima se lee como un dato cuando es un vacío. */}
+          <span className="flex shrink-0 flex-wrap justify-end gap-1">
+            {certificados > 0 && (
+              <Pildora
+                tono="var(--exito)"
+                icono={<IconoCheckCirculo tamano={12} />}
+                titulo={`${certificados} de ${dentro} ya certificados`}
+              >
+                {pct(certificados)} %
+              </Pildora>
+            )}
+            {atrasados > 0 && (
+              <Pildora
+                tono="var(--aviso)"
+                icono={<IconoReloj tamano={12} />}
+                titulo={`${atrasados} de ${dentro} atrasados frente a su calendario`}
+              >
+                {pct(atrasados)} %
+              </Pildora>
+            )}
+          </span>
         </span>
-      </span>
-      {cupos > 0 && (
-        <span className="mt-1 block h-1.5 overflow-hidden rounded-full bg-superficie-alterna">
-          <span
-            className="block h-full rounded-full bg-marca"
-            style={{ width: `${Math.min(100, (dentro / cupos) * 100)}%` }}
+
+        <span className="mt-3.5 block">
+          <CifraConBarra
+            etiqueta="Inscritos"
+            valor={cupos > 0 ? `${dentro} de ${cupos}` : String(dentro)}
+            porcentaje={cupos > 0 ? Math.min(100, (dentro / cupos) * 100) : null}
+            tono="var(--marca)"
+            pie={
+              cupos > 0 ? `${Math.round((dentro / cupos) * 100)} % del cupo` : null
+            }
           />
         </span>
-      )}
 
-      <span className="mt-3 flex items-baseline justify-between gap-2 text-[0.8125rem]">
-        <span className="text-texto-suave">Avance</span>
-        <span className="font-semibold tabular-nums">
-          {avance === null ? "—" : `${avance} %`}
+        <span className="mt-3 block border-t border-hairline pt-3">
+          <CifraConBarra
+            etiqueta="Avance"
+            valor={avance === null ? "—" : `${avance} %`}
+            porcentaje={avance}
+            tono="var(--exito)"
+            pie={
+              avance === null
+                ? "El aula todavía no manda actividades de este grupo."
+                : `Promedio de unidades temáticas de ${conActividades.length} ${
+                    conActividades.length === 1 ? "persona" : "personas"
+                  }.`
+            }
+          />
         </span>
       </span>
-      <span className="mt-1 block h-1.5 overflow-hidden rounded-full bg-superficie-alterna">
+    </button>
+  );
+}
+
+/** Una cifra con su barra y su pie: el bloque que se repite. */
+function CifraConBarra({
+  etiqueta,
+  valor,
+  porcentaje,
+  tono,
+  pie,
+}: {
+  etiqueta: string;
+  valor: string;
+  /// Null cuando no hay de dónde sacarla: la barra sale vacía y el
+  /// pie dice por qué, en vez de pintar un cero que parece un dato.
+  porcentaje: number | null;
+  tono: string;
+  pie: string | null;
+}) {
+  return (
+    <>
+      <span className="flex items-baseline justify-between gap-2 text-[0.8125rem]">
+        <span className="text-texto-suave">{etiqueta}</span>
+        <span className="font-semibold tabular-nums">{valor}</span>
+      </span>
+      <span className="mt-1.5 block h-1.5 overflow-hidden rounded-full bg-superficie-alterna">
         <span
-          className="block h-full rounded-full bg-exito"
-          style={{ width: `${avance ?? 0}%` }}
+          className="block h-full rounded-full"
+          style={{ width: `${porcentaje ?? 0}%`, background: tono }}
         />
       </span>
-      <span className="mt-1.5 block text-[0.6875rem] text-texto-suave">
-        {avance === null
-          ? "El aula todavía no manda actividades de este grupo."
-          : `Promedio de unidades temáticas de ${conActividades.length} ${
-              conActividades.length === 1 ? "persona" : "personas"
-            }.`}
-      </span>
-    </button>
+      {pie && (
+        <span className="mt-1.5 block text-[0.6875rem] text-texto-suave">
+          {pie}
+        </span>
+      )}
+    </>
+  );
+}
+
+/**
+ * La píldora teñida de la esquina.
+ *
+ * Tiñe la superficie con su PROPIO color (`color-mix`), que es el
+ * mecanismo que ya usa `.pildora-etapa`: así el par que se mide es el
+ * color contra `superficie`, y el tono vale en claro y en oscuro sin
+ * escribir dos hex. El icono acompaña y el número se lee solo: el
+ * color nunca es lo único que distingue.
+ */
+function Pildora({
+  tono,
+  icono,
+  titulo,
+  children,
+}: {
+  tono: string;
+  icono: React.ReactNode;
+  titulo: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <span
+      title={titulo}
+      className="inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[0.6875rem] font-semibold tabular-nums"
+      style={{
+        color: tono,
+        background: `color-mix(in srgb, ${tono} 12%, transparent)`,
+      }}
+    >
+      {icono}
+      {children}
+    </span>
   );
 }
