@@ -732,7 +732,18 @@ export type Academico = {
   personas: FilaAcademica[];
   /** Solo lo que hay en el aula: filtrar por vacíos cansa. */
   acciones: Array<{ id: string; codigo: string; nombre: string }>;
-  grupos: Array<{ id: string; numero: number; accionFormacionId: string | null }>;
+  grupos: Array<{
+    id: string;
+    numero: number;
+    accionFormacionId: string | null;
+    /// Cuántos caben: la suma de sus coberturas VIRTUALES, que es la
+    /// misma regla con la que se cuenta quién está dentro. OPCIONALES
+    /// en el contrato --un backend sin reiniciar no las manda-- y por
+    /// eso la tarjeta dice «40» a secas en vez de «40 de 0».
+    cupos?: number;
+    /// Lo comprometido con el SENA, sin el 30 % de sobrecupo.
+    meta?: number;
+  }>;
   asesores: Array<{ id: string; nombre: string }>;
   sinAsesor: number;
   resumen: {

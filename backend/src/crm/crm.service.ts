@@ -4603,6 +4603,38 @@ export class CrmService {
       ).values(),
     ].sort((a, b) => a.numero - b.numero);
 
+    /**
+     * CUÁNTOS CABEN EN CADA GRUPO, para el «40 de 65» de las
+     * tarjetas (Josse, 26 sep 2026).
+     *
+     * SE PREGUNTA A `grupos_cobertura` Y NO SE SUMA `deGrupos`, que
+     * es la trampa: aquella lista sale de un `distinct` sobre
+     * PARTICIPANTES, así que una cobertura virtual donde todavía no
+     * hay nadie no aparece y su cupo se perdería. El denominador
+     * saldría corto justo en el grupo más vacío, que es el que se
+     * mira.
+     *
+     * Y con la MISMA regla que el aula --`modalidad: VIRTUAL`--,
+     * porque el numerador ya está acotado así: contar las presenciales
+     * aquí daría un «40 de 130» donde caben 65.
+     */
+    const cuposDelGrupo = grupos.length
+      ? await this.prisma.grupoCobertura.groupBy({
+          by: ['grupoId'],
+          where: {
+            grupoId: { in: grupos.map((g) => g.id) },
+            modalidad: 'VIRTUAL',
+          },
+          _sum: { cuposMaximos: true, cuposBase: true },
+        })
+      : [];
+    const porGrupoCupos = new Map(
+      cuposDelGrupo.map((c) => [
+        c.grupoId,
+        { cupos: c._sum.cuposMaximos ?? 0, meta: c._sum.cuposBase ?? 0 },
+      ]),
+    );
+
     const asesores = deAsesores
       .map((f) => f.asesor)
       .filter((a): a is NonNullable<typeof a> => a !== null)
@@ -4611,7 +4643,12 @@ export class CrmService {
     return {
       personas,
       acciones,
-      grupos,
+      /// Con su cupo: la tarjeta de cada grupo dice «40 de 65».
+      grupos: grupos.map((g) => ({
+        ...g,
+        cupos: porGrupoCupos.get(g.id)?.cupos ?? 0,
+        meta: porGrupoCupos.get(g.id)?.meta ?? 0,
+      })),
       asesores,
       sinAsesor: filas.filter((f) => !f.asesor).length,
       resumen: {

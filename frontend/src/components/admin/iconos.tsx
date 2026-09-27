@@ -277,6 +277,20 @@ export const IconoAbajo = (p: Props) => (
   </Svg>
 );
 
+export const IconoReloj = (p: Props) => (
+  <Svg {...p}>
+    <circle cx="12" cy="12" r="8.5" />
+    <path d="M12 7.5V12l3 1.8" />
+  </Svg>
+);
+
+export const IconoCheckCirculo = (p: Props) => (
+  <Svg {...p}>
+    <circle cx="12" cy="12" r="8.5" />
+    <path d="m8.5 12 2.5 2.5 4.5-5" />
+  </Svg>
+);
+
 export const IconoCheck = (p: Props) => (
   <Svg {...p}>
     <path d="m5 13 4 4L19 7" />

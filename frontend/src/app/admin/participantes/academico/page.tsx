@@ -10,6 +10,7 @@ import { CajonDelAula } from "@/components/admin/cajon-del-aula";
 import { columnasDelAula } from "@/components/admin/columnas-del-aula";
 import { Tabla } from "@/components/admin/tabla";
 import { SelectorBuscable } from "@/components/admin/selector-buscable";
+import { GruposDeLaAccion } from "@/components/admin/grupos-de-la-accion";
 import { useDatosVivos } from "@/lib/datos-vivos";
 import {
   type Academico,
@@ -141,6 +142,11 @@ function Seguimiento() {
   /// acción, se despliega el grupo, y queda su gente.
   const [accionFormacionId, setAccion] = useState("");
   const [grupoId, setGrupo] = useState("");
+  /// LA TABLA ARRANCA PLEGADA (Josse, 26 sep 2026: «solo un boton
+  /// abajo que diga ver inscritos y salga o despliegue ahora si la
+  /// tabla»). Lo de arriba responde «como va el grupo»; la tabla
+  /// responde «quien», que es la segunda pregunta y no la primera.
+  const [verInscritos, setVerInscritos] = useState(false);
 
   const cargar = useCallback(
     () =>
@@ -265,6 +271,79 @@ function Seguimiento() {
       };
     });
 
+  /**
+   * LOS DOS DESPLEGABLES DE SERVIDOR, FUERA DE LA TABLA.
+   *
+   * Vivian dentro, en su fila de buscador, y al plegar la tabla
+   * se fueron con ella: la pantalla quedaba pidiendo que se
+   * eligiera una accion encima de un hueco donde ya no habia
+   * ningun sitio donde elegirla --sin salida--.
+   *
+   * Aqui arriba mandan sobre las tarjetas Y sobre la tabla, que
+   * es lo que siempre hicieron: van al SERVIDOR.
+   */
+  const controlesDeServidor = (
+          <>
+            <SelectorBuscable
+              clase="min-w-[14rem] flex-1"
+              etiqueta="Acción de formación"
+              valor={accionFormacionId}
+              alElegir={(id) => {
+                setAccion(id);
+                // el grupo cuelga de la accion: si cambia, sobra
+                setGrupo("");
+              }}
+              /// «ACCIÓN DE FORMACIÓN», con su nombre entero
+              /// (cliente, 24 sep 2026). Decía «Formación» a secas
+              /// por caber en la tarjeta que ya no existe; en la
+              /// fila del buscador hay sitio, y es como se llama en
+              /// Oferta y en la columna de la tabla.
+              vacio="Acción de Formación"
+              quitar="Ver todas las acciones"
+              marcador="AF1, neuroeducación…"
+              opciones={datos.acciones.map((a) => ({
+                id: a.id,
+                etiqueta: `${a.codigo} · ${a.nombre}`,
+              }))}
+            />
+            {/* EL GRUPO CUELGA DE LA FORMACIÓN, y hasta que no haya
+                una elegida este no se puede usar (cliente, 24 sep
+                2026: «dice Grupos y esta es sujeta a la AF, y como
+                son 2 AF y misma cantidad, pues ya es que AF filtre»).
+
+                Tiene razón y el problema es del dato: el número de
+                grupo NO es único ---hay un «Grupo 4» en AF1 y otro
+                en AF2---, así que sin formación elegida la lista
+                mezclaba dos cosas distintas con el mismo nombre y
+                había que leerse el renglón de abajo para saber cuál
+                era cuál.
+
+                Apagado y no escondido: el hueco se queda para que se
+                vea que existe y de qué depende. */}
+            <SelectorBuscable
+              clase="w-full shrink-0 sm:w-[11.5rem]"
+              etiqueta="Grupo"
+              valor={grupoId}
+              alElegir={setGrupo}
+              vacio="Grupos"
+              quitar="Ver todos los grupos"
+              marcador="Número de grupo, nombre…"
+              opciones={gruposBuscables}
+              desactivado={!accionFormacionId}
+              razon="Elija formación"
+            />
+            {hayFiltro && (
+              <button
+                type="button"
+                onClick={quitarFiltros}
+                className="shrink-0 text-[0.78125rem] text-texto-suave underline hover:text-texto"
+              >
+                Limpiar
+              </button>
+            )}
+          </>
+  );
+
   return (
     /// La misma forma que Control de Inscritos, y a propósito:
     /// son las dos pantallas donde coordinación viene a mirar
@@ -339,7 +418,13 @@ function Seguimiento() {
           {puesto.map((q) => (
             <span
               key={q}
-              className="rounded-full bg-superficie px-2.5 py-0.5 text-texto"
+              title={q}
+              /// Truncada y no desbordada: el nombre de una accion son
+              /// noventa letras y a 390 px sacaba la pildora de la
+              /// pantalla. El `title` devuelve el texto entero con el
+              /// puntero; en el telefono esta a un toque en el propio
+              /// desplegable.
+              className="min-w-0 max-w-full truncate rounded-full bg-superficie px-2.5 py-0.5 text-texto"
             >
               {q}
             </span>
@@ -386,7 +471,7 @@ function Seguimiento() {
             el cliente lo paró tres veces. Se quedan en `<div>` para
             que ni el teclado ni el lector de pantalla las anuncien
             como algo que hacer. */}
-        <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-6">
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
           {ORDEN.map((estado) => (
             <div
               key={estado}
@@ -422,6 +507,23 @@ function Seguimiento() {
           ))}
         </div>
 
+      <GruposDeLaAccion
+        controles={controlesDeServidor}
+        accionFormacionId={accionFormacionId}
+        grupoId={grupoId}
+        acciones={datos.acciones}
+        grupos={datos.grupos}
+        personas={datos.personas}
+        alElegirGrupo={(id) => {
+          setGrupo(id);
+          /// Entrar a un grupo ES querer ver a su gente: plegarla
+          /// otra vez obligaría a dos clics para lo mismo.
+          if (id) setVerInscritos(true);
+        }}
+        verInscritos={verInscritos}
+        alAlternarTabla={() => setVerInscritos((v) => !v)}
+      />
+
       {/* LA TABLA SE PINTA SIEMPRE, también sin nadie dentro.
           Antes, con cero filas, en su sitio salía una tarjeta de
           «Nadie aquí» y la tabla desaparecía --y con ella su barra--.
@@ -430,6 +532,7 @@ function Seguimiento() {
           que se deshace: quien filtrara de más quedaba encerrado.
           `Tabla` trae su propio estado vacío; esto le pasa el texto y
           la barra se queda donde está. */}
+      {verInscritos && (
       <Tabla
         /// LA MISMA TABLA DE GESTIÓN DE LEADS, no una parecida:
         /// «prácticamente es como la tabla de Gestión de leads, su
@@ -468,89 +571,8 @@ function Seguimiento() {
             "Solo aparece quien ya entró en formación: el avance llega del aula."
           )
         }
-        /* LOS DOS DE SERVIDOR, FUSIONADOS EN LA FILA DEL BUSCADOR
-           (cliente, 24 sep 2026: «sí, pero fusionado donde está el
-           buscador, no desorden»). Estaban en una tarjeta propia
-           encima de la tabla y, al quedarse en dos, se estiraban a
-           media pantalla cada uno: dos campos enormes para decir
-           dos palabras, y una tarjeta con un solo renglón dentro.
-
-           Aquí se leen con el buscador, que es lo que son: antes de
-           mirar la lista se dice de qué acción y de qué grupo se
-           está hablando.
-
-           EL ANCHO SE REPARTE, no se fija (cliente, 24 sep 2026:
-           «reduce buscador y alarga formación»). El buscador traía
-           `flex-1` y se quedaba con todo el sobrante ---693 px de
-           1.600---, mientras «Formación» recortaba a la mitad unos
-           nombres de noventa letras: se leía «AF8 · Inteligencia
-           art…» y había que abrir el desplegable para saber cuál
-           era. Ahora los dos llevan `flex-1` y parten el sobrante a
-           partes iguales, así que el cambio vale igual en un
-           portátil que en el monitor grande. El grupo no crece: es
-           un número. */
-        filtrosDelServidor={
-          <>
-            <SelectorBuscable
-              clase="min-w-[14rem] flex-1"
-              etiqueta="Acción de formación"
-              valor={accionFormacionId}
-              alElegir={(id) => {
-                setAccion(id);
-                // el grupo cuelga de la accion: si cambia, sobra
-                setGrupo("");
-              }}
-              /// «ACCIÓN DE FORMACIÓN», con su nombre entero
-              /// (cliente, 24 sep 2026). Decía «Formación» a secas
-              /// por caber en la tarjeta que ya no existe; en la
-              /// fila del buscador hay sitio, y es como se llama en
-              /// Oferta y en la columna de la tabla.
-              vacio="Acción de Formación"
-              quitar="Ver todas las acciones"
-              marcador="AF1, neuroeducación…"
-              opciones={datos.acciones.map((a) => ({
-                id: a.id,
-                etiqueta: `${a.codigo} · ${a.nombre}`,
-              }))}
-            />
-            {/* EL GRUPO CUELGA DE LA FORMACIÓN, y hasta que no haya
-                una elegida este no se puede usar (cliente, 24 sep
-                2026: «dice Grupos y esta es sujeta a la AF, y como
-                son 2 AF y misma cantidad, pues ya es que AF filtre»).
-
-                Tiene razón y el problema es del dato: el número de
-                grupo NO es único ---hay un «Grupo 4» en AF1 y otro
-                en AF2---, así que sin formación elegida la lista
-                mezclaba dos cosas distintas con el mismo nombre y
-                había que leerse el renglón de abajo para saber cuál
-                era cuál.
-
-                Apagado y no escondido: el hueco se queda para que se
-                vea que existe y de qué depende. */}
-            <SelectorBuscable
-              clase="w-[11.5rem] shrink-0"
-              etiqueta="Grupo"
-              valor={grupoId}
-              alElegir={setGrupo}
-              vacio="Grupos"
-              quitar="Ver todos los grupos"
-              marcador="Número de grupo, nombre…"
-              opciones={gruposBuscables}
-              desactivado={!accionFormacionId}
-              razon="Elija formación"
-            />
-            {hayFiltro && (
-              <button
-                type="button"
-                onClick={quitarFiltros}
-                className="shrink-0 text-[0.78125rem] text-texto-suave underline hover:text-texto"
-              >
-                Limpiar
-              </button>
-            )}
-          </>
-        }
       />
+      )}
 
       {enElCajon && (
         <CajonDelAula fila={enElCajon} alCerrar={() => setEnElCajon(null)} />

@@ -58,7 +58,23 @@ export function Cajon({
   }, [alCerrar]);
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end">
+    /**
+     * ARRANCA DEBAJO DE LA FRANJA, no en el borde de la pantalla.
+     *
+     * Con `inset-0` a secas el cajón se mete bajo la franja de
+     * pruebas --36 px, fija y por encima-- y en el teléfono eso se
+     * come el título y los primeros 29 px del botón de cerrar
+     * (medido a 390 px: la X va de y=7 a y=51). En producción la
+     * variable vale 0 y no cambia nada, así que esto solo se ve
+     * donde se revisa; que es justo donde estorba.
+     *
+     * Y la franja NO se tapa a propósito: es el aviso de que nada
+     * de lo que se haga aquí llega a producción.
+     */
+    <div
+      className="fixed inset-x-0 bottom-0 z-50 flex justify-end"
+      style={{ top: "var(--franja-alto, 0px)" }}
+    >
       <button
         type="button"
         onClick={alCerrar}
@@ -78,7 +94,22 @@ export function Cajon({
         /// estrechas que «Accion formacion interes» ocupaba
         /// cinco renglones. Con mas ancho el mismo contenido
         /// cabe casi entero sin bajar.
-        className="relative flex h-full w-full max-w-2xl flex-col border-l border-borde bg-superficie shadow-2xl outline-none"
+        /**
+         * EL COLOR DE TEXTO SE PONE, NO SE HEREDA.
+         *
+         * `fixed` saca la caja del flujo pero NO del arbol: un cajon
+         * abierto desde la cabecera sigue siendo descendiente suyo, y
+         * de ahi hereda `encabezado-texto` --blanco sobre la banda--.
+         * Sobre `bg-superficie`, que es casi blanca, eso es texto
+         * blanco sobre blanco: el cajon salia en blanco entero.
+         *
+         * Medido en pruebas a 390 px: `color: rgb(255,255,255)` en el
+         * titulo, en la fila y en el panel. No se veia nada de lo que
+         * no llevara su propia clase de color --el vacio si se leia,
+         * porque es `text-texto-suave`--, y por eso parecia una
+         * animacion a medias en vez de un defecto.
+         */
+        className="relative flex h-full w-full max-w-2xl flex-col border-l border-borde bg-superficie text-texto shadow-2xl outline-none"
       >
         <header className="flex items-start gap-3 border-b border-borde px-6 py-4">
           <div className="min-w-0 flex-1">
@@ -89,7 +120,7 @@ export function Cajon({
             type="button"
             onClick={alCerrar}
             aria-label="Cerrar"
-            className="rounded-lg p-1 transition hover:bg-superficie-alterna"
+            className="-m-[9px] grid size-[44px] shrink-0 place-items-center rounded-lg transition hover:bg-superficie-alterna"
           >
             <IconoCerrar tamano={18} />
           </button>

@@ -228,6 +228,20 @@ export type InformeReservas = {
     cuposCancelados: number;
     acciones: number;
     organizaciones: number;
+    /**
+     * De esas, las que YA ENTREGARON algun nombre.
+     *
+     * «Instituciones confirmadas» de la pantalla (Josse, 26 sep
+     * 2026). No es «con reserva confirmada» --eso lo cumple casi
+     * todo el mundo en cuanto aparta--: es quien de verdad
+     * respondio, y su hueco con `organizaciones` ES la brecha de
+     * nombres contada por institucion en vez de por cupo.
+     *
+     * Se cuenta sobre la lista ENTERA y no sobre `porOrganizacion`,
+     * que sale recortada en `tope`: contarla alla daria de menos en
+     * cuanto haya mas instituciones que el tope, y sin avisar.
+     */
+    organizacionesConNombre: number;
     pares: number;
     cuposDelProyecto: number;
     metaComprometida: number;
@@ -827,6 +841,7 @@ export function armarInforme(entrada: Entrada): InformeReservas {
     cuposCancelados: 0,
     acciones: 0,
     organizaciones: 0,
+    organizacionesConNombre: 0,
     pares: 0,
     cuposDelProyecto: 0,
     metaComprometida: 0,
@@ -1024,6 +1039,9 @@ export function armarInforme(entrada: Entrada): InformeReservas {
     }));
 
   totales.organizaciones = filasOrganizacion.length;
+  totales.organizacionesConNombre = filasOrganizacion.filter(
+    (f) => f.conNombre > 0,
+  ).length;
   totales.pares = filasCruce.length;
 
   return {
