@@ -554,13 +554,6 @@ function CeldaDeLaTira({
           los pies a 1,3 y pegados a su cifra: 108 y 371. */}
       <dt className="text-[0.625rem] leading-[13px] font-semibold tracking-[0.1em] text-texto-suave uppercase">
         {rotulo}
-        {/* QUÉ PERIODO ES CADA UNO, en el rótulo. Sin esto, «570 vs
-            12» son dos números sin dueño. */}
-        {contra && (
-          <span className="ml-1.5 font-normal tracking-normal normal-case">
-            · {contra.cuando}
-          </span>
-        )}
       </dt>
       {/* LA CIFRA, DEL MISMO TAMAÑO EN LAS CUATRO: 1,75 rem, el
           cuerpo de cifra que ya usa el veredicto de ocupación. Va en
@@ -580,31 +573,40 @@ function CeldaDeLaTira({
           {cifra}
         </span>
 
-        {/* LA DEL OTRO PERIODO, AL LADO Y CON SU FECHA.
-            Más pequeña y en gris: la que manda es la del periodo
-            elegido, esta es el punto de comparación. Con la fecha
-            debajo de cada una no hay que adivinar cuál es cuál. */}
-        {contra && (
-          <span className="ml-2 flex items-baseline gap-1.5 text-[0.6875rem] leading-none text-texto-suave">
-            <span className="text-texto-suave">vs</span>
-            <span className="font-semibold tabular-nums">{contra.cifra}</span>
-            {contra.diferencia && (
-              <span
-                className="font-semibold tabular-nums"
-                style={{
-                  color: contra.diferencia.startsWith("−")
-                    ? "var(--error)"
-                    : contra.diferencia === "="
-                      ? "var(--texto-suave)"
-                      : "var(--exito)",
-                }}
-              >
-                {contra.diferencia}
-              </span>
-            )}
-          </span>
-        )}
+
       </dd>
+      {/* EL COMPARATIVO, EN UN RENGLÓN Y EN CASTELLANO.
+          Estuvo como «570 vs 1 +569» al lado de la cifra: tres
+          números pegados en letra de once píxeles y, peor, el nombre
+          del periodo anterior colgando del título, que hacía leer
+          «TOTAL LEADS · los 2 días anteriores» como si la cifra
+          grande fuera de esos dos días.
+          Una frase se lee sola: qué pasó, contra qué, y cuánto era. */}
+      {contra && (
+        <p className="mt-1 text-[0.71875rem] leading-[1.3]">
+          <span
+            className="font-semibold"
+            style={{
+              color:
+                contra.diferencia === null || contra.diferencia === "="
+                  ? "var(--texto-suave)"
+                  : contra.diferencia.startsWith("−")
+                    ? "var(--error)"
+                    : "var(--exito)",
+            }}
+          >
+            {contra.diferencia === "="
+              ? "Igual"
+              : contra.diferencia?.startsWith("−")
+                ? `Bajó ${contra.diferencia.slice(1)}`
+                : `Subió ${contra.diferencia?.slice(1)}`}
+          </span>{" "}
+          <span className="text-texto-suave">
+            frente a {contra.cuando}, que fueron {contra.cifra}.
+          </span>
+        </p>
+      )}
+
       {pies.map((p) => (
         <dd
           key={p}
