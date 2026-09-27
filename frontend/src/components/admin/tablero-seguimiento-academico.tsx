@@ -336,7 +336,6 @@ function Cuerpo({
   /// pasa a `fixed`: si no, mover una columna reparte el sobrante
   /// entre las demás y se mueven solas. Doble clic las suelta.
   const [anchos, setAnchos] = useState<Record<string, number>>({});
-  const aMano = Object.keys(anchos).length > 0;
 
   /// El alto de la tabla, para que la línea del tirador baje hasta
   /// la última fila y pare ahí. Con un ref de función, como en
@@ -723,7 +722,30 @@ function Cuerpo({
         }
       >
         <div className="caja-scroll overflow-x-auto">
-          {/* SIN `w-full`: CADA COLUMNA MIDE LO SUYO.
+          {/* OCUPA EL ANCHO, PERO REPARTIENDO PAREJO.
+
+              Aquí se probaron los dos extremos y los dos se ven mal.
+              Con `w-full` y reparto automático, el sobrante se va a
+              la columna del rótulo más largo: «AF» quedaba como una
+              franja vacía. Midiendo solo por contenido, la tabla se
+              queda corta y deja media pantalla en blanco a la
+              derecha ---«visualmente se ve fatal» (cliente, 27 sep
+              2026)---.
+
+              `table-fixed` es el que hace las dos cosas: ocupa todo
+              el ancho Y reparte a partes iguales, sin mirar lo largo
+              que sea cada rótulo. Los porcentajes de `Cab` son lo
+              único que se sale del reparto: el código de la acción y
+              el grupo llevan texto y las demás llevan una cifra de
+              dos dígitos.
+
+              EN PORCENTAJE Y NO EN PÍXELES, para que escale: la misma
+              tabla tiene que servir en un portátil y en una pantalla
+              de 1.920. Y arrastrar una columna sigue funcionando
+              encima de esto ---el px que se fija manda sobre su
+              porcentaje---.
+
+              LO QUE ERA: cada columna medía lo suyo.
 
               Estirarla obliga a que alguna columna se trague el
               sobrante, y en 1.600 px son cientos de píxeles: con el
@@ -740,8 +762,7 @@ function Cuerpo({
               raya vertical se leen en diagonal. */}
           <table
             ref={tablaRef}
-            className="tabla-cuadricula"
-            style={aMano ? { tableLayout: "fixed" } : undefined}
+            className="tabla-cuadricula w-full table-fixed"
           >
             <thead className="border-b border-borde">
               <tr>
@@ -751,8 +772,12 @@ function Cuerpo({
                     casa el avance por unidad, en verde el cierre y en
                     negro el total, que no es avance sino cuánta gente
                     hay. La misma lectura que las tarjetas de arriba. */}
-                <Cab {...ajuste("af")}>AF</Cab>
-                <Cab {...ajuste("grupo")}>Grupo</Cab>
+                <Cab parte="18%" {...ajuste("af")}>
+                  AF
+                </Cab>
+                <Cab parte="8%" {...ajuste("grupo")}>
+                  Grupo
+                </Cab>
                 <Cab {...ajuste("sinIngreso")} tono="text-aviso">
                   Sin ingreso
                 </Cab>
@@ -785,7 +810,10 @@ function Cuerpo({
                   <Fragment key={tanda.accionId}>
                     {tanda.filas.map((f) => (
                       <tr key={f.llave} className={`border-b border-hairline ${banda}`}>
-                        <td className="px-3 py-1.5 whitespace-nowrap">
+                        {/* `truncate`: con ancho fijo, un nombre
+                            largo se salía de su celda por encima de
+                            la raya de la siguiente. */}
+                        <td className="truncate px-3 py-1.5 whitespace-nowrap">
                           <span className="font-mono text-xs text-texto-suave">{f.codigo}</span>
                           {ambiguo(f.codigo) && (
                             <span
@@ -854,6 +882,7 @@ function Cuerpo({
 function Cab({
   children,
   tono = "text-texto-suave",
+  parte,
   clave,
   ancho,
   alto,
@@ -863,6 +892,10 @@ function Cab({
 }: {
   children: React.ReactNode;
   tono?: string;
+  /// Su parte del ancho, en porcentaje. Sin ella, `table-fixed` le
+  /// da la parte que sobra a partes iguales, que es lo que quieren
+  /// las columnas de cifras.
+  parte?: string;
   clave: string;
   ancho?: number;
   alto: number | null;
@@ -874,7 +907,9 @@ function Cab({
     <th
       scope="col"
       data-columna={clave}
-      style={ancho ? { width: ancho } : undefined}
+      /// El px del arrastre manda sobre el porcentaje: quien mueve
+      /// una columna a mano espera que se quede donde la dejó.
+      style={ancho ? { width: ancho } : parte ? { width: parte } : undefined}
       className={`relative px-3 py-2 text-center align-bottom text-[0.625rem] font-semibold tracking-[0.08em] uppercase ${tono}`}
     >
       {children}
