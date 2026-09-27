@@ -1133,8 +1133,29 @@ function ResumenGeneral({ informe }: { informe: InformeReservas }) {
             estas cifras», que está justo debajo, y qué organizaciones
             deben nombres es la columna «Pendientes» de la tabla. */}
         <CifraCompacta etiqueta="Instituciones" valor={n(t.organizaciones)} />
+        {/* LAS QUE YA ENTREGARON ALGÚN NOMBRE, y su hueco con la de
+            al lado ES la brecha de nombres contada por institución.
+
+            Sale del SERVIDOR y no de contar filas: `porOrganizacion`
+            viaja recortada en `tope`, así que contarla aquí daría de
+            menos en cuanto haya más instituciones que el tope, y sin
+            que nada fallara.
+
+            Si el backend no la manda --uno sin reiniciar-- NO se
+            pinta: un cero aquí diría que ninguna respondió. */}
+        {t.organizacionesConNombre !== undefined && (
+          <CifraCompacta
+            etiqueta="Instituciones confirmadas"
+            valor={n(t.organizacionesConNombre)}
+            detalle={
+              t.organizaciones > 0
+                ? `${porciento(t.organizacionesConNombre, t.organizaciones)} %`
+                : undefined
+            }
+          />
+        )}
         <CifraCompacta etiqueta="Reservas" valor={n(t.reservas)} />
-        <CifraCompacta etiqueta="Cupos apartados" valor={n(t.cuposConfirmados)} />
+        <CifraCompacta etiqueta="Cupos reservados" valor={n(t.cuposConfirmados)} />
         {/* LAS TRES DE LA OCUPACIÓN, y por qué son tres y no una
             (cliente, 24 sep 2026: «cupos ocupados / cupos confirmados
             inscritos / y adiciona descartados»).
@@ -1157,18 +1178,12 @@ function ResumenGeneral({ informe }: { informe: InformeReservas }) {
           detalle={t.cuposConfirmados > 0 ? `${porciento(conNombre, t.cuposConfirmados)} %` : undefined}
         />
         <CifraCompacta
-          etiqueta="Cupos ocupados"
-          valor={n(t.dentro)}
-          color="var(--exito)"
-          detalle={t.cuposConfirmados > 0 ? `${porciento(t.dentro, t.cuposConfirmados)} %` : undefined}
-        />
-        <CifraCompacta
           etiqueta="Descartados"
           valor={n(descartados)}
           detalle={conNombre > 0 ? `${porciento(descartados, conNombre)} %` : undefined}
         />
         <CifraCompacta
-          etiqueta="Siguen sin nombre"
+          etiqueta="Cupos por cubrir"
           valor={n(t.sinNombre)}
           color={t.sinNombre > 0 ? "var(--error)" : undefined}
           detalle={
@@ -1177,90 +1192,10 @@ function ResumenGeneral({ informe }: { informe: InformeReservas }) {
         />
       </div>
 
-      <ComoSeCuentan informe={informe} />
     </section>
   );
 }
 
-/**
- * «Cómo se cuentan estas cifras»: todo lo que antes colgaba en letra
- * pequeña, en una línea cerrada. El rótulo lleva lo que mueve una
- * cifra (canceladas fuera, cupos en espera, personas de más) para
- * que nadie tenga que abrirla para saber que existe.
- */
-function ComoSeCuentan({ informe }: { informe: InformeReservas }) {
-  const t = informe.totales;
-  const incluye = informe.recorte.incluyeCanceladas;
-  const primera = informe.porDia[0]?.dia ?? null;
-  const ultima = informe.porDia[informe.porDia.length - 1]?.dia ?? null;
-  const deMas = informe.cruce.filter((c) => c.nombresDeMas > 0);
-
-  const rotulo = [
-    t.reservasCanceladas > 0
-      ? incluye
-        ? cuenta(t.reservasCanceladas, "cancelada dentro", "canceladas dentro")
-        : cuenta(t.reservasCanceladas, "cancelada fuera", "canceladas fuera")
-      : null,
-    t.cuposEnEspera > 0 ? cuenta(t.cuposEnEspera, "cupo en espera", "cupos en espera") : null,
-    t.nombresDeMas > 0 ? cuenta(t.nombresDeMas, "persona de más", "personas de más") : null,
-  ].filter(Boolean);
-
-  return (
-    <details className="group">
-      <summary className="sin-aro flex cursor-pointer list-none items-center gap-2 py-1 text-[0.75rem] text-texto-suave select-none hover:text-texto">
-        <span aria-hidden className="text-[0.5625rem] transition-transform group-open:rotate-90">
-          &#9656;
-        </span>
-        <span>
-          <span className="font-medium text-texto">Cómo se cuentan estas cifras</span>
-          {rotulo.length > 0 && ` · ${rotulo.join(" · ")}`}
-        </span>
-      </summary>
-      <ul className="list-disc space-y-1 pb-2 pl-9 text-[0.75rem] leading-snug text-texto-suave">
-        <li>
-          {/* Ocultar, nunca eliminar: las canceladas no entran en las
-              cifras, pero la cifra de las que se cayeron se ve. */}
-          {incluye
-            ? t.reservasCanceladas > 0
-              ? `Estas cifras incluyen ${cuenta(t.reservasCanceladas, "reserva cancelada", "reservas canceladas")}, que ya no tienen cupos (${n(t.cuposCancelados)} se cayeron).`
-              : "No hay reservas canceladas en este recorte."
-            : t.reservasCanceladas > 0
-              ? `Fuera de estas cifras: ${cuenta(t.reservasCanceladas, "reserva cancelada", "reservas canceladas")} (${n(t.cuposCancelados)} cupos). Con la casilla «Incluir las canceladas» entran en la tabla.`
-              : "Ninguna reserva cancelada en este recorte."}
-        </li>
-        {t.cuposEnEspera > 0 && (
-          <li>
-            Los {n(t.cuposEnEspera)} cupos en lista de espera no cuentan como apartados hasta que se
-            confirmen.
-          </li>
-        )}
-        <li>
-          «Ya tienen nombre» es un cupo con una persona que llegó a matricularse, aunque después se
-          haya retirado. Se cuenta reserva por reserva, igual que en «Cupos apartados por
-          empresas».
-        </li>
-        {t.nombresDeMas > 0 && (
-          <li>
-            {cuenta(t.nombresDeMas, "persona inscrita", "personas inscritas")} por encima de lo que
-            reservó su organización
-            {deMas.length > 0 &&
-              `: ${deMas.map((c) => `${c.razonSocial} en ${c.codigo}, ${n(c.nombresDeMas)}`).join("; ")}`}
-            . No llenan cupos de otras.
-          </li>
-        )}
-        {primera && ultima && (
-          <li>
-            {primera !== ultima
-              ? `Primera reserva el ${diaLargo(primera)}; la última, el ${diaLargo(ultima)}.`
-              : `Todas se hicieron el ${diaLargo(primera)}.`}{" "}
-            Las fechas son las del día en que se hizo la reserva, en hora de Bogotá.
-          </li>
-        )}
-        <li>«Dónde se dicta» es la ciudad o el departamento del curso, no el de la organización.</li>
-      </ul>
-    </details>
-  );
-}
 
 /* ═══════════════════════════════════════════════════════════════
    2 · LAS DOS GRÁFICAS
@@ -1511,8 +1446,6 @@ function CuposPorSemana({ informe, filtros }: { informe: InformeReservas; filtro
   const hoy = diaDeBogota(informe.generadoEn);
   const semanas = semanasDelInforme(informe, filtros);
   const tope = Math.max(1, ...semanas.map((s) => s.cupos));
-  const ultima = serie[serie.length - 1]?.dia ?? null;
-  const hace = ultima ? diasEntre(ultima, hoy) : 0;
   const pasoMin = pasoMinimo(semanas);
   /// En lo angosto, una fecha cada dos o tres columnas: once rótulos
   /// de «13 jul» en 300 px se montan unos sobre otros.
@@ -1533,11 +1466,6 @@ function CuposPorSemana({ informe, filtros }: { informe: InformeReservas; filtro
     <Bloque
       estirado
       titulo="Cupos reservados por semana"
-      descripcion={
-        ultima
-          ? `Última reserva el ${diaYMes(ultima)}${hace > 0 ? `, hace ${cuenta(hace, "día", "días")}` : ", hoy"}.`
-          : undefined
-      }
     >
       {semanas.length === 0 ? (
         <p className="py-4 text-[0.8125rem] text-texto-suave">Todavía no hay reservas que mostrar.</p>
@@ -1708,17 +1636,6 @@ function PorDepartamento({
     <Bloque
       estirado
       titulo="Cupos por departamento"
-      descripcion={
-        <>
-          Cupos reservados por departamento. En verde, los que ya tienen una persona
-          detrás.{" "}
-          {/* LA INSTRUCCIÓN NO SE IMPRIME. En la hoja decía «Pulse uno
-              para ver su seguimiento debajo» y en papel no se pulsa
-              nada: es una frase que solo se descubre mirando el PDF, y
-              deja el informe hablándole a un ratón que no existe. */}
-          <span className="no-imprimir">Pulse uno para ver su seguimiento debajo.</span>
-        </>
-      }
     >
       {filas.length === 0 && (
         <p className="py-4 text-[0.8125rem] text-texto-suave">
@@ -1881,11 +1798,6 @@ function Seguimiento({
       sinRelleno
       partible
       titulo="Seguimiento de las reservas"
-      descripcion={
-        departamento
-          ? `Lo que apartó cada institución en ${comoSeLlama(departamento)}, acción por acción, y cuántos cupos ya tienen persona.`
-          : "Cupos reservados por institución y acción de formación."
-      }
       acciones={alCerrar && <BotonCerrarSeguimiento alPulsar={alCerrar} />}
     >
       {/* EL PLAZO, ARRIBA Y EN UNA LÍNEA. Va antes de la tabla y no en

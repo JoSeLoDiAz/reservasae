@@ -539,6 +539,10 @@ export type InformeReservas = {
     /** Acciones CON reservas (no las filas de porAccion). */
     acciones: number;
     organizaciones: number;
+    /// De esas, las que ya entregaron algun nombre. OPCIONAL en el
+    /// contrato: un backend sin reiniciar no la manda, y pintar un
+    /// cero seria afirmar que ninguna respondio.
+    organizacionesConNombre?: number;
     /** Filas del cruce: los pares acción-organización. Se cuenta
         antes del tope, así que con `truncado` es mayor que
         cruce.length. */
