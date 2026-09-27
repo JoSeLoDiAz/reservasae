@@ -22,13 +22,24 @@ export type Modulo = {
   /// dentro se quedan en texto para no competir con el.
   emoji: string;
   etiqueta: string;
-  /// El nombre CORTO, para la fila horizontal de la cabecera.
+  /// El nombre CORTO: el que se ve EN EL MENÚ, por donde se entre.
   ///
   /// Vive aquí y no en la cabecera para que los dos nombres no se
   /// separen: si mañana un módulo se renombra, se renombra en un
-  /// solo sitio. El largo sigue mandando en el cajón, en las migas
-  /// y en el título de cada pantalla, que es donde hay sitio y
-  /// donde se lee una vez.
+  /// solo sitio.
+  ///
+  /// HASTA EL 27 SEP 2026 ESTA LÍNEA DECÍA «el largo sigue mandando
+  /// en el cajón», y ahí estaba el defecto: el mismo módulo se
+  /// llamaba de dos maneras según por dónde se entrara --«Gestión de
+  /// Inscripciones» en el teléfono y «Inscripciones» en el
+  /// computador--, y no por aparato sino por una MEDIDA, así que un
+  /// iPad cambiaba de vocabulario al girarlo. Josse lo mandó igualar:
+  /// «que quede con los mismos nombres del menú que sale en
+  /// computador, y así lo mismo en tablets».
+  ///
+  /// El largo se queda donde NO es menú: la miga de pan, el `title`
+  /// y el `aria-label` --que es donde hay sitio, se lee una vez, y
+  /// donde conviene que el nombre completo no se pierda.
   ///
   /// Lo pidió el cliente el 12 sep 2026 al ver la fila con una
   /// barra de desplazamiento debajo: «Gestión de Inscripciones
