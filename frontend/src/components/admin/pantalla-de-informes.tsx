@@ -552,7 +552,11 @@ export function PantallaDeInformes({ vista }: { vista?: Pestana }) {
                     /// promedio sin que nadie tocara nada. Con
                     /// TODO no hace falta apagar: `sePuedeComparar`
                     /// ya es falso porque no tiene anterior.
-                    if (r === "PERSONALIZADO") setContra("NINGUNO");
+                    /// ANTES aquí se apagaba la comparación al
+                    /// elegir dos fechas, porque no había forma de
+                    /// decir contra qué comparar. Ahora sí la hay
+                    /// ---«Un periodo que yo elija»--- y apagarla
+                    /// sería quitar justo lo que se acaba de pedir.
                   }}
                   desde={desde}
                   alCambiarDesde={setDesde}
@@ -561,6 +565,63 @@ export function PantallaDeInformes({ vista }: { vista?: Pestana }) {
                 />
               </div>
             </div>
+
+            {/* CONTRA QUÉ SE COMPARA: el anterior, u otro que se elija.
+
+                Va en su propia fila y con su rótulo, separado del
+                periodo de arriba. Cuatro cajas de fecha seguidas y sin
+                nombre es lo que no se entendía el 20 de septiembre;
+                dos bloques rotulados se leen solos. */}
+            {sePuedeComparar && !sinComparar && (
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="text-[0.625rem] font-bold tracking-[0.08em] uppercase text-texto-suave">
+                  Comparar con
+                </p>
+                <div className="min-w-[11.5rem]">
+                  <Desplegable
+                    alto={30}
+                    etiquetaAria="Contra qué periodo"
+                    valor={contra === "AUTO" ? "AUTO" : "PERSONALIZADO"}
+                    opciones={[
+                      { valor: "AUTO", etiqueta: anterior || "El periodo anterior" },
+                      { valor: "PERSONALIZADO", etiqueta: "Un periodo que yo elija" },
+                    ]}
+                    alElegir={(v) => setContra(v as Rango | "AUTO")}
+                  />
+                </div>
+
+                {contra === "PERSONALIZADO" && (
+                  <>
+                    <input
+                      type="date"
+                      aria-label="Comparar desde"
+                      title="Comparar desde"
+                      value={contraDesde}
+                      max={contraHasta || undefined}
+                      onChange={(e) => setContraDesde(e.target.value)}
+                      className={`${CLASE_PERIODO} w-[9.5rem]`}
+                    />
+                    <input
+                      type="date"
+                      aria-label="Comparar hasta"
+                      title="Comparar hasta"
+                      value={contraHasta}
+                      min={contraDesde || undefined}
+                      onChange={(e) => setContraHasta(e.target.value)}
+                      className={`${CLASE_PERIODO} w-[9.5rem]`}
+                    />
+                    {(!contraDesde || !contraHasta) && (
+                      /// A MEDIAS NO COMPARA. Con una sola fecha
+                      /// puesta, comparar contra ella daría un tramo
+                      /// que nadie pidió mientras se escribe la otra.
+                      <span className="text-[0.78125rem] text-aviso">
+                        Faltan las dos fechas del periodo con el que comparar.
+                      </span>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
 
             {/* COMPARAR ES SÍ O NO, no un desplegable.
 
