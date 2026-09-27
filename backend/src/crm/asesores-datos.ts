@@ -20,7 +20,7 @@ import {
 } from './seguimiento-de-asesores';
 import {
   cierreDeInscripciones,
-  habilesEntre,
+  diasDeTrabajoEntre,
   hoyEnColombia,
   type ModalidadDeCierre,
 } from './calendario-inscripcion';
@@ -281,7 +281,7 @@ export function repartirInscripciones(
         gestionados: f.gestionados,
       };
       const diasCorridos = f.primero
-        ? Math.max(0, habilesEntre(hoyEnColombia(f.primero), hoyEnColombia(hoy)))
+        ? Math.max(0, diasDeTrabajoEntre(hoyEnColombia(f.primero), hoyEnColombia(hoy)))
         : 0;
       const limite = elLimite(f.proximo, f.ultimoPasado);
       return {
@@ -382,7 +382,7 @@ export function repartirAcademicos(pax: PaxDelAsesor[], hoy: Date): FilaDeAsesor
       /// asesor cuyo curso arrancó ayer no puede tener el ritmo de uno
       /// que lleva un mes.
       const diasCorridos = f.primero
-        ? Math.max(0, habilesEntre(hoyEnColombia(f.primero), hoyEnColombia(hoy)))
+        ? Math.max(0, diasDeTrabajoEntre(hoyEnColombia(f.primero), hoyEnColombia(hoy)))
         : 0;
       const limite = elLimite(f.proximo, f.ultimoPasado);
       return {

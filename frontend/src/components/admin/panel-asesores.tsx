@@ -41,24 +41,25 @@ import { CifraCompacta, Encabezado, Esqueleto, Vacio } from "./piezas";
 import { type Columna, Tabla } from "./tabla";
 
 /**
- * LOS DOS RITMOS, AL MES Y NO AL DÍA.
+ * LA META DIARIA, ENTERA Y HACIA ARRIBA.
  *
- * «¿Esto no es lo mismo?» (cliente, 26 sep 2026), sobre «Debe hacer
- * al día» y el promedio. No lo son ---uno es la meta que queda por
- * delante y el otro lo que viene haciendo---, pero se leían igual
- * porque los dos salían en cero.
+ * Cuántos tiene que resolver HOY para llegar a su fecha: la meta
+ * global repartida entre los días de trabajo que quedan, contados de
+ * lunes a sábado ---seis, que es como trabaja el equipo---.
  *
- * El motivo es la unidad. Un asesor resuelve del orden de 0,1 al día
- * hábil: en decimales es ruido y redondeado a entero es un cero que
- * miente. Al mes son 2, que es entero Y quiere decir algo. La cifra
- * es la misma, contada en la unidad en la que se piensa el trabajo.
+ * ES INCREMENTAL SOLA, sin llevar ningún arrastre. Si hoy tocaban
+ * tres y no se hizo ninguno, mañana lo que falta sigue igual y los
+ * días que quedan son uno menos, así que la meta sube. «Si no se
+ * cumple es incremental al siguiente día» (cliente, 26 sep 2026) es
+ * exactamente esto. Guardar el arrastre aparte sería una segunda
+ * cuenta viviendo al lado de la primera, y el día que discrepen no
+ * habría forma de saber cuál manda.
  *
- * Veintiún días hábiles: el mes laboral colombiano corriente. No hace
- * falta más precisión para una cifra que se lee de un vistazo.
+ * HACIA ARRIBA y no al más cercano: con 0,2 al día, la meta entera
+ * no puede ser cero. Cero es «no haga nada hoy», y así no se llega.
  */
-const DIAS_HABILES_AL_MES = 21;
-const alMes = (porDia: number | null) =>
-  porDia === null ? "—" : n(Math.round(porDia * DIAS_HABILES_AL_MES));
+const metaDiaria = (porDia: number | null) =>
+  porDia === null ? "—" : n(Math.ceil(porDia));
 
 type Subvista = "inscripciones" | "academicos";
 
@@ -323,7 +324,12 @@ function DeInscripciones() {
     },
     {
       clave: "pendientes",
-      titulo: "Pendientes",
+      /// LA META GLOBAL. Es la que se llamaba «Pendientes»: lo que
+      /// le falta por resolver antes de su fecha, que es exactamente
+      /// «el total que debe lograr». No se añade otra columna al lado
+      /// porque sería el mismo número dos veces, y dos columnas con
+      /// la misma cifra y distinto nombre se acaban comparando.
+      titulo: "Meta global",
       ancho: "112px",
       numerica: true,
       valor: (f) => f.visto.pendientes,
@@ -376,21 +382,13 @@ function DeInscripciones() {
       clave: "exigido",
       /// LOS DOS RÓTULOS DICEN QUÉ SON, y en la misma unidad: así se
       /// leen uno contra otro, que es para lo que están al lado.
-      titulo: "Debe inscribir al mes",
-      ancho: "150px",
+      titulo: "Meta diaria",
+      ancho: "112px",
       numerica: true,
       valor: (f) => f.ritmo.exigidoPorDia,
       pinta: (f) => (
-        <span className="font-semibold tabular-nums">{alMes(f.ritmo.exigidoPorDia)}</span>
+        <span className="font-semibold tabular-nums">{metaDiaria(f.ritmo.exigidoPorDia)}</span>
       ),
-    },
-    {
-      clave: "real",
-      titulo: "Viene inscribiendo al mes",
-      ancho: "165px",
-      numerica: true,
-      valor: (f) => f.ritmo.realPorDia,
-      pinta: (f) => <span className="tabular-nums">{alMes(f.ritmo.realPorDia)}</span>,
     },
     {
       clave: "estado",
@@ -655,7 +653,8 @@ const columnasAcademicas: Columna<FilaDeAsesorAcademico>[] = [
     /// tabla: con nueve columnas de números, el que decide tiene que
     /// saltar a la vista sin leerlas todas.
     clave: "porCertificar",
-    titulo: "Por certificar",
+    /// La meta global de esta pestaña: lo que le falta certificar.
+    titulo: "Meta global",
     ancho: "115px",
     numerica: true,
     valor: (f) => f.ritmo.pendientes,
@@ -695,19 +694,11 @@ const columnasAcademicas: Columna<FilaDeAsesorAcademico>[] = [
     /// es «certificado» ---lo dice `repartirAcademicos`---, así que
     /// «Promedio Cantidad inscripción» estaba nombrando una cosa por
     /// otra desde que existe la pestaña.
-    titulo: "Debe certificar al mes",
-    ancho: "150px",
+    titulo: "Meta diaria",
+    ancho: "112px",
     numerica: true,
     valor: (f) => f.ritmo.exigidoPorDia,
-    pinta: (f) => <span className="font-semibold tabular-nums">{alMes(f.ritmo.exigidoPorDia)}</span>,
-  },
-  {
-    clave: "real",
-    titulo: "Viene certificando al mes",
-    ancho: "165px",
-    numerica: true,
-    valor: (f) => f.ritmo.realPorDia,
-    pinta: (f) => <span className="tabular-nums">{alMes(f.ritmo.realPorDia)}</span>,
+    pinta: (f) => <span className="font-semibold tabular-nums">{metaDiaria(f.ritmo.exigidoPorDia)}</span>,
   },
   {
     clave: "estado",

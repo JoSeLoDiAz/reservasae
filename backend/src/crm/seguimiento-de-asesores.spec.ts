@@ -46,16 +46,48 @@ describe('ritmoDe', () => {
     expect(r.exigidoPorDia).toBeNull();
   });
 
-  it('reparte los pendientes entre los días HÁBILES que quedan', () => {
-    // del miércoles 23 al miércoles 30 de septiembre hay 5 hábiles
+  /**
+   * LA SEMANA DEL EQUIPO ES DE SEIS, no de cinco.
+   *
+   * Del miércoles 23 al miércoles 30 hay siete días de calendario;
+   * quitando el domingo quedan SEIS de trabajo. Antes eran cinco
+   * porque se contaba con `habilesEntre`, que sirve a las reglas del
+   * SENA ---«cinco días hábiles antes del inicio»--- donde el día
+   * hábil es el de la norma.
+   *
+   * Aquí se mide el ritmo del EQUIPO, y el equipo trabaja de lunes a
+   * sábado: «una tendencia o medición de lunes a sábado, o sea 6
+   * días» (cliente, 26 sep 2026). Contar cinco donde se trabajan seis
+   * infla la meta diaria un veinte por ciento.
+   */
+  it('reparte lo que falta entre los días de trabajo que quedan, sábado incluido', () => {
     const r = ritmoDe({
       carga: carga({ total: 50, resueltos: 40 }),
       limite: new Date('2026-09-30T00:00:00.000Z'),
       hoy: d('2026-09-23'),
       diasCorridos: 10,
     });
-    expect(r.diasHabiles).toBe(5);
-    expect(r.exigidoPorDia).toBe(2);
+    expect(r.diasHabiles).toBe(6);
+    /// Diez pendientes entre seis días: la meta diaria sube sola en
+    /// cuanto pasa un día sin resolver nada, que es lo que la hace
+    /// incremental sin guardar ningún arrastre.
+    expect(r.exigidoPorDia).toBeCloseTo(10 / 6);
+  });
+
+  /// LO INCREMENTAL, FIJADO. Mismo pendiente, un día menos por
+  /// delante: la meta de mañana es mayor que la de hoy, sin que nadie
+  /// acumule nada a mano.
+  it('si hoy no se resuelve nada, mañana la meta diaria sube sola', () => {
+    const comun = {
+      carga: carga({ total: 50, resueltos: 40 }),
+      limite: new Date('2026-09-30T00:00:00.000Z'),
+      diasCorridos: 10,
+    };
+    const hoy = ritmoDe({ ...comun, hoy: d('2026-09-23') });
+    const manana = ritmoDe({ ...comun, hoy: d('2026-09-24') });
+
+    expect(manana.diasHabiles).toBe(hoy.diasHabiles! - 1);
+    expect(manana.exigidoPorDia!).toBeGreaterThan(hoy.exigidoPorDia!);
   });
 
   it('el ritmo real sale de lo resuelto sobre los días que lleva', () => {
@@ -69,7 +101,8 @@ describe('ritmoDe', () => {
   });
 
   it('si le exigen lo mismo que viene haciendo, va AL DÍA', () => {
-    // 10 pendientes en 5 hábiles son 2 al día, y viene haciendo 2
+    // 10 pendientes en 6 días de trabajo son 1,67 al día, y viene
+    // haciendo 2: le sobra, asi que va al dia
     const r = ritmoDe({
       carga: carga({ total: 50, resueltos: 40 }),
       limite: new Date('2026-09-30T00:00:00.000Z'),
@@ -80,9 +113,10 @@ describe('ritmoDe', () => {
   });
 
   it('hasta un 20 % más es AJUSTADO: es la variación normal de una semana', () => {
-    // 11 pendientes en 5 hábiles son 2,2 al día contra 2 que trae
+    // 14 pendientes en 6 días de trabajo son 2,33 al día contra 2
+    // que trae: un 17 % más, dentro de la holgura
     const r = ritmoDe({
-      carga: carga({ total: 51, resueltos: 40 }),
+      carga: carga({ total: 54, resueltos: 40 }),
       limite: new Date('2026-09-30T00:00:00.000Z'),
       hoy: d('2026-09-23'),
       diasCorridos: 20,
@@ -91,7 +125,7 @@ describe('ritmoDe', () => {
   });
 
   it('del doble en adelante está EN RIESGO y pide refuerzo', () => {
-    // 60 pendientes en 5 hábiles son 12 al día contra 2 que trae
+    // 60 pendientes en 6 días de trabajo son 10 al día contra 2
     const r = ritmoDe({
       carga: carga({ total: 100, resueltos: 40 }),
       limite: new Date('2026-09-30T00:00:00.000Z'),
