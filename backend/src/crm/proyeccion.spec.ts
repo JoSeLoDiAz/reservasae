@@ -202,34 +202,59 @@ describe('la conversión y los leads que hacen falta', () => {
 });
 
 describe('el orden de las filas', () => {
-  /// La pantalla es para decidir dónde meter esfuerzo, así que arriba
-  /// va lo que peor está. «Sin fecha» manda sobre todo porque es lo
-  /// único que no se arregla inscribiendo.
-  it('pone arriba lo que peor va, y «sin fecha» lo primero', () => {
+  /**
+   * POR CÓDIGO, de AF1 en adelante.
+   *
+   * Estuvo ordenada por veredicto ---lo peor arriba--- con la idea de
+   * que la pantalla sirve para decidir dónde meter esfuerzo. El
+   * cliente la lee como un catálogo, y buscar la AF4 en una lista
+   * ordenada por otra cosa es recorrerla entera: «Acción de formación
+   * en orden, o sea primero AF1, AF2, AF3» (27 sep 2026). Para lo
+   * otro está la columna «¿Alcanza?», que ordena y filtra sola.
+   */
+  it('las ordena por código de acción, no por lo mal que vayan', () => {
+    const conCodigo = (id: string, codigo: string) =>
+      lead(id, 'INSCRITO', 1).map((l) => ({ ...l, codigo }));
+
     const filas = proyectarInscripciones(
       [
-        ...lead('cubierta', 'INSCRITO', 10),
-        ...lead('sinFecha', 'INSCRITO', 1),
-        ...lead('noLlega', 'INSCRITO', 1),
+        ...conCodigo('tercera', 'AF3'),
+        ...conCodigo('primera', 'AF1'),
+        ...conCodigo('segunda', 'AF2'),
       ],
       new Map([
-        ['cubierta', 10],
-        ['sinFecha', 100],
-        ['noLlega', 100],
+        ['tercera', 10],
+        ['primera', 100],
+        ['segunda', 100],
       ]),
-      new Map([
-        ['cubierta', DIA('2026-09-30')],
-        ['noLlega', DIA('2026-09-30')],
-      ]),
+      new Map(),
       new Map(),
       HOY,
     );
 
-    expect(filas.map((f) => f.accionFormacionId)).toEqual([
-      'sinFecha',
-      'noLlega',
-      'cubierta',
-    ]);
+    expect(filas.map((f) => f.codigo)).toEqual(['AF1', 'AF2', 'AF3']);
+  });
+
+  /// NUMÉRICO Y NO ALFABÉTICO. Por texto, «AF10» va entre «AF1» y
+  /// «AF2». Hoy no hay acciones de dos dígitos; el día que las haya,
+  /// nadie se va a acordar de esta línea.
+  it('AF10 va después de AF9, no entre AF1 y AF2', () => {
+    const conCodigo = (id: string, codigo: string) =>
+      lead(id, 'INSCRITO', 1).map((l) => ({ ...l, codigo }));
+
+    const filas = proyectarInscripciones(
+      [
+        ...conCodigo('diez', 'AF10'),
+        ...conCodigo('dos', 'AF2'),
+        ...conCodigo('nueve', 'AF9'),
+      ],
+      new Map(),
+      new Map(),
+      new Map(),
+      HOY,
+    );
+
+    expect(filas.map((f) => f.codigo)).toEqual(['AF2', 'AF9', 'AF10']);
   });
 });
 

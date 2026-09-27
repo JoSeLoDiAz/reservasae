@@ -371,7 +371,7 @@ function DeInscripciones() {
       valor: (f) => f.antiguedadMedia,
       pinta: (f) => (
         <span className="tabular-nums">
-          {f.antiguedadMedia === null ? "—" : `${dec(f.antiguedadMedia)} d`}
+          {f.antiguedadMedia === null ? "—" : `${n(Math.round(f.antiguedadMedia))} d`}
         </span>
       ),
     },
@@ -808,10 +808,46 @@ function Proyeccion() {
           color={t.faltan > 0 ? "var(--error)" : undefined}
         />
         <CifraCompacta
-          etiqueta="Leads por conseguir"
+          etiqueta="Leads que faltan"
           valor={n(t.porConseguir)}
           pie={t.enRiesgo > 0 ? `${n(t.enRiesgo)} acciones en riesgo` : undefined}
         />
+      </div>
+
+      {/* QUÉ QUIERE DECIR CADA COLUMNA.
+          «¿Acabará en? ¿Leads por conseguir? ¿Llega? ¿Qué son esos
+          términos?» (cliente, 27 sep 2026). Una tabla que hay que
+          explicar de viva voz no está terminada, y la explicación va
+          AQUÍ y no en un manual que nadie abre. */}
+      <div className="rounded-lg border border-borde bg-superficie px-4 py-3 text-[0.8125rem] text-texto-suave">
+        <p className="mb-1.5 font-semibold text-titulo">Cómo se lee esta tabla</p>
+        <ul className="space-y-1">
+          <li>
+            <strong className="font-medium text-titulo">Meta diaria</strong> — cuántos
+            hay que inscribir cada día, de lunes a sábado, para cubrir lo que falta
+            antes de que cierre. Sube sola si un día no se cumple.
+          </li>
+          <li>
+            <strong className="font-medium text-titulo">Terminará con</strong> — con
+            cuántos inscritos acaba esta acción si sigue al ritmo de las dos últimas
+            semanas. Es una previsión, no una promesa: si el ritmo cambia, cambia.
+          </li>
+          <li>
+            <strong className="font-medium text-titulo">Conversión</strong> — de cada
+            cien personas interesadas, cuántas acaban inscritas. Cuando una acción
+            tiene pocos interesados se usa el promedio de todas, y la columna lo dice.
+          </li>
+          <li>
+            <strong className="font-medium text-titulo">Leads que faltan</strong> —
+            cuántos interesados NUEVOS hay que conseguir. Ya están descontados los que
+            hay sin atender, porque esos no hay que volver a buscarlos.
+          </li>
+          <li>
+            <strong className="font-medium text-titulo">¿Alcanza?</strong> — si con esa
+            previsión se llega a los cupos comprometidos. «Apretado» es que llega por
+            menos de un diez por ciento, que cualquier semana floja se come.
+          </li>
+        </ul>
       </div>
 
       <Tabla
@@ -840,12 +876,19 @@ const columnasDeProyeccion: Columna<FilaDeProyeccion>[] = [
     titulo: "Acción de formación",
     ancho: "260px",
     valor: (f) => `${f.codigo ?? ""} ${f.nombre ?? ""}`.trim(),
+    /// SE AJUSTA A LA CELDA, no se corta. «El texto se ajuste a la
+    /// celda porque queda cortado si ajusto el tamaño de la columna»
+    /// (cliente, 27 sep 2026). Con `truncate` el nombre desaparecía
+    /// detrás de unos puntos suspensivos y estrechar la columna no
+    /// servía de nada; ahora reparte en los renglones que haga falta.
+    /// El código, sin partirse: «AF» en una línea y «3» en la
+    /// siguiente era lo que se veía.
     pinta: (f) => (
       <span className="flex min-w-0 items-baseline gap-2">
-        <span className="font-mono text-xs text-texto-suave">{f.codigo}</span>
-        <span className="truncate" title={f.nombre ?? ""}>
-          {f.nombre}
+        <span className="shrink-0 font-mono text-xs whitespace-nowrap text-texto-suave">
+          {f.codigo}
         </span>
+        <span className="min-w-0 break-words whitespace-normal">{f.nombre}</span>
       </span>
     ),
   },
@@ -918,22 +961,26 @@ const columnasDeProyeccion: Columna<FilaDeProyeccion>[] = [
   },
   {
     clave: "ritmo",
-    titulo: "Viene inscribiendo",
-    ancho: "142px",
+    /**
+     * EL CONTEO CRUDO, no la tasa.
+     *
+     * Enseñaba «0,8 al día», y el cliente no quiere decimales en
+     * ninguna columna (27 sep 2026). Redondear una tasa por debajo de
+     * uno la convierte en cero, que es mentira. Así que se enseña el
+     * dato del que sale ---cuántos se inscribieron en los últimos
+     * quince días de trabajo---: es entero, es verdad, y es la cifra
+     * que alguien puede contrastar. La tasa sigue por dentro, que es
+     * donde hace falta para proyectar.
+     */
+    titulo: "Inscritos en 15 días",
+    ancho: "150px",
     numerica: true,
-    valor: (f) => f.ritmoReal,
-    /// Con un decimal a propósito: aquí es una TASA y no un conteo, y
-    /// redondear 0,8 al día a «1» promete un ritmo que no tiene.
-    pinta: (f) => (
-      <span className="tabular-nums">
-        {dec(f.ritmoReal)}
-        <span className="text-xs text-texto-suave"> al día</span>
-      </span>
-    ),
+    valor: (f) => f.inscritosVentana,
+    pinta: (f) => <span className="tabular-nums">{n(f.inscritosVentana)}</span>,
   },
   {
     clave: "proyeccion",
-    titulo: "Acabará en",
+    titulo: "Terminará con",
     ancho: "112px",
     numerica: true,
     valor: (f) => f.proyeccion,
@@ -969,7 +1016,7 @@ const columnasDeProyeccion: Columna<FilaDeProyeccion>[] = [
   },
   {
     clave: "porConseguir",
-    titulo: "Leads por conseguir",
+    titulo: "Leads que faltan",
     ancho: "152px",
     numerica: true,
     valor: (f) => f.leadsPorConseguir,
@@ -991,7 +1038,7 @@ const columnasDeProyeccion: Columna<FilaDeProyeccion>[] = [
   },
   {
     clave: "veredicto",
-    titulo: "¿Llega?",
+    titulo: "¿Alcanza?",
     ancho: "112px",
     valor: (f) => VEREDICTO[f.veredicto].texto,
     filtro: "opciones",

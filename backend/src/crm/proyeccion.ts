@@ -71,8 +71,13 @@ export type FilaDeProyeccion = {
   cierre: string | null;
   /// Días de trabajo hasta el cierre. Negativo si ya pasó.
   diasRestantes: number | null;
-  /// Cuántos viene inscribiendo al día en la ventana de ritmo.
+  /// Cuántos viene inscribiendo al día en la ventana de ritmo. Se usa
+  /// para proyectar; en pantalla se enseña el conteo crudo, que es
+  /// entero y no hay que dividirlo para entenderlo.
   ritmoReal: number;
+  /// Cuántos se inscribieron DENTRO de la ventana. El dato del que
+  /// sale el ritmo, sin dividir.
+  inscritosVentana: number;
   /// Cuántos tendría que inscribir cada día para llegar.
   metaDiaria: number | null;
   /// Dónde acaba si sigue a este ritmo.
@@ -204,7 +209,8 @@ export function proyectarInscripciones(
         /// El ritmo, sobre la ventana COMPLETA y no sobre los días que
         /// lleva viva la acción: así dos acciones se comparan entre sí.
         /// Una que arrancó ayer sale con ritmo bajo, que es la verdad.
-        const ritmoReal = (inscritosRecientes.get(id) ?? 0) / DIAS_DE_RITMO;
+        const inscritosVentana = inscritosRecientes.get(id) ?? 0;
+      const ritmoReal = inscritosVentana / DIAS_DE_RITMO;
 
         const conversionPropia = f.leads >= LEADS_PARA_FIARSE;
         const conversion = conversionPropia
@@ -240,6 +246,7 @@ export function proyectarInscripciones(
           cierre: cierre ? cierre.toISOString().slice(0, 10) : null,
           diasRestantes,
           ritmoReal,
+          inscritosVentana,
           metaDiaria,
           proyeccion,
           conversion,
@@ -257,9 +264,28 @@ export function proyectarInscripciones(
       })
       /// Los que peor van, arriba: la pantalla es para decidir dónde
       /// meter esfuerzo, no para leer el catálogo por orden.
-      .sort(
-        (a, b) =>
-          ORDEN[a.veredicto] - ORDEN[b.veredicto] || b.faltan - a.faltan,
-      )
+    /**
+     * POR CÓDIGO DE ACCIÓN, de AF1 en adelante.
+     *
+     * Estaba ordenada por veredicto ---lo que peor va, arriba--- con
+     * la idea de que la pantalla sirve para decidir dónde meter
+     * esfuerzo. Pero el cliente la lee como un catálogo y buscar la
+     * AF4 en una lista ordenada por otra cosa es recorrerla entera:
+     * «Acción de formación en orden, o sea primero AF1, AF2, AF3»
+     * (27 sep 2026). Para lo otro está la columna «¿Llega?», que
+     * filtra y ordena sola.
+     *
+     * NUMÉRICO Y NO ALFABÉTICO: por texto, «AF10» va entre «AF1» y
+     * «AF2». Hoy no hay dos dígitos, pero el día que los haya nadie
+     * se va a acordar de esta línea.
+     */
+      .sort((a, b) => {
+        const num = (c: string | null) =>
+          Number((c ?? '').replace(/\D/g, '')) || 0;
+        return (
+          num(a.codigo) - num(b.codigo) ||
+          (a.nombre ?? '').localeCompare(b.nombre ?? '')
+        );
+      })
   );
 }

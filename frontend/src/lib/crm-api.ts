@@ -1471,6 +1471,8 @@ export type FilaDeProyeccion = {
   /// Días de trabajo ---lunes a sábado--- hasta el cierre.
   diasRestantes: number | null;
   ritmoReal: number;
+  /// Cuántos se inscribieron dentro de la ventana de ritmo, sin dividir.
+  inscritosVentana: number;
   metaDiaria: number | null;
   proyeccion: number;
   conversion: number;
