@@ -1,6 +1,13 @@
 "use client";
 
-import { IconoCheckCirculo, IconoReloj } from "./iconos";
+import Link from "next/link";
+
+import {
+  IconoCheckCirculo,
+  IconoCronograma,
+  IconoMatriculados,
+  IconoReloj,
+} from "./iconos";
 import type { FilaAcademica } from "@/lib/crm-api";
 
 type Grupo = {
@@ -111,7 +118,7 @@ export function GruposDeLaAccion({
                   p.accionFormacionId === g.accionFormacionId,
               )}
               elegido={g.id === grupoId}
-              alPulsar={() => alElegirGrupo(g.id === grupoId ? "" : g.id)}
+              alVerInscritos={() => alElegirGrupo(g.id === grupoId ? "" : g.id)}
             />
           ))}
         </div>
@@ -152,14 +159,14 @@ function TarjetaDeGrupo({
   codigo,
   suya,
   elegido,
-  alPulsar,
+  alVerInscritos,
 }: {
   grupo: Grupo;
   /// Solo cuando se ven las de varias acciones a la vez.
   codigo: string | null;
   suya: FilaAcademica[];
   elegido: boolean;
-  alPulsar: () => void;
+  alVerInscritos: () => void;
 }) {
   const dentro = suya.length;
   const cupos = grupo.cupos ?? 0;
@@ -195,45 +202,50 @@ function TarjetaDeGrupo({
   const pct = (n: number) => (dentro > 0 ? Math.round((n / dentro) * 100) : 0);
 
   return (
-    <button
-      type="button"
-      onClick={alPulsar}
-      aria-pressed={elegido}
-      /// `overflow-hidden` para que la franja de arriba siga la curva
-      /// del borde. SIN SOMBRA: la regla del handoff la reserva para
-      /// lo que FLOTA, y una tarjeta no flota.
-      className={`overflow-hidden rounded-xl border bg-superficie text-left transition hover:border-marca/40 ${
-        elegido ? "border-marca" : "border-borde"
+    /**
+     * LA TARJETA ES UN `div`, Y ESO ES OBLIGATORIO.
+     *
+     * Era un `<button>` entero, y en cuanto entran los botoncitos de
+     * abajo eso se vuelve un botón dentro de otro: HTML inválido, y
+     * el navegador lo repara sacándolos fuera —con lo que dejan de
+     * estar donde se ven—. La acción baja a los botones, que es
+     * además donde se lee qué hace cada una.
+     */
+    <div
+      className={`overflow-hidden rounded-xl border bg-superficie text-left transition ${
+        elegido ? "border-marca" : "border-borde hover:border-marca/40"
       }`}
     >
-      {/* LA FRANJA, que es lo que le gustó de aquella pantalla. Tres
-          píxeles, de marca a éxito, y SALE DE LOS TOKENS: con un
-          gradiente escrito a fuego, el día que un gremio cambie de
-          color esta línea se quedaría con el de otro. */}
+      {/* LA FRANJA. De `--marca` a `--acento`, y el segundo NO sale
+          del gremio a propósito: el handoff fija los `--acento*` en
+          CSS, así que el degradado se ve igual de vivo lleve el
+          gremio el verde de ADECOPRIA o el azul de BRITCHAM. Con
+          `--exito` los dos extremos eran casi el mismo verde y la
+          franja se leía como una raya lisa. */}
       <span
         aria-hidden
         className="block h-[3px] w-full"
         style={{
           background:
-            "linear-gradient(90deg, var(--marca) 0%, var(--exito) 100%)",
+            "linear-gradient(90deg, var(--marca) 0%, var(--acento) 100%)",
         }}
       />
 
-      <span className="block p-3.5">
-        <span className="flex items-start justify-between gap-2">
-          <span className="min-w-0">
+      <div className="p-3.5">
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
             <span className="block text-[0.625rem] font-semibold tracking-[0.08em] text-texto-suave uppercase">
               {codigo ? `${codigo} · Grupo` : "Grupo"}
             </span>
             <span className="mt-0.5 block text-[1.75rem] leading-none font-bold text-titulo tabular-nums">
               {grupo.numero}
             </span>
-          </span>
+          </div>
 
           {/* LAS DOS PÍLDORAS, cada una solo si tiene a alguien
               detrás: un «0 %» repetido en doce tarjetas es ruido, y
               encima se lee como un dato cuando es un vacío. */}
-          <span className="flex shrink-0 flex-wrap justify-end gap-1">
+          <div className="flex shrink-0 flex-wrap justify-end gap-1">
             {certificados > 0 && (
               <Pildora
                 tono="var(--exito)"
@@ -252,10 +264,10 @@ function TarjetaDeGrupo({
                 {pct(atrasados)} %
               </Pildora>
             )}
-          </span>
-        </span>
+          </div>
+        </div>
 
-        <span className="mt-3.5 block">
+        <div className="mt-3.5">
           <CifraConBarra
             etiqueta="Inscritos"
             valor={cupos > 0 ? `${dentro} de ${cupos}` : String(dentro)}
@@ -265,14 +277,14 @@ function TarjetaDeGrupo({
               cupos > 0 ? `${Math.round((dentro / cupos) * 100)} % del cupo` : null
             }
           />
-        </span>
+        </div>
 
-        <span className="mt-3 block border-t border-hairline pt-3">
+        <div className="mt-3 border-t border-hairline pt-3">
           <CifraConBarra
             etiqueta="Avance"
             valor={avance === null ? "—" : `${avance} %`}
             porcentaje={avance}
-            tono="var(--exito)"
+            tono="var(--acento)"
             pie={
               avance === null
                 ? "El aula todavía no manda actividades de este grupo."
@@ -281,8 +293,72 @@ function TarjetaDeGrupo({
                   }.`
             }
           />
-        </span>
-      </span>
+        </div>
+
+        {/* LOS BOTONCITOS, que es lo que le gustó de aquella
+            pantalla. Allá son tres —Beneficiarios, Cobertura,
+            Certificar—; aquí son DOS, y no por recortar: son las dos
+            que de verdad llevan a algún sitio.
+            «Certificar» no cabe: se certifica PERSONA a persona,
+            contra el 80 % de lo obligatorio y con el permiso del
+            líder académico. Un botón así en la tarjeta de un grupo
+            sería un control en pie y vacío de efecto. */}
+        <div className="mt-3.5 grid grid-cols-2 gap-2 border-t border-hairline pt-3">
+          <BotonDeTarjeta
+            icono={<IconoMatriculados tamano={15} />}
+            onClick={alVerInscritos}
+            titulo={`Ver a las ${dentro} personas del grupo ${grupo.numero}`}
+          >
+            Inscritos
+          </BotonDeTarjeta>
+          <BotonDeTarjeta
+            icono={<IconoCronograma tamano={15} />}
+            href="/admin/acciones/cronograma"
+            titulo="Fechas del grupo y quién lo acompaña"
+          >
+            Cronograma
+          </BotonDeTarjeta>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * El botón pequeño de la tarjeta, que vale como enlace o como botón.
+ *
+ * Los dos se ven igual porque para quien mira son lo mismo —una
+ * acción de esta tarjeta—, pero uno NAVEGA y el otro no: usar un
+ * `button` con `router.push` rompería abrir en otra pestaña y el
+ * clic con el botón central, y un `a` sin `href` no es un enlace.
+ */
+function BotonDeTarjeta({
+  icono,
+  children,
+  titulo,
+  href,
+  onClick,
+}: {
+  icono: React.ReactNode;
+  children: React.ReactNode;
+  titulo: string;
+  href?: string;
+  onClick?: () => void;
+}) {
+  const clases =
+    "flex items-center justify-center gap-1.5 rounded-lg border border-borde px-2 py-1.5 text-[0.75rem] font-medium text-texto-suave transition hover:border-marca/40 hover:text-texto";
+  if (href) {
+    return (
+      <Link href={href} title={titulo} className={clases}>
+        {icono}
+        {children}
+      </Link>
+    );
+  }
+  return (
+    <button type="button" onClick={onClick} title={titulo} className={clases}>
+      {icono}
+      {children}
     </button>
   );
 }
