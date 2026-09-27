@@ -58,7 +58,23 @@ export function Cajon({
   }, [alCerrar]);
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end">
+    /**
+     * ARRANCA DEBAJO DE LA FRANJA, no en el borde de la pantalla.
+     *
+     * Con `inset-0` a secas el cajón se mete bajo la franja de
+     * pruebas --36 px, fija y por encima-- y en el teléfono eso se
+     * come el título y los primeros 29 px del botón de cerrar
+     * (medido a 390 px: la X va de y=7 a y=51). En producción la
+     * variable vale 0 y no cambia nada, así que esto solo se ve
+     * donde se revisa; que es justo donde estorba.
+     *
+     * Y la franja NO se tapa a propósito: es el aviso de que nada
+     * de lo que se haga aquí llega a producción.
+     */
+    <div
+      className="fixed inset-x-0 bottom-0 z-50 flex justify-end"
+      style={{ top: "var(--franja-alto, 0px)" }}
+    >
       <button
         type="button"
         onClick={alCerrar}
