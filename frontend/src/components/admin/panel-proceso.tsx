@@ -2562,6 +2562,13 @@ export function PanelProceso({
             dé el listado de los grupos»). Pulsar otra vez la fila
             suelta el corte y vuelven las siete. */}
         <TablaPorAccion
+          /// EL MISMO RECORTE, PERO DEL OTRO PERIODO. Nulo cuando no
+          /// hay comparacion puesta, y entonces la tabla sale como
+          /// siempre, con una sola cifra por celda.
+          recorteAnterior={
+            bDesde && bHasta ? { ...filtros, desde: bDesde, hasta: bHasta } : null
+          }
+          rotuloAnterior={rotuloAnterior}
           recorte={
             accionAbierta
               ? { ...recorte, accionFormacionId: accionAbierta.id }
