@@ -2460,7 +2460,7 @@ export function PanelProceso({
             inscritos de abajo, que dice lo mismo con cifras y no con
             porciones; la segunda no se usa para decidir nada. */}
         {donutConvenio.length > 1 && !gremioUnico && (
-          <Bloque titulo="Por convenio" descripcion="Cómo se reparten entre los dos gremios.">
+          <Bloque titulo="Por convenio" descripcion="Leads por gremio.">
             <Donut datos={donutConvenio} detalleCentro="personas" />
           </Bloque>
         )}
@@ -2505,7 +2505,7 @@ export function PanelProceso({
         <div className="grid gap-4 min-[1000px]:grid-cols-2">
           <Bloque
             titulo="Estado del lead"
-            descripcion="En qué paso está parada cada persona hoy."
+            descripcion="Etapas del lead."
           >
             <ul className="space-y-2.5">
               {ETAPAS_EN_ORDEN.filter((e) => valorDeFase(e) > 0).map((e) => {
@@ -2545,7 +2545,7 @@ export function PanelProceso({
 
           <Bloque
             titulo="Estado de los datos"
-            descripcion="Cuántos leads están completos y cuántos a medias."
+            descripcion="Leads con datos completos y parciales."
           >
             {/* MÁS GRANDE, Y A LA MEDIDA DE SU VECINA. «La dona de
                 Estado de los datos más grande simétricamente»
@@ -2659,7 +2659,7 @@ export function PanelProceso({
             sep 2026). El mapa dice DÓNDE se concentra, la lista
             CUÁNTOS, y el tercero quién los atiende. */}
         <div className="grid gap-4 min-[1000px]:grid-cols-[0.75fr_0.85fr_1.1fr]">
-          <Bloque titulo="Por departamento" descripcion="Dónde viven las personas del periodo.">
+          <Bloque titulo="Por departamento" descripcion="Ubicación geográfica de los leads.">
             <MapaColombia
               datos={(delPeriodo?.departamentos ?? []).map((d) => ({
                 nombre: d.nombre,
@@ -2670,7 +2670,7 @@ export function PanelProceso({
 
           <Bloque
             titulo="Cantidad por departamento"
-            descripcion="De más a menos, con lo que pesa cada uno."
+            descripcion="Cantidad de leads por departamento."
           >
             <ListaBarras
               datos={[...(delPeriodo?.departamentos ?? [])]
@@ -2689,7 +2689,7 @@ export function PanelProceso({
 
           <Bloque
             titulo="Rendimiento por asesor"
-            descripcion="Cuántos lleva y cuántos convierte a inscrito cada uno."
+            descripcion="Conversión de leads por asesor."
           >
             <TablaAsesores filas={control?.porAsesor ?? []} />
           </Bloque>

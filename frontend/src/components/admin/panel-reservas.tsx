@@ -1710,8 +1710,8 @@ function PorDepartamento({
       titulo="Cupos por departamento"
       descripcion={
         <>
-          Dónde se dictan los cursos de las reservas. En verde, los cupos que ya tienen una
-          persona detrás.{" "}
+          Cupos reservados por departamento. En verde, los que ya tienen una persona
+          detrás.{" "}
           {/* LA INSTRUCCIÓN NO SE IMPRIME. En la hoja decía «Pulse uno
               para ver su seguimiento debajo» y en papel no se pulsa
               nada: es una frase que solo se descubre mirando el PDF, y
@@ -1884,7 +1884,7 @@ function Seguimiento({
       descripcion={
         departamento
           ? `Lo que apartó cada institución en ${comoSeLlama(departamento)}, acción por acción, y cuántos cupos ya tienen persona.`
-          : "Cuántos cupos apartó cada institución en cada acción y cuántos ya tienen persona."
+          : "Cupos reservados por institución y acción de formación."
       }
       acciones={alCerrar && <BotonCerrarSeguimiento alPulsar={alCerrar} />}
     >
