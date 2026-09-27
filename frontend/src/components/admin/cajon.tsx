@@ -94,7 +94,22 @@ export function Cajon({
         /// estrechas que «Accion formacion interes» ocupaba
         /// cinco renglones. Con mas ancho el mismo contenido
         /// cabe casi entero sin bajar.
-        className="relative flex h-full w-full max-w-2xl flex-col border-l border-borde bg-superficie shadow-2xl outline-none"
+        /**
+         * EL COLOR DE TEXTO SE PONE, NO SE HEREDA.
+         *
+         * `fixed` saca la caja del flujo pero NO del arbol: un cajon
+         * abierto desde la cabecera sigue siendo descendiente suyo, y
+         * de ahi hereda `encabezado-texto` --blanco sobre la banda--.
+         * Sobre `bg-superficie`, que es casi blanca, eso es texto
+         * blanco sobre blanco: el cajon salia en blanco entero.
+         *
+         * Medido en pruebas a 390 px: `color: rgb(255,255,255)` en el
+         * titulo, en la fila y en el panel. No se veia nada de lo que
+         * no llevara su propia clase de color --el vacio si se leia,
+         * porque es `text-texto-suave`--, y por eso parecia una
+         * animacion a medias en vez de un defecto.
+         */
+        className="relative flex h-full w-full max-w-2xl flex-col border-l border-borde bg-superficie text-texto shadow-2xl outline-none"
       >
         <header className="flex items-start gap-3 border-b border-borde px-6 py-4">
           <div className="min-w-0 flex-1">
