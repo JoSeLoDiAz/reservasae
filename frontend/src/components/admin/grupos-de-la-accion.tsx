@@ -1,10 +1,7 @@
 "use client";
 
-import Link from "next/link";
-
 import {
   IconoCheckCirculo,
-  IconoCronograma,
   IconoMatriculados,
   IconoReloj,
 } from "./iconos";
@@ -242,28 +239,28 @@ function TarjetaDeGrupo({
             </span>
           </div>
 
-          {/* LAS DOS PÍLDORAS, cada una solo si tiene a alguien
-              detrás: un «0 %» repetido en doce tarjetas es ruido, y
-              encima se lee como un dato cuando es un vacío. */}
+          {/* LAS DOS PÍLDORAS, SIEMPRE, también en cero.
+              Estuvieron escondidas cuando no había nadie detrás, con
+              el argumento de que un «0 %» repetido es ruido; Josse
+              las quiere puestas --«eso deberías dejarlo»--, y tiene
+              razón para esta pantalla: aquí un cero NO es un vacío,
+              es la respuesta. Que un grupo lleve 0 % certificado es
+              justo lo que se viene a mirar. */}
           <div className="flex shrink-0 flex-wrap justify-end gap-1">
-            {certificados > 0 && (
-              <Pildora
-                tono="var(--exito)"
-                icono={<IconoCheckCirculo tamano={12} />}
-                titulo={`${certificados} de ${dentro} ya certificados`}
-              >
-                {pct(certificados)} %
-              </Pildora>
-            )}
-            {atrasados > 0 && (
-              <Pildora
-                tono="var(--aviso)"
-                icono={<IconoReloj tamano={12} />}
-                titulo={`${atrasados} de ${dentro} atrasados frente a su calendario`}
-              >
-                {pct(atrasados)} %
-              </Pildora>
-            )}
+            <Pildora
+              tono="var(--exito)"
+              icono={<IconoCheckCirculo tamano={12} />}
+              titulo={`${certificados} de ${dentro} ya certificados`}
+            >
+              {pct(certificados)} %
+            </Pildora>
+            <Pildora
+              tono="var(--aviso)"
+              icono={<IconoReloj tamano={12} />}
+              titulo={`${atrasados} de ${dentro} atrasados frente a su calendario`}
+            >
+              {pct(atrasados)} %
+            </Pildora>
           </div>
         </div>
 
@@ -295,71 +292,28 @@ function TarjetaDeGrupo({
           />
         </div>
 
-        {/* LOS BOTONCITOS, que es lo que le gustó de aquella
-            pantalla. Allá son tres —Beneficiarios, Cobertura,
-            Certificar—; aquí son DOS, y no por recortar: son las dos
-            que de verdad llevan a algún sitio.
-            «Certificar» no cabe: se certifica PERSONA a persona,
-            contra el 80 % de lo obligatorio y con el permiso del
-            líder académico. Un botón así en la tarjeta de un grupo
-            sería un control en pie y vacío de efecto. */}
-        <div className="mt-3.5 grid grid-cols-2 gap-2 border-t border-hairline pt-3">
-          <BotonDeTarjeta
-            icono={<IconoMatriculados tamano={15} />}
+        {/* EL BOTÓN, UNO SOLO Y CON COLOR. Es el «Beneficiarios» de
+            aquella pantalla: mismo sitio, misma forma, y lleva a lo
+            mismo --a la gente del grupo--.
+            «Cronograma» se fue: Josse lo pidió fuera. Y «Certificar»
+            nunca entró, porque se certifica PERSONA a persona contra
+            el 80 % de lo obligatorio: un botón así en la tarjeta de
+            un grupo sería un control en pie y vacío de efecto.
+            El color sale de `--marca`, o sea del gremio: escrito a
+            fuego, este botón se quedaría verde en el gremio azul. */}
+        <div className="mt-3.5 border-t border-hairline pt-3">
+          <button
+            type="button"
             onClick={alVerInscritos}
-            titulo={`Ver a las ${dentro} personas del grupo ${grupo.numero}`}
+            title={`Ver a las ${dentro} personas del grupo ${grupo.numero}`}
+            className="flex w-full items-center justify-center gap-2 rounded-lg border border-marca/35 px-2 py-2 text-[0.8125rem] font-medium text-marca transition hover:border-marca hover:bg-marca-suave"
           >
-            Inscritos
-          </BotonDeTarjeta>
-          <BotonDeTarjeta
-            icono={<IconoCronograma tamano={15} />}
-            href="/admin/acciones/cronograma"
-            titulo="Fechas del grupo y quién lo acompaña"
-          >
-            Cronograma
-          </BotonDeTarjeta>
+            <IconoMatriculados tamano={15} />
+            Ver inscritos
+          </button>
         </div>
       </div>
     </div>
-  );
-}
-
-/**
- * El botón pequeño de la tarjeta, que vale como enlace o como botón.
- *
- * Los dos se ven igual porque para quien mira son lo mismo —una
- * acción de esta tarjeta—, pero uno NAVEGA y el otro no: usar un
- * `button` con `router.push` rompería abrir en otra pestaña y el
- * clic con el botón central, y un `a` sin `href` no es un enlace.
- */
-function BotonDeTarjeta({
-  icono,
-  children,
-  titulo,
-  href,
-  onClick,
-}: {
-  icono: React.ReactNode;
-  children: React.ReactNode;
-  titulo: string;
-  href?: string;
-  onClick?: () => void;
-}) {
-  const clases =
-    "flex items-center justify-center gap-1.5 rounded-lg border border-borde px-2 py-1.5 text-[0.75rem] font-medium text-texto-suave transition hover:border-marca/40 hover:text-texto";
-  if (href) {
-    return (
-      <Link href={href} title={titulo} className={clases}>
-        {icono}
-        {children}
-      </Link>
-    );
-  }
-  return (
-    <button type="button" onClick={onClick} title={titulo} className={clases}>
-      {icono}
-      {children}
-    </button>
   );
 }
 
