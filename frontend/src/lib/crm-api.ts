@@ -1493,6 +1493,33 @@ export type FilaDeProyeccion = {
   veredicto: Veredicto;
 };
 
+/**
+ * Una acción, proyectada hasta el FIN DEL CURSO.
+ *
+ * La hermana de `FilaDeProyeccion`, con otro reloj y otro numerador:
+ * allí son sillas que llenar antes del cierre de inscripciones, aquí
+ * personas que certificar antes de que acabe el curso.
+ */
+export type FilaDeProyeccionAcademica = {
+  accionFormacionId: string;
+  codigo: string | null;
+  nombre: string | null;
+  /// Quién está dentro del aula. El denominador.
+  enElAula: number;
+  certificados: number;
+  porCertificar: number;
+  /// Los que ya no van a certificarse: no aprobaron, desertaron,
+  /// abandonaron o se retiraron.
+  salieron: number;
+  finDelCurso: string | null;
+  diasRestantes: number | null;
+  certificadosVentana: number;
+  ritmoReal: number;
+  metaDiaria: number | null;
+  proyeccion: number;
+  veredicto: Veredicto;
+};
+
 export type FilaDeAsesorAcademico = FilaDeAsesor & {
   grupos: number;
   certificados: number;
@@ -1568,6 +1595,10 @@ export const crmApi = {
     ),
   /// La proyección: aquí el asesor pasa a segundo plano y lo macro es
   /// la acción de formación.
+  proyeccionAcademica: (v: VentanaDeLlegada = {}) =>
+    pedir<FilaDeProyeccionAcademica[]>(
+      `/admin/participantes/asesores/proyeccion-academica${consulta(v)}`,
+    ),
   proyeccionDeInscripciones: (v: VentanaDeLlegada = {}) =>
     pedir<FilaDeProyeccion[]>(
       `/admin/participantes/asesores/proyeccion${consulta(v)}`,

@@ -30,6 +30,7 @@ import {
   type FilaDeAsesor,
   type FilaDeAsesorAcademico,
   type FilaDeProyeccion,
+  type FilaDeProyeccionAcademica,
   type VentanaDeLlegada,
   type Veredicto,
   type RitmoDeAsesor,
@@ -70,7 +71,11 @@ import { type Columna, Tabla } from "./tabla";
 const metaDiaria = (porDia: number | null) =>
   porDia === null ? "—" : n(Math.ceil(porDia));
 
-type Subvista = "inscripciones" | "academicos" | "proyeccion";
+type Subvista =
+  | "inscripciones"
+  | "academicos"
+  | "proyeccion"
+  | "proyeccionAcademica";
 
 /// SIN FRASE AL LADO (cliente, 23 sep 2026). Cada tabla ya dice contra
 /// qué fecha corre en su propia descripción y en su pie; repetirlo
@@ -82,6 +87,10 @@ const SUBVISTAS: Array<{ clave: Subvista; etiqueta: string }> = [
   /// la acción de formación. Las dos de arriba contestan «¿quién va
   /// mal?»; esta, «¿esta acción llega a sus cupos antes de cerrar?».
   { clave: "proyeccion", etiqueta: "Proyección Inscripciones" },
+  /// LA CUARTA. La misma pregunta con otro reloj: allí si la acción
+  /// llena sus cupos antes de cerrar; aquí si certifica a su gente
+  /// antes de que acabe el curso.
+  { clave: "proyeccionAcademica", etiqueta: "Proyección Académica" },
 ];
 
 /// Cómo se lee cada veredicto y de qué color va.
@@ -190,6 +199,9 @@ export function PanelAsesores() {
       {subvista === "inscripciones" && <DeInscripciones ventana={ventana} />}
       {subvista === "academicos" && <Academicos ventana={ventana} />}
       {subvista === "proyeccion" && <Proyeccion ventana={ventana} />}
+      {subvista === "proyeccionAcademica" && (
+        <ProyeccionAcademica ventana={ventana} />
+      )}
     </div>
   );
 }
@@ -866,14 +878,18 @@ function Proyeccion({ ventana }: { ventana: VentanaDeLlegada }) {
         />
       </div>
 
-      {/* QUÉ QUIERE DECIR CADA COLUMNA.
-          «¿Acabará en? ¿Leads por conseguir? ¿Llega? ¿Qué son esos
-          términos?» (cliente, 27 sep 2026). Una tabla que hay que
-          explicar de viva voz no está terminada, y la explicación va
-          AQUÍ y no en un manual que nadie abre. */}
-      <div className="rounded-lg border border-borde bg-superficie px-4 py-3 text-[0.8125rem] text-texto-suave">
-        <p className="mb-1.5 font-semibold text-titulo">Cómo se lee esta tabla</p>
-        <ul className="space-y-1">
+      {/* QUÉ QUIERE DECIR CADA COLUMNA, PLEGADA.
+          «Una tabla que hay que explicar de viva voz no está
+          terminada», pero la explicación tampoco puede comerse media
+          pantalla todos los días: «con clic despliegue y con clic
+          oculte, ocupa mucho espacio» (cliente, 27 sep 2026). Cerrada
+          es un renglón; se abre el día que hace falta. */}
+      <details className="group rounded-lg border border-borde bg-superficie text-[0.8125rem] text-texto-suave">
+        <summary className="sin-aro flex cursor-pointer list-none items-center gap-2 px-4 py-2 font-semibold text-titulo select-none">
+          <span className="text-texto-suave transition group-open:rotate-90">›</span>
+          Cómo se lee esta tabla
+        </summary>
+        <ul className="space-y-1 px-4 pt-1 pb-3">
           <li>
             <strong className="font-medium text-titulo">Meta diaria</strong> — cuántos
             hay que inscribir cada día, de lunes a sábado, para cubrir lo que falta
@@ -900,7 +916,7 @@ function Proyeccion({ ventana }: { ventana: VentanaDeLlegada }) {
             menos de un diez por ciento, que cualquier semana floja se come.
           </li>
         </ul>
-      </div>
+      </details>
 
       <Tabla
         id="proyeccion-inscripciones"
@@ -1085,6 +1101,254 @@ const columnasDeProyeccion: Columna<FilaDeProyeccion>[] = [
             {n(f.abiertos)} abiertos
           </span>
         )}
+      </span>
+    ),
+  },
+  {
+    clave: "veredicto",
+    titulo: "¿Alcanza?",
+    ancho: "112px",
+    valor: (f) => VEREDICTO[f.veredicto].texto,
+    filtro: "opciones",
+    pinta: (f) => (
+      <span className="font-medium" style={{ color: VEREDICTO[f.veredicto].color }}>
+        {VEREDICTO[f.veredicto].texto}
+      </span>
+    ),
+  },
+];
+
+/**
+ * SUBVISTA 4: la proyección académica, por acción de formación.
+ *
+ * La misma pregunta que su hermana, con OTRO RELOJ. Allí corre el
+ * cierre de inscripciones y se pregunta si la acción llena sus cupos;
+ * aquí corre el FIN DEL CURSO y se pregunta si certifica a su gente.
+ *
+ * Y otro denominador: no los cupos comprometidos sino quién está
+ * dentro del aula. A quien nunca entró no se le puede certificar, y
+ * meterlo en la cuenta daría un porcentaje que no significa nada.
+ *
+ * COMPARTE EL VEREDICTO con la otra a propósito: «Llega», «Apretado» y
+ * «No llega» quieren decir lo mismo en las dos tablas. Dos escalas
+ * parecidas pero distintas en la misma pantalla es como se acaba
+ * comparando lo que no se puede comparar.
+ */
+function ProyeccionAcademica({ ventana }: { ventana: VentanaDeLlegada }) {
+  const cargar = useCallback(() => crmApi.proyeccionAcademica(ventana), [ventana]);
+  const vivos = useDatosVivos<FilaDeProyeccionAcademica[]>(cargar, {
+    clave: `proyeccion-academica-${JSON.stringify(ventana)}`,
+  });
+
+  if (vivos.error) return <Aviso tipo="error">{vivos.error}</Aviso>;
+  if (!vivos.datos) return <Esqueleto />;
+  if (vivos.datos.length === 0) {
+    return (
+      <Vacio titulo="Todavía no hay nadie en el aula">
+        Aquí aparece cada acción de formación en cuanto tenga gente dentro, con
+        cuántos le faltan por certificar y si llega antes de que acabe el curso.
+      </Vacio>
+    );
+  }
+
+  const t = vivos.datos.reduce(
+    (a, f) => ({
+      enElAula: a.enElAula + f.enElAula,
+      certificados: a.certificados + f.certificados,
+      porCertificar: a.porCertificar + f.porCertificar,
+      salieron: a.salieron + f.salieron,
+      enRiesgo:
+        a.enRiesgo +
+        (f.veredicto === "NO_LLEGA" || f.veredicto === "APRETADO" ? 1 : 0),
+    }),
+    { enElAula: 0, certificados: 0, porCertificar: 0, salieron: 0, enRiesgo: 0 },
+  );
+
+  return (
+    <>
+      <div className="flex flex-wrap gap-2">
+        <CifraCompacta etiqueta="Acciones" valor={n(vivos.datos.length)} />
+        <CifraCompacta etiqueta="En el aula" valor={n(t.enElAula)} />
+        <CifraCompacta
+          etiqueta="Certificados"
+          valor={n(t.certificados)}
+          color="var(--exito)"
+          detalle={
+            t.enElAula > 0
+              ? `${Math.round((t.certificados / t.enElAula) * 100)} %`
+              : undefined
+          }
+        />
+        <CifraCompacta
+          etiqueta="Por certificar"
+          valor={n(t.porCertificar)}
+          color={t.porCertificar > 0 ? "var(--error)" : undefined}
+          pie={t.enRiesgo > 0 ? `${n(t.enRiesgo)} acciones en riesgo` : undefined}
+        />
+        {/* SALIERON, aparte y sin color de alarma: no son pendientes
+            que se puedan recuperar, y meterlos con los otros haría
+            que la meta diaria pidiera un imposible. */}
+        <CifraCompacta etiqueta="Ya no certifican" valor={n(t.salieron)} />
+      </div>
+
+      <details className="group rounded-lg border border-borde bg-superficie text-[0.8125rem] text-texto-suave">
+        <summary className="sin-aro flex cursor-pointer list-none items-center gap-2 px-4 py-2 font-semibold text-titulo select-none">
+          <span className="text-texto-suave transition group-open:rotate-90">›</span>
+          Cómo se lee esta tabla
+        </summary>
+        <ul className="space-y-1 px-4 pt-1 pb-3">
+          <li>
+            <strong className="font-medium text-titulo">En el aula</strong> — cuánta
+            gente entró a formarse. Es contra esto que se mide todo lo demás: a
+            quien nunca entró no se le puede certificar.
+          </li>
+          <li>
+            <strong className="font-medium text-titulo">Ya no certifican</strong> —
+            los que no aprobaron, desertaron, abandonaron o se retiraron. No son
+            pendientes: no van a volver, y contarlos como tales pediría un
+            imposible.
+          </li>
+          <li>
+            <strong className="font-medium text-titulo">Meta diaria</strong> —
+            cuántos hay que certificar cada día, de lunes a sábado, para llegar
+            antes de que acabe el curso.
+          </li>
+          <li>
+            <strong className="font-medium text-titulo">Terminará con</strong> —
+            cuántos certificados habrá al final si se sigue al ritmo de las dos
+            últimas semanas.
+          </li>
+          <li>
+            <strong className="font-medium text-titulo">¿Alcanza?</strong> — si con
+            esa previsión se certifica a todos los que aún pueden.
+          </li>
+        </ul>
+      </details>
+
+      <Tabla
+        id="proyeccion-academica"
+        columnas={columnasDeProyeccionAcademica}
+        filas={vivos.datos}
+        clave={(f) => f.accionFormacionId}
+        porPagina={25}
+        vacio="Aquí aparece cada acción en cuanto tenga gente en el aula."
+      />
+    </>
+  );
+}
+
+const columnasDeProyeccionAcademica: Columna<FilaDeProyeccionAcademica>[] = [
+  {
+    clave: "accion",
+    titulo: "Acción de formación",
+    ancho: "260px",
+    valor: (f) => `${f.codigo ?? ""} ${f.nombre ?? ""}`.trim(),
+    pinta: (f) => (
+      <span className="flex min-w-0 items-baseline gap-2">
+        <span className="shrink-0 font-mono text-xs whitespace-nowrap text-texto-suave">
+          {f.codigo}
+        </span>
+        <span className="min-w-0 break-words whitespace-normal">{f.nombre}</span>
+      </span>
+    ),
+  },
+  {
+    clave: "enElAula",
+    titulo: "En el aula",
+    ancho: "100px",
+    numerica: true,
+    valor: (f) => f.enElAula,
+    pinta: (f) => <span className="tabular-nums">{n(f.enElAula)}</span>,
+  },
+  {
+    clave: "certificados",
+    titulo: "Certificados",
+    ancho: "112px",
+    numerica: true,
+    valor: (f) => f.certificados,
+    pinta: (f) => (
+      <span className="font-medium text-exito tabular-nums">{n(f.certificados)}</span>
+    ),
+  },
+  {
+    clave: "porCertificar",
+    titulo: "Por certificar",
+    ancho: "118px",
+    numerica: true,
+    valor: (f) => f.porCertificar,
+    pinta: (f) => (
+      <span
+        className={
+          "font-semibold tabular-nums " + (f.porCertificar > 0 ? "text-error" : "")
+        }
+      >
+        {n(f.porCertificar)}
+      </span>
+    ),
+  },
+  {
+    clave: "salieron",
+    titulo: "Ya no certifican",
+    ancho: "130px",
+    numerica: true,
+    valor: (f) => f.salieron,
+    pinta: (f) => <span className="tabular-nums text-texto-suave">{n(f.salieron)}</span>,
+  },
+  {
+    clave: "finDelCurso",
+    titulo: "Termina el curso",
+    ancho: "158px",
+    valor: (f) => f.finDelCurso ?? "",
+    pinta: (f) =>
+      f.finDelCurso ? (
+        <span>
+          {dia(f.finDelCurso)}
+          <span className="block text-xs text-texto-suave">
+            {f.diasRestantes === null
+              ? ""
+              : f.diasRestantes > 0
+                ? `quedan ${n(f.diasRestantes)} días de trabajo`
+                : `terminó hace ${n(-f.diasRestantes)} días`}
+          </span>
+        </span>
+      ) : (
+        <span className="text-aviso">Sin fecha de fin</span>
+      ),
+  },
+  {
+    clave: "metaDiaria",
+    titulo: "Meta diaria",
+    ancho: "110px",
+    numerica: true,
+    valor: (f) => f.metaDiaria,
+    pinta: (f) => (
+      <span className="font-semibold tabular-nums">
+        {f.metaDiaria === null ? "—" : n(f.metaDiaria)}
+      </span>
+    ),
+  },
+  {
+    clave: "ritmo",
+    titulo: "Certificados en 15 días",
+    ancho: "165px",
+    numerica: true,
+    valor: (f) => f.certificadosVentana,
+    pinta: (f) => <span className="tabular-nums">{n(f.certificadosVentana)}</span>,
+  },
+  {
+    clave: "proyeccion",
+    titulo: "Terminará con",
+    ancho: "125px",
+    numerica: true,
+    valor: (f) => f.proyeccion,
+    pinta: (f) => (
+      <span
+        className={
+          "font-semibold tabular-nums " +
+          (f.proyeccion >= f.enElAula - f.salieron ? "text-exito" : "text-error")
+        }
+      >
+        {n(f.proyeccion)}
       </span>
     ),
   },

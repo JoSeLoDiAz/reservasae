@@ -342,6 +342,23 @@ export class CrmController {
     return this.crm.proyeccionDeInscripciones(ambito, { llegoDesde, llegoHasta });
   }
 
+  /**
+   * SUBVISTA 4: la proyeccion academica, por accion.
+   *
+   * Mismo criterio que su hermana: sin recorte por asesor, porque no
+   * lleva ni un nombre. Son personas dentro del aula, fechas de fin y
+   * cuantas faltan por certificar.
+   */
+  @Get('asesores/proyeccion-academica')
+  @Requiere('academico')
+  proyeccionAcademica(
+    @AmbitoActual() ambito: Ambito,
+    @Query('llegoDesde') llegoDesde?: string,
+    @Query('llegoHasta') llegoHasta?: string,
+  ) {
+    return this.crm.proyeccionAcademica(ambito, { llegoDesde, llegoHasta });
+  }
+
   /** Cuantos inscritos hay y como se reparten. */
   @Get('control')
   @Requiere('inscritos')

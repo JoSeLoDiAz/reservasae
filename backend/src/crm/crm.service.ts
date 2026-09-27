@@ -72,6 +72,8 @@ import { diasDeTrabajoAtras, hoyEnColombia } from './calendario-inscripcion';
 import {
   DIAS_DE_RITMO,
   type FilaDeProyeccion,
+  type FilaDeProyeccionAcademica,
+  proyectarAcademico,
   proyectarInscripciones,
 } from './proyeccion';
 import { exigirQuienAsignaGrupo } from './quien-asigna-grupo';
@@ -125,6 +127,8 @@ import {
   siglaDocumento,
   TAMANOS_EMPRESA_SEP,
 } from './catalogos-sep';
+/// `ETAPAS_DEL_AULA` NO se importa: este fichero tiene la suya propia
+/// unas líneas más abajo, y traerla además la duplicaba.
 import { OCUPAN_SILLA, RETIENEN_ASIENTO } from './etapas';
 import { fraseDeHorario } from '../comun/horario-de-grupo';
 import { PrismaService } from '../prisma/prisma.service';
@@ -874,6 +878,89 @@ export class CrmService {
       cupos,
       cierrePorAccion(grupos),
       inscritosRecientes,
+      ahora,
+    );
+  }
+
+  /**
+   * SUBVISTA 4: la proyeccion academica, por accion.
+   *
+   * La hermana de la de inscripciones, con otro reloj: aqui corre el
+   * FIN DEL CURSO y no el cierre de inscripciones.
+   */
+  async proyeccionAcademica(
+    ambito: Ambito,
+    ventana: VentanaDeLlegada = {},
+    ahora = new Date(),
+  ): Promise<FilaDeProyeccionAcademica[]> {
+    if (ambito.convenios.length === 0) return [];
+    const donde = {
+      convenioId: { in: ambito.convenios },
+      /// SOLO QUIEN ESTA O ESTUVO EN EL AULA. A quien no entro no se
+      /// le puede certificar, y meterlo en el denominador daria un
+      /// porcentaje que no significa nada.
+      etapa: { in: [...ETAPAS_DEL_AULA] },
+      ...cuandoLlego(ventana),
+    };
+
+    const desdeRitmo = diasDeTrabajoAtras(hoyEnColombia(ahora), DIAS_DE_RITMO);
+
+    const [gente, grupos, movimientos] = await Promise.all([
+      this.prisma.participante.findMany({
+        where: donde,
+        select: {
+          etapa: true,
+          accionFormacionId: true,
+          accionFormacion: { select: { codigo: true, nombre: true } },
+        },
+      }),
+      this.prisma.grupo.findMany({
+        where: { accionFormacion: { convenioId: { in: ambito.convenios } } },
+        select: { accionFormacionId: true, fechaFin: true },
+      }),
+      this.prisma.movimientoParticipante.findMany({
+        where: {
+          creadoEn: { gte: desdeRitmo },
+          etapaDespues: 'CERTIFICADO',
+          participante: { convenioId: { in: ambito.convenios } },
+        },
+        select: {
+          participanteId: true,
+          participante: { select: { accionFormacionId: true } },
+        },
+      }),
+    ]);
+
+    /// EL MAS LEJANO de sus grupos: mientras quede uno dictandose, la
+    /// accion no ha terminado. Con el mas proximo, una accion de ocho
+    /// grupos saldria vencida el dia que acabe el primero.
+    const finales = new Map<string, Date>();
+    for (const g of grupos) {
+      if (!g.fechaFin) continue;
+      const actual = finales.get(g.accionFormacionId);
+      if (!actual || g.fechaFin > actual) finales.set(g.accionFormacionId, g.fechaFin);
+    }
+
+    /// Una vez por persona, como en la otra: certificar deja un
+    /// movimiento, pero nada impide que haya dos.
+    const yaContado = new Set<string>();
+    const certificadosRecientes = new Map<string, number>();
+    for (const m of movimientos) {
+      const id = m.participante.accionFormacionId;
+      if (!id || yaContado.has(m.participanteId)) continue;
+      yaContado.add(m.participanteId);
+      certificadosRecientes.set(id, (certificadosRecientes.get(id) ?? 0) + 1);
+    }
+
+    return proyectarAcademico(
+      gente.map((p: (typeof gente)[number]) => ({
+        accionFormacionId: p.accionFormacionId,
+        codigo: p.accionFormacion?.codigo ?? null,
+        nombre: p.accionFormacion?.nombre ?? null,
+        etapa: p.etapa,
+      })),
+      finales,
+      certificadosRecientes,
       ahora,
     );
   }

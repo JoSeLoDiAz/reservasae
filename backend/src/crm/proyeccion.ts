@@ -100,17 +100,6 @@ type LeadDeLaAccion = {
   etapa: EtapaParticipante;
 };
 
-/// De peor a mejor. «Sin fecha» va arriba del todo porque es lo único
-/// que no se arregla inscribiendo: se arregla poniéndole fecha.
-const ORDEN: Record<Veredicto, number> = {
-  SIN_FECHA: 0,
-  NO_LLEGA: 1,
-  APRETADO: 2,
-  CERRADO: 3,
-  LLEGA: 4,
-  CUBIERTO: 5,
-};
-
 function veredictoDe(e: {
   faltan: number;
   cierre: Date | null;
@@ -210,7 +199,7 @@ export function proyectarInscripciones(
         /// lleva viva la acción: así dos acciones se comparan entre sí.
         /// Una que arrancó ayer sale con ritmo bajo, que es la verdad.
         const inscritosVentana = inscritosRecientes.get(id) ?? 0;
-      const ritmoReal = inscritosVentana / DIAS_DE_RITMO;
+        const ritmoReal = inscritosVentana / DIAS_DE_RITMO;
 
         const conversionPropia = f.leads >= LEADS_PARA_FIARSE;
         const conversion = conversionPropia
@@ -264,21 +253,181 @@ export function proyectarInscripciones(
       })
       /// Los que peor van, arriba: la pantalla es para decidir dónde
       /// meter esfuerzo, no para leer el catálogo por orden.
-    /**
-     * POR CÓDIGO DE ACCIÓN, de AF1 en adelante.
-     *
-     * Estaba ordenada por veredicto ---lo que peor va, arriba--- con
-     * la idea de que la pantalla sirve para decidir dónde meter
-     * esfuerzo. Pero el cliente la lee como un catálogo y buscar la
-     * AF4 en una lista ordenada por otra cosa es recorrerla entera:
-     * «Acción de formación en orden, o sea primero AF1, AF2, AF3»
-     * (27 sep 2026). Para lo otro está la columna «¿Llega?», que
-     * filtra y ordena sola.
-     *
-     * NUMÉRICO Y NO ALFABÉTICO: por texto, «AF10» va entre «AF1» y
-     * «AF2». Hoy no hay dos dígitos, pero el día que los haya nadie
-     * se va a acordar de esta línea.
-     */
+      /**
+       * POR CÓDIGO DE ACCIÓN, de AF1 en adelante.
+       *
+       * Estaba ordenada por veredicto ---lo que peor va, arriba--- con
+       * la idea de que la pantalla sirve para decidir dónde meter
+       * esfuerzo. Pero el cliente la lee como un catálogo y buscar la
+       * AF4 en una lista ordenada por otra cosa es recorrerla entera:
+       * «Acción de formación en orden, o sea primero AF1, AF2, AF3»
+       * (27 sep 2026). Para lo otro está la columna «¿Llega?», que
+       * filtra y ordena sola.
+       *
+       * NUMÉRICO Y NO ALFABÉTICO: por texto, «AF10» va entre «AF1» y
+       * «AF2». Hoy no hay dos dígitos, pero el día que los haya nadie
+       * se va a acordar de esta línea.
+       */
+      .sort((a, b) => {
+        const num = (c: string | null) =>
+          Number((c ?? '').replace(/\D/g, '')) || 0;
+        return (
+          num(a.codigo) - num(b.codigo) ||
+          (a.nombre ?? '').localeCompare(b.nombre ?? '')
+        );
+      })
+  );
+}
+
+/**
+ * PROYECCIÓN ACADÉMICA, por acción de formación.
+ *
+ * La hermana de `proyectarInscripciones`, con OTRO RELOJ. Allí corre
+ * el cierre de inscripciones ---dos semanas antes del inicio si es
+ * virtual, cinco días hábiles si es presencial---; aquí corre el FIN
+ * DEL CURSO, que es la fecha contra la que hay que tener certificada
+ * a la gente.
+ *
+ * Y otro numerador: allí se cuentan sillas que llenar, aquí personas
+ * que sacar adelante. El denominador ya no son los cupos
+ * comprometidos sino los que están dentro del aula: a quien nunca
+ * entró no se le puede certificar.
+ *
+ * COMPARTE EL VEREDICTO con su hermana a propósito. «Llega»,
+ * «Apretado» y «No llega» quieren decir lo mismo en las dos tablas, y
+ * dos escalas parecidas pero distintas en la misma pantalla es como
+ * se acaba comparando lo que no se puede comparar.
+ */
+export type FilaDeProyeccionAcademica = {
+  accionFormacionId: string;
+  codigo: string | null;
+  nombre: string | null;
+  /// Quién está dentro del aula. El denominador.
+  enElAula: number;
+  certificados: number;
+  /// Los que siguen dentro y todavía no tienen certificado.
+  porCertificar: number;
+  /// Los que ya no van a certificarse: no aprobaron, desertaron,
+  /// abandonaron o se retiraron. No son «pendientes» y contarlos
+  /// como tales prometería una recuperación que no va a pasar.
+  salieron: number;
+  /// Cuándo termina el curso. El más lejano de sus grupos: mientras
+  /// quede uno dictándose, la acción no ha terminado.
+  finDelCurso: string | null;
+  diasRestantes: number | null;
+  /// Cuántos se certificaron dentro de la ventana de ritmo.
+  certificadosVentana: number;
+  ritmoReal: number;
+  metaDiaria: number | null;
+  proyeccion: number;
+  veredicto: Veredicto;
+};
+
+type PersonaDelAula = {
+  accionFormacionId: string | null;
+  codigo: string | null;
+  nombre: string | null;
+  etapa: EtapaParticipante;
+};
+
+/// Quién ya no va a certificarse. Sale del aula por la puerta de atrás.
+const SALIERON: EtapaParticipante[] = [
+  'NO_APROBO',
+  'DESERTO',
+  'ABANDONO',
+  'RETIRADO',
+];
+
+export function proyectarAcademico(
+  gente: PersonaDelAula[],
+  finales: Map<string, Date>,
+  certificadosRecientes: Map<string, number>,
+  hoy: Date,
+): FilaDeProyeccionAcademica[] {
+  const por = new Map<
+    string,
+    {
+      codigo: string | null;
+      nombre: string | null;
+      enElAula: number;
+      certificados: number;
+      salieron: number;
+    }
+  >();
+
+  for (const p of gente) {
+    if (!p.accionFormacionId) continue;
+    const fila = por.get(p.accionFormacionId) ?? {
+      codigo: p.codigo,
+      nombre: p.nombre,
+      enElAula: 0,
+      certificados: 0,
+      salieron: 0,
+    };
+    fila.enElAula += 1;
+    if (p.etapa === 'CERTIFICADO') fila.certificados += 1;
+    else if (SALIERON.includes(p.etapa)) fila.salieron += 1;
+    por.set(p.accionFormacionId, fila);
+  }
+
+  const hoyBogota = hoyEnColombia(hoy);
+
+  return (
+    [...por.entries()]
+      .map(([id, f]) => {
+        /// LO QUE FALTA no es «los del aula menos los certificados»:
+        /// hay que descontar a los que ya salieron. Contarlos daría una
+        /// meta diaria imposible y un veredicto siempre en rojo.
+        const porCertificar = Math.max(
+          0,
+          f.enElAula - f.certificados - f.salieron,
+        );
+
+        const fin = finales.get(id) ?? null;
+        const diasRestantes = fin ? diasDeTrabajoEntre(hoyBogota, fin) : null;
+
+        const certificadosVentana = certificadosRecientes.get(id) ?? 0;
+        const ritmoReal = certificadosVentana / DIAS_DE_RITMO;
+
+        const metaDiaria =
+          diasRestantes !== null && diasRestantes > 0
+            ? Math.ceil(porCertificar / diasRestantes)
+            : null;
+
+        const proyeccion =
+          diasRestantes !== null && diasRestantes > 0
+            ? Math.round(f.certificados + ritmoReal * diasRestantes)
+            : f.certificados;
+
+        /// LA META SON LOS QUE PUEDEN CERTIFICARSE, no todos los del
+        /// aula: quien desertó ya no cuenta ni a favor ni en contra.
+        const alcanzable = f.enElAula - f.salieron;
+
+        return {
+          accionFormacionId: id,
+          codigo: f.codigo,
+          nombre: f.nombre,
+          enElAula: f.enElAula,
+          certificados: f.certificados,
+          porCertificar,
+          salieron: f.salieron,
+          finDelCurso: fin ? fin.toISOString().slice(0, 10) : null,
+          diasRestantes,
+          certificadosVentana,
+          ritmoReal,
+          metaDiaria,
+          proyeccion,
+          veredicto: veredictoDe({
+            faltan: porCertificar,
+            cierre: fin,
+            diasRestantes,
+            proyeccion,
+            cupos: alcanzable,
+          }),
+        };
+      })
+      /// Por código, igual que su hermana: las dos tablas se leen como
+      /// un catálogo y tienen que ordenarse igual.
       .sort((a, b) => {
         const num = (c: string | null) =>
           Number((c ?? '').replace(/\D/g, '')) || 0;
