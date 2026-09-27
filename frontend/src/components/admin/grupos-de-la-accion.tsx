@@ -121,14 +121,19 @@ export function GruposDeLaAccion({
         </div>
       )}
 
-      {/* EL ÚNICO BOTÓN, y abajo. */}
+      {/* EL DE ABAJO ABRE LA TABLA ENTERA, y por eso ya no se llama
+          igual que el de la tarjeta. Los dos decían «Ver inscritos»
+          y hacen cosas distintas --aquel entra a UN grupo, este
+          enseña a todos--: dos cosas con el mismo nombre en la misma
+          pantalla es lo primero que confunde, que es lo que el
+          propio cliente señaló del menú el 24 de septiembre. */}
       <button
         type="button"
         onClick={alAlternarTabla}
         aria-expanded={verInscritos}
         className="self-start rounded-lg border border-borde bg-superficie px-3.5 py-2 text-[0.8125rem] font-medium transition hover:border-marca/40"
       >
-        {verInscritos ? "Ocultar inscritos" : "Ver inscritos"}
+        {verInscritos ? "Ocultar la tabla" : "Ver todos los inscritos"}
       </button>
     </section>
   );
