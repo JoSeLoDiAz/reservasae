@@ -278,19 +278,18 @@ function TarjetaDeGrupo({
           </div>
         </div>
 
-        <div className="mt-2.5">
+        <div className="mt-2">
           <CifraConBarra
             etiqueta="Inscritos"
             valor={cupos > 0 ? `${dentro} de ${cupos}` : String(dentro)}
             porcentaje={cupos > 0 ? Math.min(100, (dentro / cupos) * 100) : null}
             tono="var(--marca)"
-            pie={
-              cupos > 0 ? `${Math.round((dentro / cupos) * 100)} % del cupo` : null
-            }
+            /// sin pie: lo decian ya el valor y la barra
+            pie={null}
           />
         </div>
 
-        <div className="mt-2.5 border-t border-hairline pt-2.5">
+        <div className="mt-2">
           <CifraConBarra
             etiqueta="Avance"
             valor={avance === null ? "—" : `${avance} %`}
@@ -298,10 +297,10 @@ function TarjetaDeGrupo({
             tono="var(--acento)"
             pie={
               avance === null
-                ? "El aula todavía no manda actividades de este grupo."
-                : `Promedio de unidades temáticas de ${conActividades.length} ${
+                ? "El aula todavía no manda actividades."
+                : `Promedio de ${conActividades.length} ${
                     conActividades.length === 1 ? "persona" : "personas"
-                  }.`
+                  } con actividades.`
             }
           />
         </div>
@@ -315,14 +314,14 @@ function TarjetaDeGrupo({
             un grupo sería un control en pie y vacío de efecto.
             El color sale de `--marca`, o sea del gremio: escrito a
             fuego, este botón se quedaría verde en el gremio azul. */}
-        <div className="mt-2.5 border-t border-hairline pt-2.5">
+        <div className="mt-2 border-t border-hairline pt-2">
           <button
             type="button"
             onClick={alVerInscritos}
             title={`Ver a las ${dentro} personas del grupo ${grupo.numero}`}
-            className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-marca/35 px-2 py-1.5 text-[0.75rem] font-medium text-marca transition hover:border-marca hover:bg-marca-suave"
+            className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-marca/35 px-2 py-1 text-[0.75rem] font-medium text-marca transition hover:border-marca hover:bg-marca-suave"
           >
-            <IconoMatriculados tamano={15} />
+            <IconoMatriculados tamano={14} />
             Ver inscritos
           </button>
         </div>
