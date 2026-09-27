@@ -535,8 +535,6 @@ export function PantallaDeInformes({ vista }: { vista?: Pestana }) {
                   estiraban a media pantalla (cliente, 20 sep 2026). */}
               <div className="flex flex-wrap items-center gap-2 [&>button]:min-w-[11.5rem] [&>div]:min-w-[11.5rem]">
                 <ControlesDePeriodo
-                  parte="periodo"
-                  etiquetaAnterior={anterior}
                   rango={rango}
                   alCambiarRango={(r) => {
                     setRango(r);
@@ -560,12 +558,6 @@ export function PantallaDeInformes({ vista }: { vista?: Pestana }) {
                   alCambiarDesde={setDesde}
                   hasta={hasta}
                   alCambiarHasta={setHasta}
-                  contra={contra}
-                  alCambiarContra={setContra}
-                  contraDesde={contraDesde}
-                  alCambiarContraDesde={setContraDesde}
-                  contraHasta={contraHasta}
-                  alCambiarContraHasta={setContraHasta}
                 />
               </div>
             </div>
@@ -721,6 +713,23 @@ export function PantallaDeInformes({ vista }: { vista?: Pestana }) {
  * linea, y separados parecian mandar sobre cosas distintas
  * cuando mandan sobre la misma pantalla.
  */
+/**
+ * EL PERIODO: el rango y, si es a medida, sus dos fechas.
+ *
+ * SOLO EL PERIODO. Aquí había también una rama «comparación» ---un
+ * desplegable de tres opciones y DOS cajas de fecha más---, y con el
+ * periodo puesto en «Un rango de fechas» las dos ramas juntas pedían
+ * CUATRO fechas.
+ *
+ * El cliente la hizo quitar el 20 sep 2026 ---«no entiendo para qué
+ * otras dos fechas, sé racional»--- y desde entonces comparar es un
+ * enlace de un clic contra el periodo anterior. Pero la rama se quedó
+ * escrita, sin que nadie la llamara, y el 27 sep volvió a la
+ * conversación como si estuviera viva.
+ *
+ * Código muerto que describe un diseño ya rechazado no es inofensivo:
+ * se lee como si fuera lo que hay.
+ */
 function ControlesDePeriodo({
   rango,
   alCambiarRango,
@@ -728,14 +737,6 @@ function ControlesDePeriodo({
   alCambiarDesde,
   hasta,
   alCambiarHasta,
-  contra,
-  alCambiarContra,
-  contraDesde,
-  alCambiarContraDesde,
-  contraHasta,
-  alCambiarContraHasta,
-  parte,
-  etiquetaAnterior,
 }: {
   rango: Rango;
   alCambiarRango: (r: Rango) => void;
@@ -743,22 +744,9 @@ function ControlesDePeriodo({
   alCambiarDesde: (v: string) => void;
   hasta: string;
   alCambiarHasta: (v: string) => void;
-  contra: Rango | "AUTO" | "NINGUNO";
-  alCambiarContra: (r: Rango | "AUTO" | "NINGUNO") => void;
-  contraDesde: string;
-  alCambiarContraDesde: (v: string) => void;
-  contraHasta: string;
-  /// «periodo» son el rango y sus fechas; «comparacion», contra
-  /// qué. Se pintan en grupos distintos y cada uno con su rótulo.
-  parte: "periodo" | "comparacion";
-  /// Cómo se llama el periodo anterior AL ELEGIDO: «Ayer», «Los 7
-  /// días anteriores»… Vacío = el periodo no tiene anterior.
-  etiquetaAnterior: string;
-  alCambiarContraHasta: (v: string) => void;
 }) {
-  if (parte === "periodo") {
-    return (
-      <>
+  return (
+    <>
       {/* `Desplegable` y no `<select>`: la lista de un select
           la dibuja el sistema operativo, con su cuadro cuadrado
           y su azul, y al lado de los cinco filtros --que sí se
@@ -795,56 +783,6 @@ function ControlesDePeriodo({
         </>
       )}
 
-      </>
-    );
-  }
-
-  return (
-    <>
-      {/* TRES OPCIONES Y NO DIEZ.
-
-          Ofrecía los ocho rangos: con un rango propio elegido
-          arriba, comparar contra «Hoy» o «Últimos 90 días» es
-          comparar ventanas de distinta duración, que no significa
-          nada --la más larga gana siempre, y por eso existe el
-          aviso amarillo--. «Si selecciono una fecha de inicio y
-          fin, ¿por qué me saldría todo esto?» (cliente, 20 sep
-          2026). Queda lo que sí se puede leer: nada, el tramo de
-          antes, u otras dos fechas que elija. */}
-      <Desplegable
-        alto={30}
-        etiquetaAria="Comparar con"
-        valor={contra}
-        opciones={[
-          { valor: "NINGUNO", etiqueta: "Sin comparación" },
-          { valor: "AUTO", etiqueta: etiquetaAnterior || "El periodo anterior" },
-          { valor: "PERSONALIZADO", etiqueta: "Otras dos fechas" },
-        ]}
-        alElegir={(v) => alCambiarContra(v as Rango | "AUTO" | "NINGUNO")}
-      />
-
-      {contra === "PERSONALIZADO" && (
-        <>
-          <input
-            type="date"
-            className={`${CLASE_PERIODO} w-[9.5rem]`}
-            value={contraDesde}
-            max={contraHasta || undefined}
-            onChange={(e) => alCambiarContraDesde(e.target.value)}
-            aria-label="Comparar desde"
-            title="Comparar desde"
-          />
-          <input
-            type="date"
-            className={`${CLASE_PERIODO} w-[9.5rem]`}
-            value={contraHasta}
-            min={contraDesde || undefined}
-            onChange={(e) => alCambiarContraHasta(e.target.value)}
-            aria-label="Comparar hasta"
-            title="Comparar hasta"
-          />
-        </>
-      )}
     </>
   );
 }
