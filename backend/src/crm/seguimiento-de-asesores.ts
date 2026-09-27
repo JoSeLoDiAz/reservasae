@@ -24,7 +24,7 @@
  * decía que iba bien el lunes por la mañana.
  */
 
-import { habilesEntre, hoyEnColombia } from './calendario-inscripcion';
+import { diasDeTrabajoEntre, hoyEnColombia } from './calendario-inscripcion';
 
 /**
  * Qué tan lejos está de cumplir, en una palabra.
@@ -66,9 +66,20 @@ export type Carga = {
 export type Ritmo = {
   /** Lo que le falta por resolver. */
   pendientes: number;
-  /** Días hábiles hasta su fecha límite. Negativo si ya pasó. */
+  /** Días de trabajo ---lunes a sábado--- hasta su fecha límite. */
   diasHabiles: number | null;
-  /** Cuántos tendría que resolver cada día hábil para llegar. */
+  /**
+   * LA META DIARIA, y por qué se recalcula en vez de acumularse.
+   *
+   * Es lo que queda entre los días que quedan. No hay que llevar un
+   * arrastre de lo no cumplido: **esta división ya es incremental**.
+   * Si hoy tocaban tres y no se hizo ninguno, mañana el numerador
+   * sigue igual y el denominador ha bajado un día, así que la meta
+   * sube sola. «Sobre la meta global fragmenta la meta diaria y si
+   * no se cumple es incremental al siguiente día» (cliente, 26 sep
+   * 2026): eso es exactamente esto, y guardarlo aparte sería una
+   * segunda cuenta que podría discrepar de la primera.
+   */
   exigidoPorDia: number | null;
   /** Cuántos viene resolviendo al día, de lo que ya hizo. */
   realPorDia: number | null;
@@ -99,7 +110,7 @@ export function ritmoDe(entrada: {
   if (pendientes === 0) {
     return {
       pendientes: 0,
-      diasHabiles: limite ? habilesEntre(hoyEnColombia(hoy), limite) : null,
+      diasHabiles: limite ? diasDeTrabajoEntre(hoyEnColombia(hoy), limite) : null,
       exigidoPorDia: 0,
       realPorDia: diasCorridos > 0 ? carga.resueltos / diasCorridos : null,
       estado: 'TERMINADO',
@@ -116,7 +127,7 @@ export function ritmoDe(entrada: {
     };
   }
 
-  const diasHabiles = habilesEntre(hoyEnColombia(hoy), limite);
+  const diasHabiles = diasDeTrabajoEntre(hoyEnColombia(hoy), limite);
   const realPorDia = diasCorridos > 0 ? carga.resueltos / diasCorridos : null;
 
   /// Pasado el plazo y con pendientes, no hay ritmo que calcular: ya

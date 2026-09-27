@@ -1570,6 +1570,22 @@ select[size]:not([size='1']) {
   border-bottom: 1px solid var(--hairline);
 }
 
+/* Y LA MISMA CUADRICULA EN UNA TABLA QUE NO ES `.tabla-datos`.
+ *
+ * El consolidado de Seguimiento academico se dibuja con sus propias
+ * celdas --trece columnas de cifras, con sus subtotales por accion--
+ * y nunca uso `.tabla-datos`. Pedirle que la use ahora le cambiaria
+ * el relleno y el tipo, que es justo lo que el cliente aprobo y pidio
+ * no tocar: «no me modifiques como tenia» (26 sep 2026).
+ *
+ * Asi que el modificador vale solo. No alcanza a ninguna otra tabla:
+ * la raya la pinta `tabla-cuadricula`, y solo la llevan las que la
+ * piden. */
+.tabla-cuadricula:not(.tabla-datos) thead th + th,
+.tabla-cuadricula:not(.tabla-datos) tbody td + td {
+  border-left: 1px solid var(--hairline);
+}
+
 /* LAS SEPARACIONES, CON EL COLOR DE SU MITAD.
  *
  * «Te dije que colorearas las separaciones» (cliente, 24 sep 2026).

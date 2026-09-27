@@ -143,6 +143,53 @@ sitio sin decir a cuál.
 
 ---
 
+## La tanda del 26 de septiembre
+
+Todo esto ya está en la rama, probado en el navegador y con las cuatro
+compuertas en verde. **Se puede desplegar por piezas**: cada punto es
+un commit propio y ninguno depende del siguiente.
+
+| Commit | Qué | Toca |
+|---|---|---|
+| `304bffa` | Seguimiento académico reordenado: «Acciones de Formación» y «Avance por Grupo» en una sola caja, el embudo fuera, la tabla con cuadrícula, rótulos con color y **columnas ajustables** | frontend |
+| `2748adb` | «Meta diaria» y «Meta global» en Seguimiento de asesores, con la **semana de lunes a sábado** | backend + frontend |
+| `f036998` | Las tarjetas de arriba con los mismos nombres que sus columnas | frontend |
+| *(este)* | **Seguimiento Académico dentro de la ficha del lead** | frontend |
+
+### Lo único que te puede sorprender: la semana pasa de 5 días a 6
+
+`habilesEntre` **se queda como está**: sirve a las reglas del SENA
+---«cinco días hábiles antes del inicio»--- y eso es un contrato.
+
+Al lado nace `diasDeTrabajoEntre`, que cuenta seis ---solo el domingo
+queda fuera--- y mide el ritmo del EQUIPO, que es otra cosa: «una
+tendencia o medición de lunes a sábado, o sea 6 días» (Mauricio, 26 sep
+2026). Contar cinco donde se trabajan seis inflaba la meta diaria un
+veinte por ciento.
+
+Dos pruebas fijaban la regla vieja y van actualizadas con el porqué al
+lado. Nada más cambia de comportamiento.
+
+### Y una vista que ahora vive en dos sitios, con un solo código
+
+La vista individual del aula ---«Cómo va en el aula» con su resumen---
+sale también dentro de la ficha del lead, en una pestaña nueva
+**«Seguimiento Académico»**, después de Historial.
+
+**No es una copia.** Se movió entera a
+`components/admin/seguimiento-academico-de-uno.tsx` y las dos pantallas
+la importan. Son cuatrocientas líneas de reglas ---cuándo una unidad va
+al día, con qué porcentaje se certifica, cómo se cuenta el último
+ingreso--- y dos copias empiezan iguales y acaban contestando distinto a
+la misma pregunta.
+
+Lo único que cambia entre los dos sitios es la prop `compacto`: en la
+ficha del lead la persona ya tiene su cabecera arriba, así que no se
+repite. Y la consulta **solo se pide al abrir la pestaña**: abrir un
+lead sigue costando lo mismo que antes.
+
+---
+
 ## Cosas del servidor que a José le interesan
 
 - **`import 'dotenv/config'` en `main.ts`.** El 500 del login en

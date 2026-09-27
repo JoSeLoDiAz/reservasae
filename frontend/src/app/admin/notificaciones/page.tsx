@@ -69,7 +69,15 @@ export default function Notificaciones() {
   const sinLeer = datos?.sinLeer ?? 0;
 
   return (
-    <div>
+    /// LA MISMA CÁSCARA QUE EL RESTO DEL PANEL.
+    ///
+    /// Nació con un `<div>` pelado: sin margen lateral y sin aire
+    /// arriba, así que la cabecera quedaba pegada a la banda azul y
+    /// el texto a los bordes de la ventana ---«déjale línea de
+    /// respeto» (cliente, 26 sep 2026)---. `px-4 pt-3 pb-6` con
+    /// `gap-3` es lo que usan Resumen, SEP, Acciones y la ficha de
+    /// la persona; no es una medida nueva, es la de la casa.
+    <div className="flex flex-col gap-3 px-4 pt-3 pb-6">
       <Encabezado
         titulo="Mis notificaciones"
         descripcion={
@@ -98,7 +106,10 @@ export default function Notificaciones() {
 
       {error && <Aviso tipo="error">{error}</Aviso>}
 
-      <div className="mb-4 flex flex-wrap items-center gap-2 text-sm">
+      {/* Sin `mb-4`: el hueco lo pone el `gap-3` de la columna, y
+          los dos juntos daban el doble de aire aquí que entre las
+          demás piezas. */}
+      <div className="flex flex-wrap items-center gap-2 text-sm">
         <Pestana activa={vista === "todas"} alPulsar={() => setVista("todas")}>
           Mías
         </Pestana>
@@ -203,7 +214,7 @@ function Fila({
         {/* El punto acompaña; lo que distingue es la palabra «Nuevo». */}
         <span
           aria-hidden
-          className={`mt-2 h-2 w-2 shrink-0 rounded-full ${
+          className={`mt-2 hidden h-2 w-2 shrink-0 rounded-full sm:block ${
             n.leida ? "bg-transparent" : "bg-marca"
           }`}
         />
@@ -233,7 +244,7 @@ function Fila({
             </span>
           )}
         </span>
-        <span className="shrink-0 text-sm text-texto-suave tabular-nums">
+        <span className="shrink-0 pl-5 text-sm text-texto-suave tabular-nums sm:pl-0">
           {cuando(n.creadoEn)}
         </span>
       </Link>

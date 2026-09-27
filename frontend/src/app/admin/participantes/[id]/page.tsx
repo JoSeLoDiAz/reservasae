@@ -31,7 +31,9 @@ import {
   Tarjeta,
   useAdmin,
 } from "@/components/admin/marco-admin";
+import { Esqueleto, Vacio } from "@/components/admin/piezas";
 import { HistoricoDeValores } from "@/components/admin/historico-valores";
+import { SeguimientoAcademicoDeUno } from "@/components/admin/seguimiento-academico-de-uno";
 import { BarraDeGestion } from "@/components/admin/barra-de-gestion";
 import { EnviarCorreo } from "@/components/admin/enviar-correo";
 import { RevisarPropuesta } from "@/components/admin/revisar-propuesta";
@@ -57,6 +59,7 @@ import {
   type PropuestaDelInteresado,
   ETIQUETA_ETAPA,
   ETIQUETA_ORIGEN,
+  type Academico,
   type Canal,
   type Etapa,
   type Ficha,
@@ -75,6 +78,23 @@ const PESTANAS = [
   { id: "notas", etiqueta: "Notas" },
   { id: "origen", etiqueta: "Origen" },
   { id: "historial", etiqueta: "Historial" },
+  /**
+   * DESPUÉS DE HISTORIAL, y la última a propósito.
+   *
+   * «Esta vista, que es nativa del módulo de Académica, que quede en
+   * Gestión de leads, vista individual, después de Historial, y se va
+   * a llamar Seguimiento Académico» (cliente, 26 sep 2026).
+   *
+   * Es la MISMA vista, no una copia: sale de
+   * `SeguimientoAcademicoDeUno`, que es lo que pinta también la
+   * pantalla del aula. Dos copias de cuatrocientas líneas de reglas
+   * ---cuándo una unidad va al día, con qué porcentaje se certifica---
+   * empiezan iguales y acaban contestando distinto.
+   *
+   * Y va al final porque no toda ficha la tiene: solo quien esté en
+   * formación en una acción virtual está en el aula.
+   */
+  { id: "academico", etiqueta: "Seguimiento Académico" },
 ] as const;
 
 type Pestana = (typeof PESTANAS)[number]["id"];
@@ -844,6 +864,8 @@ export default function PaginaFicha() {
                 </div>
               </>
             )}
+
+            {pestana === "academico" && <EnElAula id={f.id} />}
           </div>
 
           {/* EL PANEL DE ACCIONES: lo que se HACE con esta persona,
@@ -2568,5 +2590,45 @@ function Campos({ campos }: { campos: Array<[string, unknown]> }) {
         </div>
       ))}
     </dl>
+  );
+}
+
+/**
+ * La pestaña «Seguimiento Académico»: cómo va esta persona en el aula.
+ *
+ * SE PIDE SOLO AL ABRIR LA PESTAÑA. Es una consulta aparte y la
+ * mayoría de las visitas a una ficha no la necesitan: montar el
+ * componente solo cuando se pulsa es lo que hace que abrir un lead
+ * siga costando lo mismo que antes.
+ *
+ * Y NO SE PINTA NADA QUE EL AULA NO DIGA: la fuente de la verdad es
+ * el LMS, aquí solo se lee. Quien no esté en formación en una acción
+ * virtual sencillamente no está, y eso se dice con todas las letras
+ * en vez de con una tarjeta vacía.
+ */
+function EnElAula({ id }: { id: string }) {
+  const cargar = useCallback(() => crmApi.academicoDeUno(id), [id]);
+  const vivos = useDatosVivos<Academico>(cargar, { clave: `aula-${id}` });
+
+  if (vivos.error) return <Aviso tipo="error">{vivos.error}</Aviso>;
+  if (!vivos.datos) return <Esqueleto />;
+
+  const fila = vivos.datos.personas[0];
+  if (!fila) {
+    return (
+      <Vacio titulo="Esta persona no está en el aula">
+        Aquí sale el avance de quien está en formación en una acción
+        virtual. Cuando entre al aula, su avance aparece solo: lo manda
+        el LMS y no se edita desde aquí.
+      </Vacio>
+    );
+  }
+
+  return (
+    <SeguimientoAcademicoDeUno
+      compacto
+      fila={fila}
+      criterio={vivos.datos.criterio}
+    />
   );
 }

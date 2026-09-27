@@ -40,6 +40,27 @@ import { SelectorBuscable } from "./selector-buscable";
 import { CifraCompacta, Encabezado, Esqueleto, Vacio } from "./piezas";
 import { type Columna, Tabla } from "./tabla";
 
+/**
+ * LA META DIARIA, ENTERA Y HACIA ARRIBA.
+ *
+ * Cuántos tiene que resolver HOY para llegar a su fecha: la meta
+ * global repartida entre los días de trabajo que quedan, contados de
+ * lunes a sábado ---seis, que es como trabaja el equipo---.
+ *
+ * ES INCREMENTAL SOLA, sin llevar ningún arrastre. Si hoy tocaban
+ * tres y no se hizo ninguno, mañana lo que falta sigue igual y los
+ * días que quedan son uno menos, así que la meta sube. «Si no se
+ * cumple es incremental al siguiente día» (cliente, 26 sep 2026) es
+ * exactamente esto. Guardar el arrastre aparte sería una segunda
+ * cuenta viviendo al lado de la primera, y el día que discrepen no
+ * habría forma de saber cuál manda.
+ *
+ * HACIA ARRIBA y no al más cercano: con 0,2 al día, la meta entera
+ * no puede ser cero. Cero es «no haga nada hoy», y así no se llega.
+ */
+const metaDiaria = (porDia: number | null) =>
+  porDia === null ? "—" : n(Math.ceil(porDia));
+
 type Subvista = "inscripciones" | "academicos";
 
 /// SIN FRASE AL LADO (cliente, 23 sep 2026). Cada tabla ya dice contra
@@ -122,7 +143,15 @@ export function PanelAsesores() {
  * cambia de significado sin avisar es peor que no tenerlo.
  */
 type Vista = FilaDeAsesor & {
-  visto: { total: number; gestionados: number; resueltos: number; pendientes: number };
+  visto: {
+    total: number;
+    gestionados: number;
+    resueltos: number;
+    /// Los dos lados de `resueltos`, que son dos columnas.
+    inscritos: number;
+    descartados: number;
+    pendientes: number;
+  };
 };
 
 function DeInscripciones() {
@@ -191,6 +220,8 @@ function DeInscripciones() {
             total: f.carga.total,
             gestionados: f.carga.gestionados,
             resueltos: f.carga.resueltos,
+            inscritos: f.inscritos ?? 0,
+            descartados: f.descartados ?? 0,
             pendientes: f.ritmo.pendientes,
           },
         };
@@ -205,6 +236,8 @@ function DeInscripciones() {
           total: suya.total,
           gestionados: suya.gestionados,
           resueltos: suya.resueltos,
+          inscritos: suya.inscritos,
+          descartados: suya.descartados,
           pendientes: suya.pendientes,
         },
       };
@@ -221,9 +254,11 @@ function DeInscripciones() {
       total: a.total + f.visto.total,
       gestionados: a.gestionados + f.visto.gestionados,
       resueltos: a.resueltos + f.visto.resueltos,
+      inscritos: a.inscritos + f.visto.inscritos,
+      descartados: a.descartados + f.visto.descartados,
       pendientes: a.pendientes + f.visto.pendientes,
     }),
-    { total: 0, gestionados: 0, resueltos: 0, pendientes: 0 },
+    { total: 0, gestionados: 0, resueltos: 0, inscritos: 0, descartados: 0, pendientes: 0 },
   );
 
   /// LOS DOS SE CUENTAN SOBRE LAS MISMAS FILAS. La fila «Sin asesor
@@ -264,19 +299,39 @@ function DeInscripciones() {
       numerica: true,
       valor: (f) => f.visto.gestionados,
     },
+    /// DOS COLUMNAS Y NO UNA (cliente, 26 sep 2026: «esto es
+    /// separado, o sea una columna Inscritos y en otro Descartados»).
+    /// Juntas sumaban bien y no decían nada: quince resueltos pueden
+    /// ser quince inscritos o quince caídos, y son dos
+    /// conversaciones distintas con el asesor.
     {
-      clave: "resueltos",
-      titulo: "Inscritos y descartados",
-      ancho: "160px",
+      clave: "inscritos",
+      titulo: "Inscritos",
+      ancho: "110px",
       numerica: true,
-      valor: (f) => f.visto.resueltos,
+      valor: (f) => f.visto.inscritos,
       pinta: (f) => (
-        <span className="font-medium text-exito tabular-nums">{n(f.visto.resueltos)}</span>
+        <span className="font-medium text-exito tabular-nums">{n(f.visto.inscritos)}</span>
+      ),
+    },
+    {
+      clave: "descartados",
+      titulo: "Descartados",
+      ancho: "118px",
+      numerica: true,
+      valor: (f) => f.visto.descartados,
+      pinta: (f) => (
+        <span className="tabular-nums text-texto-suave">{n(f.visto.descartados)}</span>
       ),
     },
     {
       clave: "pendientes",
-      titulo: "Pendientes",
+      /// LA META GLOBAL. Es la que se llamaba «Pendientes»: lo que
+      /// le falta por resolver antes de su fecha, que es exactamente
+      /// «el total que debe lograr». No se añade otra columna al lado
+      /// porque sería el mismo número dos veces, y dos columnas con
+      /// la misma cifra y distinto nombre se acaban comparando.
+      titulo: "Meta global",
       ancho: "112px",
       numerica: true,
       valor: (f) => f.visto.pendientes,
@@ -327,21 +382,15 @@ function DeInscripciones() {
     },
     {
       clave: "exigido",
-      titulo: "Debe hacer al día",
-      ancho: "130px",
+      /// LOS DOS RÓTULOS DICEN QUÉ SON, y en la misma unidad: así se
+      /// leen uno contra otro, que es para lo que están al lado.
+      titulo: "Meta diaria",
+      ancho: "112px",
       numerica: true,
       valor: (f) => f.ritmo.exigidoPorDia,
       pinta: (f) => (
-        <span className="font-semibold tabular-nums">{dec(f.ritmo.exigidoPorDia)}</span>
+        <span className="font-semibold tabular-nums">{metaDiaria(f.ritmo.exigidoPorDia)}</span>
       ),
-    },
-    {
-      clave: "real",
-      titulo: "Promedio Cantidad inscripción",
-      ancho: "175px",
-      numerica: true,
-      valor: (f) => f.ritmo.realPorDia,
-      pinta: (f) => <span className="tabular-nums">{dec(f.ritmo.realPorDia)}</span>,
     },
     {
       clave: "estado",
@@ -377,13 +426,14 @@ function DeInscripciones() {
         valor={n(t.gestionados)}
         detalle={t.total > 0 ? `${Math.round((t.gestionados / t.total) * 100)} %` : undefined}
       />
+      {/* LOS MISMOS NOMBRES QUE LAS COLUMNAS DE DEBAJO. Se habían
+          quedado con los de antes de partir la columna y de renombrar
+          las metas: la tira decía «Inscritos y descartados» y la
+          tabla, justo debajo, los daba por separado. */}
+      <CifraCompacta etiqueta="Inscritos" valor={n(t.inscritos)} color="var(--exito)" />
+      <CifraCompacta etiqueta="Descartados" valor={n(t.descartados)} />
       <CifraCompacta
-        etiqueta="Inscritos y descartados"
-        valor={n(t.resueltos)}
-        color="var(--exito)"
-      />
-      <CifraCompacta
-        etiqueta="Pendientes"
+        etiqueta="Meta global"
         valor={n(t.pendientes)}
         color={t.pendientes > 0 ? "var(--error)" : undefined}
       />
@@ -606,7 +656,8 @@ const columnasAcademicas: Columna<FilaDeAsesorAcademico>[] = [
     /// tabla: con nueve columnas de números, el que decide tiene que
     /// saltar a la vista sin leerlas todas.
     clave: "porCertificar",
-    titulo: "Por certificar",
+    /// La meta global de esta pestaña: lo que le falta certificar.
+    titulo: "Meta global",
     ancho: "115px",
     numerica: true,
     valor: (f) => f.ritmo.pendientes,
@@ -642,19 +693,15 @@ const columnasAcademicas: Columna<FilaDeAsesorAcademico>[] = [
   },
   {
     clave: "exigido",
-    titulo: "Debe hacer al día",
-    ancho: "130px",
+    /// AQUÍ NO SE INSCRIBE, SE CERTIFICA. En esta pestaña «resuelto»
+    /// es «certificado» ---lo dice `repartirAcademicos`---, así que
+    /// «Promedio Cantidad inscripción» estaba nombrando una cosa por
+    /// otra desde que existe la pestaña.
+    titulo: "Meta diaria",
+    ancho: "112px",
     numerica: true,
     valor: (f) => f.ritmo.exigidoPorDia,
-    pinta: (f) => <span className="font-semibold tabular-nums">{dec(f.ritmo.exigidoPorDia)}</span>,
-  },
-  {
-    clave: "real",
-    titulo: "Promedio Cantidad inscripción",
-    ancho: "150px",
-    numerica: true,
-    valor: (f) => f.ritmo.realPorDia,
-    pinta: (f) => <span className="tabular-nums">{dec(f.ritmo.realPorDia)}</span>,
+    pinta: (f) => <span className="font-semibold tabular-nums">{metaDiaria(f.ritmo.exigidoPorDia)}</span>,
   },
   {
     clave: "estado",

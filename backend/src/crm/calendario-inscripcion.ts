@@ -180,6 +180,37 @@ export function ventanaDe(
   };
 }
 
+/**
+ * DIAS DE TRABAJO de `desde` a `hasta`: LUNES A SABADO, seis.
+ *
+ * No es lo mismo que `habilesEntre`, y la diferencia importa.
+ * `habilesEntre` cuenta cinco porque sirve a las reglas del SENA
+ * ---«cinco dias habiles antes del inicio»--- y ahi el dia habil es
+ * el de la norma. Esto de aqui mide el ritmo del EQUIPO, y el equipo
+ * trabaja seis: «una tendencia o medicion de lunes a sabado, o sea 6
+ * dias» (cliente, 26 sep 2026).
+ *
+ * Contar cinco donde se trabajan seis infla la meta diaria un veinte
+ * por ciento: reparte el trabajo entre menos dias de los que hay.
+ *
+ * Solo el domingo no cuenta. Negativo si la fecha ya paso.
+ */
+export function diasDeTrabajoEntre(desde: Date, hasta: Date): number {
+  const a = diaDeLaFecha(desde);
+  const b = diaDeLaFecha(hasta);
+  if (a === b) return 0;
+
+  const atras = b < a;
+  const f = new Date(Math.min(a, b));
+  const tope = Math.max(a, b);
+  let n = 0;
+  while (f.getTime() < tope) {
+    f.setUTCDate(f.getUTCDate() + 1);
+    if (f.getUTCDay() !== 0) n += 1;
+  }
+  return atras ? -n : n;
+}
+
 /// Dias habiles de `desde` a `hasta`. Negativo si ya paso.
 /// Entre dos FECHAS de calendario. Si tiene un instante,
 /// paselo antes por `hoyEnColombia`.

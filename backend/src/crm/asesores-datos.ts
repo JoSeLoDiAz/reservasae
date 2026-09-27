@@ -20,7 +20,7 @@ import {
 } from './seguimiento-de-asesores';
 import {
   cierreDeInscripciones,
-  habilesEntre,
+  diasDeTrabajoEntre,
   hoyEnColombia,
   type ModalidadDeCierre,
 } from './calendario-inscripcion';
@@ -62,6 +62,12 @@ export type FilaDeAsesor = {
   asesorId: string | null;
   nombre: string;
   carga: Carga;
+  /// `carga.resueltos` partido en sus dos mitades. Van aquí y no
+  /// dentro de `Carga` porque esa forma la comparte la pestaña
+  /// académica, donde «resuelto» es «certificado» y no hay
+  /// descartados que separar.
+  inscritos?: number;
+  descartados?: number;
   ritmo: Ritmo;
   /// Días que llevan esperando, de media, los que siguen sin resolver.
   antiguedadMedia: number | null;
@@ -125,6 +131,13 @@ export type CargaEnUnaAccion = {
   total: number;
   gestionados: number;
   resueltos: number;
+  /// LOS DOS LADOS DE «RESUELTO», POR SEPARADO (cliente, 26 sep
+  /// 2026: «esto es separado, o sea una columna Inscritos y en otro
+  /// Descartados»). Sumados dan `resueltos`, pero juntos no se leen:
+  /// un asesor con quince resueltos puede haber inscrito a quince o
+  /// haber descartado a quince, y son dos conversaciones distintas.
+  inscritos: number;
+  descartados: number;
   pendientes: number;
 };
 
@@ -160,6 +173,8 @@ export function repartirInscripciones(
       nombre: string;
       total: number;
       resueltos: number;
+      inscritos: number;
+      descartados: number;
       gestionados: number;
       /// Cuándo llegó cada uno de los que siguen abiertos.
       esperando: Date[];
@@ -186,6 +201,8 @@ export function repartirInscripciones(
         nombre: l.asesorNombre ?? 'Sin asesor asignado',
         total: 0,
         resueltos: 0,
+        inscritos: 0,
+        descartados: 0,
         gestionados: 0,
         esperando: [] as Date[],
         primero: null as Date | null,
@@ -197,7 +214,13 @@ export function repartirInscripciones(
     fila.total += 1;
     if (!fila.primero || l.creadoEn < fila.primero) fila.primero = l.creadoEn;
 
-    const resuelto = OCUPAN_SILLA.includes(l.etapa) || l.etapa === DESCARTADO;
+    /// Se parte en sus dos lados y `resuelto` es la suma: así la
+    /// cuenta de siempre no puede separarse de las dos nuevas.
+    const inscrito = OCUPAN_SILLA.includes(l.etapa);
+    const descartado = l.etapa === DESCARTADO;
+    const resuelto = inscrito || descartado;
+    if (inscrito) fila.inscritos += 1;
+    if (descartado) fila.descartados += 1;
     if (resuelto) fila.resueltos += 1;
     else fila.esperando.push(l.creadoEn);
 
@@ -221,10 +244,14 @@ export function repartirInscripciones(
         total: 0,
         gestionados: 0,
         resueltos: 0,
+        inscritos: 0,
+        descartados: 0,
         pendientes: 0,
       };
     enLaAccion.total += 1;
     if (gestionado) enLaAccion.gestionados += 1;
+    if (inscrito) enLaAccion.inscritos += 1;
+    if (descartado) enLaAccion.descartados += 1;
     if (resuelto) enLaAccion.resueltos += 1;
     else enLaAccion.pendientes += 1;
     fila.porAccion.set(suAccion, enLaAccion);
@@ -254,13 +281,15 @@ export function repartirInscripciones(
         gestionados: f.gestionados,
       };
       const diasCorridos = f.primero
-        ? Math.max(0, habilesEntre(hoyEnColombia(f.primero), hoyEnColombia(hoy)))
+        ? Math.max(0, diasDeTrabajoEntre(hoyEnColombia(f.primero), hoyEnColombia(hoy)))
         : 0;
       const limite = elLimite(f.proximo, f.ultimoPasado);
       return {
         asesorId: id === 'SIN_ASESOR' ? null : id,
         nombre: f.nombre,
         carga,
+        inscritos: f.inscritos,
+        descartados: f.descartados,
         ritmo: ritmoDe({ carga, limite, hoy, diasCorridos }),
         antiguedadMedia: antiguedadMedia(f.esperando, hoy),
         limite: limite ? limite.toISOString().slice(0, 10) : null,
@@ -353,7 +382,7 @@ export function repartirAcademicos(pax: PaxDelAsesor[], hoy: Date): FilaDeAsesor
       /// asesor cuyo curso arrancó ayer no puede tener el ritmo de uno
       /// que lleva un mes.
       const diasCorridos = f.primero
-        ? Math.max(0, habilesEntre(hoyEnColombia(f.primero), hoyEnColombia(hoy)))
+        ? Math.max(0, diasDeTrabajoEntre(hoyEnColombia(f.primero), hoyEnColombia(hoy)))
         : 0;
       const limite = elLimite(f.proximo, f.ultimoPasado);
       return {

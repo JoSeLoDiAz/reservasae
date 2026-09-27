@@ -1415,6 +1415,10 @@ export type CargaEnUnaAccion = {
   total: number;
   gestionados: number;
   resueltos: number;
+  /// Los dos lados de «resuelto», por separado: quien entró y quien
+  /// se cayó. Sumados dan `resueltos`.
+  inscritos: number;
+  descartados: number;
   pendientes: number;
 };
 
@@ -1422,6 +1426,8 @@ export type FilaDeAsesor = {
   asesorId: string | null;
   nombre: string;
   carga: { total: number; resueltos: number; gestionados: number };
+  inscritos?: number;
+  descartados?: number;
   ritmo: RitmoDeAsesor;
   antiguedadMedia: number | null;
   limite: string | null;

@@ -94,7 +94,14 @@ const ESPERA_DOBLE_CLIC = 250;
  * adelanta -- el evento cae fuera del tirador y el arrastre se
  * corta a mitad de camino.
  */
-function TiradorDeAncho({
+/// Se exporta: el consolidado de Seguimiento académico es una
+/// tabla escrita a mano ---lleva subtotales por acción, que esta
+/// `Tabla` no sabe pintar--- y aun así el cliente quiere ajustarle
+/// las columnas «como en Gestión de leads» (26 sep 2026). Reusar el
+/// tirador es mejor que escribir un segundo que se comporte casi
+/// igual: el doble clic, la holgura del clic y el clic que se pasa
+/// a la fila de debajo son tres detalles que costó afinar.
+export function TiradorDeAncho({
   titulo,
   alto,
   alEmpezar,
