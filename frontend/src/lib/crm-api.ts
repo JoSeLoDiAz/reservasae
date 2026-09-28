@@ -1539,6 +1539,7 @@ export const crmApi = {
   guardarDatosEmpresa: (
     id: string,
     datos: {
+      nit?: string;
       razonSocial?: string;
       digitoVerificacion?: string;
       direccion?: string;

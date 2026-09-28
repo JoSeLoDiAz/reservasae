@@ -16,6 +16,13 @@ export const ACCIONES = [
   'ASESOR_ASIGNADO',
   'NIT_ALTA_MANUAL',
   'EMPRESA_EDITADA',
+  /// Se corrigió el NIT de una organización desde un lead.
+  ///
+  /// Aparte de EMPRESA_EDITADA porque cambia a QUIÉN se le reporta
+  /// al SENA: el F7 va por NIT. El resumen lleva el antes y el
+  /// después para poder explicar por qué esa organización cambió
+  /// de identidad en el reporte.
+  'NIT_CORREGIDO',
   'RUI_RECONSULTADO',
   'DATOS_DEL_INTERESADO_ACEPTADOS',
   'ESTADO_FORZADO',

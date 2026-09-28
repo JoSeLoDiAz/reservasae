@@ -585,6 +585,16 @@ export class ResolverPropuestaDto {
  * verdad se teclea mal.
  */
 export class DatosDeLaEmpresaDto {
+  /// El NIT SÍ se corrige, aunque sea la llave: es el que viaja al
+  /// F7, así que un NIT mal tecleado es un reporte malo. El
+  /// servidor lo normaliza, recalcula el dígito y rechaza si ya es
+  /// de otra empresa. Cadena porque llega con puntos o guion.
+  @IsOptional()
+  @Transform(recortar)
+  @IsString()
+  @MaxLength(20)
+  nit?: string;
+
   @IsOptional()
   @Transform(recortar)
   @IsString()

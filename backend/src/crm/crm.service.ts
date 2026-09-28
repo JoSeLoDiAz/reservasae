@@ -30,6 +30,7 @@ import {
 import { masReciente } from './ultima-actividad';
 import { origenDeLead } from './origen-del-lead';
 import { documentoValido, normalizarDocumento } from '../comun/documento';
+import { normalizarNit, calcularDigitoVerificacion } from '../comun/nit';
 import { borrarParticipaciones } from './borrar-participaciones';
 import { llevanFichasEn } from './quien-lleva-fichas';
 import { analizar, esInsalvable, repetidosEnElPegado } from './carga';
@@ -2335,6 +2336,7 @@ export class CrmService {
   async guardarDatosDeLaEmpresa(
     id: string,
     datos: {
+      nit?: string;
       razonSocial?: string;
       digitoVerificacion?: string;
       direccion?: string;
@@ -2371,6 +2373,80 @@ export class CrmService {
       );
     }
 
+    /**
+     * EL NIT SÍ SE CORRIGE, y esto es lo nuevo (28 sep 2026).
+     *
+     * La gente se preinscribe con el NIT mal —o con un «0» de
+     * relleno— y hasta hoy no había forma de arreglarlo: era la
+     * llave de la fila y la pantalla lo enseñaba en solo lectura.
+     * Pero es JUSTO el dato que viaja al SENA —el F7 y los dos
+     * cargues leen `empresa.nit` directo—, así que un NIT malo es
+     * un reporte malo, y tenía que poder corregirse.
+     *
+     * Corrige el NIT de ESTA empresa, o sea de la fila que
+     * comparten todas sus fichas, que es lo que se pidió: «la
+     * empresa está mal, edítenla». No mueve a la persona a otra
+     * empresa —para eso está el enlace de completado— ni funde dos
+     * empresas.
+     *
+     * TRES CAMINOS, y el tercero NO se hace en silencio:
+     *
+     *  1. El mismo NIT (ya normalizado): no es un cambio, se sigue
+     *     de largo con el resto de campos.
+     *  2. Un NIT LIBRE: se renombra la fila. Todas sus fichas
+     *     quedan bien de una vez, sin tocar reservas ni cupos —el
+     *     contador vive en la oferta, no aquí—. El DV se recalcula
+     *     (regla de la casa: el DV no se teclea, se deriva) y el
+     *     vínculo con el maestro de NIT se suelta, porque apuntaba
+     *     al del NIT viejo; el emparejador lo vuelve a atar.
+     *  3. Un NIT que YA es de OTRA empresa: se RECHAZA nombrándola.
+     *     Fundir dos organizaciones arrastra sus reservas —con el
+     *     `@@unique([empresaId, ofertaId])` de por medio— y sus
+     *     cupos, y es una operación aparte que no se improvisa. El
+     *     mensaje dice cuál es para que el asesor sepa que esa
+     *     persona va movida a la existente, no renombrada aquí.
+     */
+    let parcheNit:
+      | { nit: string; digitoVerificacion: string; institucionId: null }
+      | null = null;
+    let nitAntes: string | null = null;
+
+    if (datos.nit !== undefined && datos.nit.trim() !== '') {
+      const leido = normalizarNit(datos.nit);
+      if (!leido) {
+        throw new BadRequestException(
+          'El NIT no es válido: tiene que ser de 5 a 15 dígitos, con o ' +
+            'sin dígito de verificación.',
+        );
+      }
+
+      const actual = await this.prisma.empresa.findUnique({
+        where: { id: empresaId },
+        select: { nit: true },
+      });
+      nitAntes = actual?.nit ?? null;
+
+      if (leido.nit !== nitAntes) {
+        const otra = await this.prisma.empresa.findUnique({
+          where: { nit: leido.nit },
+          select: { id: true, razonSocial: true },
+        });
+        if (otra && otra.id !== empresaId) {
+          throw new BadRequestException(
+            `Ya hay otra empresa con el NIT ${leido.nit} ` +
+              `(${otra.razonSocial}). Para mover a esta persona a esa ` +
+              'empresa, use su enlace de completado; aquí solo se corrige ' +
+              'el NIT de la organización actual.',
+          );
+        }
+        parcheNit = {
+          nit: leido.nit,
+          digitoVerificacion: calcularDigitoVerificacion(leido.nit),
+          institucionId: null,
+        };
+      }
+    }
+
     /// Texto en blanco es «no lo sé», no «bórralo».
     ///
     /// Quien deja un campo vacío en la pantalla casi siempre es
@@ -2400,6 +2476,11 @@ export class CrmService {
     const tocados = Object.entries(limpio)
       .filter(([, v]) => v !== undefined)
       .map(([k]) => k);
+
+    /// El NIT cuenta como cambio: si solo se corrige el NIT, sin
+    /// esto la función se caía con «No llegó ningún dato» y no
+    /// guardaba nada.
+    if (parcheNit) tocados.push('nit');
 
     if (tocados.length === 0) {
       throw new BadRequestException('No llegó ningún dato que guardar.');
@@ -2456,7 +2537,7 @@ export class CrmService {
 
     await this.prisma.empresa.update({
       where: { id: empresaId },
-      data: limpio,
+      data: { ...limpio, ...(parcheNit ?? {}) },
     });
 
     /// Queda la huella. Son datos de una empresa que van al
@@ -2471,6 +2552,23 @@ export class CrmService {
       camposTocados: tocados,
       ip,
     });
+
+    /// El NIT lleva su PROPIA huella, con el antes y el después.
+    ///
+    /// Cambia la identidad de la organización ante el SENA —quién
+    /// aparece en el F7—, así que no basta con «se editó la
+    /// empresa»: hay que poder decir de qué NIT a cuál, y quién.
+    if (parcheNit) {
+      await this.auditoria.registrar({
+        actor,
+        accion: 'NIT_CORREGIDO',
+        entidad: ENTIDADES.EMPRESA,
+        entidadId: empresaId,
+        convenioId: suyo?.convenioId ?? null,
+        resumen: `${nitAntes ?? '—'} → ${parcheNit.nit}`,
+        ip,
+      });
+    }
 
     /// COMPLETAR LA ORGANIZACIÓN TAMBIÉN MUEVE LA ETAPA.
     ///
