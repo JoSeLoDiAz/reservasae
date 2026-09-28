@@ -46,6 +46,11 @@ import {
   n,
   type PorcionDonut,
 } from "@/components/admin/graficos";
+import {
+  FiltroDePeriodo,
+  PERIODO_INICIAL,
+  type Periodo as PeriodoElegido,
+} from "@/components/admin/filtro-de-periodo";
 import { Aviso } from "@/components/admin/marco-admin";
 import { Bloque, Cargando, Vacio } from "@/components/admin/piezas";
 import { ErrorApi } from "@/lib/api";
@@ -100,12 +105,19 @@ const QUE_HICIERON: Record<string, string> = {
   ENVIO: "pulsaron confirmar y no se creó el lead",
 };
 
-const RANGOS = [
-  { valor: "HOY", etiqueta: "Hoy" },
-  { valor: "SEMANA", etiqueta: "7 días" },
-  { valor: "MES", etiqueta: "30 días" },
-  { valor: "TODO", etiqueta: "Desde el inicio" },
-];
+/// SIN LISTA PROPIA DE RANGOS. Aquí vivían cuatro botones —Hoy, 7
+/// días, 30 días, Desde el inicio— escritos a mano, que eran la
+/// quinta copia del mismo control: «en todos los tableros debo tener
+/// filtros, deben funcionar» (cliente, 27 sep 2026). Ahora lo pone
+/// `FiltroDePeriodo`, el mismo de los otros cuatro tableros, y de
+/// paso esta pantalla gana los rangos que le faltaban (Ayer, El mes
+/// pasado, 90 días, 12 meses y un rango de fechas).
+///
+/// Se puede porque el servidor de esta pantalla habla EXACTAMENTE el
+/// mismo idioma: `/admin/embudo-publico` recibe `rango` y lo resuelve
+/// con `resolverVentana` (`backend/src/crm/ventana.ts`), que es la
+/// misma función y el mismo `type Rango` que usa el filtro. Por eso
+/// no hace falta `ventanaDe`: el rango viaja tal cual.
 
 /// De dónde venían. «No dejó rastro» y no «Directa»: lo cierto
 /// es la ausencia de referencia, no que tecleara la dirección.
@@ -208,7 +220,8 @@ type Parametros = Parameters<typeof crmApi.embudoPublico>[0];
  * exista el lead, así que no cuelga de la pantalla de inscritos.
  */
 export function PanelTrafico() {
-  const [rango, setRango] = useState("TODO");
+  /// El periodo elegido, en el formato del filtro compartido.
+  const [periodo, setPeriodo] = useState<PeriodoElegido>(PERIODO_INICIAL);
   /// Los dos periodos del calendario. Vacios = no se compara.
   const [a, setA] = useState({ desde: "", hasta: "" });
   const [b, setB] = useState({ desde: "", hasta: "" });
@@ -235,8 +248,22 @@ export function PanelTrafico() {
             contraDesde: b.desde,
             contraHasta: b.hasta,
           }
-        : { rango },
-    [rango, comparando, a.desde, a.hasta, b.desde, b.hasta],
+        : /// El rango del filtro va DIRECTO al servidor; `desde` y
+          /// `hasta` solo llevan algo con «Un rango de fechas», y
+          /// `embudoPublico` descarta los vacíos. Con una sola de las
+          /// dos fechas el servidor cae a «Desde el principio», que es
+          /// lo mismo que avisa el filtro en pantalla.
+          { rango: periodo.rango, desde: periodo.desde, hasta: periodo.hasta },
+    [
+      periodo.rango,
+      periodo.desde,
+      periodo.hasta,
+      comparando,
+      a.desde,
+      a.hasta,
+      b.desde,
+      b.hasta,
+    ],
   );
   const clave = JSON.stringify(parametros);
 
@@ -393,8 +420,8 @@ export function PanelTrafico() {
         alCambiarA={setA}
         alCambiarB={setB}
         comparando={comparando}
-        rango={rango}
-        alCambiarRango={setRango}
+        periodo={periodo}
+        alCambiarPeriodo={setPeriodo}
         /// DENTRO de la caja de los filtros y bajo su raya: es lo que
         /// matiza el periodo que se acaba de elegir, y suelto debajo de
         /// la tarjeta se leía como un texto de la página. Solo cuando
@@ -1492,8 +1519,8 @@ function ComparadorDeFechas({
   alCambiarA,
   alCambiarB,
   comparando,
-  rango,
-  alCambiarRango,
+  periodo,
+  alCambiarPeriodo,
   nota,
 }: {
   a: { desde: string; hasta: string };
@@ -1501,13 +1528,14 @@ function ComparadorDeFechas({
   alCambiarA: (v: { desde: string; hasta: string }) => void;
   alCambiarB: (v: { desde: string; hasta: string }) => void;
   comparando: boolean;
-  /// Los cuatro rangos viven aquí desde el 20 sep 2026: estaban
-  /// arriba, en el encabezado, y la comparación abajo.
-  rango: string;
+  /// El periodo vive aquí desde el 20 sep 2026: estaba arriba, en el
+  /// encabezado, y la comparación abajo. Sigue en la misma caja, pero
+  /// el control ya no es de esta pantalla sino el compartido.
+  periodo: PeriodoElegido;
   /// Una línea DENTRO de la caja, bajo una raya: es donde va la nota
   /// del contador, que matiza estos filtros.
   nota?: React.ReactNode;
-  alCambiarRango: (r: string) => void;
+  alCambiarPeriodo: (p: PeriodoElegido) => void;
 }) {
   const [abierto, setAbierto] = useState(false);
 
@@ -1531,28 +1559,23 @@ function ComparadorDeFechas({
   return (
     <div className="rounded-2xl border border-borde bg-superficie p-4">
       <div className="flex flex-wrap items-center gap-2">
-        <div className="mr-1 flex flex-wrap gap-1">
-          {RANGOS.map((r) => (
-            <button
-              key={r.valor}
-              type="button"
-              onClick={() => {
-                /// Elegir un rango QUITA la comparación de dos
-                /// fechas: si no, se pulsa «30 días» y la pantalla
-                /// sigue enseñando las dos fechas de antes sin
-                /// decir por qué.
-                if (comparando) limpiar();
-                alCambiarRango(r.valor);
-              }}
-              className={`rounded-lg px-3 py-1.5 text-sm transition ${
-                rango === r.valor && !comparando
-                  ? "bg-marca font-medium text-marca-texto"
-                  : "border border-borde bg-superficie text-texto-suave hover:bg-superficie-alterna"
-              }`}
-            >
-              {r.etiqueta}
-            </button>
-          ))}
+        <div className="mr-1">
+          {/* SIN `alComparar`: comparar aquí es lo de las dos fechas
+              del calendario, que está al lado y es lo que pidió el
+              cliente («hoy contra ayer, un día contra otro en
+              específico»). Enseñar además el «comparar con el
+              anterior» del filtro serían dos comparaciones distintas
+              en la misma caja. */}
+          <FiltroDePeriodo
+            periodo={periodo}
+            alCambiar={(p) => {
+              /// Elegir un periodo QUITA la comparación de dos fechas:
+              /// si no, se pulsa «30 días» y la pantalla sigue
+              /// enseñando las dos fechas de antes sin decir por qué.
+              if (comparando) limpiar();
+              alCambiarPeriodo(p);
+            }}
+          />
         </div>
         <span className="mx-1 hidden h-5 w-px bg-borde sm:block" aria-hidden />
         <button

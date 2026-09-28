@@ -289,13 +289,21 @@ export class CrmController {
   ///
   /// Se recorta AQUÍ, en el servidor, y no en la pantalla: el menú
   /// es comodidad, la ruta se llama directo.
+  /// EL PERIODO ENTRA POR LA URL, como en el resto del panel: son
+  /// dos instantes ya resueltos en hora de Bogotá por el filtro
+  /// compartido. Sin ellos la consulta sale igual que siempre.
   @Get('asesores/inscripciones')
   @Requiere('inscritos')
   async asesoresDeInscripciones(
     @AdminActual() admin: Admin,
     @AmbitoActual() ambito: Ambito,
+    @Query('llegoDesde') llegoDesde?: string,
+    @Query('llegoHasta') llegoHasta?: string,
   ) {
-    const filas = await this.crm.asesoresDeInscripciones(ambito);
+    const filas = await this.crm.asesoresDeInscripciones(ambito, {
+      llegoDesde,
+      llegoHasta,
+    });
     return soloLoSuyoSiNoVeElEquipo(filas, admin, ambito);
   }
 
@@ -304,9 +312,51 @@ export class CrmController {
   async asesoresAcademicos(
     @AdminActual() admin: Admin,
     @AmbitoActual() ambito: Ambito,
+    @Query('llegoDesde') llegoDesde?: string,
+    @Query('llegoHasta') llegoHasta?: string,
   ) {
-    const filas = await this.crm.asesoresAcademicos(ambito);
+    const filas = await this.crm.asesoresAcademicos(ambito, {
+      llegoDesde,
+      llegoHasta,
+    });
     return soloLoSuyoSiNoVeElEquipo(filas, admin, ambito);
+  }
+
+  /**
+   * SUBVISTA 3: la proyeccion de inscripciones, por accion.
+   *
+   * SIN `soloLoSuyoSiNoVeElEquipo`, y a proposito. Las dos rutas de
+   * arriba se recortan porque son NOMINALES ---cuanto lleva cada
+   * persona, su semaforo, si necesita refuerzo--- y eso solo lo ve
+   * quien responde por ella. Esta no lleva ni un nombre: son cupos,
+   * cierres y cuantos leads faltan por accion. Es justo lo que
+   * necesita saber quien trae leads, incluida la cuenta de la pauta.
+   */
+  @Get('asesores/proyeccion')
+  @Requiere('inscritos')
+  proyeccionDeInscripciones(
+    @AmbitoActual() ambito: Ambito,
+    @Query('llegoDesde') llegoDesde?: string,
+    @Query('llegoHasta') llegoHasta?: string,
+  ) {
+    return this.crm.proyeccionDeInscripciones(ambito, { llegoDesde, llegoHasta });
+  }
+
+  /**
+   * SUBVISTA 4: la proyeccion academica, por accion.
+   *
+   * Mismo criterio que su hermana: sin recorte por asesor, porque no
+   * lleva ni un nombre. Son personas dentro del aula, fechas de fin y
+   * cuantas faltan por certificar.
+   */
+  @Get('asesores/proyeccion-academica')
+  @Requiere('academico')
+  proyeccionAcademica(
+    @AmbitoActual() ambito: Ambito,
+    @Query('llegoDesde') llegoDesde?: string,
+    @Query('llegoHasta') llegoHasta?: string,
+  ) {
+    return this.crm.proyeccionAcademica(ambito, { llegoDesde, llegoHasta });
   }
 
   /** Cuantos inscritos hay y como se reparten. */

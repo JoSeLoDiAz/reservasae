@@ -45,6 +45,36 @@ const INSCRIBIO = "text-center whitespace-nowrap text-exito grupo-inscribio";
 
 /// Las mismas dos mitades, en el cuerpo. La clase va en la celda y no
 /// en la fila porque la raya es de la COLUMNA.
+/**
+ * UNA CIFRA CON LA DEL OTRO PERIODO DEBAJO.
+ *
+ * «Volver dinámico las tarjetas, gráficos y tablas para saber los
+ * comparativos» (cliente, 27 sep 2026). Debajo y no al lado: son
+ * trece columnas, y dos números en la misma línea las parte todas.
+ *
+ * La de arriba es la del periodo elegido y manda. La de abajo es la
+ * del otro, en gris y más pequeña, con su flecha: ▲ subió, ▼ bajó,
+ * = igual. Sin comparación puesta se pinta solo la de arriba, como
+ * siempre.
+ */
+function Cifra({ ahora, antes }: { ahora: number; antes: number | null }) {
+  if (antes === null) return <>{n(ahora)}</>;
+  const d = ahora - antes;
+  return (
+    <>
+      {n(ahora)}
+      <span
+        className="block text-[0.6875rem] leading-tight font-normal"
+        style={{
+          color: d === 0 ? "var(--texto-suave)" : d > 0 ? "var(--exito)" : "var(--error)",
+        }}
+      >
+        {d === 0 ? "=" : d > 0 ? "▲" : "▼"} {n(antes)}
+      </span>
+    </>
+  );
+}
+
 const CELDA_ENTRO = "text-center tabular-nums grupo-entro";
 const CELDA_ENTRO_TOTAL = "text-center font-medium tabular-nums grupo-entro";
 const CELDA_INSCRIBIO = "text-center tabular-nums grupo-inscribio";
@@ -57,22 +87,67 @@ export function TablaPorAccion({
   alElegir,
   elegida,
   recorte,
+  recorteAnterior,
+  rotuloAnterior,
 }: {
   /// Los cinco filtros y la ventana, los mismos de arriba.
   recorte?: Record<string, unknown>;
+  /**
+   * EL MISMO RECORTE PERO DEL PERIODO CON EL QUE SE COMPARA.
+   *
+   * «Es realmente volver dinámico las tarjetas, gráficos y TABLAS
+   * para saber los comparativos» (cliente, 27 sep 2026). Hasta hoy
+   * solo comparaban las cuatro cifras de arriba, y esta tabla ---que
+   * es el bloque más grande de la pantalla--- enseñaba un periodo y
+   * ninguno más.
+   *
+   * Nulo = no hay comparación puesta, y la tabla sale como siempre.
+   */
+  recorteAnterior?: Record<string, unknown> | null;
+  /// Cómo se llama ese periodo, para poder decirlo en la cabecera.
+  rotuloAnterior?: string | null;
   /// La pantalla la usa para abrir el detalle por grupos: la fila
   /// entera es el botón.
   alElegir?: (fila: FilaDeAccion) => void;
   elegida?: string | null;
 }) {
   const clave = JSON.stringify(recorte ?? {});
-  const cargar = useCallback(() => crmApi.resumenPorAccion(recorte ?? {}), [clave]); // eslint-disable-line react-hooks/exhaustive-deps
-  const vivos = useDatosVivos<FilaDeAccion[]>(cargar, { clave: `resumen-por-accion:${clave}` });
+  const claveAntes = JSON.stringify(recorteAnterior ?? null);
+
+  /// LAS DOS EN LA MISMA CONSULTA. Dos `useDatosVivos` separados se
+  /// refrescan cada uno por su lado, y durante un instante la tabla
+  /// enseñaría el periodo nuevo contra el anterior viejo: dos filas
+  /// que no son comparables con cara de serlo.
+  const cargar = useCallback(
+    async (): Promise<{ ahora: FilaDeAccion[]; antes: FilaDeAccion[] | null }> => {
+      const [ahora, antes] = await Promise.all([
+        crmApi.resumenPorAccion(recorte ?? {}),
+        recorteAnterior ? crmApi.resumenPorAccion(recorteAnterior) : null,
+      ]);
+      return { ahora, antes };
+    },
+    [clave, claveAntes], // eslint-disable-line react-hooks/exhaustive-deps
+  );
+  const vivos = useDatosVivos<{ ahora: FilaDeAccion[]; antes: FilaDeAccion[] | null }>(
+    cargar,
+    { clave: `resumen-por-accion:${clave}:${claveAntes}` },
+  );
 
   if (vivos.error) return <Aviso tipo="error">{vivos.error}</Aviso>;
   if (!vivos.datos) return <Esqueleto />;
 
-  const filas = vivos.datos;
+  const filas = vivos.datos.ahora;
+  /// La fila de cada acción en el otro periodo, por su id. Una acción
+  /// puede no existir allí ---nació después---: entonces no hay con
+  /// qué comparar y no se pinta nada, en vez de un cero que diría
+  /// que no entró nadie.
+  const antesPorAccion = new Map(
+    (vivos.datos.antes ?? []).map((f) => [f.accionFormacionId, f]),
+  );
+  const comparando = vivos.datos.antes !== null;
+  /// La fila de esta acción en el otro periodo, o nulo si no la hay.
+  const antesDe = (f: FilaDeAccion) =>
+    comparando ? (antesPorAccion.get(f.accionFormacionId) ?? null) : null;
   if (filas.length === 0) {
     return (
       <Vacio titulo="Todavía no hay acciones de formación">
@@ -116,6 +191,16 @@ export function TablaPorAccion({
       /// se está mirando.
       titulo="Cupos e inscritos por acción"
     >
+      {/* DE QUÉ PERIODO ES LA CIFRA DE ABAJO. Sin esto, la segunda
+          cifra de cada celda es un número sin dueño: es lo que ya
+          pasó con las tarjetas. */}
+      {comparando && rotuloAnterior && (
+        <p className="px-7 pb-2 text-[0.78125rem] text-texto-suave">
+          Debajo de cada cifra, la misma de{" "}
+          <strong className="font-medium text-titulo">{rotuloAnterior}</strong>.
+        </p>
+      )}
+
       <div className="caja-scroll overflow-x-auto">
         <table className="tabla-datos tabla-cuadricula w-full">
           <thead>
@@ -155,14 +240,42 @@ export function TablaPorAccion({
               >
                 <td className="font-mono text-xs whitespace-nowrap">{f.codigo}</td>
                 <td className="min-w-[18rem]">{f.nombre}</td>
+                {/* LA META NO SE COMPARA: es lo comprometido con el
+                    SENA y no cambia con el periodo. Ponerle una
+                    flecha diría que subió o bajó cuando es la misma. */}
                 <td className="text-center tabular-nums">{n(f.meta)}</td>
-                <td className={CELDA_ENTRO}>{n(f.cuposReservados)}</td>
-                <td className={CELDA_ENTRO}>{n(f.campanaDigital)}</td>
-                <td className={CELDA_ENTRO_TOTAL}>{n(f.totalLeads)}</td>
-                <td className={CELDA_INSCRIBIO}>{n(f.inscritosReservas)}</td>
-                <td className={CELDA_INSCRIBIO}>{n(f.inscritosCampana)}</td>
+                <td className={CELDA_ENTRO}>
+                  <Cifra
+                    ahora={f.cuposReservados}
+                    antes={antesDe(f)?.cuposReservados ?? null}
+                  />
+                </td>
+                <td className={CELDA_ENTRO}>
+                  <Cifra
+                    ahora={f.campanaDigital}
+                    antes={antesDe(f)?.campanaDigital ?? null}
+                  />
+                </td>
+                <td className={CELDA_ENTRO_TOTAL}>
+                  <Cifra ahora={f.totalLeads} antes={antesDe(f)?.totalLeads ?? null} />
+                </td>
+                <td className={CELDA_INSCRIBIO}>
+                  <Cifra
+                    ahora={f.inscritosReservas}
+                    antes={antesDe(f)?.inscritosReservas ?? null}
+                  />
+                </td>
+                <td className={CELDA_INSCRIBIO}>
+                  <Cifra
+                    ahora={f.inscritosCampana}
+                    antes={antesDe(f)?.inscritosCampana ?? null}
+                  />
+                </td>
                 <td className="text-center font-semibold text-exito tabular-nums grupo-inscribio">
-                  {n(f.totalInscritos)}
+                  <Cifra
+                    ahora={f.totalInscritos}
+                    antes={antesDe(f)?.totalInscritos ?? null}
+                  />
                 </td>
                 <td className="text-center tabular-nums">{tasa(f.conversion)}</td>
                 {/* En rojo cuando ya se pasó: es el «−4» de su hoja, y

@@ -4,6 +4,12 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { Cajon, Dato } from "@/components/admin/cajon";
 import { ConfirmarBorrado } from "@/components/admin/confirmar-borrado";
+import {
+  FiltroDePeriodo,
+  PERIODO_INICIAL,
+  type Periodo,
+  ventanaDe,
+} from "@/components/admin/filtro-de-periodo";
 import { IndicadorActualizacion } from "@/components/admin/indicador-actualizacion";
 import { Aviso, useAdmin } from "@/components/admin/marco-admin";
 import { Cifra } from "@/components/admin/piezas";
@@ -60,6 +66,26 @@ export default function PaginaReservas() {
   const [abierta, setAbierta] = useState<FilaReserva | null>(null);
   const { admin } = useAdmin();
 
+  /**
+   * EL PERIODO, AQUÍ TODAVÍA SIN RECORTAR.
+   *
+   * El control es el mismo de los demás tableros ---uno solo y no
+   * cinco--- pero esta pantalla no cuelga del CRM: come de
+   * `/admin/tableros/reservas` y `/reservas-agrupadas`, que reciben
+   * `FiltrosReservas` (buscar, estado, convenio, accionId, formulario)
+   * y NO la ventana de fechas. `llegoDesde`/`llegoHasta` viven en el
+   * `Filtros` del CRM, que es otro objeto y otro servicio.
+   *
+   * Se pinta igual, y debajo se dice que aún no recorta. Mandarle las
+   * dos fechas al servidor sería peor: las ignoraría en silencio y la
+   * tabla se quedaría igual mientras el control asegura un periodo ---
+   * exactamente el «filtros que no funcionan» del que se quejó el
+   * cliente. Para que recorte de verdad hace falta que
+   * `FiltrosReservas` acepte las fechas y `donde()` las lleve a
+   * `creadoEn gte/lt`, que es servidor y no se toca desde aquí.
+   */
+  const [periodo, setPeriodo] = useState<Periodo>(PERIODO_INICIAL);
+
   /// Arranca en la unificada y se corrige en el primer pintado con lo
   /// que guardó la última vez. Leer `localStorage` durante el render
   /// deja el servidor y el navegador pintando cosas distintas.
@@ -90,7 +116,15 @@ export default function PaginaReservas() {
   /// vez serían el doble de viajes cada treinta segundos para pintar
   /// una sola tabla.
   const vivos = useDatosVivos<PaginaReservas>(
-    useCallback(() => tablerosApi.reservas({ pagina: 1, porPagina: POR_VIAJE }), []),
+    useCallback(
+      () =>
+        tablerosApi.reservas({
+          pagina: 1,
+          porPagina: POR_VIAJE,
+          ...ventanaDe(periodo),
+        }),
+      [periodo],
+    ),
     { activo: vista === "reserva" },
   );
 
@@ -98,7 +132,10 @@ export default function PaginaReservas() {
   /// sobre una página de 200 parte en dos a la empresa cuyas AF caen
   /// en páginas distintas, y el error no se ve.
   const agrupadas = useDatosVivos<ReservasAgrupadas>(
-    useCallback(() => tablerosApi.reservasAgrupadas(), []),
+    /// LA MISMA VENTANA QUE LA LISTA. Si el agrupado no la llevara,
+    /// las dos vistas de esta pantalla ---«Por reserva» y «Por
+    /// organización»--- contestarían distinto al mismo filtro.
+    useCallback(() => tablerosApi.reservasAgrupadas(ventanaDe(periodo)), [periodo]),
     { activo: vista === "organizacion" },
   );
 
@@ -117,7 +154,11 @@ export default function PaginaReservas() {
     if (!datos) return;
     const resto = await Promise.all(
       Array.from({ length: datos.paginas - 1 }, (_, i) =>
-        tablerosApi.reservas({ pagina: i + 2, porPagina: POR_VIAJE }),
+        tablerosApi.reservas({
+          pagina: i + 2,
+          porPagina: POR_VIAJE,
+          ...ventanaDe(periodo),
+        }),
       ),
     );
     setTodas({ base: datos.filas, filas: [...datos.filas, ...resto.flatMap((p) => p.filas)] });
@@ -337,6 +378,16 @@ export default function PaginaReservas() {
   return (
     <div className="flex min-h-0 grow flex-col gap-3 px-4 pt-3">
       <ElegirVista vista={vista} alElegir={elegirVista} />
+
+      {/* EL PERIODO, junto a las dos vistas, que es donde están los
+          filtros de pantalla.
+
+          Aquí vivía un aviso diciendo que esta vista no se recortaba
+          por periodo. Era verdad y por eso estaba: el control se
+          pintaba y el servidor lo ignoraba en silencio. Ya no: `Reserva`
+          se recorta por `creadoEn`, en la lista Y en el agrupado, así
+          que el aviso sobra. */}
+      <FiltroDePeriodo periodo={periodo} alCambiar={setPeriodo} />
 
       {/* Sin título ni conteo: lo dice la miga, y la cifra
           va en el pie de la tabla. El aviso solo aparece si

@@ -41,34 +41,61 @@ export class NotificacionesService {
       });
       if (!ficha) return;
 
-      const destinatarioId = aviso.destinatarioId ?? ficha.asesorId;
-      /// Sin dueño no hay a quién avisar, y eso NO es un fallo:
-      /// una ficha del montón común todavía no es de nadie. El
-      /// día que se reparta, el aviso de asignación lo abre.
-      if (!destinatarioId) return;
+      const suyo = aviso.destinatarioId ?? ficha.asesorId;
 
-      await this.prisma.notificacion.upsert({
-        where: {
-          destinatarioId_tipo_claveEvento: {
+      /**
+       * SIN DUEÑO SE AVISA IGUAL, A QUIEN PUEDE TOMARLA.
+       *
+       * Aquí había un `return`: sin asesor, el aviso se tiraba en
+       * silencio. La razón escrita era buena ---«una ficha del montón
+       * común todavía no es de nadie»--- pero el efecto no: medido en
+       * la base de pruebas, el 94 % de las fichas no tiene asesor, y
+       * por eso NO HABÍA UN SOLO AVISO en toda la tabla.
+       *
+       * Y es justo al revés de lo que hace falta: una persona que
+       * acaba de completar sus datos y que no lleva nadie es
+       * exactamente la que hay que atender, no la que se puede
+       * callar. «Cuando el registro es independiente con RUT no
+       * notifica» (cliente, 28 sep 2026) ---no era del RUT: era de
+       * que esa ficha no tenía dueño, como el 94 % de las demás---.
+       *
+       * Así que si no hay asesor, se avisa a quien PUEDE tomarla: los
+       * líderes de inscripción de ese gremio. No a todo el mundo: a
+       * quien responde por el montón común.
+       */
+      const destinatarios = suyo
+        ? [suyo]
+        : await this.quienResponde(ficha.convenioId);
+
+      if (destinatarios.length === 0) return;
+
+      /// Uno a uno y no en lote: `upsert` no acepta varios, y la
+      /// clave única es por destinatario ---dos personas pueden
+      /// tener el mismo aviso sin pisarse---.
+      for (const destinatarioId of destinatarios) {
+        await this.prisma.notificacion.upsert({
+          where: {
+            destinatarioId_tipo_claveEvento: {
+              destinatarioId,
+              tipo: aviso.tipo,
+              claveEvento: aviso.claveEvento,
+            },
+          },
+          create: {
             destinatarioId,
+            participanteId: aviso.participanteId,
+            convenioId: ficha.convenioId,
             tipo: aviso.tipo,
+            titulo: ETIQUETA[aviso.tipo],
+            detalle: aviso.detalle ?? null,
             claveEvento: aviso.claveEvento,
           },
-        },
-        create: {
-          destinatarioId,
-          participanteId: aviso.participanteId,
-          convenioId: ficha.convenioId,
-          tipo: aviso.tipo,
-          titulo: ETIQUETA[aviso.tipo],
-          detalle: aviso.detalle ?? null,
-          claveEvento: aviso.claveEvento,
-        },
-        /// Vacío a propósito: el segundo intento NO reabre un
-        /// aviso que alguien ya leyó. Marcar como no leída una
-        /// fila leída es contarle al asesor algo que ya atendió.
-        update: {},
-      });
+          /// Vacío a propósito: el segundo intento NO reabre un
+          /// aviso que alguien ya leyó. Marcar como no leída una
+          /// fila leída es contarle al asesor algo que ya atendió.
+          update: {},
+        });
+      }
     } catch (e) {
       this.log.warn(
         `No se pudo avisar (${aviso.tipo} de ${aviso.participanteId}): ${
@@ -76,6 +103,30 @@ export class NotificacionesService {
         }`,
       );
     }
+  }
+
+  /**
+   * QUIÉN RESPONDE POR LAS FICHAS SIN DUEÑO DE UN GREMIO.
+   *
+   * Los líderes de inscripción, que son los que reparten. Si no hay
+   * ninguno ---un gremio recién creado---, no se inventa un
+   * destinatario: el aviso no se escribe y ya está. Mejor eso que
+   * mandárselo a alguien que no responde por ese montón.
+   *
+   * NO se avisa a los gestores: ellos trabajan lo que les reparten,
+   * y llenarles la campana de fichas que no son suyas es la forma
+   * más rápida de que dejen de mirarla.
+   */
+  private async quienResponde(convenioId: string): Promise<string[]> {
+    const filas = await this.prisma.adminConvenio.findMany({
+      where: {
+        convenioId,
+        rol: 'LIDER_INSCRIPCION',
+        admin: { activo: true },
+      },
+      select: { adminId: true },
+    });
+    return [...new Set(filas.map((f) => f.adminId))];
   }
 
   /** Lo suyo, lo último primero. */

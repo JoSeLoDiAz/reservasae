@@ -170,6 +170,12 @@ export class TablerosController {
   ) {
     return this.tableros.reservasAgrupadas({
       ambito: ambito.convenios,
+      /// EL MISMO PERIODO QUE LA LISTA. Si el agrupado no lo llevara,
+      /// las dos vistas de la misma pantalla ---«Por reserva» y «Por
+      /// organización»--- contestarían distinto al mismo filtro, que
+      /// es el defecto que ya costó una vuelta en Tráfico.
+      llegoDesde: consulta.llegoDesde || undefined,
+      llegoHasta: consulta.llegoHasta || undefined,
       buscar: consulta.buscar || undefined,
       convenio: consulta.convenio || undefined,
       accionId: consulta.accionId || undefined,
@@ -438,6 +444,9 @@ export class TablerosController {
       convenio: consulta.convenio || undefined,
       accionId: consulta.accionId || undefined,
       formulario: consulta.formulario || undefined,
+      /// El periodo entra por la URL, como en el resto del panel.
+      llegoDesde: consulta.llegoDesde || undefined,
+      llegoHasta: consulta.llegoHasta || undefined,
       pagina: Number(consulta.pagina) || 1,
       porPagina: Number(consulta.porPagina) || undefined,
     };

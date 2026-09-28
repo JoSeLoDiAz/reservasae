@@ -423,6 +423,19 @@ type Celda = {
   colorCifra: string;
   /// Los renglones del pie. Vacío mientras no hay datos.
   pies: string[];
+  /**
+   * LA MISMA CIFRA EN EL PERIODO CON EL QUE SE COMPARA.
+   *
+   * «Tengo las dos, ¿pero dónde veo la diferencia? O sea, qué es de
+   * un día y qué es del otro» (cliente, 27 sep 2026).
+   *
+   * La comparación existía, pero vivía metida en el pie y en prosa:
+   * «en los 2 días anteriores era el 0 %». Así hay que leerse un
+   * párrafo para sacar un número, y no hay forma de ver los dos a la
+   * vez. Aquí va la cifra de al lado, con su fecha debajo, para que
+   * se lean de un vistazo. Para eso es un comparativo.
+   */
+  contra?: { cifra: string; cuando: string; diferencia: string | null };
   /// La explicación larga, en el `title`.
   explicacion: string;
   /// La que manda: 32 px y no 22.
@@ -512,6 +525,7 @@ function CeldaDeLaTira({
   cifra,
   colorCifra,
   pies,
+  contra,
   explicacion,
   clase = "",
 }: Celda) {
@@ -558,7 +572,41 @@ function CeldaDeLaTira({
         >
           {cifra}
         </span>
+
+
       </dd>
+      {/* EL COMPARATIVO, EN UN RENGLÓN Y EN CASTELLANO.
+          Estuvo como «570 vs 1 +569» al lado de la cifra: tres
+          números pegados en letra de once píxeles y, peor, el nombre
+          del periodo anterior colgando del título, que hacía leer
+          «TOTAL LEADS · los 2 días anteriores» como si la cifra
+          grande fuera de esos dos días.
+          Una frase se lee sola: qué pasó, contra qué, y cuánto era. */}
+      {contra && (
+        <p className="mt-1 text-[0.71875rem] leading-[1.3]">
+          <span
+            className="font-semibold"
+            style={{
+              color:
+                contra.diferencia === null || contra.diferencia === "="
+                  ? "var(--texto-suave)"
+                  : contra.diferencia.startsWith("−")
+                    ? "var(--error)"
+                    : "var(--exito)",
+            }}
+          >
+            {contra.diferencia === "="
+              ? "Igual"
+              : contra.diferencia?.startsWith("−")
+                ? `Bajó ${contra.diferencia.slice(1)}`
+                : `Subió ${contra.diferencia?.slice(1)}`}
+          </span>{" "}
+          <span className="text-texto-suave">
+            frente a {contra.cuando}, que fueron {contra.cifra}.
+          </span>
+        </p>
+      )}
+
       {pies.map((p) => (
         <dd
           key={p}
@@ -1124,6 +1172,26 @@ export function PanelProceso({
   );
   const g = useCallback((...es: Etapa[]) => es.reduce((s, e) => s + (enEtapa.get(e) ?? 0), 0), [enEtapa]);
 
+  /**
+   * LAS MISMAS ETAPAS, EN EL PERIODO CON EL QUE SE COMPARA.
+   *
+   * «Volver dinámico las tarjetas, gráficos y tablas para saber los
+   * comparativos» (cliente, 27 sep 2026). `delAnterior` ya llegaba
+   * ---lo usan las cuatro cifras de arriba--- y trae el reparto por
+   * etapa entero, así que el bloque «Estado del lead» puede decir de
+   * dónde viene cada barra sin pedir nada más.
+   *
+   * Null cuando no hay comparación: entonces las barras salen como
+   * siempre, con una cifra sola.
+   */
+  const enEtapaAntes = useMemo(
+    () =>
+      delAnterior
+        ? new Map((delAnterior.etapas ?? []).map((e) => [e.etapa, e.total]))
+        : null,
+    [delAnterior],
+  );
+
   const hitos = useMemo(() => hitosDe(delPeriodo), [delPeriodo]);
   /// Null cuando no hay con qué comparar: «Desde el principio»
   /// no tiene periodo anterior.
@@ -1366,6 +1434,19 @@ export function PanelProceso({
     [inscritos, enEtapa],
   );
 
+  /// La misma fase, en el periodo de la comparación. `INSCRITO`
+  /// sale de los hitos y no del mapa, igual que en `valorDeFase`:
+  /// allí «inscrito» es todo el que llegó a inscribirse, no solo
+  /// quien sigue parado en esa etapa.
+  const valorDeFaseAntes = useCallback(
+    (e: Etapa): number | null => {
+      if (!enEtapaAntes) return null;
+      if (e === "INSCRITO") return hitosAntes?.[3] ?? null;
+      return enEtapaAntes.get(e) ?? 0;
+    },
+    [enEtapaAntes, hitosAntes],
+  );
+
   /// El ancho de las barras va contra la etapa más alta, no
   /// contra el total: contra el total, cuatro de las cinco
   /// quedaban en un hilo de dos píxeles.
@@ -1560,6 +1641,40 @@ export function PanelProceso({
     const media = control?.diasHastaInscribir ?? null;
     const dias = media === null ? null : Math.round(media);
 
+    /**
+     * EL COMPARATIVO, VISIBLE. «Tengo las dos, ¿pero dónde veo la
+     * diferencia? O sea, qué es de un día y qué es del otro»
+     * (cliente, 27 sep 2026).
+     *
+     * Hasta ahora la comparación vivía en el pie y en prosa ---«en
+     * los 2 días anteriores era el 0 %»---, así que había que leerse
+     * un párrafo para sacar un número y no se podían ver los dos a la
+     * vez. Aquí sale la cifra del otro periodo al lado de la suya, con
+     * la diferencia y con la fecha de cada una en el rótulo.
+     *
+     * Nulo cuando no hay con qué comparar: sin periodo anterior, o
+     * con «Desde el principio», que no tiene uno.
+     */
+    const compara = (
+      ahora: number | null,
+      antes: number | null | undefined,
+    ): Celda["contra"] => {
+      if (!comparar || antes === null || antes === undefined || ahora === null) {
+        return undefined;
+      }
+      const d = ahora - antes;
+      return {
+        cifra: n(antes),
+        /// EL DEL PERIODO CONTRA EL QUE SE COMPARA, no el elegido.
+        /// `cuandoEnFrase` es el de arriba, y ponerlo aquí rotulaba la
+        /// cifra de ayer con la palabra «hoy».
+        cuando: rotuloAnterior || "el periodo anterior",
+        /// El signo MENOS de verdad (−) y no un guion: a 11 px un
+        /// guion corto se lee como una raya de «no hay dato».
+        diferencia: d === 0 ? "=" : d > 0 ? `+${n(d)}` : `−${n(-d)}`,
+      };
+    };
+
     /// EL PIE DE LA QUE MANDA: su base, y la advertencia de José
     /// en el MISMO párrafo. Partidos en dos renglones propios, a
     /// 1.366 px la advertencia bajaba a dos líneas y la tira pasaba
@@ -1594,6 +1709,7 @@ export function PanelProceso({
         /// leads del sistema: eso sería otra cifra y otra pregunta.
         rotulo: "Total leads",
         cifra: cifrasPendientes ? raya : n(entraron),
+        contra: cifrasPendientes ? undefined : compara(entraron, hitosAntes?.[0]),
         colorCifra: cifrasPendientes ? "var(--texto-suave)" : "var(--titulo)",
         pies: cifrasPendientes
           ? []
@@ -1611,6 +1727,10 @@ export function PanelProceso({
         /// En `--titulo` y SIN color: la cifra cuenta, no afirma
         /// que vaya bien o mal (José, 18 sep 2026).
         cifra: cifrasPendientes || !tasa ? raya : n(inscritos),
+        contra:
+          cifrasPendientes || !tasa
+            ? undefined
+            : compara(inscritos, hitosAntes?.[3]),
         colorCifra: cifrasPendientes ? "var(--texto-suave)" : "var(--titulo)",
         pies: cifrasPendientes ? [] : [pieDeLaTasa],
         explicacion:
@@ -2475,6 +2595,13 @@ export function PanelProceso({
             dé el listado de los grupos»). Pulsar otra vez la fila
             suelta el corte y vuelven las siete. */}
         <TablaPorAccion
+          /// EL MISMO RECORTE, PERO DEL OTRO PERIODO. Nulo cuando no
+          /// hay comparacion puesta, y entonces la tabla sale como
+          /// siempre, con una sola cifra por celda.
+          recorteAnterior={
+            bDesde && bHasta ? { ...filtros, desde: bDesde, hasta: bHasta } : null
+          }
+          rotuloAnterior={rotuloAnterior}
           recorte={
             accionAbierta
               ? { ...recorte, accionFormacionId: accionAbierta.id }
@@ -2505,7 +2632,14 @@ export function PanelProceso({
         <div className="grid gap-4 min-[1000px]:grid-cols-2">
           <Bloque
             titulo="Estado del lead"
-            descripcion="Etapas del lead."
+            /// DICE CONTRA QUÉ, cuando hay comparación. Sin eso, la
+            /// segunda cifra de cada barra es un número sin dueño,
+            /// que es lo que ya pasó con las tarjetas.
+            descripcion={
+              enEtapaAntes && rotuloAnterior
+                ? `Etapas del lead. Debajo de cada cifra, la misma de ${rotuloAnterior}.`
+                : "Etapas del lead."
+            }
           >
             <ul className="space-y-2.5">
               {ETAPAS_EN_ORDEN.filter((e) => valorDeFase(e) > 0).map((e) => {
@@ -2521,11 +2655,35 @@ export function PanelProceso({
                                 />
                                 {ETIQUETA_ETAPA[e]}
                               </span>
-                              <span className="shrink-0 font-semibold tabular-nums">
+                              <span className="shrink-0 text-right font-semibold tabular-nums">
                                 {n(v)}
                                 <span className="ml-2 text-[0.71875rem] font-normal text-texto-suave">
                                   {pct(v, entraron)}
                                 </span>
+                                {/* LA MISMA ETAPA EN EL OTRO PERIODO,
+                                    debajo y con su flecha. Al lado no
+                                    cabe: el rótulo de la etapa ya se
+                                    come el ancho de la fila. */}
+                                {(() => {
+                                  const antes = valorDeFaseAntes(e);
+                                  if (antes === null) return null;
+                                  const d = v - antes;
+                                  return (
+                                    <span
+                                      className="block text-[0.6875rem] leading-tight font-normal"
+                                      style={{
+                                        color:
+                                          d === 0
+                                            ? "var(--texto-suave)"
+                                            : d > 0
+                                              ? "var(--exito)"
+                                              : "var(--error)",
+                                      }}
+                                    >
+                                      {d === 0 ? "=" : d > 0 ? "▲" : "▼"} {n(antes)}
+                                    </span>
+                                  );
+                                })()}
                               </span>
                             </div>
                             <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-superficie-alterna">
@@ -2596,7 +2754,13 @@ export function PanelProceso({
             /// entraran cuando entraran. Por eso las dos cifras
             /// son distintas y las dos están bien.
           >
-            <Serie datos={control?.serie ?? []} />
+            <Serie
+              datos={control?.serie ?? []}
+              /// La media diaria del periodo anterior, que ya se calculaba
+              /// aqui y no la usaba nadie.
+              promedioAnterior={comparar ? promedioAnterior : null}
+              rotuloAnterior={rotuloAnterior}
+            />
           </Bloque>
           </div>
 
@@ -2819,7 +2983,34 @@ function PuntaDeSerie({
   );
 }
 
-function Serie({ datos }: { datos: Array<{ dia: string; total: number }> }) {
+/**
+ * LA CURVA DEL PERIODO, CON LA RAYA DEL ANTERIOR.
+ *
+ * «Volver dinámico las tarjetas, gráficos y tablas para saber los
+ * comparativos» (cliente, 27 sep 2026).
+ *
+ * UNA RAYA Y NO UNA SEGUNDA CURVA, y no por pereza: el servidor no
+ * manda la serie por día del periodo anterior ---`delAnterior` trae
+ * totales, no días---, así que una segunda curva habría que
+ * inventarla. Lo que SÍ se sabe es cuánta gente entraba AL DÍA de
+ * media en aquel periodo, y eso es una raya horizontal.
+ *
+ * Y además es lo que se puede leer: dos periodos de distinta duración
+ * ---«ayer» contra «los últimos 7 días»--- no tienen los mismos días
+ * en el eje, así que dos curvas encimadas compararían el lunes de uno
+ * con el jueves del otro. Contra la media no hay esa trampa.
+ */
+function Serie({
+  datos,
+  promedioAnterior,
+  rotuloAnterior,
+}: {
+  datos: Array<{ dia: string; total: number }>;
+  /// Cuánta gente entraba al día, de media, en el periodo con el que
+  /// se compara. Null = no hay comparación puesta.
+  promedioAnterior?: number | null;
+  rotuloAnterior?: string | null;
+}) {
   if (datos.length === 0) {
     return (
       <p className="py-8 text-center text-[0.84375rem] text-texto-suave">
@@ -2828,7 +3019,15 @@ function Serie({ datos }: { datos: Array<{ dia: string; total: number }> }) {
     );
   }
 
-  const cima = Math.max(1, ...datos.map((d) => d.total));
+  /// LA RAYA ENTRA EN LA CIMA. Si el promedio anterior fuera más
+  /// alto que cualquier día de este periodo y no se contara, la raya
+  /// saldría fuera del dibujo o pegada al borde de arriba, que es
+  /// peor que no pintarla.
+  const cima = Math.max(
+    1,
+    ...datos.map((d) => d.total),
+    promedioAnterior ?? 0,
+  );
   const mejor = datos.reduce((a, b) => (b.total > a.total ? b : a));
   /// Con un solo día no hay curva que trazar: el punto va al medio
   /// y lleva UN rótulo, no dos iguales encimados.
@@ -2855,6 +3054,13 @@ function Serie({ datos }: { datos: Array<{ dia: string; total: number }> }) {
   const pPrimero = en(0, primero.total);
   const pUltimo = en(datos.length - 1, ultimo.total);
 
+  /// La media de antes, redondeada para decirla. Sin decimales,
+  /// como el resto de la pantalla.
+  const mediaDeAntes =
+    promedioAnterior === null || promedioAnterior === undefined
+      ? null
+      : Math.round(promedioAnterior);
+
   return (
     <div className="flex flex-col">
       {/* EL DIBUJO, CON ALTO PROPIO.
@@ -2871,6 +3077,22 @@ function Serie({ datos }: { datos: Array<{ dia: string; total: number }> }) {
           className="h-full w-full"
           aria-hidden
         >
+          {/* LA MEDIA DEL PERIODO ANTERIOR, en raya discontinua.
+              Debajo de la curva para que no la tape. Discontinua a
+              propósito: dice «esto no es un dato de estos días, es
+              una referencia». */}
+          {promedioAnterior !== null && promedioAnterior !== undefined && (
+            <line
+              x1={0}
+              x2={100}
+              y1={AIRE_SERIE + (1 - promedioAnterior / cima) * (ALTO_SERIE - AIRE_SERIE)}
+              y2={AIRE_SERIE + (1 - promedioAnterior / cima) * (ALTO_SERIE - AIRE_SERIE)}
+              stroke="var(--texto-suave)"
+              strokeWidth={1}
+              strokeDasharray="3 3"
+              vectorEffect="non-scaling-stroke"
+            />
+          )}
           <polygon points={area} fill={SERIE.uno} opacity={0.14} />
           <polyline
             points={puntos.join(" ")}
@@ -2881,6 +3103,8 @@ function Serie({ datos }: { datos: Array<{ dia: string; total: number }> }) {
           />
         </svg>
 
+        {/* QUÉ ES LA RAYA. Una raya sin explicar es ruido: quien la
+            ve tiene que poder saber de dónde sale sin preguntar. */}
         {/* EL MEJOR DÍA, MARCADO Y CON SU CANTIDAD. «Ritmo de
             inscripción: los picos del gráfico, que tengan la
             cantidad» (cliente, 23 sep 2026). Iba mudo porque su
@@ -2949,6 +3173,25 @@ function Serie({ datos }: { datos: Array<{ dia: string; total: number }> }) {
           </>
         )}
       </div>
+
+      {/* QUÉ ES LA RAYA DISCONTINUA. Una raya sin explicar es
+          ruido: quien la ve tiene que poder saber de dónde sale sin
+          preguntar. Y lleva su cifra, que es lo que se compara. */}
+      {mediaDeAntes !== null && (
+        <p className="mt-2 flex items-center gap-2 text-[0.71875rem] text-texto-suave">
+          <span
+            aria-hidden
+            className="inline-block h-0 w-5 shrink-0 border-t border-dashed"
+            style={{ borderColor: "var(--texto-suave)" }}
+          />
+          <span>
+            La raya es lo que entraba al día
+            {rotuloAnterior ? ` en ${rotuloAnterior}` : " en el periodo anterior"}:{" "}
+            <strong className="font-semibold text-titulo">{n(mediaDeAntes)}</strong>
+            {mediaDeAntes === 1 ? " persona" : " personas"}.
+          </span>
+        </p>
+      )}
 
       {/* La serie entera en texto, que es la costumbre de los
           gráficos de esta casa: el svg va `aria-hidden` y los

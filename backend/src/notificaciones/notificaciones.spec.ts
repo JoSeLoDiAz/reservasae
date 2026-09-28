@@ -24,8 +24,17 @@ type Llave = { destinatarioId: string; tipo: string; claveEvento: string };
  * probarían el doble: ya se falló así en esta casa con el que
  * decidía por el prefijo del id.
  */
+/**
+ * @param lideres Quién lidera inscripción en cada gremio. Sin esto el
+ *   doble no tiene `adminConvenio`, `quienResponde` revienta, el
+ *   `catch` de `avisar` se traga el error y el test de «sin dueño»
+ *   pasaba SIN avisar a nadie... por el motivo equivocado. Es
+ *   exactamente el defecto contra el que avisa el comentario de
+ *   arriba, y me pasó a mí al tocar esto.
+ */
 function prismaFalso(
   fichas: Record<string, { asesorId: string | null; convenioId: string }>,
+  lideres: Record<string, string[]> = {},
 ) {
   const filas: Fila[] = [];
   let n = 0;
@@ -40,6 +49,20 @@ function prismaFalso(
       participante: {
         findUnique: ({ where }: { where: { id: string } }) =>
           Promise.resolve(fichas[where.id] ?? null),
+      },
+      adminConvenio: {
+        /// Aplica los filtros de verdad, como el resto del doble: si
+        /// el servicio dejara de pedir `LIDER_INSCRIPCION` o de
+        /// exigir la cuenta activa, estos tests tienen que caerse.
+        findMany: ({ where }: { where: Record<string, unknown> }) => {
+          const activo =
+            (where.admin as { activo?: boolean } | undefined)?.activo !== false;
+          if (where.rol !== 'LIDER_INSCRIPCION' || !activo) {
+            return Promise.resolve([]);
+          }
+          const suyos = lideres[where.convenioId as string] ?? [];
+          return Promise.resolve(suyos.map((adminId) => ({ adminId })));
+        },
       },
       notificacion: {
         /**
@@ -114,14 +137,59 @@ describe('a quién se avisa', () => {
   });
 
   /**
-   * UNA FICHA DEL MONTÓN COMÚN NO ES DE NADIE.
+   * SIN DUEÑO SE AVISA A QUIEN PUEDE TOMARLA.
    *
-   * Y eso NO es un fallo que haya que tapar inventando un
-   * destinatario: avisar «a alguien» es meter el trabajo de una
-   * ficha en la bandeja de quien no la lleva.
+   * Aquí se fijaba lo contrario: «sin asesor no se avisa a nadie»,
+   * con el argumento de que avisar «a alguien» es meter el trabajo
+   * de una ficha en la bandeja de quien no la lleva.
+   *
+   * El argumento es bueno y por eso NO se avisa a todo el mundo: se
+   * avisa a los líderes de inscripción, que son los que reparten ese
+   * montón. Lo que no se sostenía era el efecto: medido en la base de
+   * pruebas, el 94 % de las fichas no tiene asesor, así que la regla
+   * vieja tiraba casi todos los avisos y la tabla estaba VACÍA.
+   *
+   * Una persona que acaba de completar sus datos y que no lleva nadie
+   * es justo la que hay que atender, no la que se puede callar.
    */
-  it('sin asesor no se avisa a nadie', async () => {
-    const d = prismaFalso({ p1: SIN_ASESOR });
+  it('sin asesor avisa a quien lidera inscripción en ese gremio', async () => {
+    const d = prismaFalso({ p1: SIN_ASESOR }, { adecopria: ['marta', 'carlos'] });
+    const s = new NotificacionesService(d.prisma as never);
+
+    await s.avisar({
+      participanteId: 'p1',
+      tipo: 'DATOS_COMPLETADOS',
+      claveEvento: 'enlace-1',
+    });
+
+    expect(d.filas).toHaveLength(2);
+    expect(d.filas.map((f) => f.destinatarioId).sort()).toEqual(['carlos', 'marta']);
+    /// Y la ficha viaja igual: el aviso lleva a la persona.
+    expect(d.filas[0].participanteId).toBe('p1');
+  });
+
+  /// SOLO DE SU GREMIO. Quien lidera BRITCHAM no tiene por qué
+  /// enterarse del montón común de ADECOPRIA.
+  it('no avisa a los líderes de otro gremio', async () => {
+    const d = prismaFalso(
+      { p1: SIN_ASESOR },
+      { britcham: ['hector'], adecopria: ['marta'] },
+    );
+    const s = new NotificacionesService(d.prisma as never);
+
+    await s.avisar({
+      participanteId: 'p1',
+      tipo: 'DATOS_COMPLETADOS',
+      claveEvento: 'enlace-1',
+    });
+
+    expect(d.filas.map((f) => f.destinatarioId)).toEqual(['marta']);
+  });
+
+  /// Y si el gremio no tiene líder, no se inventa un destinatario:
+  /// mejor sin aviso que en la bandeja de quien no responde.
+  it('sin líderes en el gremio, no se avisa a nadie', async () => {
+    const d = prismaFalso({ p1: SIN_ASESOR }, {});
     const s = new NotificacionesService(d.prisma as never);
 
     await s.avisar({
@@ -131,6 +199,22 @@ describe('a quién se avisa', () => {
     });
 
     expect(d.filas).toHaveLength(0);
+  });
+
+  /// CON ASESOR, SOLO AL ASESOR. El montón común es para lo que no
+  /// tiene dueño; si lo tiene, llenarle la campana al líder además
+  /// es la forma más rápida de que deje de mirarla.
+  it('con asesor no se avisa además a los líderes', async () => {
+    const d = prismaFalso({ p1: CON_ASESOR }, { adecopria: ['marta'] });
+    const s = new NotificacionesService(d.prisma as never);
+
+    await s.avisar({
+      participanteId: 'p1',
+      tipo: 'DATOS_COMPLETADOS',
+      claveEvento: 'enlace-1',
+    });
+
+    expect(d.filas.map((f) => f.destinatarioId)).toEqual(['ana']);
   });
 
   it('el destinatario explícito gana al asesor de la ficha', async () => {

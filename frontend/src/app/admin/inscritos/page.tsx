@@ -1,9 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 
 import { columnasDeParticipante } from "@/components/admin/columnas-participante";
+import {
+  FiltroDePeriodo,
+  PERIODO_INICIAL,
+  ventanaDe,
+  type Periodo,
+} from "@/components/admin/filtro-de-periodo";
 import { IndicadorActualizacion } from "@/components/admin/indicador-actualizacion";
 import {
   AccionesDePagina,
@@ -32,19 +38,33 @@ type Datos = { listado: Listado; resumen: Resumen };
 export default function PaginaInscritos() {
   const etapa = ETAPA;
 
+  /// EL PERIODO, COMPARTIDO CON LOS DEMÁS TABLEROS. «En todos los
+  /// tableros debo tener filtros» (cliente, 27 sep 2026). Aquí recorta
+  /// de verdad: `crmApi.listar` y `crmApi.resumen` reciben `Filtros`, y
+  /// el servidor ya traduce `llegoDesde`/`llegoHasta` a `creadoEn`.
+  const [periodo, setPeriodo] = useState<Periodo>(PERIODO_INICIAL);
+
   /// Sin búsqueda de página: el buscador se quitó y filtra el
   /// de la tabla, sobre lo que ya está cargado. Se traen 300,
   /// que es el tope del servidor; con más inscritos que eso,
   /// la tabla avisa en su pie que no los está mostrando todos.
   const cargar = useCallback(async (): Promise<Datos> => {
+    /// La misma ventana para el listado y para el resumen: dos recortes
+    /// distintos en la misma pantalla es cómo nacen las cifras que no
+    /// cuadran con la tabla que tienen debajo.
+    const ventana = ventanaDe(periodo);
     const [listado, resumen] = await Promise.all([
-      crmApi.listar({ etapa, pagina: 1, limite: 300 }),
-      crmApi.resumen({}),
+      crmApi.listar({ etapa, pagina: 1, limite: 300, ...ventana }),
+      crmApi.resumen({ ...ventana }),
     ]);
     return { listado, resumen };
-  }, [etapa]);
+  }, [etapa, periodo]);
 
-  const vivos = useDatosVivos<Datos>(cargar, { clave: etapa });
+  /// La `clave` es lo que hace que cambiar el periodo pida YA: la
+  /// función de carga vive en una ref y por sí sola no dispara nada.
+  const vivos = useDatosVivos<Datos>(cargar, {
+    clave: `${etapa}|${periodo.rango}|${periodo.desde}|${periodo.hasta}`,
+  });
   const columnas = useMemo(() => columnasDeParticipante(), []);
 
   if (vivos.error) return <Aviso tipo="error">{vivos.error}</Aviso>;
@@ -116,6 +136,14 @@ export default function PaginaInscritos() {
             />
           </AccionesDePagina>
         )}
+
+        {/* EL PERIODO, ANTES DE LAS CIFRAS Y SIEMPRE VISIBLE ---también
+            cuando el recorte deja la lista en cero---: si se escondiera
+            con la tabla, quien acabara de elegir «Ayer» y no viera a
+            nadie no tendría dónde volver a «Desde el principio». Es el
+            único filtro de pantalla que hay aquí; los demás viven en las
+            columnas de la tabla. */}
+        <FiltroDePeriodo periodo={periodo} alCambiar={setPeriodo} />
 
         {filas.length === 0 ? (
           <Tarjeta

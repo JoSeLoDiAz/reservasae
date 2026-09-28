@@ -1446,6 +1446,80 @@ export type FilaDeAsesor = {
   porAccion?: CargaEnUnaAccion[];
 };
 
+/**
+ * El periodo, tal como viaja al servidor.
+ *
+ * Instantes ISO ya resueltos en hora de Bogotá por `ventanaDe`. No se
+ * manda el rango en crudo a propósito: si el servidor volviera a
+ * decidir qué es «hoy», habría dos sitios decidiéndolo y el día que
+ * discrepen nadie sabría cuál manda.
+ */
+export type VentanaDeLlegada = { llegoDesde?: string; llegoHasta?: string };
+
+/** Si una acción llega a sus cupos antes de cerrar, y con qué holgura. */
+export type Veredicto =
+  | "SIN_FECHA"
+  | "CERRADO"
+  | "CUBIERTO"
+  | "LLEGA"
+  | "APRETADO"
+  | "NO_LLEGA";
+
+/** Una acción de formación, proyectada hasta su cierre. */
+export type FilaDeProyeccion = {
+  accionFormacionId: string;
+  codigo: string | null;
+  nombre: string | null;
+  /// Lo comprometido con el SENA. Es el denominador de todo.
+  cupos: number;
+  inscritos: number;
+  faltan: number;
+  leads: number;
+  /// Los que siguen sin resolver: la materia prima que ya se tiene.
+  abiertos: number;
+  cierre: string | null;
+  /// Días de trabajo ---lunes a sábado--- hasta el cierre.
+  diasRestantes: number | null;
+  ritmoReal: number;
+  /// Cuántos se inscribieron dentro de la ventana de ritmo, sin dividir.
+  inscritosVentana: number;
+  metaDiaria: number | null;
+  proyeccion: number;
+  conversion: number;
+  /// Si la conversión es la suya o la del promedio general.
+  conversionPropia: boolean;
+  leadsNecesarios: number;
+  leadsPorConseguir: number;
+  veredicto: Veredicto;
+};
+
+/**
+ * Una acción, proyectada hasta el FIN DEL CURSO.
+ *
+ * La hermana de `FilaDeProyeccion`, con otro reloj y otro numerador:
+ * allí son sillas que llenar antes del cierre de inscripciones, aquí
+ * personas que certificar antes de que acabe el curso.
+ */
+export type FilaDeProyeccionAcademica = {
+  accionFormacionId: string;
+  codigo: string | null;
+  nombre: string | null;
+  /// Quién está dentro del aula. El denominador.
+  enElAula: number;
+  certificados: number;
+  porCertificar: number;
+  /// Los que ya no van a certificarse: no aprobaron, desertaron,
+  /// abandonaron o se retiraron.
+  salieron: number;
+  finDelCurso: string | null;
+  diasRestantes: number | null;
+  certificadosVentana: number;
+  ritmoReal: number;
+  metaDiaria: number | null;
+  proyeccion: number;
+  veredicto: Veredicto;
+};
+
 export type FilaDeAsesorAcademico = FilaDeAsesor & {
   grupos: number;
   certificados: number;
@@ -1507,11 +1581,28 @@ export const crmApi = {
   control: (ventana: FiltroVentana & Filtros = {}) =>
     pedir<Control>(`/admin/participantes/control${consulta(ventana)}`),
 
-  /// EL TABLERO DE ASESORES, en sus dos subvistas.
-  asesoresDeInscripciones: () =>
-    pedir<FilaDeAsesor[]>(`/admin/participantes/asesores/inscripciones`),
-  asesoresAcademicos: () =>
-    pedir<FilaDeAsesorAcademico[]>(`/admin/participantes/asesores/academicos`),
+  /// EL TABLERO DE ASESORES, en sus subvistas.
+  /// LAS TRES ACEPTAN PERIODO. Son dos instantes ya resueltos en
+  /// hora de Bogotá por el filtro compartido del panel; sin ellos la
+  /// consulta sale igual que siempre.
+  asesoresDeInscripciones: (v: VentanaDeLlegada = {}) =>
+    pedir<FilaDeAsesor[]>(
+      `/admin/participantes/asesores/inscripciones${consulta(v)}`,
+    ),
+  asesoresAcademicos: (v: VentanaDeLlegada = {}) =>
+    pedir<FilaDeAsesorAcademico[]>(
+      `/admin/participantes/asesores/academicos${consulta(v)}`,
+    ),
+  /// La proyección: aquí el asesor pasa a segundo plano y lo macro es
+  /// la acción de formación.
+  proyeccionAcademica: (v: VentanaDeLlegada = {}) =>
+    pedir<FilaDeProyeccionAcademica[]>(
+      `/admin/participantes/asesores/proyeccion-academica${consulta(v)}`,
+    ),
+  proyeccionDeInscripciones: (v: VentanaDeLlegada = {}) =>
+    pedir<FilaDeProyeccion[]>(
+      `/admin/participantes/asesores/proyeccion${consulta(v)}`,
+    ),
 
   /// EL RESUMEN GENERAL: siete cifras macro por acción de formación.
   /// Toma los mismos cortes que el resto de la pantalla.

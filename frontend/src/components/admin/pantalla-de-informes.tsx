@@ -552,7 +552,11 @@ export function PantallaDeInformes({ vista }: { vista?: Pestana }) {
                     /// promedio sin que nadie tocara nada. Con
                     /// TODO no hace falta apagar: `sePuedeComparar`
                     /// ya es falso porque no tiene anterior.
-                    if (r === "PERSONALIZADO") setContra("NINGUNO");
+                    /// ANTES aquí se apagaba la comparación al
+                    /// elegir dos fechas, porque no había forma de
+                    /// decir contra qué comparar. Ahora sí la hay
+                    /// ---«Un periodo que yo elija»--- y apagarla
+                    /// sería quitar justo lo que se acaba de pedir.
                   }}
                   desde={desde}
                   alCambiarDesde={setDesde}
@@ -561,6 +565,63 @@ export function PantallaDeInformes({ vista }: { vista?: Pestana }) {
                 />
               </div>
             </div>
+
+            {/* CONTRA QUÉ SE COMPARA: el anterior, u otro que se elija.
+
+                Va en su propia fila y con su rótulo, separado del
+                periodo de arriba. Cuatro cajas de fecha seguidas y sin
+                nombre es lo que no se entendía el 20 de septiembre;
+                dos bloques rotulados se leen solos. */}
+            {sePuedeComparar && !sinComparar && (
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="text-[0.625rem] font-bold tracking-[0.08em] uppercase text-texto-suave">
+                  Comparar con
+                </p>
+                <div className="min-w-[11.5rem]">
+                  <Desplegable
+                    alto={30}
+                    etiquetaAria="Contra qué periodo"
+                    valor={contra === "AUTO" ? "AUTO" : "PERSONALIZADO"}
+                    opciones={[
+                      { valor: "AUTO", etiqueta: anterior || "El periodo anterior" },
+                      { valor: "PERSONALIZADO", etiqueta: "Un periodo que yo elija" },
+                    ]}
+                    alElegir={(v) => setContra(v as Rango | "AUTO")}
+                  />
+                </div>
+
+                {contra === "PERSONALIZADO" && (
+                  <>
+                    <input
+                      type="date"
+                      aria-label="Comparar desde"
+                      title="Comparar desde"
+                      value={contraDesde}
+                      max={contraHasta || undefined}
+                      onChange={(e) => setContraDesde(e.target.value)}
+                      className={`${CLASE_PERIODO} w-[9.5rem]`}
+                    />
+                    <input
+                      type="date"
+                      aria-label="Comparar hasta"
+                      title="Comparar hasta"
+                      value={contraHasta}
+                      min={contraDesde || undefined}
+                      onChange={(e) => setContraHasta(e.target.value)}
+                      className={`${CLASE_PERIODO} w-[9.5rem]`}
+                    />
+                    {(!contraDesde || !contraHasta) && (
+                      /// A MEDIAS NO COMPARA. Con una sola fecha
+                      /// puesta, comparar contra ella daría un tramo
+                      /// que nadie pidió mientras se escribe la otra.
+                      <span className="text-[0.78125rem] text-aviso">
+                        Faltan las dos fechas del periodo con el que comparar.
+                      </span>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
 
             {/* COMPARAR ES SÍ O NO, no un desplegable.
 
@@ -658,31 +719,34 @@ export function PantallaDeInformes({ vista }: { vista?: Pestana }) {
           {ETIQUETA_RANGO[rango].toLowerCase()} abarca {textoDuracion(diasA)} y{" "}
           {/* `anterior` CUANDO NO SE ELIGIO, y no el `as Rango`.
 
-              Aqui ponia `ETIQUETA_RANGO[contra as Rango]`, y ese
-              `as` era una mentira al compilador que costaba la
-              pantalla entera: `contra` arranca en "AUTO" y los
-              cuatro `setContra` de este fichero solo escriben
-              "AUTO" o "NINGUNO" --el desplegable que ponia un
-              `Rango` ya no existe--. `ETIQUETA_RANGO` solo tiene
-              las nueve claves de `Rango`, asi que en este bloque
-              `contra` valia siempre "AUTO",
-              `ETIQUETA_RANGO["AUTO"]` era `undefined` y
+              Aqui ponia `ETIQUETA_RANGO[contra as Rango]` a secas,
+              y ese `as` era una mentira al compilador que costaba
+              la pantalla entera: `ETIQUETA_RANGO` solo tiene las
+              nueve claves de `Rango`, asi que con `contra` en
+              "AUTO" --su valor por omision-- salia `undefined` y
               `.toLowerCase()` lanzaba DURANTE EL RENDER. Sin
-              `error.tsx` en el arbol, eso no es un hueco vacio:
-              es «Application error» y el panel entero en blanco.
+              `error.tsx` en el arbol eso no es un hueco vacio: es
+              «Application error» y el panel entero en blanco.
 
-              Y no se veia: este parrafo solo se pinta cuando los
-              dos periodos duran distinto. Hoy --27 sep-- agosto y
-              julio tienen 31 dias los dos y no salta; desde el 1
-              de octubre, septiembre (30) contra agosto (31) si.
-              O sea que se subia sin sintoma y reventaba solo
-              cuatro dias despues, eligiendo «El mes pasado» en
-              Control de inscritos: dos clics.
+              Y no se veia, que es lo que lo hacia caro: este
+              parrafo solo se pinta cuando los dos periodos duran
+              distinto. El 27 sep agosto y julio tenian 31 dias los
+              dos y no saltaba; desde el 1 de octubre, septiembre
+              (30) contra agosto (31) si. Se subia sin sintoma y
+              reventaba solo cuatro dias despues.
 
-              `anterior` no puede ser vacia aqui, que es lo que
-              hace correcto el cambio: `sePuedeComparar` se define
-              como `anterior !== ""` y `duracionDistinta` exige
-              `!sinComparar`. */}
+              EL 28 SEP ANDRES DEVOLVIO EL DESPLEGABLE de «contra
+              que periodo» (:580), asi que `contra` ya puede traer
+              un `Rango` de verdad --"PERSONALIZADO"-- y la rama
+              `eligio` vuelve a tener sentido. El arreglo no sobra
+              por eso: "AUTO" sigue siendo el valor de arranque y
+              el unico mientras nadie toque ese desplegable, o sea
+              el caso normal.
+
+              `anterior` no puede ser vacia en la otra rama, que es
+              lo que hace correcto el cambio: `sePuedeComparar` se
+              define como `anterior !== ""` y `duracionDistinta`
+              exige `!sinComparar`. */}
           {(eligio ? ETIQUETA_RANGO[contra as Rango] : anterior).toLowerCase()} abarca{" "}
           {textoDuracion(diasB)}.
           Comparar volumen entre ventanas de distinta duración no significa nada —la más

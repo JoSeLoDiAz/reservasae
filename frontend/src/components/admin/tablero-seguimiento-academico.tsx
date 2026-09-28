@@ -42,6 +42,13 @@ import { tablerosApi } from "@/lib/tableros-api";
 
 import { Desplegable } from "./desplegable";
 import { colorEtapa } from "./etapa";
+import {
+  FiltroDePeriodo,
+  PERIODO_INICIAL,
+  ventanaAnterior,
+  ventanaDe,
+  type Periodo,
+} from "./filtro-de-periodo";
 import { Donut, n, SERIE } from "./graficos";
 import { Aviso } from "./marco-admin";
 import { Bloque, Encabezado, Esqueleto, Vacio } from "./piezas";
@@ -103,8 +110,25 @@ const COLOR_ESTADO: Record<EstadoAcademico, string> = {
   CERTIFICADO: colorEtapa("CERTIFICADO"),
 };
 
-/** La tarjeta del aula: punto de color, rótulo y cifra. */
-function TarjetaDeEstado({ estado, valor }: { estado: EstadoAcademico; valor: number }) {
+/**
+ * La tarjeta del aula: punto de color, rótulo y cifra.
+ *
+ * Y, cuando hay periodo puesto, la misma cifra del tramo anterior
+ * debajo: «volver dinámico las tarjetas, gráficos y tablas para saber
+ * los comparativos» (cliente, 27 sep 2026).
+ */
+function TarjetaDeEstado({
+  estado,
+  valor,
+  antes,
+}: {
+  estado: EstadoAcademico;
+  valor: number;
+  /// La misma cifra en el periodo con el que se compara. Null cuando
+  /// no hay comparación, y entonces la tarjeta sale como siempre.
+  antes?: number | null;
+}) {
+  const d = antes === null || antes === undefined ? null : valor - antes;
   return (
     <div
       style={{ ["--etapa"]: COLOR_ESTADO[estado] } as React.CSSProperties}
@@ -117,6 +141,19 @@ function TarjetaDeEstado({ estado, valor }: { estado: EstadoAcademico; valor: nu
       <span className="mt-1 block text-[1.0625rem] leading-none font-bold tabular-nums">
         {n(valor)}
       </span>
+      {/* LA DEL OTRO PERIODO, debajo y con su flecha. La tarjeta mide
+          poco más de tres centímetros: al lado no cabe. */}
+      {d !== null && antes !== null && antes !== undefined && (
+        <span
+          className="mt-0.5 block text-[0.6875rem] leading-tight font-medium tabular-nums"
+          style={{
+            color:
+              d === 0 ? "var(--texto-suave)" : d > 0 ? "var(--exito)" : "var(--error)",
+          }}
+        >
+          {d === 0 ? "=" : d > 0 ? "▲" : "▼"} {n(antes)}
+        </span>
+      )}
     </div>
   );
 }
@@ -124,6 +161,13 @@ function TarjetaDeEstado({ estado, valor }: { estado: EstadoAcademico; valor: nu
 export function TableroSeguimientoAcademico() {
   const [accionFormacionId, setAccion] = useState(TODOS);
   const [grupoId, setGrupo] = useState(TODOS);
+
+  /// EL PERIODO, con el control compartido de los demás tableros: es el
+  /// mismo dato ---cuándo llegó la persona--- y escribirlo aquí otra vez
+  /// es cómo se acaba con cinco filtros que contestan distinto. Arranca
+  /// en «TODO» para que la pantalla siga abriendo con todo, que es lo
+  /// que ya hacía.
+  const [periodo, setPeriodo] = useState<Periodo>(PERIODO_INICIAL);
 
   /**
    * Los cupos apartados de cada acción, para poder decir «142 de 160».
@@ -184,12 +228,59 @@ export function TableroSeguimientoAcademico() {
     () => ({
       accionFormacionId: accionFormacionId || undefined,
       grupoId: grupoId || undefined,
+      /// Con «TODO» esto no añade nada ---devuelve `{}`---, así que la
+      /// llamada sale igual que antes de que existiera el filtro.
+      ...ventanaDe(periodo),
     }),
-    [accionFormacionId, grupoId],
+    [accionFormacionId, grupoId, periodo],
   );
-  const clave = `${accionFormacionId}|${grupoId}`;
-  const cargar = useCallback(() => crmApi.academico(filtros), [clave]); // eslint-disable-line react-hooks/exhaustive-deps
-  const vivos = useDatosVivos<Academico>(cargar, { clave: `tablero-academico:${clave}` });
+  /// El periodo entra en la clave POR SUS TRES CAMPOS y no por la
+  /// ventana ya calculada: las fechas de `ventanaDe` se mueven con el
+  /// reloj, y una clave que cambia sola vuelve a pedir los datos sin que
+  /// nadie haya tocado nada.
+  const clave = `${accionFormacionId}|${grupoId}|${periodo.rango}|${periodo.desde}|${periodo.hasta}`;
+  /**
+   * EL PERIODO CON EL QUE SE COMPARA: el tramo de antes, de la misma
+   * duración. Nulo con «Desde el principio», que no tiene anterior.
+   */
+  const ventanaAntes = useMemo(() => {
+    const v = ventanaAnterior(periodo);
+    return v.llegoDesde && v.llegoHasta ? v : null;
+  }, [periodo]);
+
+  /// LAS DOS EN LA MISMA CONSULTA. Con dos `useDatosVivos` separados
+  /// cada uno se refresca por su lado, y durante un instante la
+  /// pantalla enseñaría el periodo nuevo contra el anterior viejo:
+  /// dos cifras que no son comparables con cara de serlo.
+  const cargar = useCallback(
+    async (): Promise<{ ahora: Academico; antes: Academico | null }> => {
+      const [ahora, antes] = await Promise.all([
+        crmApi.academico(filtros),
+        ventanaAntes
+          ? crmApi.academico({
+              accionFormacionId: accionFormacionId || undefined,
+              grupoId: grupoId || undefined,
+              ...ventanaAntes,
+            })
+          : null,
+      ]);
+      return { ahora, antes };
+    },
+    [clave], // eslint-disable-line react-hooks/exhaustive-deps
+  );
+  const vivosDos = useDatosVivos<{ ahora: Academico; antes: Academico | null }>(
+    cargar,
+    { clave: `tablero-academico:${clave}` },
+  );
+
+  /// El resto de la pantalla sigue leyendo `vivos` como siempre: se
+  /// le da la forma de antes para no tocar cuatrocientas líneas que
+  /// ya funcionan.
+  const vivos = {
+    ...vivosDos,
+    datos: vivosDos.datos?.ahora ?? null,
+  };
+  const delAnterior = vivosDos.datos?.antes ?? null;
 
   /// El catálogo sale de la MISMA respuesta, así que al elegir una
   /// acción el desplegable de grupos se queda solo con los suyos sin
@@ -253,6 +344,14 @@ export function TableroSeguimientoAcademico() {
             ]}
             alElegir={setGrupo}
           />
+          {/* EL PERIODO, EN LA MISMA REJILLA que los dos desplegables:
+              es un filtro más de esta tarjeta y en una caja aparte se
+              leería como si recortara otra cosa.
+
+              SIN `alComparar`: este tablero no sabe comparar todavía, y
+              un enlace que no hace nada al pulsarlo es peor que no
+              tenerlo. */}
+          <FiltroDePeriodo periodo={periodo} alCambiar={setPeriodo} />
         </div>
       </div>
 
@@ -262,6 +361,7 @@ export function TableroSeguimientoAcademico() {
       {vivos.datos && (
         <Cuerpo
           datos={vivos.datos}
+          resumenAntes={delAnterior?.resumen ?? null}
           catalogo={catalogo}
           grupoElegido={grupoId}
           accionElegida={accionFormacionId}
@@ -297,6 +397,7 @@ export function TableroSeguimientoAcademico() {
  */
 function Cuerpo({
   datos,
+  resumenAntes,
   catalogo,
   grupoElegido,
   accionElegida,
@@ -304,6 +405,10 @@ function Cuerpo({
   cuposPorAccion,
 }: {
   datos: Academico;
+  /// El resumen del periodo con el que se compara. Null cuando no hay
+  /// comparación ---«Desde el principio» no tiene tramo anterior--- y
+  /// entonces las tarjetas salen con una cifra sola, como siempre.
+  resumenAntes: Academico["resumen"] | null;
   /**
    * El aula SIN NINGÚN CORTE, para la lista de acciones.
    *
@@ -590,7 +695,12 @@ function Cuerpo({
       <Bloque titulo="Resumen general">
         <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-6">
           {ESTADOS.map((e) => (
-            <TarjetaDeEstado key={e.clave} estado={e.estado} valor={r[e.clave]} />
+            <TarjetaDeEstado
+              key={e.clave}
+              estado={e.estado}
+              valor={r[e.clave]}
+              antes={resumenAntes ? resumenAntes[e.clave] : null}
+            />
           ))}
         </div>
       </Bloque>

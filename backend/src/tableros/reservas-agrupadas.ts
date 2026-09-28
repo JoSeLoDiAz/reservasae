@@ -204,6 +204,11 @@ export type FiltrosAgrupadas = {
   /// reservas sigue siendo una fila con historia, y esconderla
   /// dejaría la columna Estado sin nada que explicar.
   incluyeCanceladas?: boolean;
+  /// EL MISMO PERIODO QUE LA LISTA. Sin esto, las dos vistas de la
+  /// misma pantalla ---«Por reserva» y «Por organización»---
+  /// contestarían distinto al mismo filtro.
+  llegoDesde?: string;
+  llegoHasta?: string;
 };
 
 const soloDigitos = (texto: string) => texto.replace(/\D/g, '');
@@ -231,6 +236,10 @@ export async function reservasAgrupadas(
    * con dos de sus cuatro columnas vacías sin decir por qué. Lo que
    * se busca aquí es la empresa; el contacto se busca dentro de ella.
    */
+  /// Por cuándo se hizo la reserva, igual que en la lista.
+  if (filtros.llegoDesde) y.push({ creadoEn: { gte: new Date(filtros.llegoDesde) } });
+  if (filtros.llegoHasta) y.push({ creadoEn: { lt: new Date(filtros.llegoHasta) } });
+
   if (filtros.buscar?.trim()) {
     const texto = filtros.buscar.trim();
     const digitos = soloDigitos(texto);

@@ -68,6 +68,14 @@ import {
   type FilaDeAsesor,
   type FilaDeAsesorAcademico,
 } from './asesores-datos';
+import { diasDeTrabajoAtras, hoyEnColombia } from './calendario-inscripcion';
+import {
+  DIAS_DE_RITMO,
+  type FilaDeProyeccion,
+  type FilaDeProyeccionAcademica,
+  proyectarAcademico,
+  proyectarInscripciones,
+} from './proyeccion';
 import { exigirQuienAsignaGrupo } from './quien-asigna-grupo';
 import {
   faltaDeLaEmpresa,
@@ -119,6 +127,8 @@ import {
   siglaDocumento,
   TAMANOS_EMPRESA_SEP,
 } from './catalogos-sep';
+/// `ETAPAS_DEL_AULA` NO se importa: este fichero tiene la suya propia
+/// unas líneas más abajo, y traerla además la duplicaba.
 import { OCUPAN_SILLA, RETIENEN_ASIENTO } from './etapas';
 import { fraseDeHorario } from '../comun/horario-de-grupo';
 import { PrismaService } from '../prisma/prisma.service';
@@ -387,6 +397,34 @@ const CAMPOS_DE_EMPRESA = {
   contactoCargo: true,
   contactoCorreo: true,
 } as const;
+
+/**
+ * EL PERIODO, tal como llega de la pantalla.
+ *
+ * Instantes ISO ya calculados en hora de Bogotá por el filtro
+ * compartido del panel. Aquí no se vuelve a interpretar la zona: un
+ * segundo sitio que decida qué es «hoy» es un segundo sitio que puede
+ * contestar otra cosa.
+ */
+export type VentanaDeLlegada = { llegoDesde?: string; llegoHasta?: string };
+
+/**
+ * El recorte por cuándo LLEGÓ el lead, para meter en un `where`.
+ *
+ * Sin ventana devuelve un objeto vacío, así que la consulta sale
+ * exactamente igual que antes de que existiera el filtro. Es la misma
+ * traducción que ya hace `donde()` con `llegoDesde`/`llegoHasta`, y
+ * se escribe aquí porque estas tres rutas no pasan por `donde()`.
+ */
+function cuandoLlego(v: VentanaDeLlegada) {
+  if (!v.llegoDesde && !v.llegoHasta) return {};
+  return {
+    creadoEn: {
+      ...(v.llegoDesde ? { gte: new Date(v.llegoDesde) } : {}),
+      ...(v.llegoHasta ? { lt: new Date(v.llegoHasta) } : {}),
+    },
+  };
+}
 
 @Injectable()
 export class CrmService {
@@ -703,9 +741,13 @@ export class CrmService {
    * `groupBy` sobre las mismas dos tablas cuestan mas que esto, y
    * «gestionado» no es una columna sino una regla.
    */
-  async asesoresDeInscripciones(ambito: Ambito, ahora = new Date()): Promise<FilaDeAsesor[]> {
+  async asesoresDeInscripciones(
+    ambito: Ambito,
+    ventana: VentanaDeLlegada = {},
+    ahora = new Date(),
+  ): Promise<FilaDeAsesor[]> {
     if (ambito.convenios.length === 0) return [];
-    const donde = { convenioId: { in: ambito.convenios } };
+    const donde = { convenioId: { in: ambito.convenios }, ...cuandoLlego(ventana) };
 
     const [leads, grupos] = await Promise.all([
       this.prisma.participante.findMany({
@@ -751,6 +793,179 @@ export class CrmService {
   }
 
   /**
+   * SUBVISTA 3: la proyeccion de inscripciones, por accion.
+   *
+   * Aqui el asesor pasa a segundo plano: lo macro es la accion, y la
+   * pregunta es si llega a sus cupos antes de cerrar.
+   *
+   * CUATRO CONSULTAS Y UNA FUNCION PURA. Se traen los leads, los
+   * cupos, las fechas de los grupos y quien se inscribio dentro de la
+   * ventana; el calculo vive en `proyeccion.ts`, con sus pruebas.
+   */
+  async proyeccionDeInscripciones(
+    ambito: Ambito,
+    ventana: VentanaDeLlegada = {},
+    ahora = new Date(),
+  ): Promise<FilaDeProyeccion[]> {
+    if (ambito.convenios.length === 0) return [];
+    const donde = { convenioId: { in: ambito.convenios }, ...cuandoLlego(ventana) };
+
+    /// EL ARRANQUE DE LA VENTANA DEL RITMO, en dias de TRABAJO.
+    const desdeRitmo = diasDeTrabajoAtras(hoyEnColombia(ahora), DIAS_DE_RITMO);
+
+    const [leads, grupos, coberturas, movimientos] = await Promise.all([
+      this.prisma.participante.findMany({
+        where: donde,
+        select: {
+          etapa: true,
+          accionFormacionId: true,
+          accionFormacion: { select: { codigo: true, nombre: true } },
+        },
+      }),
+      this.prisma.grupo.findMany({
+        where: { accionFormacion: { convenioId: { in: ambito.convenios } } },
+        select: { accionFormacionId: true, fechaInicio: true, modalidad: true },
+      }),
+      /// LOS CUPOS COMPROMETIDOS salen de las coberturas, que es de
+      /// donde salen en Cronograma y en Control de Reservas. Contarlos
+      /// por mi cuenta daria una tercera cifra parecida a las otras
+      /// dos, que es como se acaba discutiendo cual es la buena.
+      this.prisma.grupoCobertura.findMany({
+        where: { grupo: { accionFormacion: { convenioId: { in: ambito.convenios } } } },
+        select: { cuposBase: true, grupo: { select: { accionFormacionId: true } } },
+      }),
+      /// CUANDO se inscribio cada uno. La etapa de hoy no lleva fecha
+      /// pegada, asi que el ritmo sale de los movimientos, que es
+      /// donde consta el paso.
+      this.prisma.movimientoParticipante.findMany({
+        where: {
+          creadoEn: { gte: desdeRitmo },
+          etapaDespues: { in: [...OCUPAN_SILLA] },
+          participante: donde,
+        },
+        select: {
+          participanteId: true,
+          participante: { select: { accionFormacionId: true } },
+        },
+      }),
+    ]);
+
+    const cupos = new Map<string, number>();
+    for (const c of coberturas) {
+      const id = c.grupo.accionFormacionId;
+      cupos.set(id, (cupos.get(id) ?? 0) + c.cuposBase);
+    }
+
+    /// UNA VEZ POR PERSONA. Quien paso a INSCRITO y luego a
+    /// EN_FORMACION deja dos movimientos dentro de la ventana, y
+    /// contarlos los dos doblaria su ritmo.
+    const yaContado = new Set<string>();
+    const inscritosRecientes = new Map<string, number>();
+    for (const m of movimientos) {
+      const id = m.participante.accionFormacionId;
+      if (!id || yaContado.has(m.participanteId)) continue;
+      yaContado.add(m.participanteId);
+      inscritosRecientes.set(id, (inscritosRecientes.get(id) ?? 0) + 1);
+    }
+
+    return proyectarInscripciones(
+      leads.map((l: (typeof leads)[number]) => ({
+        accionFormacionId: l.accionFormacionId,
+        codigo: l.accionFormacion?.codigo ?? null,
+        nombre: l.accionFormacion?.nombre ?? null,
+        etapa: l.etapa,
+      })),
+      cupos,
+      cierrePorAccion(grupos),
+      inscritosRecientes,
+      ahora,
+    );
+  }
+
+  /**
+   * SUBVISTA 4: la proyeccion academica, por accion.
+   *
+   * La hermana de la de inscripciones, con otro reloj: aqui corre el
+   * FIN DEL CURSO y no el cierre de inscripciones.
+   */
+  async proyeccionAcademica(
+    ambito: Ambito,
+    ventana: VentanaDeLlegada = {},
+    ahora = new Date(),
+  ): Promise<FilaDeProyeccionAcademica[]> {
+    if (ambito.convenios.length === 0) return [];
+    const donde = {
+      convenioId: { in: ambito.convenios },
+      /// SOLO QUIEN ESTA O ESTUVO EN EL AULA. A quien no entro no se
+      /// le puede certificar, y meterlo en el denominador daria un
+      /// porcentaje que no significa nada.
+      etapa: { in: [...ETAPAS_DEL_AULA] },
+      ...cuandoLlego(ventana),
+    };
+
+    const desdeRitmo = diasDeTrabajoAtras(hoyEnColombia(ahora), DIAS_DE_RITMO);
+
+    const [gente, grupos, movimientos] = await Promise.all([
+      this.prisma.participante.findMany({
+        where: donde,
+        select: {
+          etapa: true,
+          accionFormacionId: true,
+          accionFormacion: { select: { codigo: true, nombre: true } },
+        },
+      }),
+      this.prisma.grupo.findMany({
+        where: { accionFormacion: { convenioId: { in: ambito.convenios } } },
+        select: { accionFormacionId: true, fechaFin: true },
+      }),
+      this.prisma.movimientoParticipante.findMany({
+        where: {
+          creadoEn: { gte: desdeRitmo },
+          etapaDespues: 'CERTIFICADO',
+          participante: { convenioId: { in: ambito.convenios } },
+        },
+        select: {
+          participanteId: true,
+          participante: { select: { accionFormacionId: true } },
+        },
+      }),
+    ]);
+
+    /// EL MAS LEJANO de sus grupos: mientras quede uno dictandose, la
+    /// accion no ha terminado. Con el mas proximo, una accion de ocho
+    /// grupos saldria vencida el dia que acabe el primero.
+    const finales = new Map<string, Date>();
+    for (const g of grupos) {
+      if (!g.fechaFin) continue;
+      const actual = finales.get(g.accionFormacionId);
+      if (!actual || g.fechaFin > actual) finales.set(g.accionFormacionId, g.fechaFin);
+    }
+
+    /// Una vez por persona, como en la otra: certificar deja un
+    /// movimiento, pero nada impide que haya dos.
+    const yaContado = new Set<string>();
+    const certificadosRecientes = new Map<string, number>();
+    for (const m of movimientos) {
+      const id = m.participante.accionFormacionId;
+      if (!id || yaContado.has(m.participanteId)) continue;
+      yaContado.add(m.participanteId);
+      certificadosRecientes.set(id, (certificadosRecientes.get(id) ?? 0) + 1);
+    }
+
+    return proyectarAcademico(
+      gente.map((p: (typeof gente)[number]) => ({
+        accionFormacionId: p.accionFormacionId,
+        codigo: p.accionFormacion?.codigo ?? null,
+        nombre: p.accionFormacion?.nombre ?? null,
+        etapa: p.etapa,
+      })),
+      finales,
+      certificadosRecientes,
+      ahora,
+    );
+  }
+
+  /**
    * SUBVISTA 2: los asesores academicos.
    *
    * Su carga se mide por GRUPOS --«cuantos grupos tiene asignados =
@@ -759,10 +974,15 @@ export class CrmService {
    */
   async asesoresAcademicos(
     ambito: Ambito,
+    ventana: VentanaDeLlegada = {},
     ahora = new Date(),
   ): Promise<FilaDeAsesorAcademico[]> {
     if (ambito.convenios.length === 0) return [];
 
+    /// EL RECORTE VA EN LOS PARTICIPANTES, no en el grupo: el periodo
+    /// pregunta por cuándo llegó la GENTE, y un grupo no llega, se
+    /// dicta. Así un grupo viejo con gente nueva sigue saliendo.
+    const cuando = cuandoLlego(ventana);
     const grupos = await this.prisma.grupo.findMany({
       where: { accionFormacion: { convenioId: { in: ambito.convenios } } },
       select: {
@@ -774,6 +994,7 @@ export class CrmService {
         coberturas: {
           select: {
             participantes: {
+              where: cuando,
               select: { etapa: true, _count: { select: { notas: true } } },
             },
           },
