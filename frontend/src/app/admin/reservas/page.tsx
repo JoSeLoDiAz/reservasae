@@ -8,6 +8,7 @@ import {
   FiltroDePeriodo,
   PERIODO_INICIAL,
   type Periodo,
+  ventanaDe,
 } from "@/components/admin/filtro-de-periodo";
 import { IndicadorActualizacion } from "@/components/admin/indicador-actualizacion";
 import { Aviso, useAdmin } from "@/components/admin/marco-admin";
@@ -115,7 +116,15 @@ export default function PaginaReservas() {
   /// vez serían el doble de viajes cada treinta segundos para pintar
   /// una sola tabla.
   const vivos = useDatosVivos<PaginaReservas>(
-    useCallback(() => tablerosApi.reservas({ pagina: 1, porPagina: POR_VIAJE }), []),
+    useCallback(
+      () =>
+        tablerosApi.reservas({
+          pagina: 1,
+          porPagina: POR_VIAJE,
+          ...ventanaDe(periodo),
+        }),
+      [periodo],
+    ),
     { activo: vista === "reserva" },
   );
 
@@ -123,7 +132,10 @@ export default function PaginaReservas() {
   /// sobre una página de 200 parte en dos a la empresa cuyas AF caen
   /// en páginas distintas, y el error no se ve.
   const agrupadas = useDatosVivos<ReservasAgrupadas>(
-    useCallback(() => tablerosApi.reservasAgrupadas(), []),
+    /// LA MISMA VENTANA QUE LA LISTA. Si el agrupado no la llevara,
+    /// las dos vistas de esta pantalla ---«Por reserva» y «Por
+    /// organización»--- contestarían distinto al mismo filtro.
+    useCallback(() => tablerosApi.reservasAgrupadas(ventanaDe(periodo)), [periodo]),
     { activo: vista === "organizacion" },
   );
 
@@ -142,7 +154,11 @@ export default function PaginaReservas() {
     if (!datos) return;
     const resto = await Promise.all(
       Array.from({ length: datos.paginas - 1 }, (_, i) =>
-        tablerosApi.reservas({ pagina: i + 2, porPagina: POR_VIAJE }),
+        tablerosApi.reservas({
+          pagina: i + 2,
+          porPagina: POR_VIAJE,
+          ...ventanaDe(periodo),
+        }),
       ),
     );
     setTodas({ base: datos.filas, filas: [...datos.filas, ...resto.flatMap((p) => p.filas)] });
@@ -363,23 +379,15 @@ export default function PaginaReservas() {
     <div className="flex min-h-0 grow flex-col gap-3 px-4 pt-3">
       <ElegirVista vista={vista} alElegir={elegirVista} />
 
-      {/* El periodo junto a las dos vistas, que es donde están los
-          filtros de pantalla, con el aviso pegado debajo: quien lo
-          mueva tiene que leer en el mismo sitio que la tabla no se
-          entera. El aviso no espera a que elija: si solo saliera con un
-          rango puesto, ya habría creído el recorte antes de leerlo. */}
-      <div className="flex flex-col gap-1">
-        <FiltroDePeriodo periodo={periodo} alCambiar={setPeriodo} />
-        <p
-          className={
-            "text-[0.78125rem] " +
-            (periodo.rango === "TODO" ? "text-texto-suave" : "text-aviso")
-          }
-        >
-          Esta vista todavía no se recorta por periodo: la tabla y las cifras
-          traen todas las reservas.
-        </p>
-      </div>
+      {/* EL PERIODO, junto a las dos vistas, que es donde están los
+          filtros de pantalla.
+
+          Aquí vivía un aviso diciendo que esta vista no se recortaba
+          por periodo. Era verdad y por eso estaba: el control se
+          pintaba y el servidor lo ignoraba en silencio. Ya no: `Reserva`
+          se recorta por `creadoEn`, en la lista Y en el agrupado, así
+          que el aviso sobra. */}
+      <FiltroDePeriodo periodo={periodo} alCambiar={setPeriodo} />
 
       {/* Sin título ni conteo: lo dice la miga, y la cifra
           va en el pie de la tabla. El aviso solo aparece si

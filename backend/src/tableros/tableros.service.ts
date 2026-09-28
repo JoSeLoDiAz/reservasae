@@ -35,6 +35,22 @@ export type FiltrosReservas = {
   convenio?: string;
   accionId?: string;
   formulario?: string;
+  /**
+   * CUÁNDO SE HIZO LA RESERVA. Dos instantes ISO, ya resueltos en
+   * hora de Bogotá por el filtro compartido del panel.
+   *
+   * «En todos los tableros debo tener filtros, deben funcionar»
+   * (cliente, 27 sep 2026). Control de Reservas era el único que
+   * tenía el control pintado y no recortaba: come de aquí, y aquí no
+   * había por dónde entrar una ventana. Lo avisaba en pantalla en vez
+   * de fingirlo; ahora ya no hace falta avisar.
+   *
+   * Se llaman como en el CRM ---`llegoDesde`, `llegoHasta`--- a
+   * propósito: es la misma pregunta en las dos pantallas y el mismo
+   * nombre evita tener que traducir al pasar de una a otra.
+   */
+  llegoDesde?: string;
+  llegoHasta?: string;
   pagina?: number;
   porPagina?: number;
 };
@@ -1253,6 +1269,16 @@ export class TablerosService {
     if (filtros.accionId) y.push({ oferta: { accionFormacionId: filtros.accionId } });
     // por que enlace entro
     if (filtros.formulario) y.push({ formulario: { slug: filtros.formulario } });
+
+    /// EL PERIODO, por cuándo se hizo la reserva. `creadoEn` es la
+    /// misma columna por la que ya se ordena la lista, así que el
+    /// recorte y el orden hablan de lo mismo.
+    if (filtros.llegoDesde) {
+      y.push({ creadoEn: { gte: new Date(filtros.llegoDesde) } });
+    }
+    if (filtros.llegoHasta) {
+      y.push({ creadoEn: { lt: new Date(filtros.llegoHasta) } });
+    }
 
     if (filtros.buscar?.trim()) {
       const texto = filtros.buscar.trim();
