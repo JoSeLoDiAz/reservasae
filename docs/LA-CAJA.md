@@ -9,8 +9,16 @@
 > resumen que viaja con el código se revisa en el mismo sitio que el
 > código.
 >
-> **Se actualiza en cada tanda.** Última: 25 sep 2026, 41 commits
-> sobre `origin/dev`.
+> **Se actualiza en cada tanda.** Última: 28 sep 2026.
+>
+> **La primera caja ya se cerró:** los 42 commits de
+> `andres/pantallas-sobre-dev` están en `origin/dev`. Lo de aquí
+> abajo sigue contándolo porque es lo que hay desplegado, no porque
+> esté pendiente de fusionar.
+>
+> Lo que está EN VUELO ahora va en `jose/dev-26sep`: **11 commits**
+> sobre `dev`, descritos en «La tanda del 26 de septiembre» y las que
+> sigan.
 
 ---
 
@@ -209,7 +217,12 @@ lead sigue costando lo mismo que antes.
 
 ## Lo que falta antes de cerrar la caja
 
-1. **Matriculados por grupo**: resumen general y detalle al pulsar.
+1. ~~**Matriculados por grupo**: resumen general y detalle al
+   pulsar.~~ **Ya no aplica.** Esa pantalla se rehízo entera con el
+   diseño que él dibujó, y el bloque dejó de existir: era la última
+   columna de la tabla que pidió. Eran cuatro cajas diciendo lo
+   mismo tres veces ---una tira de cifras, «Estado LMS», «Causales de
+   Retiro» y la tabla por grupo---, y ahora es una.
 2. **El bloque de las seis actividades**: decidir si va al final,
    como en la lista original de 17 columnas, o se queda en 8–13.
 3. **El LMS**: cuál es y su URL. Credenciales al `.env`.
