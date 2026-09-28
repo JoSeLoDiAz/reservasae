@@ -23,7 +23,7 @@
  */
 
 import Link from "next/link";
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 
 import {
   crmApi,
@@ -39,8 +39,10 @@ import { useDatosVivos } from "@/lib/datos-vivos";
 
 import { DesgloseDelAsesor } from "./desglose-del-asesor";
 import {
+  etiquetaDelAnterior,
   FiltroDePeriodo,
   PERIODO_INICIAL,
+  ventanaAnterior,
   ventanaDe,
   type Periodo,
 } from "./filtro-de-periodo";
@@ -127,6 +129,81 @@ const dia = (iso: string | null) =>
       })
     : "—";
 
+/**
+ * UNA CIFRA CON LA DEL OTRO PERIODO DEBAJO.
+ *
+ * «Volver dinámico las tarjetas, gráficos y tablas para saber los
+ * comparativos» (cliente, 27 sep 2026). Es el MISMO componente que ya
+ * usa `tabla-por-accion.tsx`, copiado a propósito: dos flechas con
+ * distinta forma o distinto color en la misma pantalla se leen como si
+ * midieran cosas distintas.
+ *
+ * Debajo y no al lado: estas tablas llegan a once columnas, y dos
+ * números en la misma línea las parten todas.
+ *
+ * La de arriba es la del periodo elegido y manda. La de abajo es la
+ * del otro, en gris y más pequeña, con su flecha: ▲ subió, ▼ bajó,
+ * = igual. Sin comparación puesta se pinta solo la de arriba.
+ */
+function Cifra({ ahora, antes }: { ahora: number; antes: number | null }) {
+  if (antes === null) return <>{n(ahora)}</>;
+  const d = ahora - antes;
+  return (
+    <>
+      {n(ahora)}
+      <span
+        className="block text-[0.6875rem] leading-tight font-normal"
+        style={{
+          color: d === 0 ? "var(--texto-suave)" : d > 0 ? "var(--exito)" : "var(--error)",
+        }}
+      >
+        {d === 0 ? "=" : d > 0 ? "▲" : "▼"} {n(antes)}
+      </span>
+    </>
+  );
+}
+
+/**
+ * LA MISMA COMPARACIÓN, PARA LA TIRA DE CIFRAS DE ARRIBA.
+ *
+ * `CifraCompacta` solo admite TEXTO en su pie, así que aquí la flecha
+ * va en el gris del pie y no en verde o rojo. Se prefiere eso a
+ * montar una tarjeta propia al lado de las suyas: dos tarjetas
+ * parecidas pero distintas en la misma fila es peor que una flecha
+ * sin color, y `piezas.tsx` no es de esta tarea.
+ */
+const comparado = (ahora: number, antes: number | null | undefined) => {
+  if (antes === null || antes === undefined) return undefined;
+  const d = ahora - antes;
+  return `${d === 0 ? "=" : d > 0 ? "▲" : "▼"} ${n(antes)}`;
+};
+
+/**
+ * CONTRA QUÉ SE COMPARA, DICHO UNA VEZ POR SUBVISTA.
+ *
+ * Sin esto, la segunda cifra de cada celda es un número sin dueño: es
+ * lo que ya pasó con las tarjetas de Seguimiento Académico.
+ */
+function ContraQue({ rotulo }: { rotulo: string }) {
+  return (
+    <p className="text-[0.8125rem] text-texto-suave">
+      Debajo de cada cifra, la misma de{" "}
+      <strong className="font-medium text-titulo">{rotulo}</strong>.
+    </p>
+  );
+}
+
+/** Lo que cada subvista necesita para pedir y pintar los dos periodos. */
+type ConPeriodo = {
+  ventana: VentanaDeLlegada;
+  /// El tramo de antes, o NULO si el periodo elegido no tiene anterior
+  /// («Desde el principio»). Nulo quiere decir: no se compara nada y
+  /// la subvista sale como siempre.
+  ventanaAntes: VentanaDeLlegada | null;
+  /// Cómo se llama ese tramo, para poder decirlo con palabras.
+  rotuloAnterior: string;
+};
+
 export function PanelAsesores() {
   const [subvista, setSubvista] = useState<Subvista>("inscripciones");
 
@@ -136,23 +213,34 @@ export function PanelAsesores() {
   /// veces para comparar las tres caras del mismo mes.
   const [periodo, setPeriodo] = useState<Periodo>(PERIODO_INICIAL);
 
-  /// SE DICE LA VERDAD: NINGUNA DE LAS TRES SE RECORTA TODAVÍA.
-  ///
-  /// «Deben funcionar porque lo probé y no es así» (cliente, 27 sep
-  /// 2026) fue precisamente esta queja, y recortar en la pantalla no
-  /// la arregla: los tres endpoints ---`asesores/inscripciones`,
-  /// `asesores/academicos` y `asesores/proyeccion`--- no aceptan
-  /// filtros, y sus filas NO traen ninguna fecha de llegada por la que
-  /// cortar. `limite` y `cierre` son plazos, no cuándo entró la gente;
-  /// filtrar por ellos daría un número que nadie pidió con el rótulo
-  /// de otro, que es peor que no filtrar.
-  ///
-  /// Así que el control se pinta ---ya queda puesto para cuando el
-  /// servidor acepte `llegoDesde`/`llegoHasta`--- y debajo se avisa.
-  /// Decirlo cuesta un renglón; que el usuario crea que filtró cuesta
-  /// una decisión tomada sobre cifras equivocadas.
-  const ventana = ventanaDe(periodo);
-  const sinRecortar = ventana.llegoDesde !== undefined;
+  /// LA VENTANA DEL PERIODO ELEGIDO. Los cuatro endpoints ya aceptan
+  /// `llegoDesde`/`llegoHasta` y recortan de verdad, así que aquí solo
+  /// hay que traducir el periodo y bajarlo.
+  const ventana = useMemo(() => ventanaDe(periodo), [periodo]);
+
+  /**
+   * EL TRAMO DE ANTES, de la misma duración.
+   *
+   * «Es realmente volver dinámico las tarjetas, gráficos y tablas para
+   * saber los comparativos» (cliente, 27 sep 2026). Un conteo solo no
+   * dice si se va mejor o peor; con el de al lado, sí.
+   *
+   * NULO CUANDO NO HAY CON QUÉ COMPARAR: «Desde el principio» no tiene
+   * anterior y `ventanaAnterior` devuelve un objeto sin fechas. Pedirlo
+   * igual traería OTRA VEZ todo el histórico con cara de ser el tramo
+   * de antes, que es la flecha que miente.
+   */
+  const ventanaAntes = useMemo(() => {
+    const v = ventanaAnterior(periodo);
+    return v.llegoDesde && v.llegoHasta ? v : null;
+  }, [periodo]);
+
+  /// CÓMO SE LLAMA ESE TRAMO. Un rango a medida no tiene nombre hecho
+  /// ---`etiquetaDelAnterior` devuelve vacío---, pero sí tiene tramo
+  /// anterior, así que se le dice lo que es en vez de dejar la segunda
+  /// cifra sin dueño.
+  const rotuloAnterior =
+    etiquetaDelAnterior(periodo.rango) || "el tramo anterior, de la misma duración";
 
   return (
     <div className="flex flex-col gap-3 px-4 pt-3 pb-6 [&>header]:mx-0 [&>header]:mb-0">
@@ -193,14 +281,21 @@ export function PanelAsesores() {
         <FiltroDePeriodo periodo={periodo} alCambiar={setPeriodo} />
       </div>
 
-      {/* LA VENTANA BAJA A LAS TRES. Se pasa el objeto ya resuelto y
-          no el periodo: así la subvista no tiene que saber qué es
-          «el mes pasado», solo pedir lo que le digan. */}
-      {subvista === "inscripciones" && <DeInscripciones ventana={ventana} />}
-      {subvista === "academicos" && <Academicos ventana={ventana} />}
-      {subvista === "proyeccion" && <Proyeccion ventana={ventana} />}
+      {/* LAS DOS VENTANAS BAJAN A LAS CUATRO. Se pasan los objetos ya
+          resueltos y no el periodo: así la subvista no tiene que saber
+          qué es «el mes pasado» ni cuál es su anterior, solo pedir lo
+          que le digan. */}
+      {subvista === "inscripciones" && (
+        <DeInscripciones {...{ ventana, ventanaAntes, rotuloAnterior }} />
+      )}
+      {subvista === "academicos" && (
+        <Academicos {...{ ventana, ventanaAntes, rotuloAnterior }} />
+      )}
+      {subvista === "proyeccion" && (
+        <Proyeccion {...{ ventana, ventanaAntes, rotuloAnterior }} />
+      )}
       {subvista === "proyeccionAcademica" && (
-        <ProyeccionAcademica ventana={ventana} />
+        <ProyeccionAcademica {...{ ventana, ventanaAntes, rotuloAnterior }} />
       )}
     </div>
   );
@@ -228,13 +323,69 @@ type Vista = FilaDeAsesor & {
   };
 };
 
-function DeInscripciones({ ventana }: { ventana: VentanaDeLlegada }) {
+/**
+ * LAS CIFRAS DE UNA FILA, con la acción elegida o sin ella.
+ *
+ * FUERA DEL COMPONENTE porque lo usan LOS DOS PERIODOS: el de ahora y
+ * el de antes tienen que recortarse por la misma acción, o se acabaría
+ * comparando el total de uno contra una sola acción del otro. Nulo =
+ * ese asesor no tiene carga en la acción elegida.
+ */
+function vistoDe(f: FilaDeAsesor, accion: string): Vista["visto"] | null {
+  if (!accion) {
+    return {
+      total: f.carga.total,
+      gestionados: f.carga.gestionados,
+      resueltos: f.carga.resueltos,
+      inscritos: f.inscritos ?? 0,
+      descartados: f.descartados ?? 0,
+      pendientes: f.ritmo.pendientes,
+    };
+  }
+  const suya = (f.porAccion ?? []).find((a) => a.accionFormacionId === accion);
+  /// Sin carga en esa acción, el asesor no sale: la pregunta es
+  /// «quién lleva esto», y una fila de ceros la contesta mal.
+  if (!suya) return null;
+  return {
+    total: suya.total,
+    gestionados: suya.gestionados,
+    resueltos: suya.resueltos,
+    inscritos: suya.inscritos,
+    descartados: suya.descartados,
+    pendientes: suya.pendientes,
+  };
+}
+
+/// LA MISMA LLAVE PARA LOS DOS PERIODOS. `asesorId` es nulo en la fila
+/// de «Sin asesor asignado», y dos nulos no se encuentran en un `Map`.
+const llaveDeAsesor = (f: { asesorId: string | null }) => f.asesorId ?? "sin-asesor";
+
+function DeInscripciones({ ventana, ventanaAntes, rotuloAnterior }: ConPeriodo) {
   /// La clave lleva el periodo dentro: sin eso, cambiarlo no vuelve
-  /// a pedir y la tabla se queda enseñando el periodo de antes.
-  const cargar = useCallback(() => crmApi.asesoresDeInscripciones(ventana), [ventana]);
-  const vivos = useDatosVivos<FilaDeAsesor[]>(cargar, {
-    clave: `asesores-inscripciones-${JSON.stringify(ventana)}`,
-  });
+  /// a pedir y la tabla se queda enseñando el periodo de antes. Y
+  /// lleva TAMBIÉN el tramo con el que se compara, que es otro dato
+  /// que cambia lo que hay que pedir.
+  const clave = JSON.stringify(ventana);
+  const claveAntes = JSON.stringify(ventanaAntes);
+
+  /// LOS DOS PERIODOS EN LA MISMA CONSULTA. Dos `useDatosVivos`
+  /// separados se refrescan cada uno por su lado, y durante un
+  /// instante la tabla enseñaría el periodo nuevo contra el anterior
+  /// viejo: dos cifras que no son comparables con cara de serlo.
+  const cargar = useCallback(
+    async (): Promise<{ ahora: FilaDeAsesor[]; antes: FilaDeAsesor[] | null }> => {
+      const [ahora, antes] = await Promise.all([
+        crmApi.asesoresDeInscripciones(ventana),
+        ventanaAntes ? crmApi.asesoresDeInscripciones(ventanaAntes) : null,
+      ]);
+      return { ahora, antes };
+    },
+    [ventana, ventanaAntes],
+  );
+  const vivos = useDatosVivos<{ ahora: FilaDeAsesor[]; antes: FilaDeAsesor[] | null }>(
+    cargar,
+    { clave: `asesores-inscripciones-${clave}-${claveAntes}` },
+  );
 
   /// EL FILTRO POR ACCIÓN, SIN TOCAR EL SERVIDOR (cliente, 23 sep
   /// 2026: «que tenga filtros, y no sé si se puede como Control de
@@ -254,7 +405,10 @@ function DeInscripciones({ ventana }: { ventana: VentanaDeLlegada }) {
 
   if (vivos.error) return <Aviso tipo="error">{vivos.error}</Aviso>;
   if (!vivos.datos) return <Esqueleto />;
-  if (vivos.datos.length === 0) {
+  /// El resto de la subvista sigue leyendo una lista, como siempre.
+  const datos = vivos.datos.ahora;
+  const comparando = vivos.datos.antes !== null;
+  if (datos.length === 0) {
     return (
       <Vacio titulo="Todavía no hay leads repartidos">
         Aquí aparece cada asesor en cuanto tenga personas asignadas.
@@ -274,7 +428,7 @@ function DeInscripciones({ ventana }: { ventana: VentanaDeLlegada }) {
   /// una vuelta en los grupos del aula.
   const acciones = [
     ...new Map(
-      vivos.datos
+      datos
         .flatMap((f) => f.porAccion ?? [])
         .filter((a) => a.accionFormacionId && a.codigo)
         .map((a) => [
@@ -289,38 +443,22 @@ function DeInscripciones({ ventana }: { ventana: VentanaDeLlegada }) {
     }))
     .sort((a, b) => a.etiqueta.localeCompare(b.etiqueta));
 
-  const filas: Vista[] = vivos.datos
+  const filas: Vista[] = datos
     .map((f) => {
-      if (!accion) {
-        return {
-          ...f,
-          visto: {
-            total: f.carga.total,
-            gestionados: f.carga.gestionados,
-            resueltos: f.carga.resueltos,
-            inscritos: f.inscritos ?? 0,
-            descartados: f.descartados ?? 0,
-            pendientes: f.ritmo.pendientes,
-          },
-        };
-      }
-      const suya = (f.porAccion ?? []).find((a) => a.accionFormacionId === accion);
-      /// Sin carga en esa acción, el asesor no sale: la pregunta es
-      /// «quién lleva esto», y una fila de ceros la contesta mal.
-      if (!suya) return null;
-      return {
-        ...f,
-        visto: {
-          total: suya.total,
-          gestionados: suya.gestionados,
-          resueltos: suya.resueltos,
-          inscritos: suya.inscritos,
-          descartados: suya.descartados,
-          pendientes: suya.pendientes,
-        },
-      };
+      const visto = vistoDe(f, accion);
+      return visto ? { ...f, visto } : null;
     })
     .filter((f): f is Vista => f !== null);
+
+  /// LAS MISMAS CIFRAS DEL TRAMO DE ANTES, por asesor. Un asesor puede
+  /// no aparecer allí ---entró después, o no tenía nada en esa
+  /// acción---: entonces no hay con qué comparar y no se pinta nada,
+  /// en vez de un cero que diría que no hizo nada.
+  const vistoAntes = new Map(
+    (vivos.datos.antes ?? []).map((f) => [llaveDeAsesor(f), vistoDe(f, accion)]),
+  );
+  const antesDe = (f: Vista) =>
+    comparando ? (vistoAntes.get(llaveDeAsesor(f)) ?? null) : null;
 
   /// LA TIRA DE CIFRAS SE SUMA DE LAS MISMAS FILAS QUE SE PINTAN
   /// DEBAJO (cliente, 23 sep 2026). Con una consulta aparte, el total
@@ -338,6 +476,23 @@ function DeInscripciones({ ventana }: { ventana: VentanaDeLlegada }) {
     }),
     { total: 0, gestionados: 0, resueltos: 0, inscritos: 0, descartados: 0, pendientes: 0 },
   );
+
+  /// LA MISMA SUMA DEL TRAMO DE ANTES, y de las mismas filas: los
+  /// asesores sin carga en la acción elegida quedan fuera aquí igual
+  /// que quedan fuera de la tabla.
+  const tAntes = comparando
+    ? [...vistoAntes.values()]
+        .filter((v): v is Vista["visto"] => v !== null)
+        .reduce(
+          (a, v) => ({
+            total: a.total + v.total,
+            gestionados: a.gestionados + v.gestionados,
+            inscritos: a.inscritos + v.inscritos,
+            descartados: a.descartados + v.descartados,
+          }),
+          { total: 0, gestionados: 0, inscritos: 0, descartados: 0 },
+        )
+    : null;
 
   /// LOS DOS SE CUENTAN SOBRE LAS MISMAS FILAS. La fila «Sin asesor
   /// asignado» no es una persona, así que no cuenta como asesor; si el
@@ -363,12 +518,23 @@ function DeInscripciones({ ventana }: { ventana: VentanaDeLlegada }) {
         </span>
       ),
     },
+    /// LAS CUATRO COLUMNAS DE CONTEO LLEVAN LA DEL OTRO PERIODO
+    /// DEBAJO. Son las únicas que cuentan HECHOS del periodo; las de
+    /// más allá ---meta global, antigüedad media, cierre, meta
+    /// diaria--- son plazos, promedios y objetivos, y una flecha
+    /// encima diría que subieron o bajaron cuando lo que cambió es
+    /// otra cosa.
     {
       clave: "total",
       titulo: "Leads asignados",
       ancho: "130px",
       numerica: true,
       valor: (f) => f.visto.total,
+      pinta: (f) => (
+        <span className="tabular-nums">
+          <Cifra ahora={f.visto.total} antes={antesDe(f)?.total ?? null} />
+        </span>
+      ),
     },
     {
       clave: "gestionados",
@@ -376,6 +542,11 @@ function DeInscripciones({ ventana }: { ventana: VentanaDeLlegada }) {
       ancho: "118px",
       numerica: true,
       valor: (f) => f.visto.gestionados,
+      pinta: (f) => (
+        <span className="tabular-nums">
+          <Cifra ahora={f.visto.gestionados} antes={antesDe(f)?.gestionados ?? null} />
+        </span>
+      ),
     },
     /// DOS COLUMNAS Y NO UNA (cliente, 26 sep 2026: «esto es
     /// separado, o sea una columna Inscritos y en otro Descartados»).
@@ -389,7 +560,9 @@ function DeInscripciones({ ventana }: { ventana: VentanaDeLlegada }) {
       numerica: true,
       valor: (f) => f.visto.inscritos,
       pinta: (f) => (
-        <span className="font-medium text-exito tabular-nums">{n(f.visto.inscritos)}</span>
+        <span className="font-medium text-exito tabular-nums">
+          <Cifra ahora={f.visto.inscritos} antes={antesDe(f)?.inscritos ?? null} />
+        </span>
       ),
     },
     {
@@ -399,7 +572,9 @@ function DeInscripciones({ ventana }: { ventana: VentanaDeLlegada }) {
       numerica: true,
       valor: (f) => f.visto.descartados,
       pinta: (f) => (
-        <span className="tabular-nums text-texto-suave">{n(f.visto.descartados)}</span>
+        <span className="tabular-nums text-texto-suave">
+          <Cifra ahora={f.visto.descartados} antes={antesDe(f)?.descartados ?? null} />
+        </span>
       ),
     },
     {
@@ -498,24 +673,42 @@ function DeInscripciones({ ventana }: { ventana: VentanaDeLlegada }) {
         valor={n(conAsesor)}
         pie={aReforzar > 0 ? `${n(aReforzar)} necesitan refuerzo` : undefined}
       />
-      <CifraCompacta etiqueta="Leads asignados" valor={n(t.total)} />
+      <CifraCompacta
+        etiqueta="Leads asignados"
+        valor={n(t.total)}
+        pie={comparado(t.total, tAntes?.total)}
+      />
       <CifraCompacta
         etiqueta="Gestionados"
         valor={n(t.gestionados)}
         detalle={t.total > 0 ? `${Math.round((t.gestionados / t.total) * 100)} %` : undefined}
+        pie={comparado(t.gestionados, tAntes?.gestionados)}
       />
       {/* LOS MISMOS NOMBRES QUE LAS COLUMNAS DE DEBAJO. Se habían
           quedado con los de antes de partir la columna y de renombrar
           las metas: la tira decía «Inscritos y descartados» y la
           tabla, justo debajo, los daba por separado. */}
-      <CifraCompacta etiqueta="Inscritos" valor={n(t.inscritos)} color="var(--exito)" />
-      <CifraCompacta etiqueta="Descartados" valor={n(t.descartados)} />
+      <CifraCompacta
+        etiqueta="Inscritos"
+        valor={n(t.inscritos)}
+        color="var(--exito)"
+        pie={comparado(t.inscritos, tAntes?.inscritos)}
+      />
+      <CifraCompacta
+        etiqueta="Descartados"
+        valor={n(t.descartados)}
+        pie={comparado(t.descartados, tAntes?.descartados)}
+      />
+      {/* LA META GLOBAL NO COMPARA, como en la tabla: es lo que
+          FALTA, no lo que se hizo. */}
       <CifraCompacta
         etiqueta="Meta global"
         valor={n(t.pendientes)}
         color={t.pendientes > 0 ? "var(--error)" : undefined}
       />
     </div>
+
+    {comparando && <ContraQue rotulo={rotuloAnterior} />}
 
     {/* LA TABLA, SUELTA EN LA PÁGINA. «Que quede como la segunda
         captura» (cliente, 25 sep 2026), que era Gestión de leads:
@@ -577,15 +770,50 @@ function DeInscripciones({ ventana }: { ventana: VentanaDeLlegada }) {
   );
 }
 
-function Academicos({ ventana }: { ventana: VentanaDeLlegada }) {
-  const cargar = useCallback(() => crmApi.asesoresAcademicos(ventana), [ventana]);
-  const vivos = useDatosVivos<FilaDeAsesorAcademico[]>(cargar, {
-    clave: `asesores-academicos-${JSON.stringify(ventana)}`,
+function Academicos({ ventana, ventanaAntes, rotuloAnterior }: ConPeriodo) {
+  /// LOS DOS PERIODOS EN LA MISMA CONSULTA, por lo mismo que en la
+  /// pestaña de al lado: separados se refrescarían cada uno por su
+  /// cuenta y por un instante se compararía lo nuevo contra lo viejo.
+  const cargar = useCallback(
+    async (): Promise<{
+      ahora: FilaDeAsesorAcademico[];
+      antes: FilaDeAsesorAcademico[] | null;
+    }> => {
+      const [ahora, antes] = await Promise.all([
+        crmApi.asesoresAcademicos(ventana),
+        ventanaAntes ? crmApi.asesoresAcademicos(ventanaAntes) : null,
+      ]);
+      return { ahora, antes };
+    },
+    [ventana, ventanaAntes],
+  );
+  const vivos = useDatosVivos<{
+    ahora: FilaDeAsesorAcademico[];
+    antes: FilaDeAsesorAcademico[] | null;
+  }>(cargar, {
+    clave: `asesores-academicos-${JSON.stringify(ventana)}-${JSON.stringify(ventanaAntes)}`,
   });
+
+  /// LAS COLUMNAS, CON EL OTRO PERIODO DENTRO. Antes eran una constante
+  /// de módulo ---no dependían de nada---; ahora dependen de las filas
+  /// del tramo anterior, así que se rehacen solo cuando esas cambian.
+  const antesPorAsesor = useMemo(
+    () => new Map((vivos.datos?.antes ?? []).map((f) => [llaveDeAsesor(f), f])),
+    [vivos.datos],
+  );
+  const comparando = vivos.datos?.antes != null;
+  const columnas = useMemo(
+    () =>
+      columnasAcademicas((f) =>
+        comparando ? (antesPorAsesor.get(llaveDeAsesor(f)) ?? null) : null,
+      ),
+    [antesPorAsesor, comparando],
+  );
 
   if (vivos.error) return <Aviso tipo="error">{vivos.error}</Aviso>;
   if (!vivos.datos) return <Esqueleto />;
-  if (vivos.datos.length === 0) {
+  const datos = vivos.datos.ahora;
+  if (datos.length === 0) {
     return (
       <Vacio titulo="Todavía no hay grupos con participantes">
         Aquí aparece cada asesor en cuanto tenga grupos asignados con participantes.
@@ -598,10 +826,10 @@ function Academicos({ ventana }: { ventana: VentanaDeLlegada }) {
   /// asignado» con los mil y pico participantes dentro, que se lee
   /// como un dato y no como lo que es ---que la asignación nunca se
   /// hizo---. Hasta el 25 sep 2026 no había ni por dónde hacerla.
-  const nadieAsignado = vivos.datos.every((f) => f.asesorId === null);
+  const nadieAsignado = datos.every((f) => f.asesorId === null);
 
   /// La misma tira de arriba, con lo que se mide en académica.
-  const t = vivos.datos.reduce(
+  const t = datos.reduce(
     (a, f) => ({
       grupos: a.grupos + f.grupos,
       pax: a.pax + f.carga.total,
@@ -612,28 +840,51 @@ function Academicos({ ventana }: { ventana: VentanaDeLlegada }) {
     { grupos: 0, pax: 0, seguimiento: 0, certificados: 0, porCertificar: 0 },
   );
 
+  /// La misma suma del tramo de antes, para la tira.
+  const tAntes = comparando
+    ? (vivos.datos.antes ?? []).reduce(
+        (a, f) => ({
+          grupos: a.grupos + f.grupos,
+          pax: a.pax + f.carga.total,
+          seguimiento: a.seguimiento + f.conSeguimiento,
+          certificados: a.certificados + f.certificados,
+        }),
+        { grupos: 0, pax: 0, seguimiento: 0, certificados: 0 },
+      )
+    : null;
+
   return (
     <>
     <div className="flex flex-wrap gap-2">
-      <CifraCompacta etiqueta="Grupos" valor={n(t.grupos)} />
-      <CifraCompacta etiqueta="PAX" valor={n(t.pax)} />
+      <CifraCompacta
+        etiqueta="Grupos"
+        valor={n(t.grupos)}
+        pie={comparado(t.grupos, tAntes?.grupos)}
+      />
+      <CifraCompacta etiqueta="PAX" valor={n(t.pax)} pie={comparado(t.pax, tAntes?.pax)} />
       <CifraCompacta
         etiqueta="Con seguimiento"
         valor={n(t.seguimiento)}
         detalle={t.pax > 0 ? `${Math.round((t.seguimiento / t.pax) * 100)} %` : undefined}
+        pie={comparado(t.seguimiento, tAntes?.seguimiento)}
       />
       <CifraCompacta
         etiqueta="Certificados"
         valor={n(t.certificados)}
         color="var(--exito)"
         detalle={t.pax > 0 ? `${Math.round((t.certificados / t.pax) * 100)} %` : undefined}
+        pie={comparado(t.certificados, tAntes?.certificados)}
       />
+      {/* «Por certificar» es lo que FALTA, no lo que se hizo: no
+          compara, ni aquí ni en la tabla. */}
       <CifraCompacta
         etiqueta="Por certificar"
         valor={n(t.porCertificar)}
         color={t.porCertificar > 0 ? "var(--error)" : undefined}
       />
     </div>
+
+    {comparando && <ContraQue rotulo={rotuloAnterior} />}
 
     {nadieAsignado && (
       <div className="rounded-lg border border-aviso/30 bg-aviso-suave p-3.5 text-[0.8125rem] text-texto">
@@ -665,8 +916,8 @@ function Academicos({ ventana }: { ventana: VentanaDeLlegada }) {
         de su hermana. Las filas y las columnas son las mismas. */}
     <Tabla
       id="asesores-academicos"
-      columnas={columnasAcademicas}
-      filas={vivos.datos}
+      columnas={columnas}
+      filas={datos}
       clave={(f) => f.asesorId ?? "sin-asesor"}
       porPagina={25}
       vacio="Aquí aparece cada asesor en cuanto tenga grupos asignados con participantes."
@@ -678,12 +929,19 @@ function Academicos({ ventana }: { ventana: VentanaDeLlegada }) {
 /**
  * Las columnas de la pestaña académica.
  *
- * FUERA DEL COMPONENTE y no dentro: no dependen de nada que cambie
- * entre pintados, y ahí arriba se rehacían en cada uno. La de
+ * FUERA DEL COMPONENTE y no dentro: así se rehacen solo cuando cambia
+ * el tramo con el que se compara, y no en cada pintado. La de
  * inscripciones sí vive dentro porque sus columnas cambian con la
  * acción elegida.
+ *
+ * `antesDe` devuelve la fila de ese mismo asesor en el otro periodo, o
+ * NULO cuando no hay comparación puesta o cuando allí no estaba: un
+ * cero diría que no certificó a nadie, y lo cierto es que no había
+ * asesor que contar.
  */
-const columnasAcademicas: Columna<FilaDeAsesorAcademico>[] = [
+const columnasAcademicas = (
+  antesDe: (f: FilaDeAsesorAcademico) => FilaDeAsesorAcademico | null,
+): Columna<FilaDeAsesorAcademico>[] => [
   {
     clave: "nombre",
     titulo: "Asesor",
@@ -697,12 +955,22 @@ const columnasAcademicas: Columna<FilaDeAsesorAcademico>[] = [
       </span>
     ),
   },
+  /// LAS CUATRO DE CONTEO COMPARAN. Meta global, fin del curso, meta
+  /// diaria y estado no: son lo que falta, una fecha, un objetivo y
+  /// un semáforo, y una flecha encima de cualquiera de ellos diría
+  /// que se hizo más o menos trabajo cuando lo que cambió es otra
+  /// cosa.
   {
     clave: "grupos",
     titulo: "Grupos",
     ancho: "90px",
     numerica: true,
     valor: (f) => f.grupos,
+    pinta: (f) => (
+      <span className="tabular-nums">
+        <Cifra ahora={f.grupos} antes={antesDe(f)?.grupos ?? null} />
+      </span>
+    ),
   },
   {
     /// PAX Y NO «PARTICIPANTES»: es como lo llama el cliente y como
@@ -712,7 +980,11 @@ const columnasAcademicas: Columna<FilaDeAsesorAcademico>[] = [
     ancho: "90px",
     numerica: true,
     valor: (f) => f.carga.total,
-    pinta: (f) => <span className="font-medium tabular-nums">{n(f.carga.total)}</span>,
+    pinta: (f) => (
+      <span className="font-medium tabular-nums">
+        <Cifra ahora={f.carga.total} antes={antesDe(f)?.carga.total ?? null} />
+      </span>
+    ),
   },
   {
     clave: "conSeguimiento",
@@ -720,6 +992,11 @@ const columnasAcademicas: Columna<FilaDeAsesorAcademico>[] = [
     ancho: "130px",
     numerica: true,
     valor: (f) => f.conSeguimiento,
+    pinta: (f) => (
+      <span className="tabular-nums">
+        <Cifra ahora={f.conSeguimiento} antes={antesDe(f)?.conSeguimiento ?? null} />
+      </span>
+    ),
   },
   {
     clave: "certificados",
@@ -728,7 +1005,9 @@ const columnasAcademicas: Columna<FilaDeAsesorAcademico>[] = [
     numerica: true,
     valor: (f) => f.certificados,
     pinta: (f) => (
-      <span className="font-semibold text-exito tabular-nums">{n(f.certificados)}</span>
+      <span className="font-semibold text-exito tabular-nums">
+        <Cifra ahora={f.certificados} antes={antesDe(f)?.certificados ?? null} />
+      </span>
     ),
   },
   {
@@ -819,15 +1098,48 @@ const columnasAcademicas: Columna<FilaDeAsesorAcademico>[] = [
  * cifras para la misma pregunta, que es el defecto que ya costó una
  * vuelta en Tráfico.
  */
-function Proyeccion({ ventana }: { ventana: VentanaDeLlegada }) {
-  const cargar = useCallback(() => crmApi.proyeccionDeInscripciones(ventana), [ventana]);
-  const vivos = useDatosVivos<FilaDeProyeccion[]>(cargar, {
-    clave: `proyeccion-${JSON.stringify(ventana)}`,
+function Proyeccion({ ventana, ventanaAntes, rotuloAnterior }: ConPeriodo) {
+  /// Los dos periodos en la misma consulta, como en las otras tres.
+  const cargar = useCallback(
+    async (): Promise<{
+      ahora: FilaDeProyeccion[];
+      antes: FilaDeProyeccion[] | null;
+    }> => {
+      const [ahora, antes] = await Promise.all([
+        crmApi.proyeccionDeInscripciones(ventana),
+        ventanaAntes ? crmApi.proyeccionDeInscripciones(ventanaAntes) : null,
+      ]);
+      return { ahora, antes };
+    },
+    [ventana, ventanaAntes],
+  );
+  const vivos = useDatosVivos<{
+    ahora: FilaDeProyeccion[];
+    antes: FilaDeProyeccion[] | null;
+  }>(cargar, {
+    clave: `proyeccion-${JSON.stringify(ventana)}-${JSON.stringify(ventanaAntes)}`,
   });
+
+  /// La misma acción en el otro periodo, por su id. Una acción puede
+  /// no estar allí ---nació después---: entonces no hay con qué
+  /// comparar y no se pinta nada.
+  const antesPorAccion = useMemo(
+    () => new Map((vivos.datos?.antes ?? []).map((f) => [f.accionFormacionId, f])),
+    [vivos.datos],
+  );
+  const comparando = vivos.datos?.antes != null;
+  const columnas = useMemo(
+    () =>
+      columnasDeProyeccion((f) =>
+        comparando ? (antesPorAccion.get(f.accionFormacionId) ?? null) : null,
+      ),
+    [antesPorAccion, comparando],
+  );
 
   if (vivos.error) return <Aviso tipo="error">{vivos.error}</Aviso>;
   if (!vivos.datos) return <Esqueleto />;
-  if (vivos.datos.length === 0) {
+  const datos = vivos.datos.ahora;
+  if (datos.length === 0) {
     return (
       <Vacio titulo="Todavía no hay acciones con leads">
         Aquí aparece cada acción de formación en cuanto tenga gente detrás, con
@@ -840,7 +1152,7 @@ function Proyeccion({ ventana }: { ventana: VentanaDeLlegada }) {
   /// las otras dos subvistas: con una consulta aparte, el total de
   /// arriba y la suma de la tabla podrían discrepar, y es lo primero
   /// que alguien comprueba.
-  const t = vivos.datos.reduce(
+  const t = datos.reduce(
     (a, f) => ({
       cupos: a.cupos + f.cupos,
       inscritos: a.inscritos + f.inscritos,
@@ -853,10 +1165,24 @@ function Proyeccion({ ventana }: { ventana: VentanaDeLlegada }) {
     { cupos: 0, inscritos: 0, faltan: 0, porConseguir: 0, enRiesgo: 0 },
   );
 
+  /// Del tramo de antes solo se suma lo que se compara: los inscritos
+  /// y cuántas acciones había.
+  const antes = vivos.datos.antes;
+  const inscritosAntes = antes
+    ? antes.reduce((a, f) => a + f.inscritos, 0)
+    : undefined;
+
   return (
     <>
       <div className="flex flex-wrap gap-2">
-        <CifraCompacta etiqueta="Acciones" valor={n(vivos.datos.length)} />
+        <CifraCompacta
+          etiqueta="Acciones"
+          valor={n(datos.length)}
+          pie={comparado(datos.length, antes?.length)}
+        />
+        {/* LOS CUPOS NO COMPARAN: es lo comprometido con el SENA y no
+            cambia con el periodo. Una flecha ahí diría que subieron o
+            bajaron cuando son los mismos. */}
         <CifraCompacta etiqueta="Cupos comprometidos" valor={n(t.cupos)} />
         <CifraCompacta
           etiqueta="Inscritos"
@@ -865,6 +1191,7 @@ function Proyeccion({ ventana }: { ventana: VentanaDeLlegada }) {
           detalle={
             t.cupos > 0 ? `${Math.round((t.inscritos / t.cupos) * 100)} %` : undefined
           }
+          pie={comparado(t.inscritos, inscritosAntes)}
         />
         <CifraCompacta
           etiqueta="Faltan"
@@ -877,6 +1204,8 @@ function Proyeccion({ ventana }: { ventana: VentanaDeLlegada }) {
           pie={t.enRiesgo > 0 ? `${n(t.enRiesgo)} acciones en riesgo` : undefined}
         />
       </div>
+
+      {comparando && <ContraQue rotulo={rotuloAnterior} />}
 
       {/* QUÉ QUIERE DECIR CADA COLUMNA, PLEGADA.
           «Una tabla que hay que explicar de viva voz no está
@@ -920,8 +1249,8 @@ function Proyeccion({ ventana }: { ventana: VentanaDeLlegada }) {
 
       <Tabla
         id="proyeccion-inscripciones"
-        columnas={columnasDeProyeccion}
-        filas={vivos.datos}
+        columnas={columnas}
+        filas={datos}
         clave={(f) => f.accionFormacionId}
         porPagina={25}
         vacio="Aquí aparece cada acción de formación en cuanto tenga gente detrás."
@@ -937,8 +1266,19 @@ function Proyeccion({ ventana }: { ventana: VentanaDeLlegada }) {
  * cuántos van, cuántos faltan, cuánto queda de plazo, a qué ritmo se
  * viene inscribiendo, dónde acaba eso, y solo al final el veredicto.
  * Puesto el veredicto primero, nadie mira el resto.
+ *
+ * AQUÍ SOLO COMPARA «Inscritos», y no por descuido: los cupos son lo
+ * comprometido con el SENA y no se mueven con el periodo; «Faltan» y
+ * «Leads que faltan» son lo que QUEDA por hacer, no lo hecho; «Cierra»
+ * es una fecha; «Meta diaria» y «Terminará con» son un objetivo y una
+ * previsión; «Conversión» es un porcentaje; y «Inscritos en 15 días»
+ * es una ventana fija del servidor que no se mueve con este filtro.
+ * De todas ellas, la única que cuenta hechos del periodo es la de
+ * inscritos.
  */
-const columnasDeProyeccion: Columna<FilaDeProyeccion>[] = [
+const columnasDeProyeccion = (
+  antesDe: (f: FilaDeProyeccion) => FilaDeProyeccion | null,
+): Columna<FilaDeProyeccion>[] => [
   {
     clave: "accion",
     titulo: "Acción de formación",
@@ -975,7 +1315,9 @@ const columnasDeProyeccion: Columna<FilaDeProyeccion>[] = [
     numerica: true,
     valor: (f) => f.inscritos,
     pinta: (f) => (
-      <span className="font-medium text-exito tabular-nums">{n(f.inscritos)}</span>
+      <span className="font-medium text-exito tabular-nums">
+        <Cifra ahora={f.inscritos} antes={antesDe(f)?.inscritos ?? null} />
+      </span>
     ),
   },
   {
@@ -1134,15 +1476,45 @@ const columnasDeProyeccion: Columna<FilaDeProyeccion>[] = [
  * parecidas pero distintas en la misma pantalla es como se acaba
  * comparando lo que no se puede comparar.
  */
-function ProyeccionAcademica({ ventana }: { ventana: VentanaDeLlegada }) {
-  const cargar = useCallback(() => crmApi.proyeccionAcademica(ventana), [ventana]);
-  const vivos = useDatosVivos<FilaDeProyeccionAcademica[]>(cargar, {
-    clave: `proyeccion-academica-${JSON.stringify(ventana)}`,
+function ProyeccionAcademica({ ventana, ventanaAntes, rotuloAnterior }: ConPeriodo) {
+  /// Los dos periodos en la misma consulta, como en las otras tres.
+  const cargar = useCallback(
+    async (): Promise<{
+      ahora: FilaDeProyeccionAcademica[];
+      antes: FilaDeProyeccionAcademica[] | null;
+    }> => {
+      const [ahora, antes] = await Promise.all([
+        crmApi.proyeccionAcademica(ventana),
+        ventanaAntes ? crmApi.proyeccionAcademica(ventanaAntes) : null,
+      ]);
+      return { ahora, antes };
+    },
+    [ventana, ventanaAntes],
+  );
+  const vivos = useDatosVivos<{
+    ahora: FilaDeProyeccionAcademica[];
+    antes: FilaDeProyeccionAcademica[] | null;
+  }>(cargar, {
+    clave: `proyeccion-academica-${JSON.stringify(ventana)}-${JSON.stringify(ventanaAntes)}`,
   });
+
+  const antesPorAccion = useMemo(
+    () => new Map((vivos.datos?.antes ?? []).map((f) => [f.accionFormacionId, f])),
+    [vivos.datos],
+  );
+  const comparando = vivos.datos?.antes != null;
+  const columnas = useMemo(
+    () =>
+      columnasDeProyeccionAcademica((f) =>
+        comparando ? (antesPorAccion.get(f.accionFormacionId) ?? null) : null,
+      ),
+    [antesPorAccion, comparando],
+  );
 
   if (vivos.error) return <Aviso tipo="error">{vivos.error}</Aviso>;
   if (!vivos.datos) return <Esqueleto />;
-  if (vivos.datos.length === 0) {
+  const datos = vivos.datos.ahora;
+  if (datos.length === 0) {
     return (
       <Vacio titulo="Todavía no hay nadie en el aula">
         Aquí aparece cada acción de formación en cuanto tenga gente dentro, con
@@ -1151,7 +1523,7 @@ function ProyeccionAcademica({ ventana }: { ventana: VentanaDeLlegada }) {
     );
   }
 
-  const t = vivos.datos.reduce(
+  const t = datos.reduce(
     (a, f) => ({
       enElAula: a.enElAula + f.enElAula,
       certificados: a.certificados + f.certificados,
@@ -1164,11 +1536,32 @@ function ProyeccionAcademica({ ventana }: { ventana: VentanaDeLlegada }) {
     { enElAula: 0, certificados: 0, porCertificar: 0, salieron: 0, enRiesgo: 0 },
   );
 
+  /// Del tramo de antes, solo lo que se compara.
+  const antes = vivos.datos.antes;
+  const tAntes = antes
+    ? antes.reduce(
+        (a, f) => ({
+          enElAula: a.enElAula + f.enElAula,
+          certificados: a.certificados + f.certificados,
+          salieron: a.salieron + f.salieron,
+        }),
+        { enElAula: 0, certificados: 0, salieron: 0 },
+      )
+    : null;
+
   return (
     <>
       <div className="flex flex-wrap gap-2">
-        <CifraCompacta etiqueta="Acciones" valor={n(vivos.datos.length)} />
-        <CifraCompacta etiqueta="En el aula" valor={n(t.enElAula)} />
+        <CifraCompacta
+          etiqueta="Acciones"
+          valor={n(datos.length)}
+          pie={comparado(datos.length, antes?.length)}
+        />
+        <CifraCompacta
+          etiqueta="En el aula"
+          valor={n(t.enElAula)}
+          pie={comparado(t.enElAula, tAntes?.enElAula)}
+        />
         <CifraCompacta
           etiqueta="Certificados"
           valor={n(t.certificados)}
@@ -1178,6 +1571,7 @@ function ProyeccionAcademica({ ventana }: { ventana: VentanaDeLlegada }) {
               ? `${Math.round((t.certificados / t.enElAula) * 100)} %`
               : undefined
           }
+          pie={comparado(t.certificados, tAntes?.certificados)}
         />
         <CifraCompacta
           etiqueta="Por certificar"
@@ -1188,8 +1582,14 @@ function ProyeccionAcademica({ ventana }: { ventana: VentanaDeLlegada }) {
         {/* SALIERON, aparte y sin color de alarma: no son pendientes
             que se puedan recuperar, y meterlos con los otros haría
             que la meta diaria pidiera un imposible. */}
-        <CifraCompacta etiqueta="Ya no certifican" valor={n(t.salieron)} />
+        <CifraCompacta
+          etiqueta="Ya no certifican"
+          valor={n(t.salieron)}
+          pie={comparado(t.salieron, tAntes?.salieron)}
+        />
       </div>
+
+      {comparando && <ContraQue rotulo={rotuloAnterior} />}
 
       <details className="group rounded-lg border border-borde bg-superficie text-[0.8125rem] text-texto-suave">
         <summary className="sin-aro flex cursor-pointer list-none items-center gap-2 px-4 py-2 font-semibold text-titulo select-none">
@@ -1227,8 +1627,8 @@ function ProyeccionAcademica({ ventana }: { ventana: VentanaDeLlegada }) {
 
       <Tabla
         id="proyeccion-academica"
-        columnas={columnasDeProyeccionAcademica}
-        filas={vivos.datos}
+        columnas={columnas}
+        filas={datos}
         clave={(f) => f.accionFormacionId}
         porPagina={25}
         vacio="Aquí aparece cada acción en cuanto tenga gente en el aula."
@@ -1237,7 +1637,17 @@ function ProyeccionAcademica({ ventana }: { ventana: VentanaDeLlegada }) {
   );
 }
 
-const columnasDeProyeccionAcademica: Columna<FilaDeProyeccionAcademica>[] = [
+/**
+ * COMPARAN LAS TRES DE CONTEO: quién entró al aula, quién se certificó
+ * y quién ya no va a certificar. «Por certificar» es lo que QUEDA,
+ * «Termina el curso» es una fecha, «Meta diaria» un objetivo,
+ * «Terminará con» una previsión y «Certificados en 15 días» una
+ * ventana fija del servidor que este filtro no mueve: ninguna cuenta
+ * hechos del periodo, así que ninguna lleva flecha.
+ */
+const columnasDeProyeccionAcademica = (
+  antesDe: (f: FilaDeProyeccionAcademica) => FilaDeProyeccionAcademica | null,
+): Columna<FilaDeProyeccionAcademica>[] => [
   {
     clave: "accion",
     titulo: "Acción de formación",
@@ -1258,7 +1668,11 @@ const columnasDeProyeccionAcademica: Columna<FilaDeProyeccionAcademica>[] = [
     ancho: "100px",
     numerica: true,
     valor: (f) => f.enElAula,
-    pinta: (f) => <span className="tabular-nums">{n(f.enElAula)}</span>,
+    pinta: (f) => (
+      <span className="tabular-nums">
+        <Cifra ahora={f.enElAula} antes={antesDe(f)?.enElAula ?? null} />
+      </span>
+    ),
   },
   {
     clave: "certificados",
@@ -1267,7 +1681,9 @@ const columnasDeProyeccionAcademica: Columna<FilaDeProyeccionAcademica>[] = [
     numerica: true,
     valor: (f) => f.certificados,
     pinta: (f) => (
-      <span className="font-medium text-exito tabular-nums">{n(f.certificados)}</span>
+      <span className="font-medium text-exito tabular-nums">
+        <Cifra ahora={f.certificados} antes={antesDe(f)?.certificados ?? null} />
+      </span>
     ),
   },
   {
@@ -1292,7 +1708,11 @@ const columnasDeProyeccionAcademica: Columna<FilaDeProyeccionAcademica>[] = [
     ancho: "130px",
     numerica: true,
     valor: (f) => f.salieron,
-    pinta: (f) => <span className="tabular-nums text-texto-suave">{n(f.salieron)}</span>,
+    pinta: (f) => (
+      <span className="tabular-nums text-texto-suave">
+        <Cifra ahora={f.salieron} antes={antesDe(f)?.salieron ?? null} />
+      </span>
+    ),
   },
   {
     clave: "finDelCurso",
