@@ -1,5 +1,6 @@
 import {
   Body,
+  Patch,
   Controller,
   Get,
   HttpCode,
@@ -12,11 +13,12 @@ import {
 import { IsEnum } from 'class-validator';
 import type { Response } from 'express';
 
-import { EstadoReserva, RolAdmin } from '../../generated/prisma';
+import { EstadoReserva, RolAdmin, type Admin } from '../../generated/prisma';
 import { AdminGuard, Requiere, Roles, type Ambito } from '../admin/admin.guard';
+import { EditarEmpresaDto } from './editar-empresa.dto';
 import { construirLibro, nombreArchivo } from './exportar';
 import { filtrosDelInforme } from './informe-de-reservas';
-import { AmbitoActual } from '../admin/admin-actual.decorator';
+import { AdminActual, AmbitoActual } from '../admin/admin-actual.decorator';
 import { TablerosService, valorLegible, type FiltrosReservas } from './tableros.service';
 
 const ESTADOS = Object.values(EstadoReserva) as string[];
@@ -193,6 +195,37 @@ export class TablerosController {
    * SUPERADMIN: cancelar una reserva y reactivarla es trabajo de
    * inscripciones, no de administración del sistema.
    */
+  /**
+   * CORREGIR UNA ORGANIZACIÓN, EL NIT INCLUIDO.
+   *
+   * «Empresas registradas» era de solo lectura, así que un NIT mal
+   * digitado se quedaba mal para siempre ---y con él las reservas y
+   * los leads que cuelgan de esa organización---.
+   *
+   * MISMO PERMISO QUE CAMBIAR EL ESTADO DE UNA RESERVA. No es un dato
+   * de consulta: cambiar el NIT de una organización mueve lo que se
+   * le reporta al SENA por ella.
+   *
+   * SIN RECORTE POR ÁMBITO, y es deliberado: una organización NO es
+   * de un gremio. La misma empresa reserva en ADECOPRIA y en
+   * BRITCHAM, y su NIT es el mismo en los dos sitios. Recortar aquí
+   * dejaría una corrección a medias ---bien en un gremio y mal en el
+   * otro--- sobre la misma fila, que es imposible. Quien puede
+   * escribir en reservas puede corregirla.
+   */
+  @Patch('empresas/:id')
+  @Requiere('reserva', 'ESCRIBIR')
+  editarEmpresa(
+    @Param('id') id: string,
+    @Body() dto: EditarEmpresaDto,
+    @AdminActual() admin: Admin,
+  ) {
+    return this.tableros.editarEmpresa(id, dto, {
+      id: admin.id,
+      nombre: admin.nombre,
+    });
+  }
+
   @Post('reservas/:id/estado')
   @HttpCode(200)
   @Requiere('reserva', 'ESCRIBIR')

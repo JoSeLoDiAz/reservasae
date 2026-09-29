@@ -1,4 +1,9 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { faltaEnF7 } from '../crm/sep/formato-f7';
 import { DEPARTAMENTO_POR_ID, MUNICIPIO_POR_ID } from '../crm/catalogos-sep';
 
@@ -14,6 +19,8 @@ import {
   respuestaDeConvenio,
   sqlDeConvenio,
 } from './ambito';
+import { AuditoriaService, ENTIDADES } from '../comun/auditoria.service';
+import { EditarEmpresaDto } from './editar-empresa.dto';
 import { PrismaService } from '../prisma/prisma.service';
 import { aDiaDeCalendario, diaBogota } from '../comun/dia-bogota';
 import { ventanaDe } from '../crm/calendario-inscripcion';
@@ -72,7 +79,12 @@ const nombreMunicipio = (id: number | null) =>
 
 @Injectable()
 export class TablerosService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    /// Corregir un NIT arrastra leads y reservas detrás, así que queda
+    /// registrado quién lo hizo y de qué a qué.
+    private readonly auditoria: AuditoriaService,
+  ) {}
 
   // resumen
 
@@ -1255,6 +1267,84 @@ export class TablerosService {
   }
 
   // tabla de reservas
+
+  /**
+   * CORREGIR UNA ORGANIZACIÓN, EL NIT INCLUIDO.
+   *
+   * «Al momento de ajustar o corregir un número de NIT no me lo
+   * permite, afectándome un montón los datos de Gestión de leads»
+   * (cliente, 28 sep 2026). «Empresas registradas» era de solo
+   * lectura, así que un NIT mal digitado se quedaba mal para siempre.
+   *
+   * CAMBIAR EL NIT NO ROMPE NADA, y lo comprobé antes de escribir una
+   * línea: nadie apunta a una empresa por su NIT. `Reserva` y
+   * `Participante` la referencian por `empresaId`, un cuid interno
+   * que no se toca. El NIT es un dato único, no la llave de las
+   * relaciones. Por eso los leads ACOMPAÑAN a la corrección en vez de
+   * quedarse huérfanos: siguen apuntando a la misma fila.
+   *
+   * LO ÚNICO QUE SÍ PUEDE MORDER es que el NIT nuevo ya sea de otra
+   * organización. Eso no se resuelve aquí: fundir dos organizaciones
+   * es mover reservas, participantes y una ficha del directorio, y es
+   * una decisión que toma una persona, no un PATCH. Se para con un
+   * mensaje que dice CUÁL es la otra, para que se pueda ir a mirarla.
+   */
+  async editarEmpresa(
+    id: string,
+    dto: EditarEmpresaDto,
+    actor: { id?: string | null; nombre: string },
+  ) {
+    const antes = await this.prisma.empresa.findUnique({
+      where: { id },
+      select: { id: true, nit: true, razonSocial: true },
+    });
+    if (!antes) throw new NotFoundException('Esa organización no existe.');
+
+    if (dto.nit && dto.nit !== antes.nit) {
+      const ocupado = await this.prisma.empresa.findUnique({
+        where: { nit: dto.nit },
+        select: { id: true, razonSocial: true },
+      });
+      if (ocupado && ocupado.id !== id) {
+        throw new BadRequestException(
+          `Ese NIT ya es de «${ocupado.razonSocial}». Si son la misma ` +
+            'organización repetida, hay que fundirlas a mano: mover sus ' +
+            'reservas y sus leads no es algo que deba hacer un cambio de ' +
+            'NIT por su cuenta.',
+        );
+      }
+    }
+
+    /// QUÉ CAMBIÓ DE VERDAD, para el registro. Guardar «editó» sin
+    /// decir qué convierte el historial en una lista de nombres y
+    /// horas que no contesta ninguna pregunta.
+    const tocados = Object.entries(dto)
+      .filter(([, v]) => v !== undefined)
+      .map(([k]) => k);
+
+    const empresa = await this.prisma.empresa.update({
+      where: { id },
+      data: { ...dto },
+    });
+
+    await this.auditoria.registrar({
+      actor,
+      accion: 'EMPRESA_EDITADA',
+      entidad: ENTIDADES.EMPRESA,
+      entidadId: id,
+      /// EL CAMBIO DE NIT SE DICE CON LAS DOS CIFRAS. Es el que
+      /// arrastra leads y reservas detrás, así que el día que alguien
+      /// pregunte «¿por qué esta ficha está en otra empresa?» la
+      /// respuesta tiene que estar escrita, no deducirse.
+      resumen:
+        dto.nit && dto.nit !== antes.nit
+          ? `NIT corregido de ${antes.nit} a ${dto.nit} en «${antes.razonSocial}».`
+          : `Datos corregidos en «${antes.razonSocial}».`,
+      camposTocados: tocados,
+    });
+
+    return empresa;
+  }
 
   private donde(filtros: FiltrosReservas): Prisma.ReservaWhereInput {
     const porAmbito: Prisma.ReservaWhereInput[] = filtros.ambito
