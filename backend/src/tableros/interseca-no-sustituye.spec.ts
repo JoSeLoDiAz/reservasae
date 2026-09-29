@@ -84,6 +84,10 @@ function espia() {
 
 const AMBITO = ['solo-adecopria'];
 
+/// El servicio pide auditoria en el constructor; estas pruebas no
+/// la ejercitan, asi que va un doble que no hace nada.
+const SIN_AUDITORIA = { registrar: () => Promise.resolve() } as never;
+
 describe('el ayudante del propio test distingue dónde filtra', () => {
   /// Si esto no fuera cierto, el resto del spec no valdría: era
   /// exactamente el defecto de la primera versión.
@@ -133,7 +137,7 @@ describe('el ayudante del propio test distingue dónde filtra', () => {
 describe('porUbicacion no deja que el filtro borre el ámbito', () => {
   it('sin filtro, el ámbito restringe', async () => {
     const { prisma, vistos } = espia();
-    const s = new TablerosService(prisma as never);
+    const s = new TablerosService(prisma as never, SIN_AUDITORIA);
 
     await s.porUbicacion(AMBITO);
 
@@ -144,7 +148,7 @@ describe('porUbicacion no deja que el filtro borre el ámbito', () => {
     /// Esta es la que fallaba: el ámbito desaparecía del `where`
     /// entero y la consulta salía sin cerradura.
     const { prisma, vistos } = espia();
-    const s = new TablerosService(prisma as never);
+    const s = new TablerosService(prisma as never, SIN_AUDITORIA);
 
     await s.porUbicacion(AMBITO, 'britcham-adee');
 
@@ -154,7 +158,7 @@ describe('porUbicacion no deja que el filtro borre el ámbito', () => {
 
   it('con el filtro propio, también', async () => {
     const { prisma, vistos } = espia();
-    const s = new TablerosService(prisma as never);
+    const s = new TablerosService(prisma as never, SIN_AUDITORIA);
 
     await s.porUbicacion(AMBITO, 'adecopria');
 

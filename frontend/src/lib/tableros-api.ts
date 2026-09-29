@@ -774,6 +774,19 @@ export const tablerosApi = {
     pedir<FilaUbicacion[]>(`/admin/tableros/ubicaciones${consulta({ convenio })}`),
   empresas: (filtros: { buscar?: string; pagina?: number; porPagina?: number } = {}) =>
     pedir<PaginaEmpresas>(`/admin/tableros/empresas${consulta(filtros)}`),
+
+  /**
+   * Corregir una organizacion, el NIT incluido.
+   *
+   * Lo que no se manda no se toca, asi que se puede corregir solo
+   * el NIT sin borrar el telefono. Y los leads la ACOMPANIAN: la
+   * referencian por su id interno, no por el NIT.
+   */
+  editarEmpresa: (id: string, datos: Record<string, string | number | null>) =>
+    pedir<FilaEmpresa>(`/admin/tableros/empresas/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(datos),
+    }),
   serie: (dias = 30) => pedir<PuntoSerie[]>(`/admin/tableros/serie${consulta({ dias })}`),
   proyeccion: (dias = 14) =>
     pedir<InformeProyeccion>(`/admin/tableros/proyeccion${consulta({ dias })}`),

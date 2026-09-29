@@ -6,6 +6,7 @@ import { n } from "@/components/admin/graficos";
 import { Aviso } from "@/components/admin/marco-admin";
 import { Tabla, type Columna } from "@/components/admin/tabla";
 import { CarguePlantilla } from "@/components/admin/cargue-plantilla";
+import { EditarEmpresa } from "@/components/admin/editar-empresa";
 import { bonito, ErrorApi, enMayusculas } from "@/lib/api";
 import {
   descargar,
@@ -21,6 +22,16 @@ export default function PaginaEmpresas() {
     null,
   );
   const [error, setError] = useState<string | null>(null);
+  /**
+   * CUÁL SE ESTÁ CORRIGIENDO. Nula = ninguna.
+   *
+   * «Tener la opción de modificar los datos: NIT, razón social y
+   * demás» (cliente, 28 sep 2026). Esta pantalla era de solo
+   * lectura, así que un NIT mal digitado se quedaba mal para
+   * siempre ---y con él las reservas y los leads de esa
+   * organización---.
+   */
+  const [corrigiendo, setCorrigiendo] = useState<FilaEmpresa | null>(null);
 
   const cargar = useCallback(async () => {
     try {
@@ -156,6 +167,31 @@ export default function PaginaEmpresas() {
         aparte: true,
         valor: (f) => f.creadoEn.slice(0, 10),
       },
+      /**
+       * CORREGIR, EN SU PROPIA COLUMNA.
+       *
+       * Y no pulsando la fila entera, que sería lo natural: la tabla
+       * compartida no tiene clic de fila, y añadírselo cambia una
+       * pieza que usan trece pantallas para resolver una. Un botón
+       * aquí no le toca el comportamiento a nadie más.
+       *
+       * `sinOrden` porque ordenar por un botón no significa nada.
+       */
+      {
+        clave: "corregir",
+        titulo: "",
+        sinOrden: true,
+        valor: () => "",
+        pinta: (f) => (
+          <button
+            type="button"
+            onClick={() => setCorrigiendo(f)}
+            className="sin-aro text-[0.78125rem] font-semibold whitespace-nowrap text-marca underline-offset-2 transition hover:underline"
+          >
+            Corregir
+          </button>
+        ),
+      },
     ],
     [],
   );
@@ -199,6 +235,18 @@ export default function PaginaEmpresas() {
           </>
         }
       />
+
+      {corrigiendo && (
+        <EditarEmpresa
+          empresa={corrigiendo}
+          alCerrar={() => setCorrigiendo(null)}
+          /// Se vuelve a pedir la página en vez de parchear la fila
+          /// en memoria: al corregir un NIT cambian también las
+          /// cuentas que el servidor calcula encima, y parchear
+          /// media fila deja la otra media diciendo lo de antes.
+          alGuardar={() => void cargar()}
+        />
+      )}
     </div>
   );
 }
