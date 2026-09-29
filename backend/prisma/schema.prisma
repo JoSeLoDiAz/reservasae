@@ -103,6 +103,23 @@ model AccionFormacion {
   visible       Boolean  @default(false) /// arranca oculta: se publica cuando tiene fechas
   orden         Int      @default(0)
   sepAfId       Int? /// como la conoce el SEP
+
+  /// Cuantos asesores trabajan esta accion, para la proyeccion de
+  /// metas. Lo pone el administrador a mano: no sale de ningun dato,
+  /// es una decision de gestion. La meta por asesor sale de dividir
+  /// la meta diaria entre este numero. Nulo = sin configurar.
+  proyeccionAsesores Int?
+  /// Los dias para el cierre que el administrador teclea, un numero.
+  /// La meta diaria sale de dividir los cupos que faltan entre este
+  /// numero. Nulo = se cae a los dias que quedan segun el cronograma.
+  proyeccionDias     Int?
+  /// La fecha de cierre que el administrador fija a mano, aparte del
+  /// cronograma. Es un tercer dato EDITABLE E INDEPENDIENTE, como en
+  /// la hoja de Josse: no manda sobre los dias --esos manejan la
+  /// meta-- sino que es la fecha de referencia. Nula = la del
+  /// cronograma.
+  proyeccionCierre   DateTime?
+
   creadoEn      DateTime @default(now())
   actualizadoEn DateTime @updatedAt
 

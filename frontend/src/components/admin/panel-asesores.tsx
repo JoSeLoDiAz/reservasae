@@ -36,8 +36,11 @@ import {
   type RitmoDeAsesor,
 } from "@/lib/crm-api";
 import { useDatosVivos } from "@/lib/datos-vivos";
+import { alcanza } from "@/lib/admin-api";
 
 import { DesgloseDelAsesor } from "./desglose-del-asesor";
+import { useAdmin } from "./marco-admin";
+import { useToast } from "./toast";
 import {
   etiquetaDelAnterior,
   FiltroDePeriodo,
@@ -1120,6 +1123,71 @@ function Proyeccion({ ventana, ventanaAntes, rotuloAnterior }: ConPeriodo) {
     clave: `proyeccion-${JSON.stringify(ventana)}-${JSON.stringify(ventanaAntes)}`,
   });
 
+  /// EL # DE ASESORES Y LOS DÍAS LOS EDITA EL ADMIN, y nadie más:
+  /// mover la meta que se le exige a cada asesor es del administrador.
+  /// Quien no puede, ve las cifras y no los controles.
+  const { admin } = useAdmin();
+  const toast = useToast();
+  const puedeEditar = alcanza(admin.permisos?.configuracion, "ESCRIBIR");
+
+  /// EL BORRADOR: lo que se está tecleando en cada fila, SIN guardar.
+  /// Josse lo pidió con botón «Guardar», no al instante: así puede
+  /// tocar el # de asesores y los días de una acción y guardarlos
+  /// juntos. Vive por `accionId` y sobrevive a la recarga automática,
+  /// que no lo toca --pisaría lo que se escribe--.
+  const [borrador, setBorrador] = useState<
+    Record<string, { asesores?: string; dias?: string; cierre?: string }>
+  >({});
+  const [guardando, setGuardando] = useState<string | null>(null);
+
+  const setCampo = useCallback(
+    (accionId: string, campo: "asesores" | "dias" | "cierre", valor: string) => {
+      setBorrador((b) => ({ ...b, [accionId]: { ...b[accionId], [campo]: valor } }));
+    },
+    [],
+  );
+
+  const guardarFila = useCallback(
+    async (accionId: string) => {
+      const cambios = borrador[accionId];
+      if (!cambios) return;
+      const aNumero = (v?: string) =>
+        v === undefined ? undefined : v.trim() === "" ? null : Number(v);
+      setGuardando(accionId);
+      try {
+        await crmApi.configurarProyeccion(accionId, {
+          asesores: aNumero(cambios.asesores),
+          dias: aNumero(cambios.dias),
+          cierre:
+            cambios.cierre === undefined
+              ? undefined
+              : cambios.cierre.trim() === ""
+                ? null
+                : cambios.cierre,
+        });
+        /// Guardado: se suelta el borrador y la tabla se refresca con
+        /// los valores nuevos.
+        setBorrador((b) => {
+          const n = { ...b };
+          delete n[accionId];
+          return n;
+        });
+        vivos.refrescar();
+        toast.exito("Guardado.");
+      } catch (e) {
+        toast.error((e as { message?: string }).message ?? "No se pudo guardar.");
+      } finally {
+        setGuardando(null);
+      }
+    },
+    [borrador, vivos, toast],
+  );
+
+  const edicion: EdicionProyeccion = useMemo(
+    () => ({ puedeEditar, borrador, setCampo, guardarFila, guardando }),
+    [puedeEditar, borrador, setCampo, guardarFila, guardando],
+  );
+
   /// La misma acción en el otro periodo, por su id. Una acción puede
   /// no estar allí ---nació después---: entonces no hay con qué
   /// comparar y no se pinta nada.
@@ -1130,10 +1198,12 @@ function Proyeccion({ ventana, ventanaAntes, rotuloAnterior }: ConPeriodo) {
   const comparando = vivos.datos?.antes != null;
   const columnas = useMemo(
     () =>
-      columnasDeProyeccion((f) =>
-        comparando ? (antesPorAccion.get(f.accionFormacionId) ?? null) : null,
+      columnasDeProyeccion(
+        (f) =>
+          comparando ? (antesPorAccion.get(f.accionFormacionId) ?? null) : null,
+        edicion,
       ),
-    [antesPorAccion, comparando],
+    [antesPorAccion, comparando, edicion],
   );
 
   if (vivos.error) return <Aviso tipo="error">{vivos.error}</Aviso>;
@@ -1183,7 +1253,7 @@ function Proyeccion({ ventana, ventanaAntes, rotuloAnterior }: ConPeriodo) {
         {/* LOS CUPOS NO COMPARAN: es lo comprometido con el SENA y no
             cambia con el periodo. Una flecha ahí diría que subieron o
             bajaron cuando son los mismos. */}
-        <CifraCompacta etiqueta="Cupos comprometidos" valor={n(t.cupos)} />
+        <CifraCompacta etiqueta="Meta de inscritos" valor={n(t.cupos)} />
         <CifraCompacta
           etiqueta="Inscritos"
           valor={n(t.inscritos)}
@@ -1248,7 +1318,7 @@ function Proyeccion({ ventana, ventanaAntes, rotuloAnterior }: ConPeriodo) {
       </details>
 
       <Tabla
-        id="proyeccion-inscripciones"
+        id="proyeccion-metas"
         columnas={columnas}
         filas={datos}
         clave={(f) => f.accionFormacionId}
@@ -1276,8 +1346,192 @@ function Proyeccion({ ventana, ventanaAntes, rotuloAnterior }: ConPeriodo) {
  * De todas ellas, la única que cuenta hechos del periodo es la de
  * inscritos.
  */
+type EdicionProyeccion = {
+  puedeEditar: boolean;
+  /// Lo que se está tecleando, sin guardar, por acción.
+  borrador: Record<string, { asesores?: string; dias?: string; cierre?: string }>;
+  setCampo: (
+    accionId: string,
+    campo: "asesores" | "dias" | "cierre",
+    valor: string,
+  ) => void;
+  guardarFila: (accionId: string) => void;
+  /// La acción que se está guardando ahora, para bloquear su fila.
+  guardando: string | null;
+};
+
+const CLASE_CELDA_NUMERO =
+  "w-16 rounded-lg border border-borde bg-superficie px-2 py-1 text-right text-sm tabular-nums outline-none focus:border-marca disabled:opacity-50";
+
+/**
+ * La meta diaria y la meta por asesor, EN VIVO, con lo que se está
+ * tecleando.
+ *
+ * Josse lo pidió así (29 sep 2026): «cuando yo cambie el # de
+ * asesores deben cambiar automáticamente los otros datos». Así que la
+ * cuenta se hace en el navegador con el BORRADOR ---lo que hay en los
+ * campos ahora, guardado o no---, sin esperar al botón Guardar. Al
+ * guardar, el servidor la rehace y manda; esto es la vista previa.
+ *
+ * Es la misma cuenta que `metasDeAccion` en el backend --cupos
+ * disponibles / días, / asesores-- y se deja escrito para que si una
+ * cambia, se cambie la otra. El backend sigue siendo el que manda: lo
+ * guardado sale de él.
+ */
+function metasEnVivo(
+  f: FilaDeProyeccion,
+  borrador: { asesores?: string; dias?: string } | undefined,
+): { metaDiaria: number | null; metaPorAsesor: number | null } {
+  const num = (v: string | undefined, siNo: number | null): number | null =>
+    v !== undefined && v.trim() !== "" ? Number(v) : siNo;
+  /// Los días del borrador si se están tocando; si no, los efectivos
+  /// que ya trae la fila (los guardados o los del cronograma).
+  const dias = num(borrador?.dias, f.diasParaCierre);
+  const asesores = num(borrador?.asesores, f.asesores);
+  const cuposDisponibles = f.faltan;
+
+  const metaDiaria = dias !== null && dias > 0 ? cuposDisponibles / dias : null;
+  const metaPorAsesor =
+    metaDiaria !== null && asesores !== null && asesores > 0
+      ? metaDiaria / asesores
+      : null;
+  return { metaDiaria, metaPorAsesor };
+}
+
+/**
+ * Una celda editable de número entero (# asesores o # días).
+ *
+ * NO guarda sola: escribe en el BORRADOR de su fila y se guarda con el
+ * botón «Guardar», como pidió Josse. El valor que enseña es el del
+ * borrador si se está tocando, si no el guardado. Así la recarga
+ * automática no pisa lo que se escribe.
+ */
+function CeldaNumero({
+  accionId,
+  campo,
+  guardado,
+  edicion,
+  etiqueta,
+  placeholder,
+}: {
+  accionId: string;
+  campo: "asesores" | "dias";
+  guardado: number | null;
+  edicion: EdicionProyeccion;
+  etiqueta: string;
+  placeholder?: string;
+}) {
+  if (!edicion.puedeEditar) {
+    return (
+      <span className="tabular-nums">
+        {guardado === null ? "—" : n(guardado)}
+      </span>
+    );
+  }
+  const enBorrador = edicion.borrador[accionId]?.[campo];
+  const valor = enBorrador ?? (guardado === null ? "" : String(guardado));
+  return (
+    <input
+      type="number"
+      min={1}
+      inputMode="numeric"
+      aria-label={etiqueta}
+      className={CLASE_CELDA_NUMERO}
+      value={valor}
+      disabled={edicion.guardando === accionId}
+      placeholder={placeholder ?? "—"}
+      onChange={(e) => edicion.setCampo(accionId, campo, e.target.value)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") edicion.guardarFila(accionId);
+      }}
+    />
+  );
+}
+
+/**
+ * Una celda editable de FECHA (fecha de cierre).
+ *
+ * Como las de número: escribe en el borrador y se guarda con el
+ * botón. Vacía = usa la del cronograma, que va de hint debajo.
+ */
+function CeldaFecha({
+  accionId,
+  guardado,
+  delCronograma,
+  edicion,
+}: {
+  accionId: string;
+  guardado: string | null;
+  delCronograma: string | null;
+  edicion: EdicionProyeccion;
+}) {
+  if (!edicion.puedeEditar) {
+    return guardado ? (
+      <span>{dia(guardado)}</span>
+    ) : delCronograma ? (
+      <span>{dia(delCronograma)}</span>
+    ) : (
+      <span className="text-aviso">Sin fecha</span>
+    );
+  }
+  const enBorrador = edicion.borrador[accionId]?.cierre;
+  const valor = enBorrador ?? guardado ?? "";
+  return (
+    <span className="block">
+      <input
+        type="date"
+        aria-label="Fecha de cierre"
+        className="rounded-lg border border-borde bg-superficie px-2 py-1 text-sm outline-none focus:border-marca disabled:opacity-50"
+        value={valor}
+        disabled={edicion.guardando === accionId}
+        onChange={(e) => edicion.setCampo(accionId, "cierre", e.target.value)}
+      />
+      {valor === "" && delCronograma && (
+        <span className="mt-0.5 block text-xs text-texto-suave">
+          cronograma: {dia(delCronograma)}
+        </span>
+      )}
+    </span>
+  );
+}
+
+/**
+ * El botón «Guardar» de la fila.
+ *
+ * Solo se enciende cuando esa fila tiene algo sin guardar; guarda el #
+ * de asesores y los días juntos. Sin cambios pendientes no hay nada
+ * que hacer, así que no distrae.
+ */
+function BotonGuardarFila({
+  accionId,
+  edicion,
+}: {
+  accionId: string;
+  edicion: EdicionProyeccion;
+}) {
+  if (!edicion.puedeEditar) return null;
+  const hayCambios = edicion.borrador[accionId] !== undefined;
+  const guardando = edicion.guardando === accionId;
+  return (
+    <button
+      type="button"
+      disabled={!hayCambios || guardando}
+      onClick={() => edicion.guardarFila(accionId)}
+      className={
+        "rounded-lg px-3 py-1 text-sm font-semibold transition " +
+        (hayCambios
+          ? "bg-marca text-marca-texto hover:bg-marca-fuerte"
+          : "cursor-default border border-borde text-texto-suave opacity-60")
+      }
+    >
+      {guardando ? "Guardando…" : "Guardar"}
+    </button>
+  );
+}
+
 const columnasDeProyeccion = (
   antesDe: (f: FilaDeProyeccion) => FilaDeProyeccion | null,
+  edicion: EdicionProyeccion,
 ): Columna<FilaDeProyeccion>[] => [
   {
     clave: "accion",
@@ -1300,18 +1554,24 @@ const columnasDeProyeccion = (
       </span>
     ),
   },
+  /// EL ORDEN Y LAS COLUMNAS SON LOS DE LA HOJA DE JOSSE (29 sep
+  /// 2026). Lo que Andrés traía de más ---Cierra, Inscritos en 15
+  /// días, Terminará con, Leads que faltan, ¿Alcanza?--- no se borra:
+  /// baja a `aparte`, así que sigue en el selector de columnas para
+  /// quien la quiera, pero de entrada se ve la tabla que él pidió.
   {
     clave: "cupos",
-    titulo: "Cupos",
-    ancho: "92px",
+    /// LA META DE INSCRITOS es el TOPE, con el 30% ---520, no 400---.
+    titulo: "Meta de inscritos",
+    ancho: "130px",
     numerica: true,
     valor: (f) => f.cupos,
     pinta: (f) => <span className="tabular-nums">{n(f.cupos)}</span>,
   },
   {
     clave: "inscritos",
-    titulo: "Inscritos",
-    ancho: "98px",
+    titulo: "Inscritos confirmados",
+    ancho: "150px",
     numerica: true,
     valor: (f) => f.inscritos,
     pinta: (f) => (
@@ -1322,8 +1582,9 @@ const columnasDeProyeccion = (
   },
   {
     clave: "faltan",
-    titulo: "Faltan",
-    ancho: "92px",
+    /// CUPOS DISPONIBLES = meta − confirmados. Es lo que falta.
+    titulo: "Cupos disponibles",
+    ancho: "130px",
     numerica: true,
     valor: (f) => f.faltan,
     pinta: (f) => (
@@ -1335,79 +1596,92 @@ const columnasDeProyeccion = (
     ),
   },
   {
-    clave: "cierre",
-    titulo: "Cierra",
-    ancho: "158px",
-    valor: (f) => f.cierre ?? "",
-    pinta: (f) =>
-      f.cierre ? (
-        <span>
-          {dia(f.cierre)}
-          <span className="block text-xs text-texto-suave">
-            {f.diasRestantes === null
-              ? ""
-              : f.diasRestantes > 0
-                ? `quedan ${n(f.diasRestantes)} días de trabajo`
-                : `cerró hace ${n(-f.diasRestantes)} días`}
-          </span>
-        </span>
-      ) : (
-        /// Sin fecha de inicio no hay cierre que calcular, y eso no se
-        /// arregla inscribiendo: se arregla poniéndole fecha al grupo.
-        <span className="text-aviso">Sin fecha de inicio</span>
-      ),
+    /// EL # DE ASESORES, a mano. La meta por asesor sale de dividir la
+    /// meta diaria entre este número.
+    clave: "asesores",
+    titulo: "# asesores",
+    ancho: "108px",
+    numerica: true,
+    valor: (f) => f.asesores ?? 0,
+    pinta: (f) => (
+      <CeldaNumero
+        accionId={f.accionFormacionId}
+        campo="asesores"
+        guardado={f.asesores}
+        edicion={edicion}
+        etiqueta="Número de asesores"
+      />
+    ),
   },
   {
+    /// LOS DÍAS PARA EL CIERRE, un número que él teclea (como en su
+    /// hoja), no una fecha. Vacío = usa los que quedan según el
+    /// cronograma, que van de hint en el placeholder.
+    clave: "dias",
+    titulo: "# días para el cierre",
+    ancho: "150px",
+    numerica: true,
+    valor: (f) => f.diasConfigurados ?? f.diasParaCierre ?? 0,
+    pinta: (f) => (
+      <CeldaNumero
+        accionId={f.accionFormacionId}
+        campo="dias"
+        guardado={f.diasConfigurados}
+        edicion={edicion}
+        etiqueta="Días para el cierre"
+        placeholder={
+          f.diasParaCierre !== null && f.diasParaCierre > 0
+            ? String(f.diasParaCierre)
+            : "—"
+        }
+      />
+    ),
+  },
+  {
+    /// LA META DIARIA: cupos disponibles / días para el cierre.
+    /// Se recalcula EN VIVO con lo que se está tecleando, no con lo
+    /// guardado, para que cambie sola al tocar los días. Redondeada
+    /// de la flotante ---520/7 = 74,3 se ve «74»---. Sin días, «—».
     clave: "metaDiaria",
     titulo: "Meta diaria",
     ancho: "110px",
     numerica: true,
-    valor: (f) => f.metaDiaria,
-    pinta: (f) => (
-      <span className="font-semibold tabular-nums">
-        {f.metaDiaria === null ? "—" : n(f.metaDiaria)}
-      </span>
-    ),
+    valor: (f) =>
+      metasEnVivo(f, edicion.borrador[f.accionFormacionId]).metaDiaria ?? 0,
+    pinta: (f) => {
+      const { metaDiaria } = metasEnVivo(f, edicion.borrador[f.accionFormacionId]);
+      return (
+        <span className="font-semibold tabular-nums">
+          {metaDiaria === null ? "—" : n(Math.round(metaDiaria))}
+        </span>
+      );
+    },
   },
   {
-    clave: "ritmo",
-    /**
-     * EL CONTEO CRUDO, no la tasa.
-     *
-     * Enseñaba «0,8 al día», y el cliente no quiere decimales en
-     * ninguna columna (27 sep 2026). Redondear una tasa por debajo de
-     * uno la convierte en cero, que es mentira. Así que se enseña el
-     * dato del que sale ---cuántos se inscribieron en los últimos
-     * quince días de trabajo---: es entero, es verdad, y es la cifra
-     * que alguien puede contrastar. La tasa sigue por dentro, que es
-     * donde hace falta para proyectar.
-     */
-    titulo: "Inscritos en 15 días",
-    ancho: "150px",
+    /// LA META DE CADA ASESOR: meta diaria / # asesores. También EN
+    /// VIVO: al cambiar el # de asesores, esta cambia sola. Nula sin
+    /// asesores ---que NO es cero: es que falta ponerlo---.
+    clave: "metaPorAsesor",
+    titulo: "Meta por asesor",
+    ancho: "130px",
     numerica: true,
-    valor: (f) => f.inscritosVentana,
-    pinta: (f) => <span className="tabular-nums">{n(f.inscritosVentana)}</span>,
-  },
-  {
-    clave: "proyeccion",
-    titulo: "Terminará con",
-    ancho: "112px",
-    numerica: true,
-    valor: (f) => f.proyeccion,
-    pinta: (f) => (
-      <span
-        className={
-          "font-semibold tabular-nums " +
-          (f.proyeccion >= f.cupos ? "text-exito" : "text-error")
-        }
-      >
-        {n(f.proyeccion)}
-      </span>
-    ),
+    valor: (f) =>
+      metasEnVivo(f, edicion.borrador[f.accionFormacionId]).metaPorAsesor ?? 0,
+    pinta: (f) => {
+      const { metaPorAsesor } = metasEnVivo(
+        f,
+        edicion.borrador[f.accionFormacionId],
+      );
+      return (
+        <span className="font-semibold text-marca tabular-nums">
+          {metaPorAsesor === null ? "—" : n(Math.round(metaPorAsesor))}
+        </span>
+      );
+    },
   },
   {
     clave: "conversion",
-    titulo: "Conversión",
+    titulo: "% conversión",
     ancho: "118px",
     numerica: true,
     valor: (f) => f.conversion,
@@ -1425,39 +1699,41 @@ const columnasDeProyeccion = (
     ),
   },
   {
-    clave: "porConseguir",
-    titulo: "Leads que faltan",
-    ancho: "152px",
-    numerica: true,
-    valor: (f) => f.leadsPorConseguir,
+    /// LA FECHA DE CIERRE, EDITABLE E INDEPENDIENTE (Josse, 29 sep):
+    /// los tres --# asesores, # días y fecha-- se editan. Es de
+    /// referencia; los días son los que manejan la meta. Vacía = la
+    /// del cronograma.
+    clave: "fechaCierre",
+    titulo: "Fecha de cierre",
+    ancho: "150px",
+    valor: (f) => f.cierreProyeccion ?? f.cierre ?? "",
     pinta: (f) => (
-      <span className="tabular-nums">
-        <span className={f.leadsPorConseguir > 0 ? "font-semibold" : ""}>
-          {n(f.leadsPorConseguir)}
-        </span>
-        {/* Los que ya están abiertos son materia prima que YA se
-            tiene: salir a buscar los que hacen falta enteros, con
-            ocho en la mano, manda a la calle por ocho de más. */}
-        {f.abiertos > 0 && (
-          <span className="block text-xs text-texto-suave">
-            {n(f.abiertos)} abiertos
-          </span>
-        )}
-      </span>
+      <CeldaFecha
+        accionId={f.accionFormacionId}
+        guardado={f.cierreProyeccion}
+        delCronograma={f.cierre}
+        edicion={edicion}
+      />
     ),
   },
   {
-    clave: "veredicto",
-    titulo: "¿Alcanza?",
-    ancho: "112px",
-    valor: (f) => VEREDICTO[f.veredicto].texto,
-    filtro: "opciones",
+    /// EL BOTÓN GUARDAR de la fila. Fija: no se puede quitar, porque
+    /// sin él no hay cómo guardar lo que se edita.
+    clave: "guardar",
+    titulo: "",
+    ancho: "128px",
+    fija: true,
+    valor: () => "",
     pinta: (f) => (
-      <span className="font-medium" style={{ color: VEREDICTO[f.veredicto].color }}>
-        {VEREDICTO[f.veredicto].texto}
-      </span>
+      <BotonGuardarFila accionId={f.accionFormacionId} edicion={edicion} />
     ),
   },
+  /// Y NADA MÁS. Son EXACTAMENTE las columnas de la hoja de Josse:
+  /// «solo se necesitan esos datos» (29 sep 2026). Las que traía
+  /// Andrés ---Cierra, Inscritos en 15 días, Terminará con, Leads que
+  /// faltan, ¿Alcanza?--- se quitaron de esta tabla. El backend las
+  /// sigue calculando (viajan en la fila), así que devolver una es
+  /// una línea el día que se pida.
 ];
 
 /**

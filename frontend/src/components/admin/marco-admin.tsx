@@ -1171,10 +1171,7 @@ function Grupos({
                 aria-expanded={desplegado}
                 title={modulo.etiqueta}
                 /// 13px y peso 600, que es la medida del
-                /// redisenio para el modulo. De paso cabe:
-                /// a 14px «Gestion de Inscripciones» y
-                /// «Sistemas de Informacion» se cortaban con
-                /// puntos suspensivos en la barra de 250.
+                /// redisenio para el modulo.
                 className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-[13px] font-semibold transition ${
                   desplegado
                     ? "opacity-100"
@@ -1189,8 +1186,37 @@ function Grupos({
                     </span>
                   ) : null;
                 })()}
+                {/* EL NOMBRE CORTO, EL MISMO DE LA CABECERA.
+
+                    Aqui decia `modulo.etiqueta`, o sea el largo, con
+                    el argumento de que en el cajon hay sitio. Y lo
+                    hay; el problema no era que no cupiera, era que
+                    un mismo modulo se llamaba de DOS maneras segun
+                    por donde se entrara: «Inscripciones» en el
+                    computador y «Gestion de Inscripciones» en el
+                    telefono, «Academica» y «Gestion Academica»,
+                    «Oferta» y «Oferta formativa», «Mailing» y
+                    «Campaña Mailing». Cuatro de los ocho.
+
+                    Y no es cosa de telefonos: quien decide cual se
+                    ve es la MEDIDA, no el aparato. Un iPad en
+                    vertical --medido: la fila se rinde por debajo
+                    de ~912 px-- lee los largos, y el MISMO iPad en
+                    horizontal lee los cortos. Igual le pasa a quien
+                    trabaja con la letra al 140 %.
+
+                    Lo pidio Josse (27 sep 2026): «que quede con los
+                    mismos nombres del menu que sale en computador,
+                    y asi lo mismo en tablets».
+
+                    El `title` de arriba sigue siendo el largo, que
+                    es lo que hace la fila de la cabecera: asi el
+                    nombre completo no se pierde y es lo que oye un
+                    lector de pantalla. Y la MIGA tampoco cambia --
+                    ahi manda el largo, que es donde se lee una vez
+                    y hay sitio de sobra. */}
                 <span className="truncate">
-                  {modulo.etiqueta}
+                  {modulo.corto ?? modulo.etiqueta}
                 </span>
                 <svg
                   aria-hidden

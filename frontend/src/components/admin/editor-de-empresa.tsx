@@ -16,6 +16,7 @@ type Empresa = NonNullable<Ficha["empresa"]>;
 /// conversión se hace UNA vez, al mandar.
 function desde(e: Empresa) {
   return {
+    nit: e.nit ?? "",
     razonSocial: e.razonSocial ?? "",
     digitoVerificacion: e.digitoVerificacion ?? "",
     direccion: e.direccion ?? "",
@@ -150,6 +151,7 @@ export function EditorDeEmpresa({
       d[clave] = v[clave] === "" ? null : Number(v[clave]);
     };
 
+    texto("nit");
     texto("razonSocial");
     texto("digitoVerificacion");
     texto("direccion");
@@ -203,16 +205,31 @@ export function EditorDeEmpresa({
         </button>
       </div>
 
-      {/* El NIT, en lectura y con su motivo al lado. Sin el
-          motivo se lee como un olvido, y alguien lo «arregla»
-          abriendo la llave de una fila que comparten todas las
-          fichas de esa empresa. */}
-      <p className="mt-3 text-[0.78125rem] text-texto-suave">
-        NIT <span className="font-medium text-texto">{empresa.nit}</span> — no se
-        cambia desde aquí: es el que identifica a la empresa ante el SENA.
-      </p>
+      {/* EL NIT AHORA SE EDITA (28 sep 2026).
 
+          Estuvo en solo lectura porque es la llave de la fila, y
+          el motivo escrito era bueno: «alguien lo arregla abriendo
+          una fila que comparten todas las fichas». Pero la gente
+          se preinscribe con el NIT mal —o con un «0»— y ese es
+          justo el dato que va al F7: un NIT malo es un reporte
+          malo. Así que se corrige, con dos avisos que siguen
+          valiendo: es de TODA la empresa, y el servidor rechaza si
+          el NIT ya es de otra. */}
       <div className="mt-3 grid gap-x-6 gap-y-3.5 sm:grid-cols-2">
+        <label className="block">
+          <span className={ROTULO}>NIT</span>
+          <input
+            className={CLASE_CONTROL}
+            value={v.nit}
+            onChange={(e) => poner("nit", e.target.value)}
+            inputMode="numeric"
+          />
+          <span className="mt-1 block text-[0.6875rem] leading-snug text-texto-suave">
+            Es el de toda la organización y el que va al SENA. Al
+            cambiarlo, el dígito de verificación se recalcula solo.
+          </span>
+        </label>
+
         <label className="block">
           <span className={ROTULO}>
             {porSuCuenta ? "A nombre de" : "Razón social"}

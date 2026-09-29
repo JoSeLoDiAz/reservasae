@@ -256,7 +256,7 @@ export class EmbudoService {
     ] = await Promise.all([
       this.personas(ambito, desde, hasta),
       this.porDia(ambito, desde, hasta),
-      this.corte(ambito, desde, hasta, procedenciaSql()),
+      this.corte(ambito, desde, hasta, procedenciaSql(true)),
       this.corte(ambito, desde, hasta, Prisma.raw('"ancho"')),
       this.corte(ambito, desde, hasta, Prisma.raw('"puerta"')),
       this.corte(ambito, desde, hasta, Prisma.raw('"utmCampana"')),
@@ -400,7 +400,7 @@ export class EmbudoService {
       this.prisma.$queryRaw<
         Array<{ valor: string; visitas: bigint; envios: bigint }>
       >`
-        SELECT ${procedenciaSql()} AS valor,
+        SELECT ${procedenciaSql(true)} AS valor,
                SUM(visitas)::bigint AS visitas,
                SUM(envios)::bigint  AS envios
           FROM visitas_reconstruidas
@@ -442,7 +442,7 @@ export class EmbudoService {
   private async bloqueCorto(ambito: string[], desde: Date, hasta: Date) {
     const [hitos, procedencia] = await Promise.all([
       this.hitos(ambito, desde, hasta),
-      this.corte(ambito, desde, hasta, procedenciaSql()),
+      this.corte(ambito, desde, hasta, procedenciaSql(true)),
     ]);
     return { hitos, procedencia };
   }

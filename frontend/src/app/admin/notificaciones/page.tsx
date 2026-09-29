@@ -93,17 +93,6 @@ export default function Notificaciones() {
         )}
       </Encabezado>
 
-      {/* LA BANDA PONE SU PROPIO RELLENO LATERAL.
-          `<main>` va A SANGRE a proposito --«el relleno lo pone
-          cada banda por dentro», marco-admin-- y esta pantalla
-          no lo ponia en ninguna: en el telefono la lista pegaba
-          con el canto de la pantalla, sin los 16 px de guardia.
-
-          `px-4` y no `px-7`: es el mismo canto que el `mx-4` del
-          encabezado de arriba, y con mas la lista quedaria mas
-          adentro que su propio titulo. */}
-      <section className="px-4 pt-1 pb-6">
-
       {error && <Aviso tipo="error">{error}</Aviso>}
 
       {/* Sin `mb-4`: el hueco lo pone el `gap-3` de la columna, y
@@ -164,7 +153,6 @@ export default function Notificaciones() {
           ))}
         </ul>
       )}
-      </section>
     </div>
   );
 }

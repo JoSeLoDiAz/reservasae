@@ -9,7 +9,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 
-import type { Admin } from '../../generated/prisma';
+import { RolAdmin, type Admin } from '../../generated/prisma';
 import { AdminActual, AmbitoActual } from '../admin/admin-actual.decorator';
 import { AdminGuard, Requiere, type Ambito } from '../admin/admin.guard';
 import { conveniosQueVenElEquipo } from '../admin/permisos';
@@ -61,11 +61,40 @@ export class NotificacionesController {
    */
   @Get('equipo')
   async equipo(
+    @AdminActual() admin: Admin,
     @AmbitoActual() ambito: Ambito,
     @Query('sinLeer') sinLeer?: string,
     @Query('limite') limite?: string,
   ) {
-    const convenios = conveniosQueVenElEquipo(ambito.roles);
+    /**
+     * EL SUPERADMIN TAMBIEN, Y SE CRUZA CON EL AMBITO.
+     *
+     * La regla de quien responde por el equipo vivia en TRES
+     * sitios y solo dos nombraban al superadmin --`admin.controller`
+     * :164 y `crm.controller`:136--. Aqui faltaba, y el efecto era
+     * un control en pie y vacio de efecto: `/admin/yo` decia
+     * `verElEquipo: true`, el panel pintaba la pestaña «Del
+     * equipo», y la ruta que abre contestaba SIEMPRE vacio --«Al
+     * equipo no le ha llegado nada»-- aunque los asesores tuvieran
+     * avisos sin leer. Porque `db:crear-admin` le concede a un
+     * superadmin `LIDER_SISTEMAS`, que NO esta en `VEN_EL_EQUIPO`.
+     * O sea que la afirmacion falsa se la llevaba justo quien abrio
+     * la pestaña para supervisar.
+     *
+     * Y SE INTERSECA CON `ambito.convenios`, que es lo segundo.
+     * `ambito.roles` son TODAS las concesiones de la cuenta, sin
+     * recortar por el gremio de la direccion; `ambito.convenios` ya
+     * viene recortado por `@Requiere` y por el host. Sin el cruce,
+     * entrando por `adecopria.` se leian los avisos de BRITCHAM
+     * --con nombre y cedula dentro--, que es la fuga de ambito de
+     * siempre por la puerta nueva.
+     */
+    const convenios =
+      admin.rol === RolAdmin.SUPERADMIN
+        ? ambito.convenios
+        : conveniosQueVenElEquipo(ambito.roles).filter((c) =>
+            ambito.convenios.includes(c),
+          );
     const filas = await this.notificaciones.listarDelEquipo(convenios, {
       soloSinLeer: sinLeer === 'si',
       limite: limite ? Number(limite) : undefined,

@@ -1491,6 +1491,24 @@ export type FilaDeProyeccion = {
   leadsNecesarios: number;
   leadsPorConseguir: number;
   veredicto: Veredicto;
+
+  /// LO DE LA CUENTA DE JOSSE, que el admin pone y el sistema deriva.
+  /// # asesores que puso el admin. Nulo = sin configurar.
+  asesores: number | null;
+  /// Los días que el admin tecleó, o null si no puso ninguno.
+  diasConfigurados: number | null;
+  /// La fecha de cierre que el admin fijó (ISO), o null. Editable e
+  /// independiente; de referencia, no manda sobre los días.
+  cierreProyeccion: string | null;
+  /// Los días EFECTIVOS --los del admin si los puso, si no los del
+  /// cronograma--. Nulo si no hay ninguno.
+  diasParaCierre: number | null;
+  /// Meta diaria en coma flotante, para redondear al pintar; sale de
+  /// los días efectivos.
+  metaDiariaFlotante: number | null;
+  /// Meta de cada asesor: meta diaria / # asesores. Nula sin asesores
+  /// configurados, que no es cero.
+  metaPorAsesor: number | null;
 };
 
 /**
@@ -1539,6 +1557,7 @@ export const crmApi = {
   guardarDatosEmpresa: (
     id: string,
     datos: {
+      nit?: string;
       razonSocial?: string;
       digitoVerificacion?: string;
       direccion?: string;
@@ -1602,6 +1621,22 @@ export const crmApi = {
   proyeccionDeInscripciones: (v: VentanaDeLlegada = {}) =>
     pedir<FilaDeProyeccion[]>(
       `/admin/participantes/asesores/proyeccion${consulta(v)}`,
+    ),
+
+  /// El admin fija el # de asesores y los días para el cierre de la
+  /// proyección de una acción. `null` vacía el campo; ausente es «no
+  /// lo toques».
+  configurarProyeccion: (
+    accionId: string,
+    cambios: {
+      asesores?: number | null;
+      dias?: number | null;
+      cierre?: string | null;
+    },
+  ) =>
+    pedir<{ guardado: boolean }>(
+      `/admin/participantes/asesores/proyeccion/${accionId}`,
+      { method: "PATCH", body: JSON.stringify(cambios) },
     ),
 
   /// EL RESUMEN GENERAL: siete cifras macro por acción de formación.

@@ -30,6 +30,7 @@ import {
 import { masReciente } from './ultima-actividad';
 import { origenDeLead } from './origen-del-lead';
 import { documentoValido, normalizarDocumento } from '../comun/documento';
+import { normalizarNit, calcularDigitoVerificacion } from '../comun/nit';
 import { borrarParticipaciones } from './borrar-participaciones';
 import { llevanFichasEn } from './quien-lleva-fichas';
 import { analizar, esInsalvable, repetidosEnElPegado } from './carga';
@@ -71,11 +72,11 @@ import {
 import { diasDeTrabajoAtras, hoyEnColombia } from './calendario-inscripcion';
 import {
   DIAS_DE_RITMO,
-  type FilaDeProyeccion,
   type FilaDeProyeccionAcademica,
   proyectarAcademico,
   proyectarInscripciones,
 } from './proyeccion';
+import { conMetas, type FilaConMetas } from './proyeccion-con-metas';
 import { exigirQuienAsignaGrupo } from './quien-asigna-grupo';
 import {
   faltaDeLaEmpresa,
@@ -806,14 +807,14 @@ export class CrmService {
     ambito: Ambito,
     ventana: VentanaDeLlegada = {},
     ahora = new Date(),
-  ): Promise<FilaDeProyeccion[]> {
+  ): Promise<FilaConMetas[]> {
     if (ambito.convenios.length === 0) return [];
     const donde = { convenioId: { in: ambito.convenios }, ...cuandoLlego(ventana) };
 
     /// EL ARRANQUE DE LA VENTANA DEL RITMO, en dias de TRABAJO.
     const desdeRitmo = diasDeTrabajoAtras(hoyEnColombia(ahora), DIAS_DE_RITMO);
 
-    const [leads, grupos, coberturas, movimientos] = await Promise.all([
+    const [leads, grupos, ofertas, movimientos, config] = await Promise.all([
       this.prisma.participante.findMany({
         where: donde,
         select: {
@@ -826,13 +827,15 @@ export class CrmService {
         where: { accionFormacion: { convenioId: { in: ambito.convenios } } },
         select: { accionFormacionId: true, fechaInicio: true, modalidad: true },
       }),
-      /// LOS CUPOS COMPROMETIDOS salen de las coberturas, que es de
-      /// donde salen en Cronograma y en Control de Reservas. Contarlos
-      /// por mi cuenta daria una tercera cifra parecida a las otras
-      /// dos, que es como se acaba discutiendo cual es la buena.
-      this.prisma.grupoCobertura.findMany({
-        where: { grupo: { accionFormacion: { convenioId: { in: ambito.convenios } } } },
-        select: { cuposBase: true, grupo: { select: { accionFormacionId: true } } },
+      /// LA META DE INSCRITOS es el TOPE, con el 30% de sobrecupo, no
+      /// la base. «Los cupos de AF1 y AF2 son 520, no 400; todos van
+      /// al 30%» (Josse, 29 sep 2026): la meta de a cuantos inscribir
+      /// es el tope de inscripcion --`cuposMaximos`, que ya trae el
+      /// 30%--, no `cuposBase`, que es lo comprometido con el SENA.
+      /// Por eso sale de `ofertas` y no de las coberturas.
+      this.prisma.oferta.findMany({
+        where: { accionFormacion: { convenioId: { in: ambito.convenios } } },
+        select: { cuposMaximos: true, accionFormacionId: true },
       }),
       /// CUANDO se inscribio cada uno. La etapa de hoy no lleva fecha
       /// pegada, asi que el ritmo sale de los movimientos, que es
@@ -848,13 +851,36 @@ export class CrmService {
           participante: { select: { accionFormacionId: true } },
         },
       }),
+      /// LO QUE EL ADMIN FIJO A MANO: # asesores y los dias para el
+      /// cierre. Del ambito, no de un id suelto: la tabla es del
+      /// gremio de la puerta.
+      this.prisma.accionFormacion.findMany({
+        where: { convenioId: { in: ambito.convenios } },
+        select: {
+          id: true,
+          proyeccionAsesores: true,
+          proyeccionDias: true,
+          proyeccionCierre: true,
+        },
+      }),
     ]);
 
     const cupos = new Map<string, number>();
-    for (const c of coberturas) {
-      const id = c.grupo.accionFormacionId;
-      cupos.set(id, (cupos.get(id) ?? 0) + c.cuposBase);
+    for (const o of ofertas) {
+      const id = o.accionFormacionId;
+      cupos.set(id, (cupos.get(id) ?? 0) + o.cuposMaximos);
     }
+
+    const configPorAccion = new Map(
+      config.map((a) => [
+        a.id,
+        {
+          asesores: a.proyeccionAsesores,
+          dias: a.proyeccionDias,
+          cierre: a.proyeccionCierre,
+        },
+      ]),
+    );
 
     /// UNA VEZ POR PERSONA. Quien paso a INSCRITO y luego a
     /// EN_FORMACION deja dos movimientos dentro de la ventana, y
@@ -868,7 +894,7 @@ export class CrmService {
       inscritosRecientes.set(id, (inscritosRecientes.get(id) ?? 0) + 1);
     }
 
-    return proyectarInscripciones(
+    const filas = proyectarInscripciones(
       leads.map((l: (typeof leads)[number]) => ({
         accionFormacionId: l.accionFormacionId,
         codigo: l.accionFormacion?.codigo ?? null,
@@ -880,6 +906,157 @@ export class CrmService {
       inscritosRecientes,
       ahora,
     );
+
+    /// Y encima, la cuenta de metas de Josse: # asesores y días
+    /// editables → meta diaria y meta por asesor.
+    return filas.map((f) =>
+      conMetas(
+        f,
+        configPorAccion.get(f.accionFormacionId) ?? {
+          asesores: null,
+          dias: null,
+          cierre: null,
+        },
+      ),
+    );
+  }
+
+  /**
+   * El administrador fija el # de asesores y los días para el cierre
+   * de la proyección de una acción, y queda el registro de cambios.
+   *
+   * Solo lo toca el administrador --lo pidió Catalina-- y por eso la
+   * ruta va con `configuracion · ESCRIBIR`. La acción tiene que ser
+   * del ámbito de la puerta: fijar la meta de una acción del otro
+   * gremio sería tocar su tabla desde donde no se debe.
+   *
+   * `undefined` es «no lo toques»; `null` es «bórralo» --vaciar el
+   * campo deja el # de asesores sin poner, o los días vuelven a los
+   * del cronograma--. Es la misma distinción que la ficha de la
+   * empresa.
+   */
+  async configurarProyeccion(
+    accionFormacionId: string,
+    cambios: {
+      asesores?: number | null;
+      dias?: number | null;
+      cierre?: string | null;
+    },
+    ambito: Ambito,
+    actor: Actor,
+    ip?: string,
+  ) {
+    const accion = await this.prisma.accionFormacion.findFirst({
+      where: {
+        id: accionFormacionId,
+        convenioId: { in: ambito.convenios },
+      },
+      select: {
+        id: true,
+        convenioId: true,
+        codigo: true,
+        proyeccionAsesores: true,
+        proyeccionDias: true,
+        proyeccionCierre: true,
+      },
+    });
+    /// Fuera del ámbito la fila NO EXISTE: 404, no 403. Un 403 diría
+    /// que esa acción del otro gremio existe.
+    if (!accion) {
+      throw new NotFoundException('Esa acción de formación no existe.');
+    }
+
+    const data: {
+      proyeccionAsesores?: number | null;
+      proyeccionDias?: number | null;
+      proyeccionCierre?: Date | null;
+    } = {};
+    const tocados: string[] = [];
+
+    if (cambios.asesores !== undefined) {
+      if (cambios.asesores !== null) {
+        if (!Number.isInteger(cambios.asesores) || cambios.asesores < 1) {
+          throw new BadRequestException(
+            'El número de asesores tiene que ser un entero de 1 o más.',
+          );
+        }
+        if (cambios.asesores > 999) {
+          throw new BadRequestException('Ese número de asesores no es real.');
+        }
+      }
+      data.proyeccionAsesores = cambios.asesores;
+      tocados.push('asesores');
+    }
+
+    if (cambios.dias !== undefined) {
+      if (cambios.dias !== null) {
+        if (!Number.isInteger(cambios.dias) || cambios.dias < 1) {
+          throw new BadRequestException(
+            'Los días para el cierre tienen que ser un entero de 1 o más.',
+          );
+        }
+        if (cambios.dias > 999) {
+          throw new BadRequestException('Ese número de días no es real.');
+        }
+      }
+      data.proyeccionDias = cambios.dias;
+      tocados.push('dias');
+    }
+
+    if (cambios.cierre !== undefined) {
+      if (cambios.cierre === null) {
+        data.proyeccionCierre = null;
+      } else {
+        /// Fecha de calendario, a medianoche de Bogotá, como el
+        /// cronograma.
+        const fecha = new Date(`${cambios.cierre}T05:00:00.000Z`);
+        if (Number.isNaN(fecha.getTime())) {
+          throw new BadRequestException('Esa fecha de cierre no es válida.');
+        }
+        data.proyeccionCierre = fecha;
+      }
+      tocados.push('cierre');
+    }
+
+    if (tocados.length === 0) {
+      throw new BadRequestException('No llegó ningún cambio.');
+    }
+
+    await this.prisma.accionFormacion.update({
+      where: { id: accionFormacionId },
+      data,
+    });
+
+    /// EL REGISTRO DE CAMBIOS que pidió Catalina: el antes y el
+    /// después de lo que se tocó. Cambia la meta que se le exige a
+    /// cada asesor, así que quién y cuándo tiene que constar.
+    const antes: string[] = [];
+    const despues: string[] = [];
+    if (cambios.asesores !== undefined) {
+      antes.push(`asesores ${accion.proyeccionAsesores ?? '—'}`);
+      despues.push(`asesores ${cambios.asesores ?? '—'}`);
+    }
+    if (cambios.dias !== undefined) {
+      antes.push(`días ${accion.proyeccionDias ?? '—'}`);
+      despues.push(`días ${cambios.dias ?? '—'}`);
+    }
+    if (cambios.cierre !== undefined) {
+      const iso = (d: Date | null) => (d ? d.toISOString().slice(0, 10) : '—');
+      antes.push(`cierre ${iso(accion.proyeccionCierre)}`);
+      despues.push(`cierre ${cambios.cierre ?? '—'}`);
+    }
+    await this.auditoria.registrar({
+      actor,
+      accion: 'PROYECCION_EDITADA',
+      entidad: ENTIDADES.ACCION,
+      entidadId: accionFormacionId,
+      convenioId: accion.convenioId,
+      resumen: `${antes.join(', ')} → ${despues.join(', ')}`,
+      camposTocados: tocados,
+      ip,
+    });
+
+    return { guardado: true };
   }
 
   /**
@@ -2335,6 +2512,7 @@ export class CrmService {
   async guardarDatosDeLaEmpresa(
     id: string,
     datos: {
+      nit?: string;
       razonSocial?: string;
       digitoVerificacion?: string;
       direccion?: string;
@@ -2371,6 +2549,80 @@ export class CrmService {
       );
     }
 
+    /**
+     * EL NIT SÍ SE CORRIGE, y esto es lo nuevo (28 sep 2026).
+     *
+     * La gente se preinscribe con el NIT mal —o con un «0» de
+     * relleno— y hasta hoy no había forma de arreglarlo: era la
+     * llave de la fila y la pantalla lo enseñaba en solo lectura.
+     * Pero es JUSTO el dato que viaja al SENA —el F7 y los dos
+     * cargues leen `empresa.nit` directo—, así que un NIT malo es
+     * un reporte malo, y tenía que poder corregirse.
+     *
+     * Corrige el NIT de ESTA empresa, o sea de la fila que
+     * comparten todas sus fichas, que es lo que se pidió: «la
+     * empresa está mal, edítenla». No mueve a la persona a otra
+     * empresa —para eso está el enlace de completado— ni funde dos
+     * empresas.
+     *
+     * TRES CAMINOS, y el tercero NO se hace en silencio:
+     *
+     *  1. El mismo NIT (ya normalizado): no es un cambio, se sigue
+     *     de largo con el resto de campos.
+     *  2. Un NIT LIBRE: se renombra la fila. Todas sus fichas
+     *     quedan bien de una vez, sin tocar reservas ni cupos —el
+     *     contador vive en la oferta, no aquí—. El DV se recalcula
+     *     (regla de la casa: el DV no se teclea, se deriva) y el
+     *     vínculo con el maestro de NIT se suelta, porque apuntaba
+     *     al del NIT viejo; el emparejador lo vuelve a atar.
+     *  3. Un NIT que YA es de OTRA empresa: se RECHAZA nombrándola.
+     *     Fundir dos organizaciones arrastra sus reservas —con el
+     *     `@@unique([empresaId, ofertaId])` de por medio— y sus
+     *     cupos, y es una operación aparte que no se improvisa. El
+     *     mensaje dice cuál es para que el asesor sepa que esa
+     *     persona va movida a la existente, no renombrada aquí.
+     */
+    let parcheNit:
+      | { nit: string; digitoVerificacion: string; institucionId: null }
+      | null = null;
+    let nitAntes: string | null = null;
+
+    if (datos.nit !== undefined && datos.nit.trim() !== '') {
+      const leido = normalizarNit(datos.nit);
+      if (!leido) {
+        throw new BadRequestException(
+          'El NIT no es válido: tiene que ser de 5 a 15 dígitos, con o ' +
+            'sin dígito de verificación.',
+        );
+      }
+
+      const actual = await this.prisma.empresa.findUnique({
+        where: { id: empresaId },
+        select: { nit: true },
+      });
+      nitAntes = actual?.nit ?? null;
+
+      if (leido.nit !== nitAntes) {
+        const otra = await this.prisma.empresa.findUnique({
+          where: { nit: leido.nit },
+          select: { id: true, razonSocial: true },
+        });
+        if (otra && otra.id !== empresaId) {
+          throw new BadRequestException(
+            `Ya hay otra empresa con el NIT ${leido.nit} ` +
+              `(${otra.razonSocial}). Para mover a esta persona a esa ` +
+              'empresa, use su enlace de completado; aquí solo se corrige ' +
+              'el NIT de la organización actual.',
+          );
+        }
+        parcheNit = {
+          nit: leido.nit,
+          digitoVerificacion: calcularDigitoVerificacion(leido.nit),
+          institucionId: null,
+        };
+      }
+    }
+
     /// Texto en blanco es «no lo sé», no «bórralo».
     ///
     /// Quien deja un campo vacío en la pantalla casi siempre es
@@ -2400,6 +2652,11 @@ export class CrmService {
     const tocados = Object.entries(limpio)
       .filter(([, v]) => v !== undefined)
       .map(([k]) => k);
+
+    /// El NIT cuenta como cambio: si solo se corrige el NIT, sin
+    /// esto la función se caía con «No llegó ningún dato» y no
+    /// guardaba nada.
+    if (parcheNit) tocados.push('nit');
 
     if (tocados.length === 0) {
       throw new BadRequestException('No llegó ningún dato que guardar.');
@@ -2456,7 +2713,7 @@ export class CrmService {
 
     await this.prisma.empresa.update({
       where: { id: empresaId },
-      data: limpio,
+      data: { ...limpio, ...(parcheNit ?? {}) },
     });
 
     /// Queda la huella. Son datos de una empresa que van al
@@ -2471,6 +2728,23 @@ export class CrmService {
       camposTocados: tocados,
       ip,
     });
+
+    /// El NIT lleva su PROPIA huella, con el antes y el después.
+    ///
+    /// Cambia la identidad de la organización ante el SENA —quién
+    /// aparece en el F7—, así que no basta con «se editó la
+    /// empresa»: hay que poder decir de qué NIT a cuál, y quién.
+    if (parcheNit) {
+      await this.auditoria.registrar({
+        actor,
+        accion: 'NIT_CORREGIDO',
+        entidad: ENTIDADES.EMPRESA,
+        entidadId: empresaId,
+        convenioId: suyo?.convenioId ?? null,
+        resumen: `${nitAntes ?? '—'} → ${parcheNit.nit}`,
+        ip,
+      });
+    }
 
     /// COMPLETAR LA ORGANIZACIÓN TAMBIÉN MUEVE LA ETAPA.
     ///

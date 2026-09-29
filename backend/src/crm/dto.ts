@@ -585,6 +585,16 @@ export class ResolverPropuestaDto {
  * verdad se teclea mal.
  */
 export class DatosDeLaEmpresaDto {
+  /// El NIT SÍ se corrige, aunque sea la llave: es el que viaja al
+  /// F7, así que un NIT mal tecleado es un reporte malo. El
+  /// servidor lo normaliza, recalcula el dígito y rechaza si ya es
+  /// de otra empresa. Cadena porque llega con puntos o guion.
+  @IsOptional()
+  @Transform(recortar)
+  @IsString()
+  @MaxLength(20)
+  nit?: string;
+
   @IsOptional()
   @Transform(recortar)
   @IsString()
@@ -663,4 +673,33 @@ export class AsignarGrupoEnLoteDto {
   })
   @IsString({ each: true })
   ids!: string[];
+}
+
+/**
+ * Configurar la proyección de metas de una acción: # asesores y días
+ * para el cierre, que el administrador pone a mano.
+ *
+ * Los dos son opcionales por separado: se puede cambiar solo uno.
+ * `null` vacía el campo --el # de asesores queda sin poner, o el
+ * cierre vuelve al del cronograma--; ausente es «no lo toques». La
+ * validación fina --entero, rango, fecha real-- vive en el servicio,
+ * que es donde también decide si la acción es del ámbito.
+ */
+export class ConfigProyeccionDto {
+  @IsOptional()
+  @ValidateIf((o: ConfigProyeccionDto) => o.asesores !== null)
+  @Type(() => Number)
+  @IsInt({ message: 'El número de asesores tiene que ser un entero.' })
+  asesores?: number | null;
+
+  @IsOptional()
+  @ValidateIf((o: ConfigProyeccionDto) => o.dias !== null)
+  @Type(() => Number)
+  @IsInt({ message: 'Los días para el cierre tienen que ser un entero.' })
+  dias?: number | null;
+
+  @IsOptional()
+  @ValidateIf((o: ConfigProyeccionDto) => o.cierre !== null)
+  @IsDateString({}, { message: 'La fecha de cierre no es válida.' })
+  cierre?: string | null;
 }

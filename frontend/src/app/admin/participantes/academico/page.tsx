@@ -533,6 +533,31 @@ function Seguimiento() {
           `Tabla` trae su propio estado vacío; esto le pasa el texto y
           la barra se queda donde está. */}
       {verInscritos && (
+      /**
+       * LA TABLA TIENE UN SUELO, Y ESE SUELO ES LO QUE DEVUELVE EL
+       * SCROLL DE LA PÁGINA.
+       *
+       * `Tabla` acota su cuerpo con `flex-1 overflow-auto` y eso
+       * exige que sus padres tengan altura acotada --la cadena
+       * `min-h-0 grow` que pidió el cliente el 25 sep: «el scroll no
+       * queda afuera, queda en la tabla»--. Funciona mientras encima
+       * haya poco: en Gestión de leads a la caja le tocan 576 px.
+       *
+       * Aquí, con las seis cifras, los dos desplegables y las
+       * tarjetas de grupo encima, le tocaban 147 --medido-- y la
+       * pantalla quedaba clavada: solo se movía la tabla, dentro de
+       * una rendija, y el resto no subía (Josse, 27 sep 2026).
+       *
+       * Con el suelo, cuando lo de arriba crece la suma pasa del
+       * alto de `main` y es MAIN el que se desplaza, que es lo que se
+       * pedía. Y cuando hay sitio, la tabla sigue scrolleando por
+       * dentro como en Gestión de leads: las dos peticiones caben.
+       *
+       * El DOCUMENTO sigue sin scrollear --«el panel no scrollea el
+       * documento. NUNCA», globals.css--: quien se desplaza es
+       * `main`, que para eso lleva su `overflow-y-auto`.
+       */
+      <div className="flex min-h-[26rem] grow flex-col">
       <Tabla
         /// LA MISMA TABLA DE GESTIÓN DE LEADS, no una parecida:
         /// «prácticamente es como la tabla de Gestión de leads, su
@@ -572,6 +597,7 @@ function Seguimiento() {
           )
         }
       />
+      </div>
       )}
 
       {enElCajon && (
