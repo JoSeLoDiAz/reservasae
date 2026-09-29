@@ -36,8 +36,11 @@ import {
   type RitmoDeAsesor,
 } from "@/lib/crm-api";
 import { useDatosVivos } from "@/lib/datos-vivos";
+import { alcanza } from "@/lib/admin-api";
 
 import { DesgloseDelAsesor } from "./desglose-del-asesor";
+import { useAdmin } from "./marco-admin";
+import { useToast } from "./toast";
 import {
   etiquetaDelAnterior,
   FiltroDePeriodo,
@@ -1120,6 +1123,28 @@ function Proyeccion({ ventana, ventanaAntes, rotuloAnterior }: ConPeriodo) {
     clave: `proyeccion-${JSON.stringify(ventana)}-${JSON.stringify(ventanaAntes)}`,
   });
 
+  /// EL # DE ASESORES Y LA FECHA DE CIERRE LOS EDITA EL ADMIN, y nadie
+  /// más: mover la meta que se le exige a cada asesor es del
+  /// administrador. Quien no puede, ve las cifras y no los controles.
+  const { admin } = useAdmin();
+  const toast = useToast();
+  const puedeEditar = alcanza(admin.permisos?.configuracion, "ESCRIBIR");
+
+  const guardar = useCallback(
+    async (accionId: string, cambios: { asesores?: number | null; cierre?: string | null }) => {
+      try {
+        await crmApi.configurarProyeccion(accionId, cambios);
+        vivos.refrescar();
+      } catch (e) {
+        toast.error((e as { message?: string }).message ?? "No se pudo guardar.");
+        /// Se relanza para que el editor devuelva el valor de antes:
+        /// si no se guardó, no puede quedar pintado como si sí.
+        throw e;
+      }
+    },
+    [toast, vivos],
+  );
+
   /// La misma acción en el otro periodo, por su id. Una acción puede
   /// no estar allí ---nació después---: entonces no hay con qué
   /// comparar y no se pinta nada.
@@ -1130,10 +1155,12 @@ function Proyeccion({ ventana, ventanaAntes, rotuloAnterior }: ConPeriodo) {
   const comparando = vivos.datos?.antes != null;
   const columnas = useMemo(
     () =>
-      columnasDeProyeccion((f) =>
-        comparando ? (antesPorAccion.get(f.accionFormacionId) ?? null) : null,
+      columnasDeProyeccion(
+        (f) =>
+          comparando ? (antesPorAccion.get(f.accionFormacionId) ?? null) : null,
+        { puedeEditar, guardar },
       ),
-    [antesPorAccion, comparando],
+    [antesPorAccion, comparando, puedeEditar, guardar],
   );
 
   if (vivos.error) return <Aviso tipo="error">{vivos.error}</Aviso>;
@@ -1276,8 +1303,121 @@ function Proyeccion({ ventana, ventanaAntes, rotuloAnterior }: ConPeriodo) {
  * De todas ellas, la única que cuenta hechos del periodo es la de
  * inscritos.
  */
+type EdicionProyeccion = {
+  puedeEditar: boolean;
+  guardar: (
+    accionId: string,
+    cambios: { asesores?: number | null; cierre?: string | null },
+  ) => Promise<void>;
+};
+
+/**
+ * El # de asesores, editable en la celda.
+ *
+ * Guarda al salir del campo o con Enter, no en cada tecla: un viaje
+ * de red por pulsación sería absurdo. Si el servidor lo rechaza,
+ * VUELVE al valor que había: no puede quedar pintado un número que no
+ * se guardó. Mientras se guarda, el campo se bloquea.
+ *
+ * `key` con el valor guardado: cuando la recarga trae otro número, el
+ * campo se resiembra --React lo remonta-- salvo que se esté editando,
+ * que es cuando el foco lo tiene y no llega recarga que lo pise.
+ */
+function EditorAsesores({
+  accionId,
+  valor,
+  guardar,
+}: {
+  accionId: string;
+  valor: number | null;
+  guardar: EdicionProyeccion["guardar"];
+}) {
+  const [texto, setTexto] = useState(valor === null ? "" : String(valor));
+  const [guardando, setGuardando] = useState(false);
+
+  const enviar = async () => {
+    const limpio = texto.trim();
+    const nuevo = limpio === "" ? null : Number(limpio);
+    /// Nada que hacer si no cambió.
+    if (nuevo === valor) return;
+    if (nuevo !== null && (!Number.isInteger(nuevo) || nuevo < 1)) {
+      setTexto(valor === null ? "" : String(valor));
+      return;
+    }
+    setGuardando(true);
+    try {
+      await guardar(accionId, { asesores: nuevo });
+    } catch {
+      setTexto(valor === null ? "" : String(valor));
+    } finally {
+      setGuardando(false);
+    }
+  };
+
+  return (
+    <input
+      type="number"
+      min={1}
+      inputMode="numeric"
+      aria-label="Número de asesores"
+      className="w-16 rounded-lg border border-borde bg-superficie px-2 py-1 text-right text-sm tabular-nums outline-none focus:border-marca"
+      value={texto}
+      disabled={guardando}
+      placeholder="—"
+      onChange={(e) => setTexto(e.target.value)}
+      onBlur={enviar}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") e.currentTarget.blur();
+        if (e.key === "Escape") setTexto(valor === null ? "" : String(valor));
+      }}
+    />
+  );
+}
+
+/** La fecha de cierre de la proyección, editable. Vacía = usa el cronograma. */
+function EditorCierre({
+  accionId,
+  valor,
+  guardar,
+}: {
+  accionId: string;
+  valor: string | null;
+  guardar: EdicionProyeccion["guardar"];
+}) {
+  const [fecha, setFecha] = useState(valor ?? "");
+  const [guardando, setGuardando] = useState(false);
+
+  const enviar = async (nuevo: string) => {
+    const v = nuevo === "" ? null : nuevo;
+    if (v === valor) return;
+    setGuardando(true);
+    try {
+      await guardar(accionId, { cierre: v });
+    } catch {
+      setFecha(valor ?? "");
+    } finally {
+      setGuardando(false);
+    }
+  };
+
+  return (
+    <input
+      type="date"
+      aria-label="Fecha de cierre para la proyección"
+      className="rounded-lg border border-borde bg-superficie px-2 py-1 text-sm outline-none focus:border-marca"
+      value={fecha}
+      disabled={guardando}
+      onChange={(e) => {
+        setFecha(e.target.value);
+        void enviar(e.target.value);
+      }}
+    />
+  );
+}
+
 const columnasDeProyeccion = (
   antesDe: (f: FilaDeProyeccion) => FilaDeProyeccion | null,
+  edicion: EdicionProyeccion,
 ): Columna<FilaDeProyeccion>[] => [
   {
     clave: "accion",
@@ -1358,14 +1498,80 @@ const columnasDeProyeccion = (
       ),
   },
   {
+    /// LA FECHA DE CIERRE QUE PONE EL ADMIN, aparte del cronograma:
+    /// «cierro el 5, pero corro al 7». De ella salen los días para el
+    /// cierre y, con eso, la meta diaria. Vacía = usa la del
+    /// cronograma. Quien no edita, ve la que rija.
+    clave: "cierreMeta",
+    titulo: "Cierre (meta)",
+    ancho: "148px",
+    valor: (f) => f.cierreProyeccion ?? f.cierre ?? "",
+    pinta: (f) =>
+      edicion.puedeEditar ? (
+        <EditorCierre
+          key={`${f.accionFormacionId}:${f.cierreProyeccion ?? ""}`}
+          accionId={f.accionFormacionId}
+          valor={f.cierreProyeccion}
+          guardar={edicion.guardar}
+        />
+      ) : f.cierreProyeccion ? (
+        <span>{dia(f.cierreProyeccion)}</span>
+      ) : (
+        <span className="text-texto-suave">del cronograma</span>
+      ),
+  },
+  {
+    /// EL # DE ASESORES, a mano. La meta por asesor sale de dividir la
+    /// diaria entre este número. Sin poner, la meta por asesor no se
+    /// puede calcular y sale «—».
+    clave: "asesores",
+    titulo: "# asesores",
+    ancho: "108px",
+    numerica: true,
+    valor: (f) => f.asesores ?? 0,
+    pinta: (f) =>
+      edicion.puedeEditar ? (
+        <EditorAsesores
+          key={`${f.accionFormacionId}:${f.asesores ?? ""}`}
+          accionId={f.accionFormacionId}
+          valor={f.asesores}
+          guardar={edicion.guardar}
+        />
+      ) : (
+        <span className="tabular-nums">
+          {f.asesores === null ? "—" : n(f.asesores)}
+        </span>
+      ),
+  },
+  {
+    /// LA META DIARIA DE JOSSE: cupos que faltan / días al cierre
+    /// EFECTIVO. Se pinta redondeada de la flotante ---449/7 = 64,14
+    /// se ve «64»---, no la de Andrés (ceil sobre el cronograma).
+    /// Sin días de ningún lado, «—».
     clave: "metaDiaria",
     titulo: "Meta diaria",
     ancho: "110px",
     numerica: true,
-    valor: (f) => f.metaDiaria,
+    valor: (f) => f.metaDiariaFlotante ?? f.metaDiaria,
     pinta: (f) => (
       <span className="font-semibold tabular-nums">
-        {f.metaDiaria === null ? "—" : n(f.metaDiaria)}
+        {f.metaDiariaFlotante === null
+          ? "—"
+          : n(Math.round(f.metaDiariaFlotante))}
+      </span>
+    ),
+  },
+  {
+    /// LA META DE CADA ASESOR: meta diaria / # asesores. Nula sin
+    /// asesores configurados ---que NO es cero: es que falta ponerlo---.
+    clave: "metaPorAsesor",
+    titulo: "Meta por asesor",
+    ancho: "130px",
+    numerica: true,
+    valor: (f) => f.metaPorAsesor ?? 0,
+    pinta: (f) => (
+      <span className="font-semibold text-marca tabular-nums">
+        {f.metaPorAsesor === null ? "—" : n(Math.round(f.metaPorAsesor))}
       </span>
     ),
   },
