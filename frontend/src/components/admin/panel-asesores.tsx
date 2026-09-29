@@ -1247,7 +1247,7 @@ function Proyeccion({ ventana, ventanaAntes, rotuloAnterior }: ConPeriodo) {
         {/* LOS CUPOS NO COMPARAN: es lo comprometido con el SENA y no
             cambia con el periodo. Una flecha ahí diría que subieron o
             bajaron cuando son los mismos. */}
-        <CifraCompacta etiqueta="Cupos comprometidos" valor={n(t.cupos)} />
+        <CifraCompacta etiqueta="Meta de inscritos" valor={n(t.cupos)} />
         <CifraCompacta
           etiqueta="Inscritos"
           valor={n(t.inscritos)}
