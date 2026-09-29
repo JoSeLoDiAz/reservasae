@@ -15,7 +15,7 @@ type AccionFalsa = {
   id: string;
   convenioId: string;
   proyeccionAsesores: number | null;
-  proyeccionCierre: Date | null;
+  proyeccionDias: number | null;
 };
 
 function armar(acciones: AccionFalsa[]) {
@@ -67,7 +67,7 @@ function armar(acciones: AccionFalsa[]) {
 
   const configurar = (
     id: string,
-    cambios: { asesores?: number | null; cierre?: string | null },
+    cambios: { asesores?: number | null; dias?: number | null },
     convenios: string[],
   ) =>
     (
@@ -95,7 +95,7 @@ const AF: AccionFalsa = {
   id: 'af-adecopria',
   convenioId: 'c-adecopria',
   proyeccionAsesores: 2,
-  proyeccionCierre: null,
+  proyeccionDias: null,
 };
 
 describe('solo se toca una acción del ámbito', () => {
@@ -148,16 +148,13 @@ describe('el cambio se guarda y queda registrado', () => {
     expect(updates[0].data.proyeccionAsesores).toBeNull();
   });
 
-  it('cambiar solo el cierre no toca los asesores', async () => {
+  it('cambiar solo los días no toca los asesores', async () => {
     const { configurar, updates, auditadas } = armar([AF]);
-    await configurar(
-      'af-adecopria',
-      { cierre: '2026-10-06' },
-      ['c-adecopria'],
-    );
+    await configurar('af-adecopria', { dias: 6 }, ['c-adecopria']);
     expect(updates[0].data).not.toHaveProperty('proyeccionAsesores');
+    expect(updates[0].data.proyeccionDias).toBe(6);
     const huella = auditadas.find((a) => a.accion === 'PROYECCION_EDITADA');
-    expect(huella?.camposTocados).toEqual(['cierre']);
+    expect(huella?.camposTocados).toEqual(['dias']);
   });
 
   it('sin ningún cambio, se rechaza', async () => {

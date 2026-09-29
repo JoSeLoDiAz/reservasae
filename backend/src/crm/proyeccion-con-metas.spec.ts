@@ -33,36 +33,28 @@ function fila(p: {
   };
 }
 
-/// Un lunes cualquiera, para contar días de trabajo sin sorpresas.
-const HOY = new Date('2026-09-28T05:00:00.000Z');
-
-describe('la fecha de cierre del admin manda sobre el cronograma', () => {
-  it('sin fecha propia, usa los días del cronograma', () => {
-    const f = conMetas(
-      fila({ cupos: 520, inscritos: 71, diasRestantes: 7 }),
-      { asesores: 3, cierre: null },
-      HOY,
-    );
+describe('los días del admin mandan sobre el cronograma', () => {
+  it('sin días propios, usa los del cronograma', () => {
+    const f = conMetas(fila({ cupos: 520, inscritos: 71, diasRestantes: 7 }), {
+      asesores: 3,
+      dias: null,
+    });
     expect(f.diasParaCierre).toBe(7);
-    expect(f.cierreProyeccion).toBeNull();
+    expect(f.diasConfigurados).toBeNull();
     /// 449 / 7 = 64,14 · / 3 = 21,38.
     expect(f.metaDiariaFlotante).toBeCloseTo(449 / 7, 5);
     expect(f.metaPorAsesor).toBeCloseTo(449 / 7 / 3, 5);
   });
 
-  it('con fecha propia, los días salen de ella, no del cronograma', () => {
-    /// El admin corrió el cierre a un jueves: de este lunes al jueves
-    /// hay 3 días de trabajo (mar, mié, jue). Manda esa cuenta, NO los
-    /// 2 que dice el cronograma (diasRestantes).
-    const cierre = new Date('2026-10-01T05:00:00.000Z');
-    const f = conMetas(
-      fila({ cupos: 520, inscritos: 71, diasRestantes: 2 }),
-      { asesores: 3, cierre },
-      HOY,
-    );
-    expect(f.diasParaCierre).toBe(3);
-    expect(f.cierreProyeccion).toBe('2026-10-01');
-    expect(f.metaDiariaFlotante).toBeCloseTo(449 / 3, 5);
+  it('con días propios, manda ESE número, no el del cronograma', () => {
+    /// El admin tecleó 5; el cronograma dice 2. Gana el 5.
+    const f = conMetas(fila({ cupos: 520, inscritos: 71, diasRestantes: 2 }), {
+      asesores: 3,
+      dias: 5,
+    });
+    expect(f.diasParaCierre).toBe(5);
+    expect(f.diasConfigurados).toBe(5);
+    expect(f.metaDiariaFlotante).toBeCloseTo(449 / 5, 5);
   });
 });
 
@@ -70,8 +62,7 @@ describe('lo que falta configurar sale NULO, no cero', () => {
   it('sin asesores, la meta por asesor es null', () => {
     const f = conMetas(
       fila({ cupos: 520, inscritos: 71, diasRestantes: 7 }),
-      { asesores: null, cierre: null },
-      HOY,
+      { asesores: null, dias: null },
     );
     expect(f.asesores).toBeNull();
     expect(f.metaPorAsesor).toBeNull();
@@ -82,8 +73,7 @@ describe('lo que falta configurar sale NULO, no cero', () => {
   it('sin días de ningún lado, la meta diaria y la por asesor son null', () => {
     const f = conMetas(
       fila({ cupos: 520, inscritos: 71, diasRestantes: null }),
-      { asesores: 3, cierre: null },
-      HOY,
+      { asesores: 3, dias: null },
     );
     expect(f.diasParaCierre).toBeNull();
     expect(f.metaDiariaFlotante).toBeNull();
@@ -93,8 +83,7 @@ describe('lo que falta configurar sale NULO, no cero', () => {
   it('meta ya cubierta: no se debe nada', () => {
     const f = conMetas(
       fila({ cupos: 520, inscritos: 600, diasRestantes: 7 }),
-      { asesores: 3, cierre: null },
-      HOY,
+      { asesores: 3, dias: null },
     );
     expect(f.metaDiariaFlotante).toBe(0);
     expect(f.metaPorAsesor).toBe(0);
@@ -102,7 +91,7 @@ describe('lo que falta configurar sale NULO, no cero', () => {
 
   it('conserva lo que ya traía la fila (no pisa a Andrés)', () => {
     const base = fila({ cupos: 520, inscritos: 71, diasRestantes: 7 });
-    const f = conMetas(base, { asesores: 3, cierre: null }, HOY);
+    const f = conMetas(base, { asesores: 3, dias: null });
     expect(f.accionFormacionId).toBe('af1');
     expect(f.codigo).toBe('AF1');
     expect(f.faltan).toBe(449);

@@ -109,11 +109,11 @@ model AccionFormacion {
   /// es una decision de gestion. La meta por asesor sale de dividir
   /// la meta diaria entre este numero. Nulo = sin configurar.
   proyeccionAsesores Int?
-  /// La fecha de cierre de inscripcion que el administrador fija para
-  /// la proyeccion, aparte del cronograma: «cierro el 5, pero corro
-  /// al 7». Los dias para el cierre salen de aqui, no de las fechas
-  /// de los grupos. Nulo = se cae al cierre del cronograma.
-  proyeccionCierre   DateTime?
+  /// Los dias para el cierre que el administrador teclea para la
+  /// proyeccion, como en su hoja: un numero, no una fecha. La meta
+  /// diaria sale de dividir los cupos que faltan entre este numero.
+  /// Nulo = se cae a los dias que quedan segun el cronograma.
+  proyeccionDias     Int?
 
   creadoEn      DateTime @default(now())
   actualizadoEn DateTime @updatedAt

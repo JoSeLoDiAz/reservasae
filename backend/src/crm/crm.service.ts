@@ -69,11 +69,7 @@ import {
   type FilaDeAsesor,
   type FilaDeAsesorAcademico,
 } from './asesores-datos';
-import {
-  diasDeTrabajoAtras,
-  diasDeTrabajoEntre,
-  hoyEnColombia,
-} from './calendario-inscripcion';
+import { diasDeTrabajoAtras, hoyEnColombia } from './calendario-inscripcion';
 import {
   DIAS_DE_RITMO,
   type FilaDeProyeccionAcademica,
@@ -818,7 +814,7 @@ export class CrmService {
     /// EL ARRANQUE DE LA VENTANA DEL RITMO, en dias de TRABAJO.
     const desdeRitmo = diasDeTrabajoAtras(hoyEnColombia(ahora), DIAS_DE_RITMO);
 
-    const [leads, grupos, coberturas, movimientos, config] = await Promise.all([
+    const [leads, grupos, ofertas, movimientos, config] = await Promise.all([
       this.prisma.participante.findMany({
         where: donde,
         select: {
@@ -831,13 +827,15 @@ export class CrmService {
         where: { accionFormacion: { convenioId: { in: ambito.convenios } } },
         select: { accionFormacionId: true, fechaInicio: true, modalidad: true },
       }),
-      /// LOS CUPOS COMPROMETIDOS salen de las coberturas, que es de
-      /// donde salen en Cronograma y en Control de Reservas. Contarlos
-      /// por mi cuenta daria una tercera cifra parecida a las otras
-      /// dos, que es como se acaba discutiendo cual es la buena.
-      this.prisma.grupoCobertura.findMany({
-        where: { grupo: { accionFormacion: { convenioId: { in: ambito.convenios } } } },
-        select: { cuposBase: true, grupo: { select: { accionFormacionId: true } } },
+      /// LA META DE INSCRITOS es el TOPE, con el 30% de sobrecupo, no
+      /// la base. «Los cupos de AF1 y AF2 son 520, no 400; todos van
+      /// al 30%» (Josse, 29 sep 2026): la meta de a cuantos inscribir
+      /// es el tope de inscripcion --`cuposMaximos`, que ya trae el
+      /// 30%--, no `cuposBase`, que es lo comprometido con el SENA.
+      /// Por eso sale de `ofertas` y no de las coberturas.
+      this.prisma.oferta.findMany({
+        where: { accionFormacion: { convenioId: { in: ambito.convenios } } },
+        select: { cuposMaximos: true, accionFormacionId: true },
       }),
       /// CUANDO se inscribio cada uno. La etapa de hoy no lleva fecha
       /// pegada, asi que el ritmo sale de los movimientos, que es
@@ -853,29 +851,29 @@ export class CrmService {
           participante: { select: { accionFormacionId: true } },
         },
       }),
-      /// LO QUE EL ADMIN FIJO A MANO: # asesores y la fecha de cierre
-      /// de la proyeccion. Del ambito, no de un id suelto: la tabla es
-      /// del gremio de la puerta.
+      /// LO QUE EL ADMIN FIJO A MANO: # asesores y los dias para el
+      /// cierre. Del ambito, no de un id suelto: la tabla es del
+      /// gremio de la puerta.
       this.prisma.accionFormacion.findMany({
         where: { convenioId: { in: ambito.convenios } },
         select: {
           id: true,
           proyeccionAsesores: true,
-          proyeccionCierre: true,
+          proyeccionDias: true,
         },
       }),
     ]);
 
     const cupos = new Map<string, number>();
-    for (const c of coberturas) {
-      const id = c.grupo.accionFormacionId;
-      cupos.set(id, (cupos.get(id) ?? 0) + c.cuposBase);
+    for (const o of ofertas) {
+      const id = o.accionFormacionId;
+      cupos.set(id, (cupos.get(id) ?? 0) + o.cuposMaximos);
     }
 
     const configPorAccion = new Map(
       config.map((a) => [
         a.id,
-        { asesores: a.proyeccionAsesores, cierre: a.proyeccionCierre },
+        { asesores: a.proyeccionAsesores, dias: a.proyeccionDias },
       ]),
     );
 
@@ -904,24 +902,22 @@ export class CrmService {
       ahora,
     );
 
-    /// Y encima, la cuenta de metas de Josse: # asesores y fecha de
-    /// cierre editables → meta diaria y meta por asesor.
-    const hoyBogota = hoyEnColombia(ahora);
+    /// Y encima, la cuenta de metas de Josse: # asesores y días
+    /// editables → meta diaria y meta por asesor.
     return filas.map((f) =>
       conMetas(
         f,
         configPorAccion.get(f.accionFormacionId) ?? {
           asesores: null,
-          cierre: null,
+          dias: null,
         },
-        hoyBogota,
       ),
     );
   }
 
   /**
-   * El administrador fija el # de asesores y la fecha de cierre de la
-   * proyección de una acción, y queda el registro de cambios.
+   * El administrador fija el # de asesores y los días para el cierre
+   * de la proyección de una acción, y queda el registro de cambios.
    *
    * Solo lo toca el administrador --lo pidió Catalina-- y por eso la
    * ruta va con `configuracion · ESCRIBIR`. La acción tiene que ser
@@ -929,13 +925,13 @@ export class CrmService {
    * gremio sería tocar su tabla desde donde no se debe.
    *
    * `undefined` es «no lo toques»; `null` es «bórralo» --vaciar el
-   * campo vuelve la proyección al cierre del cronograma o deja el #
-   * de asesores sin poner--. Es la misma distinción que la ficha de
-   * la empresa.
+   * campo deja el # de asesores sin poner, o los días vuelven a los
+   * del cronograma--. Es la misma distinción que la ficha de la
+   * empresa.
    */
   async configurarProyeccion(
     accionFormacionId: string,
-    cambios: { asesores?: number | null; cierre?: string | null },
+    cambios: { asesores?: number | null; dias?: number | null },
     ambito: Ambito,
     actor: Actor,
     ip?: string,
@@ -950,7 +946,7 @@ export class CrmService {
         convenioId: true,
         codigo: true,
         proyeccionAsesores: true,
-        proyeccionCierre: true,
+        proyeccionDias: true,
       },
     });
     /// Fuera del ámbito la fila NO EXISTE: 404, no 403. Un 403 diría
@@ -961,7 +957,7 @@ export class CrmService {
 
     const data: {
       proyeccionAsesores?: number | null;
-      proyeccionCierre?: Date | null;
+      proyeccionDias?: number | null;
     } = {};
     const tocados: string[] = [];
 
@@ -980,20 +976,19 @@ export class CrmService {
       tocados.push('asesores');
     }
 
-    if (cambios.cierre !== undefined) {
-      if (cambios.cierre === null) {
-        data.proyeccionCierre = null;
-      } else {
-        /// Fecha de calendario, a medianoche de Bogotá. La misma
-        /// forma que el cronograma, para que «días para el cierre»
-        /// cuente igual que allá.
-        const fecha = new Date(`${cambios.cierre}T05:00:00.000Z`);
-        if (Number.isNaN(fecha.getTime())) {
-          throw new BadRequestException('Esa fecha de cierre no es válida.');
+    if (cambios.dias !== undefined) {
+      if (cambios.dias !== null) {
+        if (!Number.isInteger(cambios.dias) || cambios.dias < 1) {
+          throw new BadRequestException(
+            'Los días para el cierre tienen que ser un entero de 1 o más.',
+          );
         }
-        data.proyeccionCierre = fecha;
+        if (cambios.dias > 999) {
+          throw new BadRequestException('Ese número de días no es real.');
+        }
       }
-      tocados.push('cierre');
+      data.proyeccionDias = cambios.dias;
+      tocados.push('dias');
     }
 
     if (tocados.length === 0) {
@@ -1014,10 +1009,9 @@ export class CrmService {
       antes.push(`asesores ${accion.proyeccionAsesores ?? '—'}`);
       despues.push(`asesores ${cambios.asesores ?? '—'}`);
     }
-    if (cambios.cierre !== undefined) {
-      const iso = (d: Date | null) => (d ? d.toISOString().slice(0, 10) : '—');
-      antes.push(`cierre ${iso(accion.proyeccionCierre)}`);
-      despues.push(`cierre ${cambios.cierre ?? '—'}`);
+    if (cambios.dias !== undefined) {
+      antes.push(`días ${accion.proyeccionDias ?? '—'}`);
+      despues.push(`días ${cambios.dias ?? '—'}`);
     }
     await this.auditoria.registrar({
       actor,
