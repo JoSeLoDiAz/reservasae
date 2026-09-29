@@ -2567,6 +2567,122 @@ export class CrmService {
   }
 
   /**
+   * MUDAR ESTA FICHA A UNA ORGANIZACIÓN QUE YA EXISTE.
+   *
+   * La puerta que faltaba. Corregir el NIT de la organización actual
+   * ya se puede ---lo hizo José---, pero eso NO sirve cuando la
+   * organización buena YA ESTÁ en el sistema: el guard para con «ya
+   * hay otra empresa con ese NIT» y manda a usar el enlace de
+   * completado, que es pedirle a la persona que rellene un formulario
+   * para arreglar un dato mal digitado.
+   *
+   * El caso real (cliente, 29 sep 2026): una ficha colgada de una
+   * empresa con NIT «1-8» ---basura--- cuando la «Secretaría de
+   * Educación Departamental del Cauca» ya existe con su NIT bueno.
+   * Ahí no hay nada que corregir: hay que mudar la ficha.
+   *
+   * SON DOS OPERACIONES DISTINTAS Y POR ESO SON DOS PUERTAS:
+   *
+   * - Corregir el NIT cambia la organización, y con ella A TODAS las
+   *   fichas que cuelgan de esa fila.
+   * - Mudar cambia ESTA ficha y no toca a nadie más.
+   *
+   * Confundirlas es lo que hace daño: quien quiere lo segundo y hace
+   * lo primero le cambia el NIT a gente que no estaba mirando.
+   *
+   * NO SE TOCA LA RESERVA. Si la ficha entró por una reserva, la
+   * organización que manda es la de la reserva ---la nominó ella--- y
+   * mudarla por aquí dejaría la ficha diciendo una cosa y su reserva
+   * otra. Ese caso se para con un mensaje que explica por dónde va.
+   */
+  async mudarDeOrganizacion(
+    id: string,
+    nitPedido: string,
+    ambito: string[],
+    actor: Actor,
+    ip?: string,
+  ) {
+    await this.exigirParticipante(id, ambito);
+
+    /// CON EL LECTOR DE LA CASA Y NO RASPANDO DÍGITOS. «891.580.016-8»
+    /// lleva el dígito de verificación pegado con guion: quitarle
+    /// todo lo que no fuera número daba «8915800168», un NIT que no
+    /// existe, y el mensaje decía que la organización no estaba
+    /// registrada cuando sí lo estaba. Lo cazó la prueba.
+    const leido = normalizarNit(nitPedido);
+    if (!leido) {
+      throw new BadRequestException(
+        'Ese no parece un NIT. Van de 5 a 15 dígitos, con o sin el ' +
+          'dígito de verificación detrás del guion.',
+      );
+    }
+    const nit = leido.nit;
+
+    const p = await this.prisma.participante.findUnique({
+      where: { id },
+      select: {
+        convenioId: true,
+        empresaId: true,
+        empresa: { select: { nit: true, razonSocial: true } },
+        reserva: { select: { id: true } },
+      },
+    });
+    if (!p) throw new NotFoundException('Esa ficha no existe.');
+
+    if (p.reserva) {
+      throw new BadRequestException(
+        'Esta ficha entró por una reserva, y la organización la pone la ' +
+          'reserva. Para moverla hay que cambiar la reserva, no la ficha: ' +
+          'si no, la ficha diría una organización y su reserva otra.',
+      );
+    }
+
+    const destino = await this.prisma.empresa.findUnique({
+      where: { nit },
+      select: { id: true, razonSocial: true, nit: true },
+    });
+    if (!destino) {
+      throw new BadRequestException(
+        `No hay ninguna organización registrada con el NIT ${nit}. Si es ` +
+          'nueva, corrija el NIT de la actual; esta puerta solo mueve la ' +
+          'ficha a una que ya existe.',
+      );
+    }
+
+    if (destino.id === p.empresaId) {
+      throw new BadRequestException(
+        `Esta ficha ya está en «${destino.razonSocial}».`,
+      );
+    }
+
+    await this.prisma.participante.update({
+      where: { id },
+      data: { empresaId: destino.id },
+    });
+
+    /// QUEDA ESCRITO DE DÓNDE A DÓNDE, y con la misma acción que usa
+    /// el cambio desde el enlace de la persona: es el mismo hecho
+    /// ---esta ficha cuenta ahora en otra organización--- y el F7 va
+    /// por organización. Dos acciones distintas para lo mismo
+    /// partirían el historial en dos sitios.
+    await this.auditoria.registrar({
+      actor,
+      accion: 'ORGANIZACION_CAMBIADA',
+      entidad: ENTIDADES.PARTICIPANTE,
+      entidadId: id,
+      convenioId: p.convenioId,
+      resumen: p.empresa
+        ? `Movida de «${p.empresa.razonSocial}» (NIT ${p.empresa.nit}) a ` +
+          `«${destino.razonSocial}» (NIT ${destino.nit}).`
+        : `Asignada a «${destino.razonSocial}» (NIT ${destino.nit}).`,
+      camposTocados: ['empresaId'],
+      ip,
+    });
+
+    return { movida: true, razonSocial: destino.razonSocial, nit: destino.nit };
+  }
+
+  /**
    * Los datos de la empresa, corregidos DESDE LA FICHA.
    *
    * Empezó con tres —nombre, cargo y correo del jefe directo—
@@ -2736,10 +2852,18 @@ export class CrmService {
         });
         if (otra && otra.id !== empresaId) {
           throw new BadRequestException(
+            /// EL AVISO SEÑALA LA PUERTA QUE SÍ SIRVE (29 sep 2026).
+            ///
+            /// Antes mandaba al enlace de completado de la persona, que
+            /// es pedirle a ella que rellene un formulario para arreglar
+            /// un dato que se tecleó mal aquí dentro. El cliente llegó
+            /// con ese caso: NIT «1-8» y la organización buena ya
+            /// registrada. Ahora hay botón para eso y el aviso lo dice.
             `Ya hay otra empresa con el NIT ${leido.nit} ` +
-              `(${otra.razonSocial}). Para mover a esta persona a esa ` +
-              'empresa, use su enlace de completado; aquí solo se corrige ' +
-              'el NIT de la organización actual.',
+              `(${otra.razonSocial}). Aquí solo se corrige el NIT de la ` +
+              'organización actual, y corregirlo cambiaría también las ' +
+              'demás personas que cuelgan de ella. Para mover a esta ' +
+              'persona a esa otra empresa use «Mover a otra organización».',
           );
         }
         parcheNit = {

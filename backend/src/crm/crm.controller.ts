@@ -42,6 +42,7 @@ import { RuiService } from './rui/rui.service';
 import {
   ConfigProyeccionDto,
   DatosDeLaEmpresaDto,
+  MudarDeOrganizacionDto,
   ActualizarParticipanteDto,
   AgregarNitDto,
   ResolverPropuestaDto,
@@ -931,6 +932,39 @@ export class CrmController {
   /// ficha no tiene organizacion, para DARLA DE ALTA por su NIT
   /// (Josse, 30 sep 2026)--. La fila la comparten todas las fichas
   /// del mismo NIT, como antes.
+  /**
+   * MUDAR ESTA FICHA A UNA ORGANIZACIÓN QUE YA EXISTE.
+   *
+   * La otra puerta ---`:id/empresa`--- corrige los datos de la
+   * organización actual, y eso alcanza a TODAS las fichas que cuelgan
+   * de ella. Esta mueve SOLO esta ficha y no toca a nadie más.
+   *
+   * Son dos operaciones distintas y por eso son dos puertas.
+   * Confundirlas es lo que hace daño: quien quiere mover una persona
+   * y en su lugar corrige el NIT le cambia la organización a gente
+   * que no estaba mirando.
+   *
+   * MISMO PERMISO que corregir sus datos: quien puede escribir en la
+   * ficha puede decir en qué organización trabaja esa persona.
+   */
+  @Patch(':id/organizacion')
+  @Requiere(['inscripciones', 'academico', 'configuracion'], 'ESCRIBIR')
+  mudarDeOrganizacion(
+    @Param('id') id: string,
+    @Body() dto: MudarDeOrganizacionDto,
+    @AmbitoActual() ambito: Ambito,
+    @AdminActual() admin: Admin,
+    @IpReal() ip: string,
+  ) {
+    return this.crm.mudarDeOrganizacion(
+      id,
+      dto.nit,
+      ambito.convenios,
+      { id: admin.id, nombre: admin.nombre },
+      ip,
+    );
+  }
+
   @Patch(':id/empresa')
   @Requiere(['inscripciones', 'academico', 'configuracion'], 'ESCRIBIR')
   async datosDeLaEmpresa(

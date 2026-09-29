@@ -36,6 +36,115 @@ function desde(e: Empresa | null) {
 
 type Campos = ReturnType<typeof desde>;
 
+/// Las dos puertas se ven IGUAL de importantes a propósito: ninguna
+/// es «la avanzada». Son dos cosas distintas que se hacen por
+/// razones distintas, y quien llega tiene que poder elegir.
+const CLASE_PUERTA =
+  "h-[34px] rounded-lg border border-borde bg-superficie px-3.5 text-[0.78125rem] font-semibold text-titulo hover:bg-superficie-alterna";
+
+/**
+ * MOVER LA FICHA A UNA ORGANIZACIÓN QUE YA ESTÁ REGISTRADA.
+ *
+ * El caso que lo pidió (cliente, 29 sep 2026): la ficha colgaba de
+ * una empresa con NIT «1-8» —basura tecleada en la preinscripción—
+ * cuando la «Secretaría de Educación Departamental del Cauca» ya
+ * existía con su NIT bueno. Corregir el NIT no servía: el servidor
+ * paraba porque ese NIT ya era de otra, y con razón.
+ *
+ * SOLO PIDE EL NIT. La organización de destino ya está en el sistema
+ * con su razón social y sus datos; dejar teclear también el nombre
+ * daría a entender que se puede renombrar de paso, y renombrar
+ * alcanza a todas las fichas de esa fila, no solo a esta.
+ *
+ * NO BORRA LA ORGANIZACIÓN MALA. Se queda donde está, con las otras
+ * fichas que tenga: aquí nada se elimina. Si no le queda ninguna,
+ * eso lo limpia quien administra «Empresas registradas», que es
+ * quien puede ver a quién más afecta.
+ */
+function Mudanza({
+  participanteId,
+  empresa,
+  alGuardar,
+  cerrar,
+}: {
+  participanteId: string;
+  empresa: Empresa;
+  alGuardar: (accion: () => Promise<void>, exito?: string) => Promise<void>;
+  cerrar: () => void;
+}) {
+  const [nit, setNit] = useState("");
+  const [moviendo, setMoviendo] = useState(false);
+
+  /// Cinco dígitos es el mínimo que acepta el servidor. Se mira aquí
+  /// también para no mandar un viaje que ya se sabe que vuelve mal.
+  const suficiente = nit.replace(/\D/g, "").length >= 5;
+
+  return (
+    <div className="mt-4 rounded-xl border border-borde p-4">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <p className="text-[0.8125rem] font-semibold text-titulo">
+            Mover a otra organización
+          </p>
+          <p className="mt-1 text-[0.78125rem] leading-relaxed text-texto-suave">
+            Esto mueve <strong>solo a esta persona</strong>. La organización
+            que tiene ahora —{empresa.razonSocial ?? "sin nombre"} (NIT{" "}
+            {empresa.nit ?? "sin NIT"})— no se toca ni se borra, y las demás
+            personas que cuelguen de ella se quedan donde están.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={cerrar}
+          className="shrink-0 rounded-lg border border-error/40 bg-error-suave px-4 py-2 text-sm font-semibold text-error"
+        >
+          Cancelar
+        </button>
+      </div>
+
+      <label className="mt-3 block sm:max-w-xs">
+        <span className="mb-1 block text-[0.71875rem] text-texto-suave">
+          NIT de la organización a la que se mueve
+        </span>
+        <input
+          className={CLASE_CONTROL}
+          value={nit}
+          onChange={(e) => setNit(e.target.value)}
+          inputMode="numeric"
+          placeholder="891580016"
+        />
+        <span className="mt-1 block text-[0.6875rem] leading-snug text-texto-suave">
+          Tiene que estar ya registrada. Puede escribirlo con puntos y con el
+          dígito de verificación detrás del guion. Si el NIT todavía no existe
+          en el sistema, lo que hay que hacer es corregir el de la
+          organización actual.
+        </span>
+      </label>
+
+      <div className="mt-4">
+        <Boton
+          disabled={!suficiente || moviendo}
+          onClick={() => {
+            setMoviendo(true);
+            void alGuardar(async () => {
+              await crmApi.mudarDeOrganizacion(participanteId, nit);
+              /// Se cierra SOLO si salió bien: si el servidor rechazó
+              /// —el NIT no existe, la ficha vino por reserva— el
+              /// panel se queda abierto con lo tecleado y el aviso
+              /// arriba, para corregir sin volver a empezar.
+              cerrar();
+            }, "Persona movida de organización.").finally(() =>
+              setMoviendo(false),
+            );
+          }}
+        >
+          {moviendo ? "Moviendo…" : "Mover"}
+        </Boton>
+      </div>
+    </div>
+  );
+}
+
 /**
  * Corregir los datos de la empresa desde la ficha del lead.
  *
@@ -76,6 +185,7 @@ export function EditorDeEmpresa({
 }) {
   const [catalogos, setCatalogos] = useState<CatalogosSep | null>(null);
   const [abierto, setAbierto] = useState(false);
+  const [mudando, setMudando] = useState(false);
   const [guardando, setGuardando] = useState(false);
   const [v, setV] = useState<Campos>(() => desde(empresa));
 
@@ -217,7 +327,7 @@ export function EditorDeEmpresa({
     return d;
   }
 
-  if (!puedeEscribir) return null;
+    if (!puedeEscribir) return null;
 
   const ROTULO = "mb-1 block text-[0.71875rem] text-texto-suave";
   const rotulo = crear
@@ -230,14 +340,52 @@ export function EditorDeEmpresa({
   }
 
   const disparador = (
-    <button
-      type="button"
-      onClick={() => setAbierto(true)}
-      className="mt-4 h-[34px] rounded-lg border border-borde bg-superficie px-3.5 text-[0.78125rem] font-semibold text-titulo hover:bg-superficie-alterna"
-    >
-      {rotulo}
-    </button>
+    <div className="mt-4 flex flex-wrap items-center gap-2">
+      <button type="button" onClick={() => setAbierto(true)} className={CLASE_PUERTA}>
+        {rotulo}
+      </button>
+
+      {/* LA SEGUNDA PUERTA, Y POR QUÉ ES OTRA (29 sep 2026).
+
+          El cliente llegó con una ficha colgada de una empresa con NIT
+          «1-8» cuando la buena ya estaba registrada. Al corregir el
+          NIT, el servidor para ---con razón: dos organizaciones no
+          pueden compartir NIT--- y mandaba a usar el enlace de
+          completado de la persona, que es pedirle a ella que rellene un
+          formulario para arreglar un dato mal digitado.
+
+          Ahí no hay nada que corregir: hay que mover a la persona. Son
+          dos operaciones distintas y por eso son dos botones; juntarlas
+          en uno haría que quien quiere mover a una persona le cambie el
+          NIT a toda la organización sin saberlo.
+
+          SOLO SI YA TIENE UNA. Sin organización no hay de dónde mover, y
+          el alta de José ya enlaza sola cuando el NIT que teclean
+          resulta ser de una que ya existe. */}
+      {!crear && (
+        <button
+          type="button"
+          onClick={() => setMudando(true)}
+          className={CLASE_PUERTA}
+        >
+          Mover a otra organización
+        </button>
+      )}
+    </div>
   );
+
+  /// La mudanza, abierta, sustituye a los botones: es un panel suyo y
+  /// no un modal, porque pide UN dato y no trece.
+  if (mudando && empresa) {
+    return (
+      <Mudanza
+        participanteId={participanteId}
+        empresa={empresa}
+        alGuardar={alGuardar}
+        cerrar={() => setMudando(false)}
+      />
+    );
+  }
 
   if (!abierto) return disparador;
 
