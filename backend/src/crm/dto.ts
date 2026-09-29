@@ -697,4 +697,9 @@ export class ConfigProyeccionDto {
   @Type(() => Number)
   @IsInt({ message: 'Los días para el cierre tienen que ser un entero.' })
   dias?: number | null;
+
+  @IsOptional()
+  @ValidateIf((o: ConfigProyeccionDto) => o.cierre !== null)
+  @IsDateString({}, { message: 'La fecha de cierre no es válida.' })
+  cierre?: string | null;
 }

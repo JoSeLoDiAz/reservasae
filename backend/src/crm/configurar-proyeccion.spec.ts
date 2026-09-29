@@ -16,6 +16,7 @@ type AccionFalsa = {
   convenioId: string;
   proyeccionAsesores: number | null;
   proyeccionDias: number | null;
+  proyeccionCierre: Date | null;
 };
 
 function armar(acciones: AccionFalsa[]) {
@@ -67,7 +68,7 @@ function armar(acciones: AccionFalsa[]) {
 
   const configurar = (
     id: string,
-    cambios: { asesores?: number | null; dias?: number | null },
+    cambios: { asesores?: number | null; dias?: number | null; cierre?: string | null },
     convenios: string[],
   ) =>
     (
@@ -96,6 +97,7 @@ const AF: AccionFalsa = {
   convenioId: 'c-adecopria',
   proyeccionAsesores: 2,
   proyeccionDias: null,
+  proyeccionCierre: null,
 };
 
 describe('solo se toca una acción del ámbito', () => {

@@ -363,7 +363,7 @@ export class CrmController {
   ) {
     return this.crm.configurarProyeccion(
       accionId,
-      { asesores: dto.asesores, dias: dto.dias },
+      { asesores: dto.asesores, dias: dto.dias, cierre: dto.cierre },
       ambito,
       { id: admin.id, nombre: admin.nombre },
       ip,

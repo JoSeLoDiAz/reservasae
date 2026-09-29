@@ -1136,12 +1136,12 @@ function Proyeccion({ ventana, ventanaAntes, rotuloAnterior }: ConPeriodo) {
   /// juntos. Vive por `accionId` y sobrevive a la recarga automática,
   /// que no lo toca --pisaría lo que se escribe--.
   const [borrador, setBorrador] = useState<
-    Record<string, { asesores?: string; dias?: string }>
+    Record<string, { asesores?: string; dias?: string; cierre?: string }>
   >({});
   const [guardando, setGuardando] = useState<string | null>(null);
 
   const setCampo = useCallback(
-    (accionId: string, campo: "asesores" | "dias", valor: string) => {
+    (accionId: string, campo: "asesores" | "dias" | "cierre", valor: string) => {
       setBorrador((b) => ({ ...b, [accionId]: { ...b[accionId], [campo]: valor } }));
     },
     [],
@@ -1158,6 +1158,12 @@ function Proyeccion({ ventana, ventanaAntes, rotuloAnterior }: ConPeriodo) {
         await crmApi.configurarProyeccion(accionId, {
           asesores: aNumero(cambios.asesores),
           dias: aNumero(cambios.dias),
+          cierre:
+            cambios.cierre === undefined
+              ? undefined
+              : cambios.cierre.trim() === ""
+                ? null
+                : cambios.cierre,
         });
         /// Guardado: se suelta el borrador y la tabla se refresca con
         /// los valores nuevos.
@@ -1343,8 +1349,12 @@ function Proyeccion({ ventana, ventanaAntes, rotuloAnterior }: ConPeriodo) {
 type EdicionProyeccion = {
   puedeEditar: boolean;
   /// Lo que se está tecleando, sin guardar, por acción.
-  borrador: Record<string, { asesores?: string; dias?: string }>;
-  setCampo: (accionId: string, campo: "asesores" | "dias", valor: string) => void;
+  borrador: Record<string, { asesores?: string; dias?: string; cierre?: string }>;
+  setCampo: (
+    accionId: string,
+    campo: "asesores" | "dias" | "cierre",
+    valor: string,
+  ) => void;
   guardarFila: (accionId: string) => void;
   /// La acción que se está guardando ahora, para bloquear su fila.
   guardando: string | null;
@@ -1435,6 +1445,53 @@ function CeldaNumero({
         if (e.key === "Enter") edicion.guardarFila(accionId);
       }}
     />
+  );
+}
+
+/**
+ * Una celda editable de FECHA (fecha de cierre).
+ *
+ * Como las de número: escribe en el borrador y se guarda con el
+ * botón. Vacía = usa la del cronograma, que va de hint debajo.
+ */
+function CeldaFecha({
+  accionId,
+  guardado,
+  delCronograma,
+  edicion,
+}: {
+  accionId: string;
+  guardado: string | null;
+  delCronograma: string | null;
+  edicion: EdicionProyeccion;
+}) {
+  if (!edicion.puedeEditar) {
+    return guardado ? (
+      <span>{dia(guardado)}</span>
+    ) : delCronograma ? (
+      <span>{dia(delCronograma)}</span>
+    ) : (
+      <span className="text-aviso">Sin fecha</span>
+    );
+  }
+  const enBorrador = edicion.borrador[accionId]?.cierre;
+  const valor = enBorrador ?? guardado ?? "";
+  return (
+    <span className="block">
+      <input
+        type="date"
+        aria-label="Fecha de cierre"
+        className="rounded-lg border border-borde bg-superficie px-2 py-1 text-sm outline-none focus:border-marca disabled:opacity-50"
+        value={valor}
+        disabled={edicion.guardando === accionId}
+        onChange={(e) => edicion.setCampo(accionId, "cierre", e.target.value)}
+      />
+      {valor === "" && delCronograma && (
+        <span className="mt-0.5 block text-xs text-texto-suave">
+          cronograma: {dia(delCronograma)}
+        </span>
+      )}
+    </span>
   );
 }
 
@@ -1642,18 +1699,22 @@ const columnasDeProyeccion = (
     ),
   },
   {
-    /// LA FECHA DE CIERRE, del cronograma. Es la de referencia; los
-    /// días para el cierre que manejan la meta los teclea él arriba.
+    /// LA FECHA DE CIERRE, EDITABLE E INDEPENDIENTE (Josse, 29 sep):
+    /// los tres --# asesores, # días y fecha-- se editan. Es de
+    /// referencia; los días son los que manejan la meta. Vacía = la
+    /// del cronograma.
     clave: "fechaCierre",
     titulo: "Fecha de cierre",
-    ancho: "132px",
-    valor: (f) => f.cierre ?? "",
-    pinta: (f) =>
-      f.cierre ? (
-        <span>{dia(f.cierre)}</span>
-      ) : (
-        <span className="text-aviso">Sin fecha</span>
-      ),
+    ancho: "150px",
+    valor: (f) => f.cierreProyeccion ?? f.cierre ?? "",
+    pinta: (f) => (
+      <CeldaFecha
+        accionId={f.accionFormacionId}
+        guardado={f.cierreProyeccion}
+        delCronograma={f.cierre}
+        edicion={edicion}
+      />
+    ),
   },
   {
     /// EL BOTÓN GUARDAR de la fila. Fija: no se puede quitar, porque

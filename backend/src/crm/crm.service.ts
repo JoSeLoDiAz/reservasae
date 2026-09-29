@@ -860,6 +860,7 @@ export class CrmService {
           id: true,
           proyeccionAsesores: true,
           proyeccionDias: true,
+          proyeccionCierre: true,
         },
       }),
     ]);
@@ -873,7 +874,11 @@ export class CrmService {
     const configPorAccion = new Map(
       config.map((a) => [
         a.id,
-        { asesores: a.proyeccionAsesores, dias: a.proyeccionDias },
+        {
+          asesores: a.proyeccionAsesores,
+          dias: a.proyeccionDias,
+          cierre: a.proyeccionCierre,
+        },
       ]),
     );
 
@@ -910,6 +915,7 @@ export class CrmService {
         configPorAccion.get(f.accionFormacionId) ?? {
           asesores: null,
           dias: null,
+          cierre: null,
         },
       ),
     );
@@ -931,7 +937,11 @@ export class CrmService {
    */
   async configurarProyeccion(
     accionFormacionId: string,
-    cambios: { asesores?: number | null; dias?: number | null },
+    cambios: {
+      asesores?: number | null;
+      dias?: number | null;
+      cierre?: string | null;
+    },
     ambito: Ambito,
     actor: Actor,
     ip?: string,
@@ -947,6 +957,7 @@ export class CrmService {
         codigo: true,
         proyeccionAsesores: true,
         proyeccionDias: true,
+        proyeccionCierre: true,
       },
     });
     /// Fuera del ámbito la fila NO EXISTE: 404, no 403. Un 403 diría
@@ -958,6 +969,7 @@ export class CrmService {
     const data: {
       proyeccionAsesores?: number | null;
       proyeccionDias?: number | null;
+      proyeccionCierre?: Date | null;
     } = {};
     const tocados: string[] = [];
 
@@ -991,6 +1003,21 @@ export class CrmService {
       tocados.push('dias');
     }
 
+    if (cambios.cierre !== undefined) {
+      if (cambios.cierre === null) {
+        data.proyeccionCierre = null;
+      } else {
+        /// Fecha de calendario, a medianoche de Bogotá, como el
+        /// cronograma.
+        const fecha = new Date(`${cambios.cierre}T05:00:00.000Z`);
+        if (Number.isNaN(fecha.getTime())) {
+          throw new BadRequestException('Esa fecha de cierre no es válida.');
+        }
+        data.proyeccionCierre = fecha;
+      }
+      tocados.push('cierre');
+    }
+
     if (tocados.length === 0) {
       throw new BadRequestException('No llegó ningún cambio.');
     }
@@ -1012,6 +1039,11 @@ export class CrmService {
     if (cambios.dias !== undefined) {
       antes.push(`días ${accion.proyeccionDias ?? '—'}`);
       despues.push(`días ${cambios.dias ?? '—'}`);
+    }
+    if (cambios.cierre !== undefined) {
+      const iso = (d: Date | null) => (d ? d.toISOString().slice(0, 10) : '—');
+      antes.push(`cierre ${iso(accion.proyeccionCierre)}`);
+      despues.push(`cierre ${cambios.cierre ?? '—'}`);
     }
     await this.auditoria.registrar({
       actor,

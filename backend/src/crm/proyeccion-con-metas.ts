@@ -21,6 +21,9 @@ export type ConfigProyeccion = {
   /// Los días para el cierre que él teclea, un número. Nulo = se cae
   /// a los que quedan según el cronograma.
   dias: number | null;
+  /// La fecha de cierre que él fija a mano, INDEPENDIENTE de los días.
+  /// Nula = la del cronograma.
+  cierre: Date | null;
 };
 
 export type FilaConMetas = FilaDeProyeccion & {
@@ -28,6 +31,9 @@ export type FilaConMetas = FilaDeProyeccion & {
   asesores: number | null;
   /// Los días que el admin tecleó, o null si no puso ninguno.
   diasConfigurados: number | null;
+  /// La fecha de cierre que el admin fijó (ISO), o null. Es de
+  /// referencia; no manda sobre los días ni la meta.
+  cierreProyeccion: string | null;
   /// Los días EFECTIVOS: los del admin si los puso, si no los que
   /// quedan según el cronograma. Nulo si no hay ninguno.
   diasParaCierre: number | null;
@@ -60,6 +66,9 @@ export function conMetas(
     ...fila,
     asesores: config.asesores,
     diasConfigurados: config.dias,
+    cierreProyeccion: config.cierre
+      ? config.cierre.toISOString().slice(0, 10)
+      : null,
     diasParaCierre,
     metaDiariaFlotante: hayDias ? m.metaDiaria : null,
     /// Sin asesores o sin días, la meta por asesor es NULA, no cero:
