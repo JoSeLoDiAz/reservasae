@@ -1312,7 +1312,7 @@ function Proyeccion({ ventana, ventanaAntes, rotuloAnterior }: ConPeriodo) {
       </details>
 
       <Tabla
-        id="proyeccion-inscripciones"
+        id="proyeccion-metas"
         columnas={columnas}
         filas={datos}
         clave={(f) => f.accionFormacionId}
@@ -1352,6 +1352,41 @@ type EdicionProyeccion = {
 
 const CLASE_CELDA_NUMERO =
   "w-16 rounded-lg border border-borde bg-superficie px-2 py-1 text-right text-sm tabular-nums outline-none focus:border-marca disabled:opacity-50";
+
+/**
+ * La meta diaria y la meta por asesor, EN VIVO, con lo que se está
+ * tecleando.
+ *
+ * Josse lo pidió así (29 sep 2026): «cuando yo cambie el # de
+ * asesores deben cambiar automáticamente los otros datos». Así que la
+ * cuenta se hace en el navegador con el BORRADOR ---lo que hay en los
+ * campos ahora, guardado o no---, sin esperar al botón Guardar. Al
+ * guardar, el servidor la rehace y manda; esto es la vista previa.
+ *
+ * Es la misma cuenta que `metasDeAccion` en el backend --cupos
+ * disponibles / días, / asesores-- y se deja escrito para que si una
+ * cambia, se cambie la otra. El backend sigue siendo el que manda: lo
+ * guardado sale de él.
+ */
+function metasEnVivo(
+  f: FilaDeProyeccion,
+  borrador: { asesores?: string; dias?: string } | undefined,
+): { metaDiaria: number | null; metaPorAsesor: number | null } {
+  const num = (v: string | undefined, siNo: number | null): number | null =>
+    v !== undefined && v.trim() !== "" ? Number(v) : siNo;
+  /// Los días del borrador si se están tocando; si no, los efectivos
+  /// que ya trae la fila (los guardados o los del cronograma).
+  const dias = num(borrador?.dias, f.diasParaCierre);
+  const asesores = num(borrador?.asesores, f.asesores);
+  const cuposDisponibles = f.faltan;
+
+  const metaDiaria = dias !== null && dias > 0 ? cuposDisponibles / dias : null;
+  const metaPorAsesor =
+    metaDiaria !== null && asesores !== null && asesores > 0
+      ? metaDiaria / asesores
+      : null;
+  return { metaDiaria, metaPorAsesor };
+}
 
 /**
  * Una celda editable de número entero (# asesores o # días).
@@ -1547,34 +1582,45 @@ const columnasDeProyeccion = (
   },
   {
     /// LA META DIARIA: cupos disponibles / días para el cierre.
-    /// Redondeada de la flotante ---449/7 = 64,14 se ve «64»---. Sin
-    /// días de ningún lado, «—».
+    /// Se recalcula EN VIVO con lo que se está tecleando, no con lo
+    /// guardado, para que cambie sola al tocar los días. Redondeada
+    /// de la flotante ---520/7 = 74,3 se ve «74»---. Sin días, «—».
     clave: "metaDiaria",
     titulo: "Meta diaria",
     ancho: "110px",
     numerica: true,
-    valor: (f) => f.metaDiariaFlotante ?? f.metaDiaria,
-    pinta: (f) => (
-      <span className="font-semibold tabular-nums">
-        {f.metaDiariaFlotante === null
-          ? "—"
-          : n(Math.round(f.metaDiariaFlotante))}
-      </span>
-    ),
+    valor: (f) =>
+      metasEnVivo(f, edicion.borrador[f.accionFormacionId]).metaDiaria ?? 0,
+    pinta: (f) => {
+      const { metaDiaria } = metasEnVivo(f, edicion.borrador[f.accionFormacionId]);
+      return (
+        <span className="font-semibold tabular-nums">
+          {metaDiaria === null ? "—" : n(Math.round(metaDiaria))}
+        </span>
+      );
+    },
   },
   {
-    /// LA META DE CADA ASESOR: meta diaria / # asesores. Nula sin
-    /// asesores configurados ---que NO es cero: es que falta ponerlo---.
+    /// LA META DE CADA ASESOR: meta diaria / # asesores. También EN
+    /// VIVO: al cambiar el # de asesores, esta cambia sola. Nula sin
+    /// asesores ---que NO es cero: es que falta ponerlo---.
     clave: "metaPorAsesor",
     titulo: "Meta por asesor",
     ancho: "130px",
     numerica: true,
-    valor: (f) => f.metaPorAsesor ?? 0,
-    pinta: (f) => (
-      <span className="font-semibold text-marca tabular-nums">
-        {f.metaPorAsesor === null ? "—" : n(Math.round(f.metaPorAsesor))}
-      </span>
-    ),
+    valor: (f) =>
+      metasEnVivo(f, edicion.borrador[f.accionFormacionId]).metaPorAsesor ?? 0,
+    pinta: (f) => {
+      const { metaPorAsesor } = metasEnVivo(
+        f,
+        edicion.borrador[f.accionFormacionId],
+      );
+      return (
+        <span className="font-semibold text-marca tabular-nums">
+          {metaPorAsesor === null ? "—" : n(Math.round(metaPorAsesor))}
+        </span>
+      );
+    },
   },
   {
     clave: "conversion",
@@ -1621,88 +1667,12 @@ const columnasDeProyeccion = (
       <BotonGuardarFila accionId={f.accionFormacionId} edicion={edicion} />
     ),
   },
-  {
-    clave: "cierre",
-    titulo: "Cierra",
-    ancho: "158px",
-    aparte: true,
-    valor: (f) => f.cierre ?? "",
-    pinta: (f) =>
-      f.cierre ? (
-        <span>
-          {dia(f.cierre)}
-          <span className="block text-xs text-texto-suave">
-            {f.diasRestantes === null
-              ? ""
-              : f.diasRestantes > 0
-                ? `quedan ${n(f.diasRestantes)} días de trabajo`
-                : `cerró hace ${n(-f.diasRestantes)} días`}
-          </span>
-        </span>
-      ) : (
-        <span className="text-aviso">Sin fecha de inicio</span>
-      ),
-  },
-  {
-    clave: "ritmo",
-    titulo: "Inscritos en 15 días",
-    ancho: "150px",
-    aparte: true,
-    numerica: true,
-    valor: (f) => f.inscritosVentana,
-    pinta: (f) => <span className="tabular-nums">{n(f.inscritosVentana)}</span>,
-  },
-  {
-    clave: "proyeccion",
-    titulo: "Terminará con",
-    ancho: "112px",
-    aparte: true,
-    numerica: true,
-    valor: (f) => f.proyeccion,
-    pinta: (f) => (
-      <span
-        className={
-          "font-semibold tabular-nums " +
-          (f.proyeccion >= f.cupos ? "text-exito" : "text-error")
-        }
-      >
-        {n(f.proyeccion)}
-      </span>
-    ),
-  },
-  {
-    clave: "porConseguir",
-    titulo: "Leads que faltan",
-    ancho: "152px",
-    aparte: true,
-    numerica: true,
-    valor: (f) => f.leadsPorConseguir,
-    pinta: (f) => (
-      <span className="tabular-nums">
-        <span className={f.leadsPorConseguir > 0 ? "font-semibold" : ""}>
-          {n(f.leadsPorConseguir)}
-        </span>
-        {f.abiertos > 0 && (
-          <span className="block text-xs text-texto-suave">
-            {n(f.abiertos)} abiertos
-          </span>
-        )}
-      </span>
-    ),
-  },
-  {
-    clave: "veredicto",
-    titulo: "¿Alcanza?",
-    ancho: "112px",
-    aparte: true,
-    valor: (f) => VEREDICTO[f.veredicto].texto,
-    filtro: "opciones",
-    pinta: (f) => (
-      <span className="font-medium" style={{ color: VEREDICTO[f.veredicto].color }}>
-        {VEREDICTO[f.veredicto].texto}
-      </span>
-    ),
-  },
+  /// Y NADA MÁS. Son EXACTAMENTE las columnas de la hoja de Josse:
+  /// «solo se necesitan esos datos» (29 sep 2026). Las que traía
+  /// Andrés ---Cierra, Inscritos en 15 días, Terminará con, Leads que
+  /// faltan, ¿Alcanza?--- se quitaron de esta tabla. El backend las
+  /// sigue calculando (viajan en la fila), así que devolver una es
+  /// una línea el día que se pida.
 ];
 
 /**
