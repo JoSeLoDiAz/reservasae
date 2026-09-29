@@ -44,6 +44,15 @@ export const ACCIONES = [
   /// escrito, el cambio pasa en silencio y despues nadie puede
   /// explicar por que esa ficha cuenta en otra empresa.
   'ORGANIZACION_CAMBIADA',
+  /// Se cambió el # de asesores o la fecha de cierre de la
+  /// proyección de metas de una acción.
+  ///
+  /// Lo pidió Catalina: «hay que dejar el registro de cambios,
+  /// porque si el día anterior entro y digo que cada asesor haga
+  /// otra cosa, hay que dejarlo escrito» (28 sep 2026). Cambia la
+  /// meta que se le exige a cada asesor, así que quién la movió y
+  /// cuándo tiene que constar.
+  'PROYECCION_EDITADA',
 ] as const;
 
 export type Accion = (typeof ACCIONES)[number];
@@ -68,6 +77,7 @@ export const ENTIDADES = {
   RESERVA: 'reserva',
   EMPRESA: 'empresa',
   LEAD: 'lead',
+  ACCION: 'accion',
 } as const;
 
 export type Entidad = (typeof ENTIDADES)[keyof typeof ENTIDADES];

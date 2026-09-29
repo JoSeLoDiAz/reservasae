@@ -69,14 +69,18 @@ import {
   type FilaDeAsesor,
   type FilaDeAsesorAcademico,
 } from './asesores-datos';
-import { diasDeTrabajoAtras, hoyEnColombia } from './calendario-inscripcion';
+import {
+  diasDeTrabajoAtras,
+  diasDeTrabajoEntre,
+  hoyEnColombia,
+} from './calendario-inscripcion';
 import {
   DIAS_DE_RITMO,
-  type FilaDeProyeccion,
   type FilaDeProyeccionAcademica,
   proyectarAcademico,
   proyectarInscripciones,
 } from './proyeccion';
+import { conMetas, type FilaConMetas } from './proyeccion-con-metas';
 import { exigirQuienAsignaGrupo } from './quien-asigna-grupo';
 import {
   faltaDeLaEmpresa,
@@ -807,14 +811,14 @@ export class CrmService {
     ambito: Ambito,
     ventana: VentanaDeLlegada = {},
     ahora = new Date(),
-  ): Promise<FilaDeProyeccion[]> {
+  ): Promise<FilaConMetas[]> {
     if (ambito.convenios.length === 0) return [];
     const donde = { convenioId: { in: ambito.convenios }, ...cuandoLlego(ventana) };
 
     /// EL ARRANQUE DE LA VENTANA DEL RITMO, en dias de TRABAJO.
     const desdeRitmo = diasDeTrabajoAtras(hoyEnColombia(ahora), DIAS_DE_RITMO);
 
-    const [leads, grupos, coberturas, movimientos] = await Promise.all([
+    const [leads, grupos, coberturas, movimientos, config] = await Promise.all([
       this.prisma.participante.findMany({
         where: donde,
         select: {
@@ -849,6 +853,17 @@ export class CrmService {
           participante: { select: { accionFormacionId: true } },
         },
       }),
+      /// LO QUE EL ADMIN FIJO A MANO: # asesores y la fecha de cierre
+      /// de la proyeccion. Del ambito, no de un id suelto: la tabla es
+      /// del gremio de la puerta.
+      this.prisma.accionFormacion.findMany({
+        where: { convenioId: { in: ambito.convenios } },
+        select: {
+          id: true,
+          proyeccionAsesores: true,
+          proyeccionCierre: true,
+        },
+      }),
     ]);
 
     const cupos = new Map<string, number>();
@@ -856,6 +871,13 @@ export class CrmService {
       const id = c.grupo.accionFormacionId;
       cupos.set(id, (cupos.get(id) ?? 0) + c.cuposBase);
     }
+
+    const configPorAccion = new Map(
+      config.map((a) => [
+        a.id,
+        { asesores: a.proyeccionAsesores, cierre: a.proyeccionCierre },
+      ]),
+    );
 
     /// UNA VEZ POR PERSONA. Quien paso a INSCRITO y luego a
     /// EN_FORMACION deja dos movimientos dentro de la ventana, y
@@ -869,7 +891,7 @@ export class CrmService {
       inscritosRecientes.set(id, (inscritosRecientes.get(id) ?? 0) + 1);
     }
 
-    return proyectarInscripciones(
+    const filas = proyectarInscripciones(
       leads.map((l: (typeof leads)[number]) => ({
         accionFormacionId: l.accionFormacionId,
         codigo: l.accionFormacion?.codigo ?? null,
@@ -881,6 +903,134 @@ export class CrmService {
       inscritosRecientes,
       ahora,
     );
+
+    /// Y encima, la cuenta de metas de Josse: # asesores y fecha de
+    /// cierre editables → meta diaria y meta por asesor.
+    const hoyBogota = hoyEnColombia(ahora);
+    return filas.map((f) =>
+      conMetas(
+        f,
+        configPorAccion.get(f.accionFormacionId) ?? {
+          asesores: null,
+          cierre: null,
+        },
+        hoyBogota,
+      ),
+    );
+  }
+
+  /**
+   * El administrador fija el # de asesores y la fecha de cierre de la
+   * proyección de una acción, y queda el registro de cambios.
+   *
+   * Solo lo toca el administrador --lo pidió Catalina-- y por eso la
+   * ruta va con `configuracion · ESCRIBIR`. La acción tiene que ser
+   * del ámbito de la puerta: fijar la meta de una acción del otro
+   * gremio sería tocar su tabla desde donde no se debe.
+   *
+   * `undefined` es «no lo toques»; `null` es «bórralo» --vaciar el
+   * campo vuelve la proyección al cierre del cronograma o deja el #
+   * de asesores sin poner--. Es la misma distinción que la ficha de
+   * la empresa.
+   */
+  async configurarProyeccion(
+    accionFormacionId: string,
+    cambios: { asesores?: number | null; cierre?: string | null },
+    ambito: Ambito,
+    actor: Actor,
+    ip?: string,
+  ) {
+    const accion = await this.prisma.accionFormacion.findFirst({
+      where: {
+        id: accionFormacionId,
+        convenioId: { in: ambito.convenios },
+      },
+      select: {
+        id: true,
+        convenioId: true,
+        codigo: true,
+        proyeccionAsesores: true,
+        proyeccionCierre: true,
+      },
+    });
+    /// Fuera del ámbito la fila NO EXISTE: 404, no 403. Un 403 diría
+    /// que esa acción del otro gremio existe.
+    if (!accion) {
+      throw new NotFoundException('Esa acción de formación no existe.');
+    }
+
+    const data: {
+      proyeccionAsesores?: number | null;
+      proyeccionCierre?: Date | null;
+    } = {};
+    const tocados: string[] = [];
+
+    if (cambios.asesores !== undefined) {
+      if (cambios.asesores !== null) {
+        if (!Number.isInteger(cambios.asesores) || cambios.asesores < 1) {
+          throw new BadRequestException(
+            'El número de asesores tiene que ser un entero de 1 o más.',
+          );
+        }
+        if (cambios.asesores > 999) {
+          throw new BadRequestException('Ese número de asesores no es real.');
+        }
+      }
+      data.proyeccionAsesores = cambios.asesores;
+      tocados.push('asesores');
+    }
+
+    if (cambios.cierre !== undefined) {
+      if (cambios.cierre === null) {
+        data.proyeccionCierre = null;
+      } else {
+        /// Fecha de calendario, a medianoche de Bogotá. La misma
+        /// forma que el cronograma, para que «días para el cierre»
+        /// cuente igual que allá.
+        const fecha = new Date(`${cambios.cierre}T05:00:00.000Z`);
+        if (Number.isNaN(fecha.getTime())) {
+          throw new BadRequestException('Esa fecha de cierre no es válida.');
+        }
+        data.proyeccionCierre = fecha;
+      }
+      tocados.push('cierre');
+    }
+
+    if (tocados.length === 0) {
+      throw new BadRequestException('No llegó ningún cambio.');
+    }
+
+    await this.prisma.accionFormacion.update({
+      where: { id: accionFormacionId },
+      data,
+    });
+
+    /// EL REGISTRO DE CAMBIOS que pidió Catalina: el antes y el
+    /// después de lo que se tocó. Cambia la meta que se le exige a
+    /// cada asesor, así que quién y cuándo tiene que constar.
+    const antes: string[] = [];
+    const despues: string[] = [];
+    if (cambios.asesores !== undefined) {
+      antes.push(`asesores ${accion.proyeccionAsesores ?? '—'}`);
+      despues.push(`asesores ${cambios.asesores ?? '—'}`);
+    }
+    if (cambios.cierre !== undefined) {
+      const iso = (d: Date | null) => (d ? d.toISOString().slice(0, 10) : '—');
+      antes.push(`cierre ${iso(accion.proyeccionCierre)}`);
+      despues.push(`cierre ${cambios.cierre ?? '—'}`);
+    }
+    await this.auditoria.registrar({
+      actor,
+      accion: 'PROYECCION_EDITADA',
+      entidad: ENTIDADES.ACCION,
+      entidadId: accionFormacionId,
+      convenioId: accion.convenioId,
+      resumen: `${antes.join(', ')} → ${despues.join(', ')}`,
+      camposTocados: tocados,
+      ip,
+    });
+
+    return { guardado: true };
   }
 
   /**

@@ -674,3 +674,26 @@ export class AsignarGrupoEnLoteDto {
   @IsString({ each: true })
   ids!: string[];
 }
+
+/**
+ * Configurar la proyección de metas de una acción: # asesores y fecha
+ * de cierre, que el administrador pone a mano.
+ *
+ * Los dos son opcionales por separado: se puede cambiar solo uno.
+ * `null` vacía el campo --el # de asesores queda sin poner, o el
+ * cierre vuelve al del cronograma--; ausente es «no lo toques». La
+ * validación fina --entero, rango, fecha real-- vive en el servicio,
+ * que es donde también decide si la acción es del ámbito.
+ */
+export class ConfigProyeccionDto {
+  @IsOptional()
+  @ValidateIf((o: ConfigProyeccionDto) => o.asesores !== null)
+  @Type(() => Number)
+  @IsInt({ message: 'El número de asesores tiene que ser un entero.' })
+  asesores?: number | null;
+
+  @IsOptional()
+  @ValidateIf((o: ConfigProyeccionDto) => o.cierre !== null)
+  @IsDateString({}, { message: 'La fecha de cierre no es válida.' })
+  cierre?: string | null;
+}

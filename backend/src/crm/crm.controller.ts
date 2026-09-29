@@ -40,6 +40,7 @@ import { DirectorioService } from './directorio.service';
 import { PlantillasCorreoService } from '../correo/plantillas/plantillas-correo.service';
 import { RuiService } from './rui/rui.service';
 import {
+  ConfigProyeccionDto,
   DatosDeLaEmpresaDto,
   ActualizarParticipanteDto,
   AgregarNitDto,
@@ -340,6 +341,33 @@ export class CrmController {
     @Query('llegoHasta') llegoHasta?: string,
   ) {
     return this.crm.proyeccionDeInscripciones(ambito, { llegoDesde, llegoHasta });
+  }
+
+  /**
+   * El administrador fija el # de asesores y la fecha de cierre de la
+   * proyección de una acción. Queda el registro de cambios.
+   *
+   * `configuracion · ESCRIBIR`, no `inscritos`: mirar la proyección lo
+   * hace cualquiera que trae leads, pero MOVER la meta que se le exige
+   * a cada asesor es del administrador --Catalina, superadmin, líder
+   * de sistemas--, que son quienes tienen esa área en ESCRIBIR.
+   */
+  @Patch('asesores/proyeccion/:accionId')
+  @Requiere('configuracion', 'ESCRIBIR')
+  configurarProyeccion(
+    @Param('accionId') accionId: string,
+    @Body() dto: ConfigProyeccionDto,
+    @AmbitoActual() ambito: Ambito,
+    @AdminActual() admin: Admin,
+    @IpReal() ip: string,
+  ) {
+    return this.crm.configurarProyeccion(
+      accionId,
+      { asesores: dto.asesores, cierre: dto.cierre },
+      ambito,
+      { id: admin.id, nombre: admin.nombre },
+      ip,
+    );
   }
 
   /**
