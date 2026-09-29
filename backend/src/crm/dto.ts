@@ -584,6 +584,21 @@ export class ResolverPropuestaDto {
  * operacion. El digito de verificacion si, que es lo que de
  * verdad se teclea mal.
  */
+/**
+ * MUDAR LA FICHA A UNA ORGANIZACIÓN QUE YA EXISTE.
+ *
+ * Solo el NIT: la organización de destino ya está registrada, con su
+ * razón social y sus datos. Dejar mandar también el nombre sería dar
+ * a entender que se puede renombrar de paso, y renombrarla afecta a
+ * todas las fichas que cuelgan de ella, no solo a esta.
+ */
+export class MudarDeOrganizacionDto {
+  @Transform(recortar)
+  @IsString()
+  @MaxLength(20)
+  nit!: string;
+}
+
 export class DatosDeLaEmpresaDto {
   /// El NIT SÍ se corrige, aunque sea la llave: es el que viaja al
   /// F7, así que un NIT mal tecleado es un reporte malo. El

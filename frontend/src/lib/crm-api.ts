@@ -1576,6 +1576,24 @@ export const crmApi = {
       body: JSON.stringify(datos),
     }),
 
+  /**
+   * MOVER ESTA FICHA A UNA ORGANIZACIÓN QUE YA EXISTE.
+   *
+   * Es OTRA puerta, no un caso de la de arriba, y la diferencia
+   * importa: corregir el NIT cambia la organización y con ella
+   * TODAS las fichas que cuelgan de esa fila; mover cambia SOLO
+   * esta ficha.
+   *
+   * Hace falta cuando la organización buena ya está registrada:
+   * ahí no hay nada que corregir —el NIT bueno ya es de alguien—
+   * y lo que se necesita es mudar a la persona.
+   */
+  mudarDeOrganizacion: (id: string, nit: string) =>
+    pedir<{ movida: boolean; razonSocial: string; nit: string }>(
+      `/admin/participantes/${id}/organizacion`,
+      { method: "PATCH", body: JSON.stringify({ nit }) },
+    ),
+
   historico: (id: string) =>
     pedir<ValorAnterior[]>(`/admin/participantes/${id}/historico`),
 
