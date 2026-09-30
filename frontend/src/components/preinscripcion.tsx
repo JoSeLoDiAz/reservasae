@@ -250,6 +250,27 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
 
   const correoValido = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(datos.correo.trim());
 
+  /**
+   * EL CELULAR TIENE QUE EMPEZAR POR 3 (cliente, 30 sep 2026:
+   * «blindarlo para evitar casos como el de Geraldine»).
+   *
+   * Pedía diez dígitos y nada más, y una cédula colombiana tiene diez
+   * dígitos. Así entró un número de documento en la casilla del
+   * celular: pasaba el formulario, se guardaba como contacto, viajaba
+   * al reporte del SENA como número de la persona, y la compuerta de
+   * matrícula lo daba por bueno ---hay «alguna forma de
+   * contactarla»--- cuando no se podía llamar a nadie.
+   *
+   * La regla no es nueva: es `celularValido` del backend, que ya dice
+   * que un móvil colombiano son diez dígitos empezando por 3. Lo que
+   * faltaba era aplicarla ANTES, aquí, donde todavía se puede
+   * corregir. Después solo se puede llamar y preguntar.
+   *
+   * SE AVISA, NO SE BORRA lo tecleado: quien puso su fijo de la casa
+   * tiene que poder verlo mientras lo cambia.
+   */
+  const celularEsMovil = /^3\d{9}$/.test(datos.celular);
+
   /// Lo que falta, con nombre. Un boton apagado sin decir
   /// por que es lo que hace que la gente abandone.
   const faltaEnDatos = [
@@ -257,8 +278,14 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
     !datos.primerApellido.trim() && "primer apellido",
     !datos.generoSepId && "género",
     esOtroGenero && !datos.generoOtroCual.trim() && "cuál es su género",
-    datos.celular.length !== 10 &&
-      (datos.celular ? "el celular completo (10 dígitos)" : "celular"),
+    !celularEsMovil &&
+      (datos.celular.length === 10
+        ? /// Diez dígitos que no empiezan por 3: casi siempre es la
+          /// cédula. Se dice qué se espera, no solo que está mal.
+          "un celular que empiece por 3 (parece un número de documento)"
+        : datos.celular
+          ? "el celular completo (10 dígitos)"
+          : "celular"),
     !correoValido && (datos.correo.trim() ? "un correo válido" : "correo electrónico"),
     !datos.tipoDocumentoSepId && "tipo de documento",
     !datos.numeroDocumento.trim() && "número de documento",

@@ -539,18 +539,6 @@ function DeInscripciones({ ventana, ventanaAntes, rotuloAnterior }: ConPeriodo) 
         </span>
       ),
     },
-    {
-      clave: "gestionados",
-      titulo: "Gestionados",
-      ancho: "118px",
-      numerica: true,
-      valor: (f) => f.visto.gestionados,
-      pinta: (f) => (
-        <span className="tabular-nums">
-          <Cifra ahora={f.visto.gestionados} antes={antesDe(f)?.gestionados ?? null} />
-        </span>
-      ),
-    },
     /// DOS COLUMNAS Y NO UNA (cliente, 26 sep 2026: «esto es
     /// separado, o sea una columna Inscritos y en otro Descartados»).
     /// Juntas sumaban bien y no decían nada: quince resueltos pueden
@@ -558,8 +546,8 @@ function DeInscripciones({ ventana, ventanaAntes, rotuloAnterior }: ConPeriodo) 
     /// conversaciones distintas con el asesor.
     {
       clave: "inscritos",
-      titulo: "Inscritos",
-      ancho: "110px",
+      titulo: "Leads inscritos",
+      ancho: "132px",
       numerica: true,
       valor: (f) => f.visto.inscritos,
       pinta: (f) => (
@@ -570,8 +558,8 @@ function DeInscripciones({ ventana, ventanaAntes, rotuloAnterior }: ConPeriodo) 
     },
     {
       clave: "descartados",
-      titulo: "Descartados",
-      ancho: "118px",
+      titulo: "Leads descartados",
+      ancho: "142px",
       numerica: true,
       valor: (f) => f.visto.descartados,
       pinta: (f) => (
@@ -580,36 +568,21 @@ function DeInscripciones({ ventana, ventanaAntes, rotuloAnterior }: ConPeriodo) 
         </span>
       ),
     },
+    /// GESTIONADOS VA AL FINAL DE LAS CUATRO, y no entre asignados e
+    /// inscritos como estaba. Es el orden que pidió el cliente y tiene
+    /// sentido de lectura: primero lo que le entró, luego en qué acabó
+    /// ---inscrito o descartado---, y al final cuántos sigue
+    /// trabajando. Gestionados NO es la suma de los otros dos: son los
+    /// que tienen seguimiento, resueltos o no.
     {
-      clave: "pendientes",
-      /// LA META GLOBAL. Es la que se llamaba «Pendientes»: lo que
-      /// le falta por resolver antes de su fecha, que es exactamente
-      /// «el total que debe lograr». No se añade otra columna al lado
-      /// porque sería el mismo número dos veces, y dos columnas con
-      /// la misma cifra y distinto nombre se acaban comparando.
-      titulo: "Meta global",
-      ancho: "112px",
+      clave: "gestionados",
+      titulo: "Leads gestionados",
+      ancho: "138px",
       numerica: true,
-      valor: (f) => f.visto.pendientes,
-      pinta: (f) => (
-        <span
-          className={
-            "font-semibold tabular-nums " + (f.visto.pendientes > 0 ? "text-error" : "")
-          }
-        >
-          {n(f.visto.pendientes)}
-        </span>
-      ),
-    },
-    {
-      clave: "antiguedad",
-      titulo: "Antigüedad media",
-      ancho: "135px",
-      numerica: true,
-      valor: (f) => f.antiguedadMedia,
+      valor: (f) => f.visto.gestionados,
       pinta: (f) => (
         <span className="tabular-nums">
-          {f.antiguedadMedia === null ? "—" : `${n(Math.round(f.antiguedadMedia))} d`}
+          <Cifra ahora={f.visto.gestionados} antes={antesDe(f)?.gestionados ?? null} />
         </span>
       ),
     },
@@ -681,33 +654,26 @@ function DeInscripciones({ ventana, ventanaAntes, rotuloAnterior }: ConPeriodo) 
         valor={n(t.total)}
         pie={comparado(t.total, tAntes?.total)}
       />
+      {/* LOS MISMOS NOMBRES Y EL MISMO ORDEN QUE LAS COLUMNAS DE
+          DEBAJO: asignados, inscritos, descartados, gestionados. Una
+          tira que va en otro orden que la tabla que tiene pegada
+          debajo se lee como si fueran otras cifras. */}
       <CifraCompacta
-        etiqueta="Gestionados"
-        valor={n(t.gestionados)}
-        detalle={t.total > 0 ? `${Math.round((t.gestionados / t.total) * 100)} %` : undefined}
-        pie={comparado(t.gestionados, tAntes?.gestionados)}
-      />
-      {/* LOS MISMOS NOMBRES QUE LAS COLUMNAS DE DEBAJO. Se habían
-          quedado con los de antes de partir la columna y de renombrar
-          las metas: la tira decía «Inscritos y descartados» y la
-          tabla, justo debajo, los daba por separado. */}
-      <CifraCompacta
-        etiqueta="Inscritos"
+        etiqueta="Leads inscritos"
         valor={n(t.inscritos)}
         color="var(--exito)"
         pie={comparado(t.inscritos, tAntes?.inscritos)}
       />
       <CifraCompacta
-        etiqueta="Descartados"
+        etiqueta="Leads descartados"
         valor={n(t.descartados)}
         pie={comparado(t.descartados, tAntes?.descartados)}
       />
-      {/* LA META GLOBAL NO COMPARA, como en la tabla: es lo que
-          FALTA, no lo que se hizo. */}
       <CifraCompacta
-        etiqueta="Meta global"
-        valor={n(t.pendientes)}
-        color={t.pendientes > 0 ? "var(--error)" : undefined}
+        etiqueta="Leads gestionados"
+        valor={n(t.gestionados)}
+        detalle={t.total > 0 ? `${Math.round((t.gestionados / t.total) * 100)} %` : undefined}
+        pie={comparado(t.gestionados, tAntes?.gestionados)}
       />
     </div>
 

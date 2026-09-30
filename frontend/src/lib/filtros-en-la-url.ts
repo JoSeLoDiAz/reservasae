@@ -18,6 +18,12 @@
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useMemo } from "react";
 
+import {
+  PERIODO_INICIAL,
+  RANGOS_DEL_PANEL,
+  ventanaDe,
+  type Periodo,
+} from "@/components/admin/filtro-de-periodo";
 import { ETIQUETA_ETAPA, type Etapa, type Filtros } from "./crm-api";
 
 /// Las etapas que existen, sacadas del sitio donde ya están.
@@ -55,6 +61,43 @@ const CORTO: Record<LlaveTexto, string> = {
 };
 
 const ESTADOS = ["COMPLETO", "PARCIAL"] as const;
+
+/// EL PERIODO, EL MISMO DE LOS CINCO TABLEROS.
+///
+/// «Generar filtro por fecha en Gestión de leads» (cliente, 30 sep
+/// 2026). No se escribe otro control: se usa el que ya está, con sus
+/// mismos rangos y su misma traducción a hora de Bogotá. Un segundo
+/// control con los mismos nombres acaba contestando distinto, que es
+/// justo lo que ya pasó una vez en esta casa.
+///
+/// VIAJA EN LA DIRECCIÓN como todo lo demás: `?periodo=HOY` se puede
+/// pegar en un chat. Y por la misma razón que `espera` viaja en días
+/// y no en fechas, el rango viaja por su NOMBRE: `?periodo=HOY` sigue
+/// queriendo decir hoy mañana, mientras que unas fechas fijas
+/// congelan la pregunta.
+function periodoValido(
+  rango: string | null,
+  desde: string | null,
+  hasta: string | null,
+): Periodo | undefined {
+  if (!rango || !(RANGOS_DEL_PANEL as string[]).includes(rango)) return undefined;
+  if (rango === PERIODO_INICIAL.rango) return undefined;
+  const p: Periodo = {
+    rango: rango as Periodo["rango"],
+    desde: dia(desde),
+    hasta: dia(hasta),
+  };
+  /// Un rango a medida sin ninguna de sus dos fechas no acota nada:
+  /// es como no haber elegido. Con UNA sola sí acota, por un lado.
+  if (p.rango === "PERSONALIZADO" && !p.desde && !p.hasta) return undefined;
+  return p;
+}
+
+/// `aaaa-mm-dd` o nada. Lo que venga torcido en la dirección se
+/// ignora, como el resto de los filtros.
+function dia(v: string | null): string {
+  return v && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : "";
+}
 
 /// CUÁNTO LLEVA ESPERANDO, en días cumplidos.
 ///
@@ -125,6 +168,9 @@ export type Cambio = Partial<
   /// tanto la dirección como el chip de la pantalla puedan decir
   /// «más de una semana» en vez de una fecha.
   espera?: number;
+  /// El periodo de llegada. Tampoco es un campo de `Filtros`: se
+  /// traduce a `llegoDesde`/`llegoHasta` al salir.
+  periodo?: Periodo;
 };
 
 export type FiltrosEnLaUrl = {
@@ -182,6 +228,13 @@ export function useFiltrosEnLaUrl(fijos: Filtros = {}): FiltrosEnLaUrl {
       if (valor) p[llave] = valor;
     }
 
+    const periodo = periodoValido(
+      parametros.get("periodo"),
+      parametros.get("desde"),
+      parametros.get("hasta"),
+    );
+    if (periodo) p.periodo = periodo;
+
     return p;
   }, [parametros]);
 
@@ -194,10 +247,18 @@ export function useFiltrosEnLaUrl(fijos: Filtros = {}): FiltrosEnLaUrl {
       /// instante. Se convierte aquí, una sola vez por cambio de
       /// dirección, para que la lista no se vuelva a pedir en
       /// cada repintado.
-      const { espera, ...resto } = puestos;
+      const { espera, periodo, ...resto } = puestos;
       return {
         ...resto,
         ...(espera ? { llegoHasta: haceDias(espera) } : {}),
+        /// EL PERIODO VA DESPUÉS DE `espera` y puede pisarle el
+        /// `llegoHasta`, que es lo correcto: si alguien pide «los de
+        /// hoy» y además «los que llevan más de una semana
+        /// esperando», la pregunta no tiene respuesta ---nadie que
+        /// llegó hoy lleva ocho días--- y la que manda es la última
+        /// que se tocó. Los dos chips siguen a la vista, así que se
+        /// ve por qué la lista salió vacía.
+        ...(periodo ? ventanaDe(periodo) : {}),
         ...fijos,
       };
     },
@@ -220,6 +281,15 @@ export function useFiltrosEnLaUrl(fijos: Filtros = {}): FiltrosEnLaUrl {
       if ("departamentoSepId" in cambio)
         poner("departamento", cambio.departamentoSepId);
       if ("espera" in cambio) poner("espera", cambio.espera);
+      if ("periodo" in cambio) {
+        const p = cambio.periodo;
+        /// `TODO` es «sin acotar»: se quita de la dirección en vez de
+        /// escribirse, para que un enlace sin periodo y uno con
+        /// `?periodo=TODO` sean el mismo enlace.
+        poner("periodo", p && p.rango !== "TODO" ? p.rango : undefined);
+        poner("desde", p?.rango === "PERSONALIZADO" ? p.desde : undefined);
+        poner("hasta", p?.rango === "PERSONALIZADO" ? p.hasta : undefined);
+      }
       if ("cola" in cambio) {
         poner("cola", cambio.cola === "POR_TRABAJAR" ? "por-trabajar" : "");
       }
