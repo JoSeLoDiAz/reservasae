@@ -213,7 +213,11 @@ export const CANALES: CanalContacto[] = [
 export const ETIQUETA_CANAL_CONTACTO: Record<CanalContacto, string> = {
   CORREO: "Correo",
   WHATSAPP: "WhatsApp",
-  TEXTO: "Texto",
+  /// «Mensaje de texto» y no «Texto» a secas: al lado de «Correo»
+  /// ---que el CRM sí manda--- «Texto» se leía como un SMS que el
+  /// sistema enviaba. No envía ninguno: esto es el registro de lo que
+  /// hizo el asesor desde su propio teléfono.
+  TEXTO: "Mensaje de texto",
   LLAMADA: "Llamada",
 };
 
