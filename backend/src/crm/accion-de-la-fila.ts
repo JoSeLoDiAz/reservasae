@@ -12,7 +12,7 @@
  * se cree nada.
  */
 
-import { cubreA, type DondeSeDicta, type DondeVive } from './cobertura';
+import { cubreA, igual, type DondeSeDicta, type DondeVive } from './cobertura';
 
 /** Una oferta del convenio, con lo que hace falta para elegir. */
 export type OfertaParaCarga = {
@@ -37,14 +37,39 @@ export type EleccionDeAccion = {
   problemas: string[];
 };
 
-/// Ciudad antes que departamento: entre un grupo en su misma ciudad y
-/// uno departamental, el de su ciudad es el que de verdad le queda cerca.
-function mejor(a: OfertaParaCarga, b: OfertaParaCarga): number {
-  const porTipo = (o: OfertaParaCarga) => (o.ubicacion.tipo === 'CIUDAD' ? 0 : 1);
-  if (porTipo(a) !== porTipo(b)) return porTipo(a) - porTipo(b);
-  /// Y con el mismo tipo, el que tiene más sitio: así una tanda grande
-  /// no llena un grupo y deja el otro vacío.
-  return b.cuposMaximos - b.ocupados - (a.cuposMaximos - a.ocupados);
+/**
+ * CUÁL DE LOS QUE LE SIRVEN LE SIRVE MÁS.
+ *
+ * Tres escalones, y el orden importa:
+ *
+ *   1. Un grupo en SU MISMA ciudad. Es el que de verdad le queda
+ *      cerca.
+ *   2. El DEPARTAMENTAL. Está pensado para todo el departamento, así
+ *      que es la casa natural de quien no es de la ciudad.
+ *   3. Un grupo en OTRA ciudad de su departamento. Le sirve ---desde
+ *      el 30 sep 2026 se puede inscribir--- pero es el último
+ *      recurso, no la primera opción.
+ *
+ * Antes eran dos escalones ---ciudad antes que departamento--- y con
+ * la regla nueva eso habría mandado a alguien de Apartadó al
+ * presencial de Medellín TENIENDO un departamental abierto, solo
+ * porque «ciudad gana». El argumento de que la ciudad gana es que le
+ * queda cerca, y eso solo vale cuando es SU ciudad.
+ */
+function comoDeBien(o: OfertaParaCarga, vive: DondeVive): number {
+  if (o.ubicacion.tipo !== 'CIUDAD') return 1;
+  return igual(o.ubicacion.nombre, vive.ciudad) ? 0 : 2;
+}
+
+function mejorPara(vive: DondeVive) {
+  return (a: OfertaParaCarga, b: OfertaParaCarga): number => {
+    const ea = comoDeBien(a, vive);
+    const eb = comoDeBien(b, vive);
+    if (ea !== eb) return ea - eb;
+    /// Y en el mismo escalón, el que tiene más sitio: así una tanda
+    /// grande no llena un grupo y deja el otro vacío.
+    return b.cuposMaximos - b.ocupados - (a.cuposMaximos - a.ocupados);
+  };
 }
 
 export function elegirOferta(
@@ -89,7 +114,7 @@ export function elegirOferta(
     };
   }
 
-  const elegida = [...cubren].sort(mejor)[0];
+  const elegida = [...cubren].sort(mejorPara(vive))[0];
   return {
     accionFormacionId,
     ofertaId: elegida.id,

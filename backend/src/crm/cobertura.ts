@@ -1,8 +1,12 @@
 /** A quién cubre un grupo, por dónde vive. */
 
 /// Un grupo se dicta en una ciudad o cubre un departamento
-/// entero. Ofrecerle a alguien de Bogotá un grupo de Medellín
-/// no es una opción: es un error esperando a que alguien lo
+/// entero, y en los dos casos LA FRONTERA ES EL DEPARTAMENTO:
+/// a un presencial en Medellín va quien viva en Antioquia,
+/// venga de Medellín o de Rionegro (cliente, 30 sep 2026).
+///
+/// Ofrecerle a alguien de Bogotá un grupo de Medellín sigue sin
+/// ser una opción: eso es un error esperando a que alguien lo
 /// cometa con prisa un viernes a las cinco.
 ///
 /// Y cuando se comete no se nota: la ficha queda con grupo, el
@@ -65,21 +69,31 @@ export function cubreA(donde: DondeSeDicta, vive: DondeVive): boolean {
     return igual(donde.nombre, vive.departamento);
   }
 
-  /// Una ciudad cubre a quien vive EN ella.
-  ///
-  /// No basta con que coincida el departamento: un grupo
-  /// presencial en Medellín no le sirve a alguien de Apartadó
-  /// aunque los dos sean de Antioquia. Ese es justo el error
-  /// que esto viene a impedir.
   if (igual(donde.nombre, vive.ciudad)) return true;
 
-  /// Salvo que no sepamos su ciudad. Entonces se cae al
-  /// departamento: es lo único que se puede afirmar, y dejar
-  /// fuera un grupo bueno por un dato incompleto también es
-  /// un error.
-  if (!vive.ciudad) return igual(donde.departamento, vive.departamento);
-
-  return false;
+  /**
+   * UNA CIUDAD CUBRE SU DEPARTAMENTO ENTERO (cliente, 30 sep 2026:
+   * «los de AF6, que es en Medellín, así la persona sea de Rionegro
+   * debe permitir inscribirla»).
+   *
+   * Antes exigía la MISMA ciudad, y el motivo escrito era que «un
+   * presencial en Medellín no le sirve a alguien de Apartadó». El
+   * razonamiento parecía bueno y era mío, no suyo: quien decide hasta
+   * dónde se desplaza la gente a un curso es quien la convoca, no el
+   * programa. Y la respuesta es que sí se desplaza ---Rionegro está a
+   * tres cuartos de hora de Medellín--- así que la ciudad no puede
+   * ser la frontera.
+   *
+   * EL DEPARTAMENTO SIGUE SIENDO FRONTERA, y eso es lo que se
+   * conserva de la regla vieja: a alguien de Bogotá no se le mete en
+   * el grupo de Medellín. Ese error sí es error, y es el que de
+   * verdad se cometía un viernes a las cinco.
+   *
+   * De paso desaparece un caso raro: antes, NO saber la ciudad de
+   * alguien lo dejaba mejor ---se le ofrecía todo el departamento---
+   * que saberla. Ahora las dos ramas dicen lo mismo.
+   */
+  return igual(donde.departamento, vive.departamento);
 }
 
 /// Los que le sirven, y cuántos quedaron fuera. El número
