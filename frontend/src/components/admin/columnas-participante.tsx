@@ -179,7 +179,7 @@ export function columnasDeParticipante(): Columna<FilaParticipante>[] {
     },
     {
       clave: "celular",
-      ancho: "120px",
+      ancho: "176px",
       titulo: "Número de teléfono",
       valor: (f) => f.celular,
       filtro: "texto",
@@ -205,14 +205,14 @@ export function columnasDeParticipante(): Columna<FilaParticipante>[] {
     },
     {
       clave: "tipoDocumento",
-      ancho: "96px",
+      ancho: "152px",
       titulo: "Tipo documento",
       valor: (f) => f.tipoDocumento,
       filtro: "opciones",
     },
     {
       clave: "numeroDocumento",
-      ancho: "128px",
+      ancho: "176px",
       titulo: "Número documento",
       valor: (f) => f.numeroDocumento,
       pinta: (f) => <span className="font-mono text-sm">{f.numeroDocumento}</span>,
@@ -236,7 +236,7 @@ export function columnasDeParticipante(): Columna<FilaParticipante>[] {
       /// Solo el codigo. El nombre completo pasa de sesenta
       /// caracteres y una fila con eso deja de leerse.
       clave: "accionCodigo",
-      ancho: "104px",
+      ancho: "208px",
       titulo: "Acción formación interés",
       valor: (f) => f.accionCodigo,
       pinta: (f) =>
@@ -283,7 +283,7 @@ export function columnasDeParticipante(): Columna<FilaParticipante>[] {
     },
     {
       clave: "datos",
-      ancho: "116px",
+      ancho: "160px",
       /// «Datos pendientes» y no «Estado de los datos».
       ///
       /// Esta columna decía «Datos completos / Datos
@@ -334,7 +334,7 @@ export function columnasDeParticipante(): Columna<FilaParticipante>[] {
       /// columnas, y renombrarla borra la columna de la vista
       /// de quien ya eligió las suyas.
       clave: "origenLead",
-      ancho: "104px",
+      ancho: "160px",
       titulo: "Canal de entrada",
       valor: (f) => ETIQUETA_ORIGEN[f.origen],
       filtro: "opciones",
@@ -423,14 +423,14 @@ export function columnasDeParticipante(): Columna<FilaParticipante>[] {
       /// cambia: la guarda el selector de columnas, y renombrarla
       /// borraria la columna de quien ya eligio las suyas.
       clave: "etapaAnterior",
-      ancho: "124px",
+      ancho: "160px",
       titulo: "Viene de la etapa",
       valor: (f) => (f.etapaAnterior ? ETIQUETA_ETAPA[f.etapaAnterior] : "No se ha movido"),
       filtro: "opciones",
     },
     {
       clave: "cambios",
-      ancho: "92px",
+      ancho: "172px",
       titulo: "Cambios realizados",
       numerica: true,
       valor: (f) => f.cambios,
@@ -438,7 +438,7 @@ export function columnasDeParticipante(): Columna<FilaParticipante>[] {
     },
     {
       clave: "datosEmpresa",
-      ancho: "136px",
+      ancho: "164px",
       titulo: "Datos de empresa",
       valor: (f) => ETIQUETA_DATOS_EMPRESA[f.datosEmpresa],
       pinta: (f) => (
@@ -480,7 +480,7 @@ export function columnasDeParticipante(): Columna<FilaParticipante>[] {
       /// si da el lead. Para lo que sirve la columna —a quien
       /// no se ha logrado contactar— las dos coinciden.
       clave: "sinRespuesta",
-      ancho: "104px",
+      ancho: "190px",
       titulo: "Intentos sin respuesta",
       numerica: true,
       valor: (f) => f.sinRespuesta,
@@ -495,7 +495,7 @@ export function columnasDeParticipante(): Columna<FilaParticipante>[] {
     },
     {
       clave: "antiguedadDias",
-      ancho: "104px",
+      ancho: "204px",
       titulo: "Antigüedad lead en días",
       numerica: true,
       valor: (f) => f.antiguedadDias,
