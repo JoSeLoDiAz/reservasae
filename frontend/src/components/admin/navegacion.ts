@@ -340,22 +340,19 @@ export const MODULOS: Modulo[] = [
     etiqueta: 'Sistemas',
     descripcion: 'Los datos que sostienen el reporte al SENA.',
     enlaces: [
-      {
-        /// Lo que era el Resumen hasta el 22 sep 2026.
-        ///
-        /// El cliente rehizo la portada con sus cinco módulos y de
-        /// los once bloques que había dijo «bajan todos, sin
-        /// excepción». Bajaron AQUÍ, enteros: el veredicto, el
-        /// termómetro de la meta dentro del tope, el ritmo, el mapa
-        /// y la concentración. Borrarlos habría sido perder trabajo
-        /// que alguien decidió; y sin entrada de menú, una pantalla
-        /// a la que solo se llega por un enlace de otra se pierde
-        /// igual.
-        href: '/admin/ocupacion',
-        etiqueta: 'Ocupación contra la meta',
-        exacto: true,
-        area: 'reserva',
-      },
+      /// SIN «OCUPACIÓN CONTRA LA META» AQUÍ (cliente, 30 sep 2026:
+      /// «en Sistemas borrar ocupación sobre la meta»).
+      ///
+      /// Es la misma regla que él aplicó cinco días antes a Reservas
+      /// y antes de eso al tráfico del formulario, dos renglones más
+      /// abajo: una pantalla que se TRABAJA vive en su área y en una
+      /// sola. La ocupación contra la meta es de reservas, y desde
+      /// Reservas se llega con «Ver la ocupación contra la meta».
+      ///
+      /// LA PANTALLA NO SE BORRA, solo su renglón en este menú: el
+      /// veredicto, el termómetro, el ritmo, el mapa y la
+      /// concentración siguen en `/admin/ocupacion` enteros. Borrar
+      /// la pantalla sería perder trabajo que alguien decidió.
       /// SIN «RESERVAS» AQUÍ (cliente, 25 sep 2026: «quitemos la
       /// vista en Sistemas, porque mira que es como lo que nos
       /// pasaba con Tráfico del formulario; no me había fijado»).
