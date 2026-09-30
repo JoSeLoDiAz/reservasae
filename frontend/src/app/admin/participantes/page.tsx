@@ -12,10 +12,6 @@ import { IconoCerrar } from "@/components/admin/iconos";
 import { Embudo } from "@/components/admin/secciones";
 import { colorEtapa } from "@/components/admin/etapa";
 import { columnasDeParticipante } from "@/components/admin/columnas-participante";
-import {
-  FiltroDePeriodo,
-  PERIODO_INICIAL,
-} from "@/components/admin/filtro-de-periodo";
 import { Tabla } from "@/components/admin/tabla";
 import { ErrorApi } from "@/lib/api";
 import { useFiltrosEnLaUrl } from "@/lib/filtros-en-la-url";
@@ -267,29 +263,6 @@ export default function PaginaParticipantes() {
         </Tarjeta>
       )}
 
-      {/* EL PERIODO (cliente, 30 sep 2026: «generar filtro por fecha
-          en Gestión de leads»).
-
-          ES EL MISMO CONTROL DE LOS CINCO TABLEROS, no una copia: sus
-          rangos, su hora de Bogotá y su «nunca más de dos fechas». Lo
-          único que cambia es que aquí no compara ---esto es una lista
-          de personas, no un tablero de cifras--- y por eso va sin
-          `alComparar`.
-
-          ARRIBA Y SIEMPRE A LA VISTA, no dentro del menú de acciones
-          ni entre los filtros de columna de la tabla: es la pregunta
-          con la que se empieza ---«¿qué entró hoy?»--- y esconderla
-          tras un clic es cobrarla veinte veces al día. */}
-      <div className="flex flex-wrap items-center gap-2">
-        <FiltroDePeriodo
-          periodo={puestos.periodo ?? PERIODO_INICIAL}
-          alCambiar={(p) => cambiar({ periodo: p })}
-        />
-        <span className="text-[0.71875rem] text-texto-suave">
-          por cuándo llegó el lead
-        </span>
-      </div>
-
       {/* Los filtros puestos, a la vista y con su ✕.
           Antes «Quitar los filtros» solo aparecia cuando NO
           habia resultados: con el filtro puesto y filas en
@@ -299,9 +272,8 @@ export default function PaginaParticipantes() {
           dice su propio comentario -- y nunca se pinto. */}
       {cuantos > 0 && (
         <div className="flex flex-wrap items-center gap-2">
-          {(Object.entries(puestos) as Array<[string, string]>)
-            .filter(([clave]) => clave !== "periodo")
-            .map(([clave, valor]) => (
+          {(Object.entries(puestos) as Array<[string, string]>).map(
+            ([clave, valor]) => (
               <span
                 key={clave}
                 className="inline-flex items-center gap-1.5 rounded-full border border-marca/30 bg-marca-suave px-2.5 py-1 text-[0.71875rem]"
@@ -319,7 +291,8 @@ export default function PaginaParticipantes() {
                   <IconoCerrar tamano={12} />
                 </button>
               </span>
-            ))}
+            ),
+          )}
           <button
             type="button"
             onClick={limpiar}
