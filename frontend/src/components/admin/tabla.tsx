@@ -38,7 +38,96 @@ import {
  * a quien no debía.
  */
 
-export type TipoFiltro = "texto" | "opciones" | "numero";
+export type TipoFiltro = "texto" | "opciones" | "numero" | "fecha";
+
+/**
+ * LAS COLUMNAS DE FECHA TAMBIÉN SE FILTRAN, EN SU MISMA FILA.
+ *
+ * «Es tener filtro como correo, de acuerdo a la captura» (cliente, 30
+ * sep 2026), señalando la celda VACÍA que quedaba debajo de «Fecha de
+ * creación» mientras «Correo» tenía la suya.
+ *
+ * Antes le puse un selector de periodo aparte, encima de la tabla. No
+ * era eso: un control suelto arriba no es el filtro de esa columna, y
+ * dejaba el hueco igual de vacío.
+ *
+ * VA COMO DESPLEGABLE y no como dos cajas de fecha, por dos razones:
+ * cabe en el ancho de la columna, y se lee igual que los «Todas» de
+ * al lado. Y por rangos con NOMBRE ---«Hoy», «Esta semana»--- y no
+ * por fechas sueltas, que es lo que se pregunta de verdad al llegar.
+ */
+export const RANGOS_DE_FECHA = [
+  "Hoy",
+  "Ayer",
+  "Esta semana",
+  "Este mes",
+  "Mes pasado",
+  "Este trimestre",
+  "Este año",
+] as const;
+
+/// Colombia va cinco horas detrás de UTC y no mueve el reloj en todo
+/// el año. Es la misma cuenta que hace el servidor, y sin ella «Hoy»
+/// empieza a las siete de la tarde de ayer y trae los de anoche.
+const HORAS_BOGOTA = 5;
+
+function diaBogota(cuando: Date): string {
+  return new Date(cuando.getTime() - HORAS_BOGOTA * 3600_000)
+    .toISOString()
+    .slice(0, 10);
+}
+
+/**
+ * ¿Cae esta fecha dentro del rango elegido?
+ *
+ * Trabaja con el DÍA DE BOGOTÁ de los dos lados ---el de la fila y el
+ * de hoy--- y compara cadenas `aaaa-mm-dd`, que se ordenan solas. Así
+ * no hay que construir instantes ni preocuparse por la hora.
+ */
+export function caeEnElRango(valor: unknown, rango: string, ahora = new Date()): boolean {
+  if (!rango) return true;
+  if (valor === null || valor === undefined || valor === "") return false;
+
+  const f = valor instanceof Date ? valor : new Date(String(valor));
+  if (Number.isNaN(f.getTime())) return false;
+
+  const dia = diaBogota(f);
+  const hoy = diaBogota(ahora);
+
+  const sumar = (d: string, n: number) => {
+    const x = new Date(`${d}T00:00:00.000Z`);
+    x.setUTCDate(x.getUTCDate() + n);
+    return x.toISOString().slice(0, 10);
+  };
+
+  switch (rango) {
+    case "Hoy":
+      return dia === hoy;
+    case "Ayer":
+      return dia === sumar(hoy, -1);
+    /// «Esta semana» son los últimos siete días contando hoy, no de
+    /// lunes a domingo: quien lo pulsa un martes quiere ver la semana
+    /// que lleva trabajada, no dos días.
+    case "Esta semana":
+      return dia > sumar(hoy, -7) && dia <= hoy;
+    case "Este mes":
+      return dia.slice(0, 7) === hoy.slice(0, 7);
+    case "Mes pasado": {
+      const p = new Date(`${hoy.slice(0, 7)}-01T00:00:00.000Z`);
+      p.setUTCMonth(p.getUTCMonth() - 1);
+      return dia.slice(0, 7) === p.toISOString().slice(0, 7);
+    }
+    case "Este trimestre": {
+      const mes = Number(hoy.slice(5, 7));
+      const arranque = String(mes - ((mes - 1) % 3)).padStart(2, "0");
+      return dia >= `${hoy.slice(0, 4)}-${arranque}-01` && dia <= hoy;
+    }
+    case "Este año":
+      return dia.slice(0, 4) === hoy.slice(0, 4);
+    default:
+      return true;
+  }
+}
 
 /// Los tamaños de página que se ofrecen. Sin 200 ni 500: a
 /// partir de ahí la tabla pesa más de lo que ayuda, y para
@@ -576,6 +665,11 @@ export function Tabla<T>({
         const celda = texto(v[col]);
         if (def?.filtro === "opciones") {
           if (celda !== valor) return false;
+        } else if (def?.filtro === "fecha") {
+          /// Sobre el valor CRUDO de la columna y no sobre lo pintado:
+          /// la celda enseña «24/08/26, 8:25 a. m.», y comparar ese
+          /// texto no dice nada de en qué día cae.
+          if (!caeEnElRango(v[col], valor)) return false;
         } else if (def?.filtro === "numero") {
           if (!cumpleNumero(Number(v[col]), valor)) return false;
         } else if (!sinTildes(celda).includes(sinTildes(valor))) return false;
@@ -1397,6 +1491,28 @@ function CampoFiltro<T>({
 }) {
   const clases =
     "w-full min-w-[6rem] rounded-lg border border-campo-borde bg-campo-fondo px-2 py-1 text-xs font-normal text-texto outline-none focus:border-campo-foco";
+
+  /// EL DE FECHA VA PRIMERO porque también es un desplegable, y así
+  /// se lee al lado del de opciones, que es su hermano. La única
+  /// diferencia es de dónde salen las opciones: las suyas son fijas
+  /// ---los rangos--- y no salen de los datos.
+  if (columna.filtro === "fecha") {
+    return (
+      <select
+        value={valor}
+        onChange={(e) => alCambiar(e.target.value)}
+        className={clases}
+        aria-label={"Filtrar por " + columna.titulo}
+      >
+        <option value="">Todas</option>
+        {RANGOS_DE_FECHA.map((r) => (
+          <option key={r} value={r}>
+            {r}
+          </option>
+        ))}
+      </select>
+    );
+  }
 
   if (columna.filtro === "opciones") {
     return (

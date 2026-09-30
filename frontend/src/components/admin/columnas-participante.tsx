@@ -96,6 +96,11 @@ export function columnasDeParticipante(): Columna<FilaParticipante>[] {
       ancho: "148px",
       titulo: "Fecha de creación",
       valor: (f) => f.creadoEn,
+      /// SU CELDA DE FILTRO ESTABA VACÍA, y era lo único de la fila
+      /// que lo estaba (cliente, 30 sep 2026: «es tener filtro como
+      /// correo, de acuerdo a la captura»). Un hueco en medio de la
+      /// fila se lee como que algo se rompió.
+      filtro: "fecha",
       pinta: (f) => (
         <span className="whitespace-nowrap font-mono text-xs">
           {fechaHora(f.creadoEn)}
@@ -298,6 +303,7 @@ export function columnasDeParticipante(): Columna<FilaParticipante>[] {
       ancho: "140px",
       titulo: "Última actividad",
       valor: (f) => f.ultimaActividad,
+      filtro: "fecha",
       pinta: (f) => (
         <span className="whitespace-nowrap font-mono text-xs">
           {fechaHora(f.ultimaActividad)}
@@ -359,6 +365,9 @@ export function columnasDeParticipante(): Columna<FilaParticipante>[] {
       ancho: "140px",
       titulo: "Último contacto",
       valor: (f) => f.ultimoContacto ?? "",
+      /// Las tres de fecha llevan el mismo filtro: dejar una sola con
+      /// él sería volver a dejar huecos en la fila.
+      filtro: "fecha",
       pinta: (f) =>
         f.ultimoContacto ? (
           <span className="whitespace-nowrap font-mono text-xs">
