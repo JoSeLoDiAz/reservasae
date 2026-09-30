@@ -340,19 +340,16 @@ export const MODULOS: Modulo[] = [
     etiqueta: 'Sistemas',
     descripcion: 'Los datos que sostienen el reporte al SENA.',
     enlaces: [
-      /// SIN «OCUPACIÓN CONTRA LA META» AQUÍ (cliente, 30 sep 2026:
-      /// «en Sistemas borrar ocupación sobre la meta»).
+      /// SIN «OCUPACIÓN CONTRA LA META», Y LA PANTALLA TAMPOCO.
       ///
-      /// Es la misma regla que él aplicó cinco días antes a Reservas
-      /// y antes de eso al tráfico del formulario, dos renglones más
-      /// abajo: una pantalla que se TRABAJA vive en su área y en una
-      /// sola. La ocupación contra la meta es de reservas, y desde
-      /// Reservas se llega con «Ver la ocupación contra la meta».
+      /// Primero se quitó del menú (30 sep 2026) y ese mismo día el
+      /// cliente cerró la puerta: «se elimina totalmente esta vista,
+      /// no se necesita nada». Así que se fue entera ---la página, el
+      /// veredicto y el ritmo, que no los usaba nadie más--- y con
+      /// ella el enlace que llevaba desde Reservas.
       ///
-      /// LA PANTALLA NO SE BORRA, solo su renglón en este menú: el
-      /// veredicto, el termómetro, el ritmo, el mapa y la
-      /// concentración siguen en `/admin/ocupacion` enteros. Borrar
-      /// la pantalla sería perder trabajo que alguien decidió.
+      /// Lo que SÍ sigue: el mapa de Colombia, que también lo usa el
+      /// panel de proceso, y el análisis del servidor, que no estorba.
       /// SIN «RESERVAS» AQUÍ (cliente, 25 sep 2026: «quitemos la
       /// vista en Sistemas, porque mira que es como lo que nos
       /// pasaba con Tráfico del formulario; no me había fijado»).
