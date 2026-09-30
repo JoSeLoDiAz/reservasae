@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import { Boton, CLASE_CONTROL } from "@/components/admin/marco-admin";
 import { crmApi, type CatalogosSep, type Ficha } from "@/lib/crm-api";
+import { digitoVerificacion, partirNitPegado } from "@/lib/nit";
 
 type Empresa = NonNullable<Ficha["empresa"]>;
 
@@ -195,6 +196,17 @@ export function EditorDeEmpresa({
   const crear = empresa === null;
   const faltaNit = crear && v.nit.trim() === "";
 
+  /// El NIT de una empresa es de nueve dígitos (Josse, 30 sep 2026).
+  ///
+  /// AVISA Y NO BLOQUEA, y las dos razones importan: quien trabaja
+  /// POR SU CUENTA pone su cédula, que no tiene nueve; y hay 25
+  /// organizaciones en producción que ya entraron con otro largo
+  /// --«liceo moderno» son ocho dígitos-- que el equipo va a
+  /// revisar. Bloqueando, no se les podría corregir ni la dirección
+  /// mientras tanto.
+  const nitRaro =
+    !porSuCuenta && v.nit.trim() !== "" && v.nit.replace(/\D/g, "").length !== 9;
+
   /// Si la ficha vuelve del servidor —se guardó, o cambió por
   /// otro lado— lo tecleado se reemplaza por lo guardado. Sin
   /// esto la pantalla seguiría enseñando lo de antes y nadie
@@ -232,6 +244,34 @@ export function EditorDeEmpresa({
   }, [catalogos, v.departamentoSepId]);
 
   const hayCambios = JSON.stringify(v) !== JSON.stringify(original);
+
+  /// El NIT y su dígito son DOS campos, y el de arriba nunca se
+  /// queda con los dos pegados (Josse, 30 sep 2026).
+  ///
+  /// Pegar `8001837677` --como queda al copiar de un documento--
+  /// guardaba un NIT de diez dígitos, y así nacieron siete
+  /// organizaciones duplicadas en producción. Aquí se reparte a la
+  /// vista, en vez de corregirlo por detrás: el asesor ve el NIT en
+  /// su casilla y el dígito en la suya.
+  ///
+  /// El dígito sale CALCULADO al tocar el NIT y se puede cambiar:
+  /// para cada NIT hay uno solo, pero si el papel de la empresa dice
+  /// otro, manda quien tiene el papel delante.
+  function ponerNit(escrito: string) {
+    setV((antes) => {
+      const partido = partirNitPegado(escrito);
+      if (partido) {
+        return { ...antes, nit: partido.nit, digitoVerificacion: partido.dv };
+      }
+
+      const soloDigitos = escrito.replace(/\D/g, "");
+      return {
+        ...antes,
+        nit: soloDigitos,
+        digitoVerificacion: digitoVerificacion(soloDigitos),
+      };
+    });
+  }
 
   function poner(clave: keyof Campos, valor: string) {
     setV((antes) => {
@@ -289,6 +329,53 @@ export function EditorDeEmpresa({
 
   if (!puedeEscribir) return null;
 
+  const ROTULO = "mb-1 block text-[0.71875rem] text-texto-suave";
+  const rotulo = crear
+    ? "Registrar organización"
+    : "Actualizar datos de empresa";
+
+  function cerrar() {
+    setV(original);
+    setAbierto(false);
+  }
+
+  const disparador = (
+    <div className="mt-4 flex flex-wrap items-center gap-2">
+      <button type="button" onClick={() => setAbierto(true)} className={CLASE_PUERTA}>
+        {rotulo}
+      </button>
+
+      {/* LA SEGUNDA PUERTA, Y POR QUÉ ES OTRA (29 sep 2026).
+
+          El cliente llegó con una ficha colgada de una empresa con NIT
+          «1-8» cuando la buena ya estaba registrada. Al corregir el
+          NIT, el servidor para ---con razón: dos organizaciones no
+          pueden compartir NIT--- y mandaba a usar el enlace de
+          completado de la persona, que es pedirle a ella que rellene un
+          formulario para arreglar un dato mal digitado.
+
+          Ahí no hay nada que corregir: hay que mover a la persona. Son
+          dos operaciones distintas y por eso son dos botones; juntarlas
+          en uno haría que quien quiere mover a una persona le cambie el
+          NIT a toda la organización sin saberlo.
+
+          SOLO SI YA TIENE UNA. Sin organización no hay de dónde mover, y
+          el alta de José ya enlaza sola cuando el NIT que teclean
+          resulta ser de una que ya existe. */}
+      {!crear && (
+        <button
+          type="button"
+          onClick={() => setMudando(true)}
+          className={CLASE_PUERTA}
+        >
+          Mover a otra organización
+        </button>
+      )}
+    </div>
+  );
+
+  /// La mudanza, abierta, sustituye a los botones: es un panel suyo y
+  /// no un modal, porque pide UN dato y no trece.
   if (mudando && empresa) {
     return (
       <Mudanza
@@ -300,68 +387,42 @@ export function EditorDeEmpresa({
     );
   }
 
-  if (!abierto) {
-    return (
-      <div className="mt-4 flex flex-wrap items-center gap-2">
-        <button
-          type="button"
-          onClick={() => setAbierto(true)}
-          className={CLASE_PUERTA}
-        >
-          {crear ? "Registrar organización" : "Corregir los datos de la empresa"}
-        </button>
-
-        {/* LA SEGUNDA PUERTA, Y POR QUÉ ES OTRA (29 sep 2026).
-
-            El cliente llegó con una ficha colgada de una empresa con
-            NIT «1-8» cuando la buena ya estaba registrada. Al corregir
-            el NIT, el servidor para —con razón: dos organizaciones no
-            pueden compartir NIT— y mandaba a usar el enlace de
-            completado de la persona, que es pedirle a ella que rellene
-            un formulario para arreglar un dato mal digitado.
-
-            Ahí no hay nada que corregir: hay que mover a la persona.
-            Son dos operaciones distintas y por eso son dos botones;
-            juntarlas en uno haría que quien quiere mover a una persona
-            le cambie el NIT a toda la organización sin saberlo.
-
-            SOLO SI YA TIENE UNA. Sin organización no hay de dónde
-            mover, y la puerta de alta de José ya enlaza sola cuando el
-            NIT que teclean resulta ser de una que ya existe. */}
-        {!crear && (
-          <button
-            type="button"
-            onClick={() => setMudando(true)}
-            className={CLASE_PUERTA}
-          >
-            Mover a otra organización
-          </button>
-        )}
-      </div>
-    );
-  }
-
-  const ROTULO = "mb-1 block text-[0.71875rem] text-texto-suave";
+  if (!abierto) return disparador;
 
   return (
-    <div className="mt-4 rounded-xl border border-borde p-4">
-      <div className="flex items-start justify-between gap-4">
-        <p className="text-[0.78125rem] leading-relaxed text-texto-suave">
-          {crear
-            ? "Registre la organización del interesado por su NIT. Se comparte con todas las fichas del mismo NIT, y queda registrado quién la puso."
-            : "Lo que se corrija aquí es de la empresa, no de este lead: lo verán todas las personas del mismo NIT. Queda registrado quién lo puso."}
-        </p>
+    <>
+      {disparador}
+
+      {/* UN MODAL APARTE, no desplegado dentro de la ficha (Josse,
+          30 sep 2026). Son trece campos: abiertos en la tarjeta
+          dejaban esta columna mucho más alta que la de al lado, que
+          es con la que tiene que emparejar. */}
+      <div className="fixed inset-0 z-50 grid place-items-center p-4">
         <button
           type="button"
-          onClick={() => {
-            setV(original);
-            setAbierto(false);
-          }}
-          className="shrink-0 rounded-lg border border-error/40 bg-error-suave px-4 py-2 text-sm font-semibold text-error"
+          onClick={() => !guardando && cerrar()}
+          aria-label="Cerrar"
+          className="absolute inset-0 bg-black/40"
+        />
+
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label={rotulo}
+          className="relative flex max-h-[85vh] w-full max-w-3xl flex-col rounded-2xl border border-borde bg-superficie shadow-2xl"
         >
-          Cancelar
-        </button>
-      </div>
+          <header className="border-b border-borde p-6">
+            <h2 className="text-lg font-semibold">{rotulo}</h2>
+            <p className="mt-1 text-[0.78125rem] leading-relaxed text-texto-suave">
+              {crear
+                ? "Registre la organización del interesado por su NIT. Se comparte con todas las fichas del mismo NIT, y queda registrado quién la puso."
+                : "Lo que se corrija aquí es de la empresa, no de este lead: lo verán todas las personas del mismo NIT. Queda registrado quién lo puso."}
+            </p>
+          </header>
+
+          {/* Los campos scrollean y los botones se quedan. Con trece,
+              un modal que scrollea entero esconde el de guardar. */}
+          <div className="min-h-0 flex-1 overflow-y-auto p-6">
 
       {/* EL NIT AHORA SE EDITA (28 sep 2026).
 
@@ -375,17 +436,27 @@ export function EditorDeEmpresa({
           el NIT ya es de otra. */}
       <div className="mt-3 grid gap-x-6 gap-y-3.5 sm:grid-cols-2">
         <label className="block">
-          <span className={ROTULO}>NIT</span>
+          <span className={ROTULO}>
+            {porSuCuenta ? "Cédula (hace de RUT)" : "NIT"}
+          </span>
           <input
             className={CLASE_CONTROL}
             value={v.nit}
-            onChange={(e) => poner("nit", e.target.value)}
+            onChange={(e) => ponerNit(e.target.value)}
             inputMode="numeric"
           />
-          <span className="mt-1 block text-[0.6875rem] leading-snug text-texto-suave">
-            Es el de toda la organización y el que va al SENA. Al
-            cambiarlo, el dígito de verificación se recalcula solo.
-          </span>
+          {nitRaro ? (
+            <span className="mt-1 block text-[0.6875rem] leading-snug text-aviso">
+              El NIT de una empresa es de nueve dígitos y este tiene{" "}
+              {v.nit.replace(/\D/g, "").length}. Revíselo contra el RUT: es el
+              número que va al SENA. Se puede guardar igual.
+            </span>
+          ) : (
+            <span className="mt-1 block text-[0.6875rem] leading-snug text-texto-suave">
+              Es el de toda la organización y el que va al SENA. Va sin el
+              dígito de verificación: si lo pega pegado, se separa solo.
+            </span>
+          )}
         </label>
 
         <label className="block">
@@ -410,6 +481,10 @@ export function EditorDeEmpresa({
               poner("digitoVerificacion", e.target.value.replace(/\D/g, ""))
             }
           />
+          <span className="mt-1 block text-[0.6875rem] leading-snug text-texto-suave">
+            Sale calculado al escribir el NIT. Si el RUT de la empresa dice
+            otro, cámbielo aquí.
+          </span>
         </label>
 
         <label className="block">
@@ -529,44 +604,71 @@ export function EditorDeEmpresa({
         )}
       </div>
 
-      <div className="mt-4 flex items-center gap-3">
-        <Boton
-          disabled={!hayCambios || guardando || faltaNit}
-          onClick={() => {
-            const datos = loQueCambio();
-            if (Object.keys(datos).length === 0) return;
-            setGuardando(true);
-            void alGuardar(
-              async () => {
-                await crmApi.guardarDatosEmpresa(participanteId, datos);
-              },
-              crear
-                ? "Organización registrada."
-                : "Datos de la empresa guardados.",
-            ).finally(() => setGuardando(false));
-          }}
-        >
-          {guardando
-            ? crear
-              ? "Registrando…"
-              : "Guardando…"
-            : crear
-              ? "Registrar organización"
-              : "Guardar"}
-        </Boton>
+          </div>
 
-        {faltaNit ? (
-          <span className="text-[0.78125rem] text-aviso">
-            Escriba el NIT para registrar la organización.
-          </span>
-        ) : (
-          !hayCambios && (
-            <span className="text-[0.78125rem] text-texto-suave">
-              Todavía no ha cambiado nada.
-            </span>
-          )
-        )}
+          <footer className="flex flex-wrap items-center gap-3 border-t border-borde p-6">
+            <Boton
+              disabled={!hayCambios || guardando || faltaNit}
+              onClick={() => {
+                const datos = loQueCambio();
+                if (Object.keys(datos).length === 0) return;
+                setGuardando(true);
+
+                /// El modal se cierra SOLO si de verdad se guardó.
+                ///
+                /// `alGuardar` se traga el error --avisa por su
+                /// toast y sigue--, así que cerrar en el `then` lo
+                /// cerraría también al fallar, y con él lo que el
+                /// asesor acababa de teclear. Un falso éxito es peor
+                /// que un error.
+                let guardado = false;
+                void alGuardar(
+                  async () => {
+                    await crmApi.guardarDatosEmpresa(participanteId, datos);
+                    guardado = true;
+                  },
+                  crear
+                    ? "Organización registrada."
+                    : "Datos de la empresa guardados.",
+                )
+                  .then(() => {
+                    if (guardado) setAbierto(false);
+                  })
+                  .finally(() => setGuardando(false));
+              }}
+            >
+              {guardando
+                ? crear
+                  ? "Registrando…"
+                  : "Guardando…"
+                : crear
+                  ? "Registrar organización"
+                  : "Guardar"}
+            </Boton>
+
+            <button
+              type="button"
+              onClick={cerrar}
+              disabled={guardando}
+              className="rounded-lg border border-borde bg-superficie px-4 py-2 text-sm font-semibold text-titulo hover:bg-superficie-alterna"
+            >
+              Cancelar
+            </button>
+
+            {faltaNit ? (
+              <span className="text-[0.78125rem] text-aviso">
+                Escriba el NIT para registrar la organización.
+              </span>
+            ) : (
+              !hayCambios && (
+                <span className="text-[0.78125rem] text-texto-suave">
+                  Todavía no ha cambiado nada.
+                </span>
+              )
+            )}
+          </footer>
+        </div>
       </div>
-    </div>
+    </>
   );
 }

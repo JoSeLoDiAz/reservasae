@@ -149,21 +149,34 @@ describe('con NIT se crea y se enlaza', () => {
     expect(upserts).toHaveLength(0);
   });
 
-  /// El DV va al F7 y la regla de la casa es que se DERIVA, no se
-  /// teclea. Si el asesor lo escribe en el alta, no debe pisar al
-  /// derivado: se ignora al aplicar los demás campos.
-  it('un DV tecleado en el alta NO pisa al derivado', async () => {
-    const { guardar, upserts, empresaUpdates } = armar();
-    await guardar({ nit: '860507033', razonSocial: 'Colegio X', digitoVerificacion: '0' });
+  /// La organización NACE con el DV derivado del NIT: el asesor no
+  /// tiene que teclearlo para que quede bien.
+  it('nace con el DV derivado aunque no lo escriban', async () => {
+    const { guardar, upserts } = armar();
+    await guardar({ nit: '860507033', razonSocial: 'Colegio X' });
 
-    /// el creado lleva el DV correcto, no el «0» tecleado
     expect(upserts[0].create.digitoVerificacion).toBe(
       calcularDigitoVerificacion('860507033'),
     );
-    /// y el update posterior (que sí aplica la razón social) no arrastra
-    /// un digitoVerificacion que lo sobrescriba
-    for (const d of empresaUpdates) {
-      expect(d.digitoVerificacion).toBeUndefined();
-    }
+  });
+
+  /// Pero si lo escribe, MANDA el suyo (Josse, 30 sep 2026: «el DV
+  /// lo ponemos nosotros»). En el panel quien lo teclea tiene el RUT
+  /// de la empresa delante, y el campo sale con el calculado puesto,
+  /// así que cambiarlo es deliberado.
+  ///
+  /// La regla del 11 sep --«el DV lo pone la DIAN, no la persona»--
+  /// sigue en pie donde importa: las puertas PÚBLICAS lo ignoran.
+  it('un DV tecleado en el alta SÍ se guarda', async () => {
+    const { guardar, empresaUpdates } = armar();
+    await guardar({
+      nit: '860507033',
+      razonSocial: 'Colegio X',
+      digitoVerificacion: '0',
+    });
+
+    const conDv = empresaUpdates.filter((d) => d.digitoVerificacion === '0');
+
+    expect(conDv).toHaveLength(1);
   });
 });
