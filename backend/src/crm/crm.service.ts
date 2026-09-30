@@ -2700,10 +2700,15 @@ export class CrmService {
       numeroTrabajadores: datos.numeroTrabajadores,
     };
 
-    /// En un alta, el DV lo pone la DIAN a partir del NIT (regla de la
-    /// casa: no se teclea, se deriva) y ya se derivó al crear. Un DV
-    /// tecleado no lo pisa: es el dato que viaja al F7 del SENA.
-    if (organizacionCreada) limpio.digitoVerificacion = undefined;
+    /// El DV que escriba el asesor MANDA, también al dar de alta
+    /// (Josse, 30 sep 2026: «el DV lo ponemos nosotros»).
+    ///
+    /// Deroga la regla del 11 sep 2026 --«el DV lo pone la DIAN, no
+    /// la persona»--, que sigue valiendo en las puertas PÚBLICAS: allí
+    /// no se pide y se ignora lo que venga. Lo que cambia es el panel,
+    /// donde quien lo teclea tiene el RUT de la empresa delante. El
+    /// campo sale con el dígito ya calculado, así que cambiarlo es un
+    /// acto deliberado y no un descuido.
 
     const tocados = Object.entries(limpio)
       .filter(([, v]) => v !== undefined)
