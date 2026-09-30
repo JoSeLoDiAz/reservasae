@@ -40,15 +40,26 @@ describe('la sede la decide dónde vive', () => {
     expect(r?.id).toBe('med');
   });
 
-  it('pero NO a quien vive en otra ciudad del mismo departamento', () => {
-    /// Un grupo presencial en Medellín no le sirve a alguien de
-    /// Apartadó aunque los dos sean de Antioquia.
+  /**
+   * Y TAMBIÉN a quien vive en otra ciudad del mismo departamento
+   * (cliente, 30 sep 2026: «los de AF6, que es en Medellín, así la
+   * persona sea de Rionegro debe permitir inscribirla»).
+   *
+   * Esta prueba decía lo contrario, con el argumento de que un
+   * presencial en Medellín no le sirve a alguien de Apartadó. El
+   * argumento era nuestro: hasta dónde se desplaza la gente a un
+   * curso lo sabe quien la convoca, no el programa.
+   *
+   * La frontera sigue siendo el DEPARTAMENTO ---la prueba de abajo lo
+   * fija---, que es donde el error sí es un error.
+   */
+  it('y también a quien vive en otra ciudad del mismo departamento', () => {
     const r = sedeQueLeToca(
       [oferta('med', 'MEDELLÍN', 'CIUDAD', 50, 'ANTIOQUIA')],
       'af1',
-      { departamento: 'ANTIOQUIA', ciudad: 'APARTADÓ' },
+      { departamento: 'ANTIOQUIA', ciudad: 'RIONEGRO' },
     );
-    expect(r).toBeNull();
+    expect(r?.id).toBe('med');
   });
 
   it('una oferta de departamento cubre a todo el departamento', () => {

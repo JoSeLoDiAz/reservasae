@@ -7,6 +7,7 @@ import { cubreA, repartirPorCobertura } from './cobertura';
 
 const enBogota = { departamento: 'BOGOTÁ D.C.', ciudad: 'BOGOTÁ D.C.' };
 const enApartado = { departamento: 'ANTIOQUIA', ciudad: 'APARTADÓ' };
+const enRionegro = { departamento: 'ANTIOQUIA', ciudad: 'RIONEGRO' };
 const enMedellin = { departamento: 'ANTIOQUIA', ciudad: 'MEDELLÍN' };
 
 const ciudad = (nombre: string, departamento: string) => ({
@@ -25,10 +26,19 @@ describe('un grupo de ciudad', () => {
     expect(cubreA(ciudad('MEDELLÍN', 'ANTIOQUIA'), enMedellin)).toBe(true);
   });
 
-  it('NO cubre a quien vive en otra ciudad del mismo departamento', () => {
-    // un presencial en Medellín no le sirve a alguien de
-    // Apartadó, aunque los dos sean de Antioquia
-    expect(cubreA(ciudad('MEDELLÍN', 'ANTIOQUIA'), enApartado)).toBe(false);
+  /**
+   * EL CASO QUE LO CAMBIÓ TODO. «Los de AF6, que es en Medellín, así
+   * la persona sea de Rionegro debe permitir inscribirla» (cliente,
+   * 30 sep 2026).
+   *
+   * Esta prueba decía lo contrario hasta hoy, con el argumento de que
+   * un presencial en Medellín no le sirve a alguien de Apartadó. El
+   * argumento era nuestro, no suyo: hasta dónde se desplaza la gente
+   * a un curso lo sabe quien la convoca.
+   */
+  it('SÍ cubre a quien vive en otra ciudad del mismo departamento', () => {
+    expect(cubreA(ciudad('MEDELLÍN', 'ANTIOQUIA'), enRionegro)).toBe(true);
+    expect(cubreA(ciudad('MEDELLÍN', 'ANTIOQUIA'), enApartado)).toBe(true);
   });
 
   it('NO cubre a quien vive en otro departamento', () => {
@@ -113,6 +123,14 @@ describe('repartir una lista', () => {
     expect(r.fuera).toBe(2);
   });
 
+  /// Y a alguien de Rionegro, LOS MISMOS DOS. Es el encargo del
+  /// cliente dicho sobre la lista y no sobre un predicado suelto:
+  /// lo que él mira es la lista de grupos que le sale al asesor.
+  it('a alguien de Rionegro le quedan los mismos dos', () => {
+    const r = repartirPorCobertura(grupos, enRionegro);
+    expect(r.cubren.map((g) => g.id)).toEqual(['a', 'b']);
+  });
+
   it('a alguien de Bogotá le queda solo el suyo', () => {
     const r = repartirPorCobertura(grupos, enBogota);
     expect(r.cubren.map((g) => g.id)).toEqual(['c']);
@@ -120,6 +138,8 @@ describe('repartir una lista', () => {
   });
 
   it('cuenta cuántos quedaron fuera: una lista que se acorta sola parece rota', () => {
-    expect(repartirPorCobertura(grupos, enApartado).fuera).toBe(3);
+    /// De cuatro grupos, a alguien de Antioquia le sirven los dos de
+    /// Antioquia; quedan fuera los dos que no lo son.
+    expect(repartirPorCobertura(grupos, enApartado).fuera).toBe(2);
   });
 });
