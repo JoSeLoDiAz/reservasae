@@ -44,6 +44,11 @@ export const ACCIONES = [
   /// escrito, el cambio pasa en silencio y despues nadie puede
   /// explicar por que esa ficha cuenta en otra empresa.
   'ORGANIZACION_CAMBIADA',
+  /// El asesor dio de alta la organización de una ficha desde el
+  /// panel, por su NIT. Distinta de ORGANIZACION_CAMBIADA (que es
+  /// corregirse de una a otra) y de EMPRESA_EDITADA (editar sus
+  /// datos): aquí se pasó de «sin organización» a tener una.
+  'ORGANIZACION_ASIGNADA',
   /// Se cambió el # de asesores o la fecha de cierre de la
   /// proyección de metas de una acción.
   ///

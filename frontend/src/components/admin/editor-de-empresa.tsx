@@ -14,22 +14,22 @@ type Empresa = NonNullable<Ficha["empresa"]>;
 /// del backend una cadena vacía en un campo numérico llega
 /// como cero. Aquí se guarda lo tecleado tal cual y la
 /// conversión se hace UNA vez, al mandar.
-function desde(e: Empresa) {
+function desde(e: Empresa | null) {
   return {
-    nit: e.nit ?? "",
-    razonSocial: e.razonSocial ?? "",
-    digitoVerificacion: e.digitoVerificacion ?? "",
-    direccion: e.direccion ?? "",
-    telefono: e.telefono ?? "",
+    nit: e?.nit ?? "",
+    razonSocial: e?.razonSocial ?? "",
+    digitoVerificacion: e?.digitoVerificacion ?? "",
+    direccion: e?.direccion ?? "",
+    telefono: e?.telefono ?? "",
     departamentoSepId:
-      e.departamentoSepId === null ? "" : String(e.departamentoSepId),
-    municipioSepId: e.municipioSepId === null ? "" : String(e.municipioSepId),
-    sectorEconomico: e.sectorEconomico ?? "",
+      e?.departamentoSepId == null ? "" : String(e.departamentoSepId),
+    municipioSepId: e?.municipioSepId == null ? "" : String(e.municipioSepId),
+    sectorEconomico: e?.sectorEconomico ?? "",
     numeroTrabajadores:
-      e.numeroTrabajadores === null ? "" : String(e.numeroTrabajadores),
-    contactoNombre: e.contactoNombre ?? "",
-    contactoCargo: e.contactoCargo ?? "",
-    contactoCorreo: e.contactoCorreo ?? "",
+      e?.numeroTrabajadores == null ? "" : String(e.numeroTrabajadores),
+    contactoNombre: e?.contactoNombre ?? "",
+    contactoCargo: e?.contactoCargo ?? "",
+    contactoCorreo: e?.contactoCorreo ?? "",
   };
 }
 
@@ -173,7 +173,9 @@ export function EditorDeEmpresa({
   alGuardar,
 }: {
   participanteId: string;
-  empresa: Empresa;
+  /// Null = la ficha no tiene organización: se DA DE ALTA por su NIT
+  /// (Josse, 30 sep 2026). Con empresa, se corrigen sus datos.
+  empresa: Empresa | null;
   /// Independiente con RUT: no tiene jefe directo a quien
   /// preguntarle, así que los tres del contacto no se piden.
   porSuCuenta: boolean;
@@ -187,6 +189,11 @@ export function EditorDeEmpresa({
   const [v, setV] = useState<Campos>(() => desde(empresa));
 
   const original = useMemo(() => desde(empresa), [empresa]);
+
+  /// Sin empresa, esto DA DE ALTA la organización; con empresa, la
+  /// corrige. Cambia los rótulos y hace el NIT obligatorio.
+  const crear = empresa === null;
+  const faltaNit = crear && v.nit.trim() === "";
 
   /// Si la ficha vuelve del servidor —se guardó, o cambió por
   /// otro lado— lo tecleado se reemplaza por lo guardado. Sin
@@ -282,7 +289,7 @@ export function EditorDeEmpresa({
 
   if (!puedeEscribir) return null;
 
-  if (mudando) {
+  if (mudando && empresa) {
     return (
       <Mudanza
         participanteId={participanteId}
@@ -301,7 +308,7 @@ export function EditorDeEmpresa({
           onClick={() => setAbierto(true)}
           className={CLASE_PUERTA}
         >
-          Corregir los datos de la empresa
+          {crear ? "Registrar organización" : "Corregir los datos de la empresa"}
         </button>
 
         {/* LA SEGUNDA PUERTA, Y POR QUÉ ES OTRA (29 sep 2026).
@@ -316,14 +323,20 @@ export function EditorDeEmpresa({
             Ahí no hay nada que corregir: hay que mover a la persona.
             Son dos operaciones distintas y por eso son dos botones;
             juntarlas en uno haría que quien quiere mover a una persona
-            le cambie el NIT a toda la organización sin saberlo. */}
-        <button
-          type="button"
-          onClick={() => setMudando(true)}
-          className={CLASE_PUERTA}
-        >
-          Mover a otra organización
-        </button>
+            le cambie el NIT a toda la organización sin saberlo.
+
+            SOLO SI YA TIENE UNA. Sin organización no hay de dónde
+            mover, y la puerta de alta de José ya enlaza sola cuando el
+            NIT que teclean resulta ser de una que ya existe. */}
+        {!crear && (
+          <button
+            type="button"
+            onClick={() => setMudando(true)}
+            className={CLASE_PUERTA}
+          >
+            Mover a otra organización
+          </button>
+        )}
       </div>
     );
   }
@@ -334,8 +347,9 @@ export function EditorDeEmpresa({
     <div className="mt-4 rounded-xl border border-borde p-4">
       <div className="flex items-start justify-between gap-4">
         <p className="text-[0.78125rem] leading-relaxed text-texto-suave">
-          Lo que se corrija aquí es de la empresa, no de este lead: lo verán
-          todas las personas del mismo NIT. Queda registrado quién lo puso.
+          {crear
+            ? "Registre la organización del interesado por su NIT. Se comparte con todas las fichas del mismo NIT, y queda registrado quién la puso."
+            : "Lo que se corrija aquí es de la empresa, no de este lead: lo verán todas las personas del mismo NIT. Queda registrado quién lo puso."}
         </p>
         <button
           type="button"
@@ -517,25 +531,40 @@ export function EditorDeEmpresa({
 
       <div className="mt-4 flex items-center gap-3">
         <Boton
-          disabled={!hayCambios || guardando}
+          disabled={!hayCambios || guardando || faltaNit}
           onClick={() => {
             const datos = loQueCambio();
             if (Object.keys(datos).length === 0) return;
             setGuardando(true);
-            void alGuardar(async () => {
-              await crmApi.guardarDatosEmpresa(participanteId, datos);
-            }, "Datos de la empresa guardados.").finally(() =>
-              setGuardando(false),
-            );
+            void alGuardar(
+              async () => {
+                await crmApi.guardarDatosEmpresa(participanteId, datos);
+              },
+              crear
+                ? "Organización registrada."
+                : "Datos de la empresa guardados.",
+            ).finally(() => setGuardando(false));
           }}
         >
-          {guardando ? "Guardando…" : "Guardar"}
+          {guardando
+            ? crear
+              ? "Registrando…"
+              : "Guardando…"
+            : crear
+              ? "Registrar organización"
+              : "Guardar"}
         </Boton>
 
-        {!hayCambios && (
-          <span className="text-[0.78125rem] text-texto-suave">
-            Todavía no ha cambiado nada.
+        {faltaNit ? (
+          <span className="text-[0.78125rem] text-aviso">
+            Escriba el NIT para registrar la organización.
           </span>
+        ) : (
+          !hayCambios && (
+            <span className="text-[0.78125rem] text-texto-suave">
+              Todavía no ha cambiado nada.
+            </span>
+          )
         )}
       </div>
     </div>
