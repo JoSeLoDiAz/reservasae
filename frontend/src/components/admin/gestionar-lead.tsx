@@ -174,7 +174,13 @@ export function GestionarLead({
           </div>
 
           <div>
-            <span className="mb-1 block text-sm font-medium">Por dónde</span>
+            {/* EN PASADO, porque es un REGISTRO y no un envío: estos
+                botones no mandan nada, anotan por dónde contactó el
+                asesor. «Por dónde» a secas se leía como «por dónde lo
+                mando». */}
+            <span className="mb-1 block text-sm font-medium">
+              ¿Por dónde lo contactó?
+            </span>
             <div className="flex flex-wrap gap-2">
               {CANALES.map((c) => (
                 <button
