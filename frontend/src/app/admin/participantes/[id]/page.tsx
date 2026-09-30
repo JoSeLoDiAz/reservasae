@@ -2094,7 +2094,22 @@ function DatosDeLaEmpresa({
   if (!e) {
     return (
       <Tarjeta titulo="Su organización">
-        <p className="text-sm text-texto-suave">Todavía no tiene organización.</p>
+        <p className="text-sm text-texto-suave">
+          Todavía no tiene organización.
+          {puedeEscribir
+            ? " Regístrela por su NIT para que entre a los reportes."
+            : ""}
+        </p>
+        {/* EL ASESOR LA DA DE ALTA AQUÍ (Josse, 30 sep 2026). Antes
+            solo salía el aviso y había que esperar al enlace de
+            completado. El mismo editor de siempre, en modo crear. */}
+        <EditorDeEmpresa
+          participanteId={fichaId}
+          empresa={null}
+          porSuCuenta={lead.trabajaPorSuCuenta}
+          puedeEscribir={puedeEscribir}
+          alGuardar={alGuardar}
+        />
       </Tarjeta>
     );
   }

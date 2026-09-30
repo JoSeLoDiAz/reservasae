@@ -2541,12 +2541,63 @@ export class CrmService {
 
     /// La de la reserva manda, igual que en todo el resto: la
     /// nominó ella.
-    const empresaId = p?.reserva?.empresaId ?? p?.empresaId ?? null;
+    let empresaId = p?.reserva?.empresaId ?? p?.empresaId ?? null;
+
+    /**
+     * EL ASESOR DA DE ALTA LA ORGANIZACIÓN desde la ficha (30 sep
+     * 2026). Antes, sin organización, la pantalla solo decía «todavía
+     * no tiene» y no había cómo ponerla; el asesor tenía que esperar
+     * al enlace de completado. Josse pidió habilitarlo.
+     *
+     * Se crea POR SU NIT, la misma puerta que la preinscripción: si el
+     * NIT ya existe, se ENLAZA a esa organización --el modelo es una
+     * empresa por NIT, compartida-- y sus datos los aplica el flujo de
+     * abajo, que es el mismo por el que se editan. El DV lo pone la
+     * DIAN, no se teclea.
+     *
+     * Sin NIT no se puede: es la identidad de la organización ante el
+     * SENA. Se dice, en vez de crear una fila sin llave.
+     */
+    let organizacionCreada: { nit: string; razonSocial: string } | null = null;
     if (!empresaId) {
-      throw new BadRequestException(
-        'Esta persona todavía no tiene organización. Primero hay que ' +
-          'decirle en cuál trabaja.',
-      );
+      const leido = datos.nit ? normalizarNit(datos.nit) : null;
+      if (!leido) {
+        throw new BadRequestException(
+          'Para registrar la organización, escriba primero su NIT.',
+        );
+      }
+      const razon = datos.razonSocial?.trim() || `Organización ${leido.nit}`;
+      const empresa = await this.prisma.empresa.upsert({
+        where: { nit: leido.nit },
+        create: {
+          nit: leido.nit,
+          digitoVerificacion: calcularDigitoVerificacion(leido.nit),
+          razonSocial: razon,
+        },
+        /// Si ese NIT ya existe, se enlaza sin pisar nada aquí; los
+        /// campos que traiga el asesor los aplica el flujo de abajo.
+        update: {},
+        select: { id: true },
+      });
+      await this.prisma.participante.update({
+        where: { id },
+        data: { empresaId: empresa.id },
+      });
+      empresaId = empresa.id;
+      organizacionCreada = { nit: leido.nit, razonSocial: razon };
+
+      /// Queda la huella del alta, aparte de EMPRESA_EDITADA: se pasó
+      /// de «sin organización» a una con NIT, y eso cambia a quién se
+      /// le reporta al SENA.
+      await this.auditoria.registrar({
+        actor,
+        accion: 'ORGANIZACION_ASIGNADA',
+        entidad: ENTIDADES.EMPRESA,
+        entidadId: empresa.id,
+        convenioId: suyo?.convenioId ?? null,
+        resumen: `NIT ${leido.nit} · ${razon}`,
+        ip,
+      });
     }
 
     /**
@@ -2649,6 +2700,11 @@ export class CrmService {
       numeroTrabajadores: datos.numeroTrabajadores,
     };
 
+    /// En un alta, el DV lo pone la DIAN a partir del NIT (regla de la
+    /// casa: no se teclea, se deriva) y ya se derivó al crear. Un DV
+    /// tecleado no lo pisa: es el dato que viaja al F7 del SENA.
+    if (organizacionCreada) limpio.digitoVerificacion = undefined;
+
     const tocados = Object.entries(limpio)
       .filter(([, v]) => v !== undefined)
       .map(([k]) => k);
@@ -2658,7 +2714,10 @@ export class CrmService {
     /// guardaba nada.
     if (parcheNit) tocados.push('nit');
 
-    if (tocados.length === 0) {
+    /// Crear la organización YA es un cambio, aunque no venga ningún
+    /// otro campo: sin esto, dar de alta solo con el NIT saltaría con
+    /// «no llegó ningún dato» después de haberla creado.
+    if (tocados.length === 0 && !organizacionCreada) {
       throw new BadRequestException('No llegó ningún dato que guardar.');
     }
 
@@ -2711,23 +2770,29 @@ export class CrmService {
       }
     }
 
-    await this.prisma.empresa.update({
-      where: { id: empresaId },
-      data: { ...limpio, ...(parcheNit ?? {}) },
-    });
+    /// Solo si hay algo que aplicar. Al dar de alta la organización
+    /// solo con el NIT, `limpio` viene vacío y no hay nada que
+    /// escribir ni que auditar como edición: el alta ya quedó
+    /// registrada arriba.
+    if (tocados.length > 0) {
+      await this.prisma.empresa.update({
+        where: { id: empresaId },
+        data: { ...limpio, ...(parcheNit ?? {}) },
+      });
 
-    /// Queda la huella. Son datos de una empresa que van al
-    /// F7, y quien los puso responde por ellos.
-    await this.auditoria.registrar({
-      actor,
-      accion: 'EMPRESA_EDITADA',
-      entidad: ENTIDADES.EMPRESA,
-      entidadId: empresaId,
-      convenioId: suyo?.convenioId ?? null,
-      resumen: 'Desde un lead.',
-      camposTocados: tocados,
-      ip,
-    });
+      /// Queda la huella. Son datos de una empresa que van al
+      /// F7, y quien los puso responde por ellos.
+      await this.auditoria.registrar({
+        actor,
+        accion: 'EMPRESA_EDITADA',
+        entidad: ENTIDADES.EMPRESA,
+        entidadId: empresaId,
+        convenioId: suyo?.convenioId ?? null,
+        resumen: organizacionCreada ? 'Al dar de alta.' : 'Desde un lead.',
+        camposTocados: tocados,
+        ip,
+      });
+    }
 
     /// El NIT lleva su PROPIA huella, con el antes y el después.
     ///
@@ -2756,7 +2821,10 @@ export class CrmService {
     /// es exactamente el defecto que Mauricio reportó el 18 sep y
     /// que `datos-completos.ts` existe para cerrar, reabierto por
     /// la puerta de la empresa--.
-    if (tocados.length > 0) {
+    /// Al crear la organización, la etapa puede completarse aunque no
+    /// se haya tocado ningún otro campo: por eso también aquí, no solo
+    /// con `tocados`.
+    if (tocados.length > 0 || organizacionCreada) {
       await pasarSiNoLeFaltaNada(
         this.prisma,
         id,
@@ -2765,7 +2833,10 @@ export class CrmService {
       );
     }
 
-    return this.obtener(id, ambito);
+    /// El controlador usa `organizacionCreada` para apuntar el NIT en
+    /// el directorio (el maestro que ve el buscador del RUES). La
+    /// pantalla no lee este retorno: recarga la ficha.
+    return { organizacionCreada };
   }
 
   /**

@@ -927,24 +927,44 @@ export class CrmController {
   /// y el ambito se recorta a los convenios donde de verdad
   /// alcanza, convenio por convenio.
   ///
-  /// El NIT no entra por aqui: es la llave de la fila, y la
-  /// fila la comparten todas las fichas de esa empresa.
+  /// El NIT ahora SI entra --sirve para corregirlo y, cuando la
+  /// ficha no tiene organizacion, para DARLA DE ALTA por su NIT
+  /// (Josse, 30 sep 2026)--. La fila la comparten todas las fichas
+  /// del mismo NIT, como antes.
   @Patch(':id/empresa')
   @Requiere(['inscripciones', 'academico', 'configuracion'], 'ESCRIBIR')
-  datosDeLaEmpresa(
+  async datosDeLaEmpresa(
     @Param('id') id: string,
     @Body() dto: DatosDeLaEmpresaDto,
     @AmbitoActual() ambito: Ambito,
     @AdminActual() admin: Admin,
     @IpReal() ip: string,
   ) {
-    return this.crm.guardarDatosDeLaEmpresa(
+    const r = await this.crm.guardarDatosDeLaEmpresa(
       id,
       dto,
       ambito.convenios,
       { id: admin.id, nombre: admin.nombre },
       ip,
     );
+
+    /// Si se acaba de dar de alta, se apunta el NIT en el DIRECTORIO
+    /// --el maestro que ve el buscador del RUES y «Empresas
+    /// registradas»--, igual que hace la preinscripcion. Best-effort:
+    /// que no llegue al directorio no puede tumbar el alta, que ya
+    /// quedo hecha.
+    if (r.organizacionCreada) {
+      try {
+        await this.directorio.agregarManual(
+          r.organizacionCreada.nit,
+          r.organizacionCreada.razonSocial,
+        );
+      } catch {
+        /// el alta ya esta; el directorio es un apunte de apoyo
+      }
+    }
+
+    return r;
   }
 
   /** Un enlace para que la persona complete su ficha. */
