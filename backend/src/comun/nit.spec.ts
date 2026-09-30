@@ -184,3 +184,81 @@ describe('normalizarNit sigue haciendo lo de siempre', () => {
     expect(normalizarNit('nada')).toBeNull();
   });
 });
+
+describe('el DV pegado al NIT, sin guion', () => {
+  /// Los SIETE que partieron una organización en dos en
+  /// producción. Cada uno tenía su gemela de nueve dígitos
+  /// con la gente repartida entre las dos filas.
+  const DE_PRODUCCION: Array<[string, string, string]> = [
+    ['8001837677', '800183767', '7'], // Colegio Fontán
+    ['8909167689', '890916768', '9'], // Montessori
+    ['8909822094', '890982209', '4'], // Benedictino
+    ['8909857304', '890985730', '4'], // Marymount
+    ['8909065744', '890906574', '4'], // Colegio Alemán
+    ['8150047460', '815004746', '0'], // Cárdenas Mirriñao
+    ['8909825185', '890982518', '5'], // Coop. Simón Bolívar
+  ];
+
+  it('separa los siete que duplicaron una organización de verdad', () => {
+    const fallos = DE_PRODUCCION.filter(([pegado, nit, dv]) => {
+      const r = normalizarNit(pegado);
+      return !r || r.nit !== nit || r.digitoVerificacion !== dv;
+    });
+
+    expect(fallos).toEqual([]);
+  });
+
+  /// La red grande: a cada NIT del banco se le pega su propio
+  /// DV y tiene que volver a salir partido.
+  it('separa a todo el banco cuando se le pega su DV', () => {
+    const fallos = BANCO.filter(([nit]) => /^[89]\d{8}$/.test(nit)).filter(
+      ([nit, dv]) => {
+        const r = normalizarNit(nit + dv);
+        return !r || r.nit !== nit || r.digitoVerificacion !== dv;
+      },
+    );
+
+    expect(fallos).toEqual([]);
+  });
+
+  /// Las siete que hay de verdad en producción, de gente que
+  /// trabaja por su cuenta. Empiezan en 1, así que no se tocan.
+  it('una cédula de diez dígitos NO se parte', () => {
+    const CEDULAS = [
+      '1007495352',
+      '1026300012',
+      '1033773447',
+      '1060101804',
+      '1067894118',
+      '1070704820',
+      '1112129598',
+      /// Y la que de verdad prueba el guardia del 8|9: sus nueve
+      /// primeros dan DV 7 y acaba en 7, así que SIN mirar el
+      /// primer dígito se partiría. Ninguna de las siete de arriba
+      /// lo hace por azar, y una en cada once sí lo haría.
+      '1007495357',
+    ];
+
+    const partidas = CEDULAS.filter((c) => normalizarNit(c)!.nit !== c);
+
+    expect(partidas).toEqual([]);
+  });
+
+  it('diez dígitos cuyo último NO es el DV se quedan enteros', () => {
+    /// 800183767 lleva DV 7, así que acabado en 0 no es un NIT
+    /// con el DV pegado y no hay por qué partirlo.
+    expect(normalizarNit('8001837670')!.nit).toBe('8001837670');
+  });
+
+  it('no toca los NIT viejos ni los de nueve', () => {
+    expect(normalizarNit('20759265')!.nit).toBe('20759265');
+    expect(normalizarNit('900421154')!.nit).toBe('900421154');
+  });
+
+  it('también cuando llega con el espacio o los puntos puestos', () => {
+    expect(normalizarNit('800.183.767 7')).toEqual({
+      nit: '800183767',
+      digitoVerificacion: '7',
+    });
+  });
+});

@@ -5,6 +5,31 @@ export type NitNormalizado = {
   digitoVerificacion: string | null;
 };
 
+/// El DV pegado al NIT, sin guion: `8001837677`.
+///
+/// Es como queda al copiar de un documento, y hasta el 30 sep 2026
+/// entraba entero como un NIT de diez digitos. Asi nacieron SIETE
+/// organizaciones duplicadas en produccion --Fontan, Montessori,
+/// Marymount, Benedictino...-- cada una partida en dos filas con su
+/// gente repartida, y trece mas esperando a que alguien tecleara el
+/// NIT bueno. Y ese NIT es el que viaja al F7 del SENA.
+///
+/// Las TRES condiciones son lo que lo hace seguro, y ninguna sobra:
+///   - diez digitos exactos,
+///   - empieza en 8 o 9 --asi una cedula de diez, que empieza en 1,
+///     nunca se parte: hay siete independientes con cedula en la base,
+///   - y el ultimo digito es EXACTAMENTE el DV de los nueve primeros.
+/// Sin la tercera, una de cada once cedulas se partiria por azar.
+function traeElDvPegado(digitos: string): NitNormalizado | null {
+  if (!/^[89]\d{9}$/.test(digitos)) return null;
+
+  const nit = digitos.slice(0, 9);
+  const ultimo = digitos.slice(9);
+  if (calcularDigitoVerificacion(nit) !== ultimo) return null;
+
+  return { nit, digitoVerificacion: ultimo };
+}
+
 export function normalizarNit(valor: string): NitNormalizado | null {
   const limpio = valor.replace(/[\s.]/g, '').trim();
   if (!limpio) return null;
@@ -16,7 +41,12 @@ export function normalizarNit(valor: string): NitNormalizado | null {
   }
 
   if (/^\d{5,15}$/.test(limpio)) {
-    return { nit: limpio, digitoVerificacion: calcularDigitoVerificacion(limpio) };
+    return (
+      traeElDvPegado(limpio) ?? {
+        nit: limpio,
+        digitoVerificacion: calcularDigitoVerificacion(limpio),
+      }
+    );
   }
 
   return null;
