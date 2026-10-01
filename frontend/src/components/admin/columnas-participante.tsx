@@ -257,7 +257,13 @@ export function columnasDeParticipante(): Columna<FilaParticipante>[] {
       /// solo tiene sentido sabiendo de qué acción es, y así se
       /// leen las dos de una pasada.
       clave: "grupo",
-      ancho: "78px",
+      /// 124 Y NO 78: UNA COLUMNA TIENE QUE DAR PARA SU PROPIO FILTRO.
+      ///
+      /// Con el título ya en una línea la cabecera quedó pareja, pero
+      /// esta seguía tan estrecha que su desplegable salía como «T…» y
+      /// «Sin grupo» partía en dos renglones dentro de la celda. Un
+      /// filtro que está pero no se puede leer no sirve de nada.
+      ancho: "124px",
       titulo: "Grupo",
       valor: (f) => f.grupo,
       pinta: (f) =>
@@ -458,7 +464,9 @@ export function columnasDeParticipante(): Columna<FilaParticipante>[] {
     },
     {
       clave: "notas",
-      ancho: "72px",
+      /// Lo mismo que «Grupo»: su filtro es una caja de número y a 72
+      /// px el texto de ayuda ---«>10, 3-8…»--- salía cortado.
+      ancho: "112px",
       titulo: "Notas",
       numerica: true,
       valor: (f) => f.notas,
