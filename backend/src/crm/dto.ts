@@ -293,6 +293,25 @@ export class ActualizarParticipanteDto {
   @IsBoolean()
   caracterizacionRechazada?: boolean;
 
+  /// EL DOCUMENTO SE CORRIGE, y SOLO lo corrige el administrador
+  /// (1 oct 2026: «que solo lo pueda cambiar el administrador»).
+  ///
+  /// Es la identidad de la persona —`@@unique([tipoDocumentoSepId,
+  /// numeroDocumento])`— y el número que viaja al SENA y al RUI.
+  ///
+  /// El permiso se comprueba DENTRO de la ruta y no sobre ella: este
+  /// mismo PATCH edita el nombre y el celular, que sí son del gestor,
+  /// y cerrar la ruta entera se los quitaría también. Es lo mismo que
+  /// ya se decidió con publicar un formulario.
+  @IsOptional()
+  @Transform(({ value }) => Number(value))
+  @IsInt()
+  tipoDocumentoSepId?: number;
+
+  @IsOptional()
+  @IsString()
+  @IsNotEmpty()
+  numeroDocumento?: string;
 }
 
 export class ActualizarEmpresaSepDto {

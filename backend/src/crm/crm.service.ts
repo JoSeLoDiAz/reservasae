@@ -12,6 +12,7 @@ import {
   type OrigenLead,
   type OrigenParticipante,
   Prisma,
+  RolAdmin,
   type Admin,
 } from '../../generated/prisma';
 import {
@@ -2097,6 +2098,10 @@ export class CrmService {
         coberturaId: true,
         persona: {
           select: {
+            /// Para saber si el documento de verdad cambia, y contra
+            /// qué se compara: es la identidad de la persona.
+            tipoDocumentoSepId: true,
+            numeroDocumento: true,
             primerNombre: true,
             segundoNombre: true,
             primerApellido: true,
@@ -2208,7 +2213,78 @@ export class CrmService {
       }
     }
 
+    /**
+     * CORREGIR EL DOCUMENTO: solo el administrador (1 oct 2026).
+     *
+     * La gente se preinscribe con la cédula mal tecleada y hasta hoy
+     * no habia forma de arreglarla: no estaba en el DTO de edición. Es
+     * el número que viaja al SENA y al RUI, así que una cédula mala es
+     * un reporte malo y una validación de identidad contra otra
+     * persona.
+     *
+     * Se pidió que SOLO lo cambie el administrador, y por eso la
+     * comprobación va aquí dentro y no en la ruta: este mismo PATCH
+     * edita el nombre y el celular, que sí son del gestor.
+     *
+     * NO FUNDE DOS PERSONAS. Si ese documento ya es de otra, se
+     * rechaza nombrándola: juntar dos personas arrastra sus
+     * participaciones, sus autorizaciones y sus consultas al RUI, y
+     * eso es una operación aparte que no se improvisa. Es la misma
+     * decisión que ya se tomó con el NIT de una organización.
+     */
+    const tipoPedido = dto.tipoDocumentoSepId ?? p.persona.tipoDocumentoSepId;
+    const numeroPedido =
+      dto.numeroDocumento === undefined
+        ? p.persona.numeroDocumento
+        : normalizarDocumento(dto.numeroDocumento);
+
+    const cambiaDocumento =
+      tipoPedido !== p.persona.tipoDocumentoSepId ||
+      numeroPedido !== p.persona.numeroDocumento;
+
+    if (cambiaDocumento) {
+      if (admin.rol !== RolAdmin.SUPERADMIN) {
+        throw new ForbiddenException(
+          'El documento de la persona solo lo puede corregir un administrador.',
+        );
+      }
+
+      if (!DOCUMENTOS_DE_PERSONA.some((t) => t.id === tipoPedido)) {
+        throw new BadRequestException(
+          'Ese tipo de documento no se admite para un participante.',
+        );
+      }
+
+      if (!numeroPedido || !documentoValido(tipoPedido, numeroPedido)) {
+        throw new BadRequestException(
+          'El número de documento no tiene un formato válido para ese tipo.',
+        );
+      }
+
+      const otra = await this.prisma.persona.findUnique({
+        where: {
+          tipoDocumentoSepId_numeroDocumento: {
+            tipoDocumentoSepId: tipoPedido,
+            numeroDocumento: numeroPedido,
+          },
+        },
+        select: { id: true, primerNombre: true, primerApellido: true },
+      });
+
+      if (otra && otra.id !== p.personaId) {
+        throw new BadRequestException(
+          `Ese documento ya es de ${otra.primerNombre} ${otra.primerApellido}. ` +
+            'Aquí solo se corrige el documento de esta persona; juntar dos ' +
+            'fichas que son la misma persona es otra operación.',
+        );
+      }
+    }
+
     const dePersona = {
+      /// Solo si de verdad cambia: así `queCambio` no lo cuenta como
+      /// tocado cuando la pantalla manda la ficha entera.
+      tipoDocumentoSepId: cambiaDocumento ? tipoPedido : undefined,
+      numeroDocumento: cambiaDocumento ? (numeroPedido as string) : undefined,
       primerNombre: dto.primerNombre,
       segundoNombre: dto.segundoNombre,
       primerApellido: dto.primerApellido,

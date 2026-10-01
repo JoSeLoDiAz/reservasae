@@ -477,7 +477,13 @@ export default function PaginaFicha() {
               })}
             </div>
 
-            {pestana === "datos" && <DatosSena lead={f} alGuardar={conError} />}
+            {pestana === "datos" && (
+              <DatosSena
+                lead={f}
+                alGuardar={conError}
+                puedeCambiarDocumento={esSuperadmin}
+              />
+            )}
 
             {pestana === "empresa" && (
               <DatosDeLaEmpresa
