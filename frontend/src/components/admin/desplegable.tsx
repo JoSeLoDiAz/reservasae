@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 export type OpcionDesplegable = {
   valor: string;
@@ -24,6 +25,8 @@ export type OpcionDesplegable = {
  * permite: modales, desplegables, cajón y toast.
  */
 export function Desplegable({
+  enPortal,
+  rotulo,
   valor,
   opciones,
   alElegir,
@@ -35,6 +38,37 @@ export function Desplegable({
   enBarra,
   subrayado,
 }: {
+  /**
+   * UN TÍTULO DENTRO DE LA LISTA, en la primera línea y sin poder
+   * elegirse.
+   *
+   * «No me gusta; si el "Seleccione la vista" dentro del desplegable
+   * como título, no sé, pero se ve asqueroso» (cliente, 1 oct 2026),
+   * sobre el rótulo en versalitas que iba FUERA, a la izquierda. Ese
+   * rótulo cuesta sitio en la fila y grita; dentro dice lo mismo y
+   * solo cuando se abre, que es cuando hace falta.
+   */
+  /**
+   * QUE LA LISTA SE SALGA DEL RECORTE.
+   *
+   * La lista va `absolute` dentro del disparador, y eso basta en una
+   * página normal. Dentro de una TABLA no: `.caja-scroll` lleva
+   * `overflow: auto` para que la tabla recorra a lo ancho, y lo que
+   * sobresale de un contenedor con `overflow` se recorta. Una lista de
+   * quince opciones abierta en la cabecera de una columna quedaría
+   * cortada por el borde de la tabla.
+   *
+   * Con esto la lista se pinta en `document.body` y se coloca con
+   * `fixed` sobre las coordenadas medidas del disparador: ya no hay
+   * ancestro que la recorte. Se paga que haya que CERRARLA al recorrer
+   * ---un `fixed` no acompaña al scroll de dentro--- y de eso se
+   * encarga el efecto de más abajo, que escucha en captura.
+   *
+   * No se pone por omisión: donde no hay recorte, `absolute` acompaña
+   * al disparador sola y no hay nada que cerrar.
+   */
+  enPortal?: boolean;
+  rotulo?: string;
   valor: string;
   opciones: OpcionDesplegable[];
   alElegir: (valor: string) => void;
@@ -68,11 +102,21 @@ export function Desplegable({
   /// mide más abajo.
   const [lado, setLado] = useState<"izq" | "der">("izq");
   const [arriba, setArriba] = useState(false);
+  /// Dónde cae el disparador en la ventana, para colocar la lista
+  /// cuando va por portal. Solo se usa con `enPortal`.
+  const [ancla, setAncla] = useState<DOMRect | null>(null);
   const tecleo = useRef({ texto: "", cuando: 0 });
   const propio = useId();
   const idLista = `${id ?? propio}-lista`;
 
   const elegida = opciones.find((o) => o.valor === valor) ?? null;
+
+  /// Al `body` o donde estaba. `document` no existe en el servidor, de
+  /// ahí la guarda: esta lista solo se pinta con el panel ya abierto.
+  const envolver = (nodo: React.ReactElement) =>
+    enPortal && typeof document !== "undefined"
+      ? createPortal(nodo, document.body)
+      : nodo;
 
   /// Al abrir, el foco de teclado arranca en la que ya está
   /// elegida y no en la primera: es donde el ojo la busca.
@@ -125,21 +169,77 @@ export function Desplegable({
     setArriba(noCabeAbajo && hayMasSitioArriba);
   }, [abierto, opciones]);
 
+  /// La posición del disparador, al abrir y al cambiar de tamaño.
+  useLayoutEffect(() => {
+    if (!abierto || !enPortal) return;
+    setAncla(caja.current?.getBoundingClientRect() ?? null);
+  }, [abierto, enPortal]);
+
   useEffect(() => {
     if (!abierto) return;
+    /// «FUERA» ES FUERA DEL DISPARADOR *Y* DE LA LISTA.
+    ///
+    /// Con `enPortal` la lista se pinta en `document.body`, asi que
+    /// NO esta dentro de `caja`: para el DOM, pulsar una opcion era
+    /// pulsar fuera. Este oyente cerraba en el `mousedown`, React
+    /// desmontaba la lista antes del `mouseup`, y el `click` de la
+    /// opcion no llegaba a dispararse nunca.
+    ///
+    /// El efecto: TODO desplegable con portal se abria y no dejaba
+    /// elegir nada con el raton. Medido el 1 oct 2026 en los filtros
+    /// de columna de la tabla --«Filtrar por Fecha de creacion»
+    /// seguia en «Todas» despues de pulsar «Hoy»--, que es codigo
+    /// que lleva ahi desde antes de este cambio: no se veia porque
+    /// con el teclado si funcionaba y porque un filtro que no filtra
+    /// se lee como «no hay datos».
+    ///
+    /// El portal rompe el arbol del DOM, no el de React: hay que
+    /// preguntar por los dos nodos.
     function fuera(e: MouseEvent) {
-      if (!caja.current?.contains(e.target as Node)) setAbierto(false);
+      const donde = e.target as Node;
+      if (caja.current?.contains(donde)) return;
+      if (lista.current?.contains(donde)) return;
+      setAbierto(false);
     }
     /// En scroll y en cambio de tamaño se cierra: el panel va
     /// colocado con `absolute` y quedaria flotando lejos.
     function cerrar() {
       setAbierto(false);
     }
+    /// SALVO QUE EL QUE RECORRE SEA LA PROPIA LISTA.
+    ///
+    /// La lista se cerraba sola NADA MAS ABRIRLA en cuanto era lo
+    /// bastante larga para scrollear y el valor guardado caia por
+    /// debajo del primer pantallazo: medido el 1 oct 2026 en el
+    /// cajon del lead, «Departamento» con MAGDALENA puesto --el
+    /// numero 21 de 33-- no llegaba a verse.
+    ///
+    /// La cadena era esta: al abrir, el efecto de arriba lleva la
+    /// opcion marcada a la vista con `scrollIntoView`; eso dispara
+    /// un `scroll` en el propio `<ul>`; y este oyente, que escucha
+    /// en CAPTURA para enterarse del scroll de una tabla, lo oia
+    /// tambien y cerraba. O sea: el desplegable se cerraba por su
+    /// propio movimiento.
+    ///
+    /// Lo que hay que cerrar es lo que mueve al DISPARADOR --la
+    /// pagina, la tabla, el cajon--, no lo que pasa dentro de la
+    /// lista, que no la descoloca.
+    function alRecorrer(e: Event) {
+      const donde = e.target as Node | null;
+      if (donde && lista.current?.contains(donde)) return;
+      cerrar();
+    }
     document.addEventListener("mousedown", fuera);
     window.addEventListener("resize", cerrar);
+    /// EN CAPTURA, y esto no sobra: el scroll de un contenedor de
+    /// dentro ---la tabla--- NO burbujea hasta `window`. Sin la fase de
+    /// captura, recorrer la tabla con la lista abierta la dejaba
+    /// flotando sobre la pantalla, quieta y lejos de su columna.
+    document.addEventListener("scroll", alRecorrer, true);
     return () => {
       document.removeEventListener("mousedown", fuera);
       window.removeEventListener("resize", cerrar);
+      document.removeEventListener("scroll", alRecorrer, true);
     };
   }, [abierto]);
 
@@ -232,9 +332,26 @@ export function Desplegable({
               (abierto ? "border-marca" : "border-campo-borde hover:border-marca/60"))
         }
       >
-        <span className={"min-w-0 flex-1 truncate " + (elegida ? "" : "text-texto-suave")}>
-          {elegida?.etiqueta ?? marcador}
-        </span>
+        {/* EL RÓTULO, DENTRO DEL PROPIO CONTROL y encima del valor.
+            «¿Dónde está el título?» (cliente, 1 oct 2026): puesto solo
+            en la lista, con el desplegable cerrado no se veía nada. Aquí
+            está siempre, no cuesta una fila de pantalla como el rótulo
+            de fuera, y no compite con el valor porque va en letra
+            chica y en gris. */}
+        {rotulo ? (
+          <span className="flex min-w-0 flex-1 flex-col items-start justify-center leading-tight">
+            <span className="text-[0.5625rem] font-bold tracking-[0.08em] uppercase text-texto-suave">
+              {rotulo}
+            </span>
+            <span className={"w-full truncate " + (elegida ? "" : "text-texto-suave")}>
+              {elegida?.etiqueta ?? marcador}
+            </span>
+          </span>
+        ) : (
+          <span className={"min-w-0 flex-1 truncate " + (elegida ? "" : "text-texto-suave")}>
+            {elegida?.etiqueta ?? marcador}
+          </span>
+        )}
         <span
           aria-hidden="true"
           className={
@@ -253,7 +370,7 @@ export function Desplegable({
         </span>
       </button>
 
-      {abierto && (
+      {abierto && envolver(
         <ul
           ref={lista}
           id={idLista}
@@ -271,13 +388,37 @@ export function Desplegable({
             /// arranca en el borde izquierdo y crece lo que
             /// necesite, con tope para que no se vaya de la
             /// pantalla.
-            "caja-scroll absolute z-50 max-h-72 w-max min-w-full max-w-[24rem] overflow-auto " +
-            (arriba ? "bottom-[calc(100%+4px)] " : "top-[calc(100%+4px)] ") +
-            (lado === "der" ? "right-0 " : "left-0 ") +
+            "caja-scroll z-50 max-h-72 w-max max-w-[24rem] overflow-auto " +
+            (enPortal ? "fixed " : "absolute min-w-full ") +
+            (enPortal
+              ? ""
+              : (arriba ? "bottom-[calc(100%+4px)] " : "top-[calc(100%+4px)] ") +
+                (lado === "der" ? "right-0 " : "left-0 ")) +
             "rounded-lg border border-borde bg-superficie py-1 " +
             "shadow-[0_10px_30px_-10px_rgba(15,23,42,0.28)]"
           }
+          style={
+            enPortal && ancla
+              ? {
+                  minWidth: ancla.width,
+                  ...(arriba
+                    ? { bottom: window.innerHeight - ancla.top + 4 }
+                    : { top: ancla.bottom + 4 }),
+                  ...(lado === "der"
+                    ? { right: window.innerWidth - ancla.right }
+                    : { left: ancla.left }),
+                }
+              : undefined
+          }
         >
+          {rotulo && (
+            <li
+              aria-hidden
+              className="border-b border-hairline px-3 pt-1 pb-2 text-[0.625rem] font-bold tracking-[0.08em] uppercase text-texto-suave"
+            >
+              {rotulo}
+            </li>
+          )}
           {opciones.length === 0 && (
             <li className="px-3 py-2 text-[0.78125rem] text-texto-suave">
               No hay opciones disponibles.
@@ -323,7 +464,7 @@ export function Desplegable({
               </li>
             );
           })}
-        </ul>
+        </ul>,
       )}
     </div>
   );
