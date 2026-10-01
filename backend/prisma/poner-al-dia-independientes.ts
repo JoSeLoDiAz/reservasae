@@ -36,9 +36,30 @@
 import { PrismaClient } from '../generated/prisma';
 import { calcularDigitoVerificacion } from '../src/comun/nit';
 import { tamanoDeIndependiente } from '../src/crm/tamano-del-independiente';
+import { exigirBaseSegura } from './guardia-de-base';
+
+const aplicar = process.argv.includes('--aplicar');
+
+/**
+ * EL GUARDIA, ANTES DE ABRIR LA CONEXIÓN.
+ *
+ * Este guión ESCRIBE ---pone el dígito, crea fichas en el directorio y
+ * rellena lo que el SEP pide de la organización--- y era el ÚNICO de
+ * los once que no lo llamaba. Lo vio José al revisar la entrega del 1
+ * oct 2026, y tiene razón de más: el `.env` de su portátil apunta a
+ * producción por el túnel, así que un `--aplicar` descuidado escribía
+ * allí sin que nada lo parase.
+ *
+ * Solo con `--aplicar`: mirar sin escribir no necesita permiso, y
+ * pedirlo para una consulta de solo lectura enseña a saltárselo.
+ *
+ * El guardia mira el PUERTO, no el nombre de la base: una base
+ * «reservasae» alcanzada por el túnel no lleva «prueba» en la URL. Esa
+ * es justo la lección por la que existe.
+ */
+if (aplicar) exigirBaseSegura('Poner al día los independientes');
 
 const prisma = new PrismaClient();
-const aplicar = process.argv.includes('--aplicar');
 
 async function main() {
   const empresas = await prisma.empresa.findMany({

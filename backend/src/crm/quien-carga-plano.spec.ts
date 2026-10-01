@@ -15,6 +15,7 @@
 import {
   CARGAN_PLANO,
   conveniosQueCargan,
+  exigirQuienCargaPlano,
   puedeCargarPlano,
 } from './quien-carga-plano';
 
@@ -82,5 +83,72 @@ describe('quién carga por plano', () => {
         britcham: ['GESTOR_INSCRIPCION'],
       }),
     ).toEqual(['adecopria']);
+  });
+});
+
+/**
+ * LA PUERTA GENERAL, que es donde estaba el agujero.
+ *
+ * Mi spec original probaba «mira el gremio elegido, no el montón», y
+ * se quedaba ahí. Lo que NO probaba ---y José lo vio--- es qué pasa
+ * cuando NO hay gremio elegido, que es como entra la mayoría: sin
+ * subdominio y sin cabecera `x-gremio`, `admin.guard.ts` deja
+ * `gremioElegido` en nulo y se miran TODAS las concesiones.
+ *
+ * Y el convenio de la carga no sale del host: viene en el CUERPO. Así
+ * que quien es líder en ADECOPRIA y gestor en BRITCHAM pasaba el guard
+ * por su rol de ADECOPRIA y cargaba en BRITCHAM.
+ *
+ * Por eso la cerradura de verdad es `exigirQuienCargaPlano`, que
+ * pregunta por el convenio CONCRETO. El guard de ruta se queda como
+ * primera barrera barata; estos casos fijan que no es la única.
+ */
+describe('por la puerta general, sin gremio elegido', () => {
+  it('el guard de ruta DEJA PASAR a quien es lider en otro gremio', () => {
+    /// Esto no es un fallo del guard: es su límite. Documentarlo evita
+    /// que alguien lo tome por suficiente y quite la de abajo.
+    expect(
+      puedeCargarPlano(
+        peticion('GESTOR', {
+          adecopria: ['LIDER_INSCRIPCION'],
+          britcham: ['GESTOR_INSCRIPCION'],
+        }),
+      ),
+    ).toBe(true);
+  });
+
+  it('y la cerradura del servicio es la que lo para, por convenio', async () => {
+    /// Doble de prisma: solo contesta si se le pregunta por el convenio
+    /// donde la cuenta SÍ carga.
+    const prisma = {
+      adminConvenio: {
+        findFirst: ({ where }: { where: { convenioId: string } }) =>
+          Promise.resolve(where.convenioId === 'adecopria' ? { id: 'c1' } : null),
+      },
+    };
+    const admin = { id: 'admin-1', rol: 'GESTOR' as const };
+
+    await expect(
+      exigirQuienCargaPlano(prisma as never, admin, 'adecopria'),
+    ).resolves.toBeUndefined();
+
+    await expect(
+      exigirQuienCargaPlano(prisma as never, admin, 'britcham'),
+    /// Con tilde: el mensaje dice «líder». Buscarlo sin ella hacía
+    /// fallar la prueba sobre un código correcto.
+    ).rejects.toThrow(/líder de inscripciones/i);
+  });
+
+  it('un administrador no paga ni la consulta', async () => {
+    const prisma = {
+      adminConvenio: {
+        findFirst: () => {
+          throw new Error('no deberia consultarse');
+        },
+      },
+    };
+    await expect(
+      exigirQuienCargaPlano(prisma as never, { id: 'a', rol: 'SUPERADMIN' }, 'britcham'),
+    ).resolves.toBeUndefined();
   });
 });

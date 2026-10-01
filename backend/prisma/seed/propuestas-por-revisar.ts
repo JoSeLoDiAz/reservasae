@@ -13,20 +13,26 @@
 /// Se corre con:  npx ts-node prisma/seed/propuestas-por-revisar.ts
 
 import { FuenteDato, PrismaClient } from '../../generated/prisma';
+import { exigirBaseSegura } from '../guardia-de-base';
 
 const prisma = new PrismaClient();
 
-/// La misma guarda que el resto de siembras, por la misma razón:
-/// un `.env` de portátil puede estar apuntando a producción, y
-/// esto escribe datos inventados.
+/**
+ * LA GUARDA DE LA CASA, QUE MIRA EL PUERTO.
+ *
+ * Aquí había una propia que miraba si `DATABASE_URL` contenía la
+ * palabra «prueba», y el comentario decía que era «la misma guarda que
+ * el resto». NO LO ERA, y José lo vio al revisar la entrega del 1 oct
+ * 2026: el resto importan `guardia-de-base`, que es una regla de
+ * PUERTO, y lo es precisamente porque aquí ya se concluyó que
+ * **ninguna regla sobre el nombre sirve** ---una base «reservasae»
+ * alcanzada por el túnel no lleva «prueba» en la URL---.
+ *
+ * Era la guarda débil justo en la semana en que se toca producción, y
+ * en el guión que SIEMBRA DATOS INVENTADOS.
+ */
 function comprobarQueEsPruebas() {
-  const url = process.env.DATABASE_URL ?? '';
-  if (!/prueba/i.test(url)) {
-    console.error('\n  Esto NO corre aquí.');
-    console.error('  DATABASE_URL no dice "prueba" en ninguna parte.');
-    console.error('  Siembra propuestas inventadas: solo en pruebas.\n');
-    process.exit(1);
-  }
+  exigirBaseSegura('Sembrar propuestas por revisar');
 }
 
 /// Lo que cada propuesta trae. Valores plausibles y distintos

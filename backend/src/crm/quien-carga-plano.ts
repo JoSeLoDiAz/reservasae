@@ -39,7 +39,8 @@ import {
   UseGuards,
 } from '@nestjs/common';
 
-import type { RolConvenio } from '../../generated/prisma';
+import type { Admin, RolConvenio } from '../../generated/prisma';
+import type { PrismaService } from '../prisma/prisma.service';
 import type { PeticionConAdmin } from '../admin/admin.guard';
 
 /**
@@ -86,6 +87,42 @@ export const conveniosQueCargan = (roles: Record<string, RolConvenio[]>) =>
   Object.entries(roles)
     .filter(([, suyos]) => suyos.some((r) => CARGAN_PLANO.includes(r)))
     .map(([convenioId]) => convenioId);
+
+/**
+ * LA MISMA CERRADURA, PERO CONTRA EL CONVENIO DE LA PETICIÓN.
+ *
+ * El guard de ruta no basta, y esto lo encontró José al revisar la
+ * entrega del 1 oct 2026. `puedeCargarPlano` mira `gremioElegido`,
+ * pero en `admin.guard.ts` ese valor queda NULO cuando no hay
+ * subdominio ni cabecera `x-gremio` ---que es como entra la mayoría---,
+ * y entonces se miran TODAS las concesiones. Y el convenio de la carga
+ * no sale del host: viene en el CUERPO, `CargaDto.convenioId`.
+ *
+ * O sea: quien es líder en ADECOPRIA y gestor en BRITCHAM pasaba el
+ * guard por su rol de ADECOPRIA y cargaba un archivo en BRITCHAM,
+ * donde solo es gestor. Es exactamente el tercer agujero de
+ * `PATCH grupos/lote`, y lo peor es que el docblock de este fichero ya
+ * citaba esa lección y aun así dejó la rama abierta.
+ *
+ * Por eso esta comprobación va DENTRO del servicio y recibe el
+ * convenio de la ficha, igual que `exigirQuienAsignaGrupo`: es el
+ * único sitio donde se sabe a qué gremio se está cargando de verdad.
+ *
+ * Una consulta y solo cuando hace falta: un superadministrador no la
+ * paga.
+ */
+export async function exigirQuienCargaPlano(
+  prisma: PrismaService,
+  admin: Pick<Admin, 'id' | 'rol'>,
+  convenioId: string,
+): Promise<void> {
+  if (admin.rol === 'SUPERADMIN') return;
+  const concesion = await prisma.adminConvenio.findFirst({
+    where: { adminId: admin.id, convenioId, rol: { in: CARGAN_PLANO } },
+    select: { id: true },
+  });
+  if (!concesion) throw new ForbiddenException(MENSAJE_SOLO_LIDER_CARGA);
+}
 
 @Injectable()
 export class CargaPlanoGuard implements CanActivate {

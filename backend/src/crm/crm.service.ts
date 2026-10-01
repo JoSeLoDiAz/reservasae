@@ -135,6 +135,7 @@ import {
   comoQuedaLaFusion,
   porQueNoSePuedenUnir,
 } from './fusionar-participaciones';
+import { exigirQuienCargaPlano } from './quien-carga-plano';
 import { motivoParaNoInscribir } from './una-sola-accion';
 import { enPalabras, moverLaGestion } from './unir-participaciones';
 /// `ETAPAS_DEL_AULA` NO se importa: este fichero tiene la suya propia
@@ -4426,10 +4427,27 @@ export class CrmService {
         autorNombre: admin.nombre,
         texto: dto.texto,
         canales: dto.canales,
-        /// Nulo cuando la categoria no significa ningun resultado, o
-        /// cuando no se clasifico. Es lo mismo que les pasa a las
-        /// notas de antes del catalogo, y se leen igual.
-        resultado: clasificacion.resultado,
+        /**
+         * MANDA LA CATEGORÍA; el campo viejo solo rellena el hueco.
+         *
+         * Nulo cuando la categoría no significa ningún resultado, o
+         * cuando no se clasificó. Es lo mismo que les pasa a las notas
+         * de antes del catálogo, y se leen igual.
+         *
+         * `dto.resultado` es el campo que el cliente quitó de la
+         * pantalla el 30 sep 2026 y que se sigue aceptando UNA VERSIÓN
+         * MÁS por el rato del despliegue (ver el porqué en `dto.ts`).
+         * Se mira SOLO cuando no vino categoría, que es justo el caso
+         * de una pestaña con el bundle viejo: ahí es el único dato que
+         * hay, y descartarlo perdería la gestión de una asesora.
+         *
+         * Con categoría, este campo se ignora: no puede haber dos
+         * sitios decidiendo lo mismo.
+         */
+        resultado:
+          clasificacion.categoriaId !== null
+            ? clasificacion.resultado
+            : (clasificacion.resultado ?? dto.resultado ?? null),
         categoriaId: clasificacion.categoriaId,
         subcategoriaId: clasificacion.subcategoriaId,
       },
@@ -4719,8 +4737,13 @@ export class CrmService {
   }
 
   /** Que pasaria si se confirma este pegado. */
-  async previsualizarCarga(dto: CargaDto, ambito: string[]) {
+  async previsualizarCarga(dto: CargaDto, admin: Admin, ambito: string[]) {
     this.exigirConvenio(dto.convenioId, ambito);
+    /// Contra el convenio de la PETICIÓN, no contra el montón de roles:
+    /// ver el porqué en `quien-carga-plano.ts`. Previsualizar no
+    /// escribe, pero enseña el plano ya cruzado con la base ---quién
+    /// existe, quién se duplica--- y eso es del gremio al que se carga.
+    await exigirQuienCargaPlano(this.prisma, admin, dto.convenioId);
 
     const filas = analizar(dto.texto);
     if (filas.length === 0) {
@@ -5011,6 +5034,7 @@ export class CrmService {
     ip?: string,
   ) {
     this.exigirConvenio(dto.convenioId, ambito);
+    await exigirQuienCargaPlano(this.prisma, admin, dto.convenioId);
 
     /// La organización se valida ANTES de crear a nadie: una carga que
     /// dice ser de una organización y no trae su NIT dejaría a toda la
@@ -5020,7 +5044,9 @@ export class CrmService {
       throw new BadRequestException(org.problemas.join(' '));
     }
 
-    const previa = await this.previsualizarCarga(dto, ambito);
+    /// Con el mismo `admin`: esta llamada de dentro no puede saltarse
+    /// la cerradura que la de fuera sí paga.
+    const previa = await this.previsualizarCarga(dto, admin, ambito);
     const permitidas = dto.lineas ? new Set(dto.lineas) : null;
 
     const aCrear = previa.filas.filter(

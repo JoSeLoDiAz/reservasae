@@ -566,8 +566,12 @@ export class CrmController {
   @Post('carga/previsualizar')
   @Requiere('inscripciones', 'ESCRIBIR')
   @SoloQuienCargaPlano()
-  previsualizarCarga(@Body() dto: CargaDto, @AmbitoActual() ambito: Ambito) {
-    return this.crm.previsualizarCarga(dto, ambito.convenios);
+  previsualizarCarga(
+    @Body() dto: CargaDto,
+    @AdminActual() admin: Admin,
+    @AmbitoActual() ambito: Ambito,
+  ) {
+    return this.crm.previsualizarCarga(dto, admin, ambito.convenios);
   }
 
   /// LA PLANTILLA SALE DEL CONVENIO ELEGIDO: sus listas traen las
