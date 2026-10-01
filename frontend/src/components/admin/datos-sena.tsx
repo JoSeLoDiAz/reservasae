@@ -20,17 +20,20 @@ import { crmApi, type CatalogosSep, type Ficha } from "@/lib/crm-api";
 
 /// El tipo vive con los campos: los dos cambian juntos.
 type Campos = DatosDeLaPersona & {
-  /// La identidad. Sale del formulario corto y aqui no se
-  /// veia: el asesor tenia que subir a la cabecera de la
-  /// lead para leer un apellido, y no habia forma de
-  /// corregirlo desde donde se corrige todo lo demas.
-  /* eslint-disable-next-line @typescript-eslint/no-empty-object-type */
+  /// La identidad. Va aqui dentro --y no en un estado aparte--
+  /// para que la herede todo lo que ya hay: `hayCambios`
+  /// compara el objeto entero y el efecto que vuelve a leer la
+  /// ficha lo restaura solo.
+  tipoDocumentoSepId: number;
+  numeroDocumento: string;
 };
 
 const soloFecha = (iso: string | null) => (iso ? iso.slice(0, 10) : "");
 
 function desdeFicha(f: Ficha): Campos {
   return {
+    tipoDocumentoSepId: f.persona.tipoDocumentoSepId,
+    numeroDocumento: f.persona.numeroDocumento,
     primerNombre: f.persona.primerNombre,
     segundoNombre: f.persona.segundoNombre ?? "",
     primerApellido: f.persona.primerApellido,
@@ -89,9 +92,13 @@ function Grupo({
 export function DatosSena({
   lead,
   alGuardar,
+  puedeCambiarDocumento,
 }: {
   lead: Ficha;
   alGuardar: (accion: () => Promise<void>) => Promise<void>;
+  /// Solo el administrador corrige la identidad (1 oct 2026). El
+  /// candado de verdad está en el servidor; esto decide qué se pinta.
+  puedeCambiarDocumento: boolean;
 }) {
   const [catalogos, setCatalogos] = useState<CatalogosSep | null>(null);
   const [c, setC] = useState<Campos>(() => desdeFicha(lead));
@@ -131,7 +138,16 @@ export function DatosSena({
     setGuardando(true);
     try {
       await alGuardar(async () => {
-        await crmApi.actualizar(lead.id, aCuerpo(c));
+        await crmApi.actualizar(lead.id, {
+          ...aCuerpo(c),
+          /// Va SIEMPRE, también sin haberlo tocado: el servidor
+          /// compara el valor ya normalizado y solo pide ser
+          /// administrador cuando de verdad cambia. Mandarlo solo al
+          /// cambiarlo escondería el cambio del gestor en vez de
+          /// negarlo, y el que manda es el servidor.
+          tipoDocumentoSepId: c.tipoDocumentoSepId,
+          numeroDocumento: c.numeroDocumento.trim(),
+        });
       });
     } finally {
       setGuardando(false);
@@ -289,34 +305,78 @@ export function DatosSena({
       {editando && (
       <div className="mt-4 space-y-4">
         {/* Los campos son los MISMOS que los de crear una
-            ficha: viven en `campos-de-la-persona.tsx`. Aqui
-            la identidad va en solo lectura porque el documento
-            es la llave de la persona en todo el sistema y
-            cambiarlo partiria su historia en dos. */}
+            ficha: viven en `campos-de-la-persona.tsx`.
+
+            EL DOCUMENTO LO CORRIGE EL ADMINISTRADOR, y solo el
+            (1 oct 2026). Hasta hoy esto decia que iba en solo
+            lectura «porque es la llave de la persona en todo el
+            sistema y cambiarlo partiria su historia en dos»: el
+            motivo sigue siendo cierto, y por eso no se abrio a
+            todo el mundo. Lo que cambio es que la gente se
+            preinscribe con la cedula mal y alguien tiene que
+            poder arreglarla. Para los demas sigue en lectura.
+
+            Quien manda es el servidor: esto solo decide si se
+            pinta una caja o un texto. */}
         <CamposDeLaPersona
           c={c}
-          setC={setC}
+          /// El formulario compartido solo sabe de sus campos, asi que
+          /// lo que devuelve se MEZCLA sobre lo que hay: si se pasara
+          /// tal cual, cada tecla borraria el documento.
+          setC={(f) => setC((v) => ({ ...v, ...f(v) }))}
           catalogos={catalogos}
           identidad={
             <>
               <Campo etiqueta="Tipo de documento">
-                <input
-                  readOnly
-                  className={`${CLASE_CONTROL} opacity-70`}
-                  value={
-                    catalogos?.documentosPersona.find(
-                      (d) => d.id === lead.persona.tipoDocumentoSepId,
-                    )?.etiqueta ?? String(lead.persona.tipoDocumentoSepId)
-                  }
-                />
+                {puedeCambiarDocumento ? (
+                  <select
+                    className={CLASE_CONTROL}
+                    value={c.tipoDocumentoSepId}
+                    onChange={(e) =>
+                      setC({ ...c, tipoDocumentoSepId: Number(e.target.value) })
+                    }
+                  >
+                    {(catalogos?.documentosPersona ?? []).map((d) => (
+                      <option key={d.id} value={d.id}>
+                        {d.etiqueta}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    readOnly
+                    className={`${CLASE_CONTROL} opacity-70`}
+                    value={
+                      catalogos?.documentosPersona.find(
+                        (d) => d.id === lead.persona.tipoDocumentoSepId,
+                      )?.etiqueta ?? String(lead.persona.tipoDocumentoSepId)
+                    }
+                  />
+                )}
               </Campo>
 
               <Campo etiqueta="Número de documento">
-                <input
-                  readOnly
-                  className={`${CLASE_CONTROL} font-mono opacity-70`}
-                  value={lead.persona.numeroDocumento}
-                />
+                {puedeCambiarDocumento ? (
+                  <>
+                    <input
+                      className={`${CLASE_CONTROL} font-mono`}
+                      value={c.numeroDocumento}
+                      onChange={(e) =>
+                        setC({ ...c, numeroDocumento: e.target.value })
+                      }
+                    />
+                    <span className="mt-1 block text-[0.6875rem] leading-snug text-texto-suave">
+                      Es la identidad de la persona y el número que va al
+                      SENA. Si ya es de otra ficha, el servidor lo rechaza.
+                    </span>
+                  </>
+                ) : (
+                  <input
+                    readOnly
+                    className={`${CLASE_CONTROL} font-mono opacity-70`}
+                    value={lead.persona.numeroDocumento}
+                  />
+                )}
               </Campo>
             </>
           }
