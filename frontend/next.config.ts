@@ -5,6 +5,19 @@ const nextConfig: NextConfig = {
   // empaqueta solo lo necesario
   output: "standalone",
 
+  /// DONDE ESCRIBE EL BUILD, y por que se puede cambiar.
+  ///
+  /// `next dev` y `next build` usan el MISMO `.next`, asi que compilar
+  /// mientras alguien tiene el 3100 abierto le deja el servidor de
+  /// desarrollo con la carpeta a medio reescribir: la pantalla se
+  /// queda en blanco o pide recargar, y hay que reiniciarlo. En este
+  /// proyecto eso importa porque el cliente revisa en vivo.
+  ///
+  /// Con `NEXT_DIST_DIR=.next-build pnpm build` la compilacion de
+  /// prueba cae en otra carpeta y no toca la suya. El despliegue no
+  /// pone la variable y sigue escribiendo en `.next`, como siempre.
+  distDir: process.env.NEXT_DIST_DIR ?? ".next",
+
   /// Los dominios desde los que `next dev` se deja usar.
   ///
   /// Next 16 bloquea las peticiones de desarrollo que llegan con
