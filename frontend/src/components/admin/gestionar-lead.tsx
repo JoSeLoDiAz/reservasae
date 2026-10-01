@@ -27,10 +27,7 @@ import { ErrorApi } from "@/lib/api";
 import {
   CANALES,
   ETIQUETA_CANAL_CONTACTO,
-  ETIQUETA_RESULTADO,
-  RESULTADOS,
   type CanalContacto,
-  type ResultadoGestion,
 } from "@/lib/crm-api";
 import { mesaApi, type LeadDeLaMesa } from "@/lib/mesa-api";
 
@@ -63,23 +60,39 @@ export function GestionarLead({
 }) {
   const [texto, setTexto] = useState("");
   const [canales, setCanales] = useState<CanalContacto[]>([]);
-  const [resultado, setResultado] = useState<ResultadoGestion | null>(null);
   const clasificacion = useClasificacionDeNota();
   const [error, setError] = useState<string | null>(null);
   const [guardando, setGuardando] = useState(false);
 
   const puede = lead.puedoContactar === "SI";
+  /// LA CATEGORÍA OCUPA EL SITIO QUE TENÍA «CÓMO SALIÓ».
+  ///
+  /// Hasta el 30 sep 2026 aquí había `resultado !== null`: no se
+  /// podía registrar la gestión sin marcar cómo salió. Esos tres
+  /// botones eran la misma pregunta que la clasificación --el cliente
+  /// lo señaló-- y se quitaron, pero la exigencia NO se puede perder:
+  /// de ella salía el `resultado` de la nota, y de él los informes y
+  /// la cuenta de intentos sin respuesta. Así que la hereda la
+  /// categoría, que es quien declara el resultado ahora. La
+  /// subcategoría sigue siendo opcional.
+  ///
+  /// `completa` es la MISMA condición que usa la ficha, y vive en
+  /// `clasificacion-de-la-nota.tsx` para que no haya dos ideas de
+  /// cuándo está lista una nota.
   const listo =
-    puede && texto.trim().length > 0 && canales.length > 0 && resultado !== null;
+    puede &&
+    texto.trim().length > 0 &&
+    canales.length > 0 &&
+    clasificacion.completa;
 
   async function guardar() {
-    if (!resultado) return;
+    if (!listo) return;
     setGuardando(true);
     try {
       await mesaApi.agregarNota(lead.id, {
         texto: texto.trim(),
         canales,
-        resultado,
+        /// SIN `resultado`: lo deriva el servidor de la categoría.
         /// Sin la llave cuando no hay nada elegido: el DTO la
         /// declara opcional, y un `null` explícito no es «no vino».
         ...(clasificacion.categoriaId
@@ -166,26 +179,13 @@ export function GestionarLead({
             </p>
           )}
 
-          <div>
-            <span className="mb-1 block text-sm font-medium">Cómo salió</span>
-            <div className="flex flex-wrap gap-2">
-              {RESULTADOS.map((r) => (
-                <button
-                  key={r}
-                  type="button"
-                  disabled={!puede}
-                  onClick={() => setResultado(r)}
-                  className={`rounded-lg border px-3 py-1.5 text-sm disabled:opacity-50 ${
-                    resultado === r
-                      ? "border-marca bg-marca-suave font-medium text-marca"
-                      : "border-campo-borde bg-campo text-texto"
-                  }`}
-                >
-                  {ETIQUETA_RESULTADO[r]}
-                </button>
-              ))}
-            </div>
-          </div>
+          {/* AQUÍ ESTABAN LOS TRES BOTONES DE «CÓMO SALIÓ», y se
+              fueron el 30 sep 2026: eran la misma pregunta que la
+              clasificación de más abajo --Contactado, No contactado,
+              El dato no sirve, Seguimiento--. «Ese "Cómo salió" es la
+              "Clasificación"», dijo el cliente. El `resultado` de la
+              nota lo deriva ahora el servidor de la categoría
+              elegida. */}
 
           <div>
             <span className="mb-1 block text-sm font-medium">Por dónde</span>
@@ -214,11 +214,10 @@ export function GestionarLead({
             </div>
           </div>
 
-          {/* ENTRE «cómo salió» Y «qué pasó», que es el orden en que
-              se piensa: primero la salida, luego se clasifica, y al
-              final se escribe. Debajo del texto quedaría después de
-              haberlo contado con palabras, y entonces nadie lo
-              toca. */}
+          {/* ANTES DE «qué pasó», que es el orden en que se piensa:
+              primero se clasifica y al final se escribe. Debajo del
+              texto quedaría después de haberlo contado con palabras, y
+              entonces nadie lo toca. */}
           <div>
             <span className="mb-1 block text-sm font-medium">
               Clasificación

@@ -123,9 +123,36 @@ export function useClasificacionDeNota() {
 
   const categoria = categorias?.find((c) => c.id === categoriaId) ?? null;
 
+  /// LA CATEGORÍA ES OBLIGATORIA, Y SOLO SI HAY CATÁLOGO.
+  ///
+  /// Decidido el 30 sep 2026, cuando se quitaron los tres botones de
+  /// «Cómo salió» de los dos sitios donde se anota: eran la misma
+  /// pregunta que la clasificación. Antes NO se podía guardar sin
+  /// elegir «cómo salió», y esa exigencia no se puede perder --de
+  /// ella salía el `resultado`, y de él los informes y la cuenta de
+  /// intentos sin respuesta--. Así que la hereda la categoría, que
+  /// es quien declara el resultado ahora. Una nota sin categoría se
+  /// guardaría sin resultado y no contaría en ningún informe: es
+  /// justo lo que no queremos que pase por descuido.
+  ///
+  /// La SUBCATEGORÍA sigue siendo opcional, a propósito: no todas
+  /// las categorías tienen, y de ella no cuelga ningún dato
+  /// derivado.
+  ///
+  /// «Solo si hay catálogo» no es un atajo: si la petición del
+  /// catálogo falla, `ClasificacionDeLaNota` no se pinta --está en
+  /// su cabecera-- y exigirla igual dejaría al asesor con un botón
+  /// apagado y nada que pulsar para encenderlo. Sin catálogo se
+  /// anota como antes del catálogo: texto libre y sin resultado.
+  const obligatoria = (categorias?.length ?? 0) > 0;
+
   return {
     categorias: categorias ?? [],
     cargando: categorias === null,
+    obligatoria,
+    /// Lo que mira el botón de guardar en los tres sitios. Uno solo,
+    /// para que no haya tres ideas de cuándo está lista una nota.
+    completa: !obligatoria || categoriaId !== null,
     categoriaId,
     subcategoriaId,
     elegirCategoria,

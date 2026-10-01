@@ -1812,15 +1812,29 @@ export const crmApi = {
       body: JSON.stringify({ etapa, motivo }),
     }),
 
-  /// La clasificación va al final y es OPCIONAL: así las llamadas
-  /// que había antes de que existiera el catálogo siguen compilando
-  /// y siguen anotando, sin clasificar. Es lo mismo que hace el DTO
-  /// del servidor.
+  /// YA NO SE MANDA `resultado`, y es a propósito.
+  ///
+  /// El 30 sep 2026 el cliente señaló que al anotar se preguntaba lo
+  /// mismo dos veces: «Cómo salió» --[Hablé con la persona] [No
+  /// contestó] [El dato no sirve]-- y debajo «Clasificación», cuyas
+  /// categorías son esas mismas tres más «Seguimiento». Textual:
+  /// «Ese "Cómo salió" es la "Clasificación"».
+  ///
+  /// El dato sigue existiendo en la nota --de él cuelgan los
+  /// informes y la cuenta de intentos sin respuesta-- pero lo DERIVA
+  /// EL SERVIDOR de la categoría elegida, que ahora declara qué
+  /// significa. Mandarlo desde aquí sería un segundo sitio
+  /// decidiéndolo, y un día dirían cosas distintas. El servidor
+  /// además lo RECHAZA si llega (`forbidNonWhitelisted`).
+  ///
+  /// La clasificación sigue siendo OPCIONAL en el DTO: las notas que
+  /// escribe el sistema no las clasifica nadie. Que elegir categoría
+  /// sea obligatorio se decide en la pantalla, donde se puede
+  /// acompañar con un motivo.
   agregarNota: (
     id: string,
     texto: string,
     canales: CanalContacto[],
-    resultado: ResultadoGestion,
     clasificacion?: { categoriaId: string | null; subcategoriaId: string | null },
   ) =>
     pedir<Record<string, unknown>>(`/admin/participantes/${id}/notas`, {
@@ -1828,7 +1842,6 @@ export const crmApi = {
       body: JSON.stringify({
         texto,
         canales,
-        resultado,
         /// Sin la llave cuando no hay nada elegido, en vez de con
         /// `null`: el DTO la declara `@IsOptional`, y un `null`
         /// explícito no es «no vino».

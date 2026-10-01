@@ -53,12 +53,24 @@ export class InstitucionesService {
     soloIncompletas?: boolean;
     soloSinVerificar?: boolean;
     soloSugeridos?: boolean;
+    /// Las QUITADAS del listado, para poder deshacerlo.
+    ///
+    /// Ocultar es `activo: false`, así que las ocultas son justo las
+    /// que este listado nunca enseña. Sin una forma de pedirlas, la
+    /// acción de quitar no tendría vuelta atrás: la fila seguiría en
+    /// la base pero no habría ninguna pantalla desde la que verla.
+    soloOcultas?: boolean;
     pagina?: number;
   }) {
     const pagina = Math.max(1, opciones.pagina ?? 1);
     const buscar = opciones.buscar?.trim();
 
-    const where: Prisma.InstitucionWhereInput = { activo: true };
+    /// Lo uno o lo otro, nunca las dos a la vez: mezclar activas y
+    /// ocultas en una misma tabla haría que la acción de cada fila
+    /// dependiera de una columna que no se está mirando.
+    const where: Prisma.InstitucionWhereInput = {
+      activo: !opciones.soloOcultas,
+    };
 
     if (buscar) {
       // por NIT si lo que teclearon son dígitos, por nombre si no
@@ -325,6 +337,113 @@ export class InstitucionesService {
       include: { verificadaPor: { select: { nombre: true } } },
     });
     return this.conFaltantes(f);
+  }
+
+  /**
+   * QUITAR DEL LISTADO: SE OCULTA, NO SE BORRA.
+   *
+   * «No tengo la opción de eliminar, ¿dónde se elimina el que no tiene
+   * leads asociados?» (cliente, 30 sep 2026). Quitar del listado es
+   * poner `activo: false`, que es justo por lo que ya filtra `listar`.
+   *
+   * LA FILA SE QUEDA ENTERA, y no por prudencia genérica: el NIT de
+   * esta organización ya viajó al SENA dentro de informes entregados.
+   * Borrar la fila deja esos informes sin nada detrás que los explique,
+   * y el SENA puede volver a preguntar por ellos meses después.
+   *
+   * LA COMPROBACIÓN LA HACE EL SERVIDOR, no la pantalla. La columna
+   * «Leads asociados» existe para que la persona sepa ANTES de pulsar,
+   * pero no es la autoridad: entre que se pintó la tabla y que se pulsa
+   * el botón, alguien pudo mover un lead a esta organización. Y se
+   * cuenta con la MISMA función que alimenta esa columna
+   * ---`leadsPorInstitucion`--- a propósito: una segunda forma de
+   * contar acabaría discrepando de la que se ve en pantalla, y entonces
+   * el sistema se negaría enseñando «sin nadie».
+   */
+  async ocultar(id: string, admin: { id: string; nombre: string }) {
+    const f = await this.prisma.institucion.findUnique({
+      where: { id },
+      select: { id: true, nit: true, razonSocial: true, activo: true },
+    });
+    if (!f)
+      throw new NotFoundException('No hay ninguna institución con ese id.');
+
+    /// Ya estaba oculta. No es un fallo que haya que enseñarle a
+    /// nadie ---dos personas pueden estar limpiando el mismo
+    /// listado--- pero tampoco se audita un cambio que no ocurrió.
+    if (!f.activo) {
+      return { id: f.id, razonSocial: f.razonSocial, activo: false };
+    }
+
+    const leads = (await this.leadsPorInstitucion([f])).get(f.id) ?? 0;
+    if (leads > 0) {
+      /// Dice CUÁNTOS. «No se puede» a secas obliga a ir a buscar el
+      /// motivo; con el número, quien lo lee ya sabe que la columna
+      /// que miró estaba vieja y cuánto le falta por mover.
+      throw new BadRequestException(
+        leads === 1
+          ? 'No se puede quitar del listado: todavía tiene 1 lead asociado. ' +
+              'Muévalo a otra organización primero.'
+          : `No se puede quitar del listado: todavía tiene ${leads} leads ` +
+              'asociados. Muévalos a otra organización primero.',
+      );
+    }
+
+    await this.prisma.institucion.update({
+      where: { id },
+      data: { activo: false },
+    });
+
+    await this.auditoria.registrar({
+      actor: { id: admin.id, nombre: admin.nombre },
+      accion: 'EMPRESA_OCULTADA',
+      entidad: ENTIDADES.INSTITUCION,
+      entidadId: id,
+      camposTocados: ['activo'],
+      /// Con el NIT dentro: es lo que identifica a la organización en
+      /// los informes ya entregados, y es por lo que se la buscaría
+      /// si alguien pregunta por qué dejó de salir.
+      resumen: `Quitada del listado sin leads asociados: ${f.razonSocial} (NIT ${f.nit})`,
+    });
+
+    return { id: f.id, razonSocial: f.razonSocial, activo: false };
+  }
+
+  /**
+   * DEVOLVERLA AL LISTADO.
+   *
+   * Sin condiciones: si se quitó por error, lo que hay que poder hacer
+   * es desandarlo. Mostrar no compromete nada ---la fila nunca dejó de
+   * existir--- así que la única regla es que quede escrito quién la
+   * devolvió, igual que quedó escrito quién la quitó.
+   */
+  async mostrar(id: string, admin: { id: string; nombre: string }) {
+    const f = await this.prisma.institucion.findUnique({
+      where: { id },
+      select: { id: true, nit: true, razonSocial: true, activo: true },
+    });
+    if (!f)
+      throw new NotFoundException('No hay ninguna institución con ese id.');
+
+    if (f.activo) {
+      return { id: f.id, razonSocial: f.razonSocial, activo: true };
+    }
+
+    await this.prisma.institucion.update({
+      where: { id },
+      data: { activo: true },
+    });
+
+    await this.auditoria.registrar({
+      actor: { id: admin.id, nombre: admin.nombre },
+      accion: 'EMPRESA_MOSTRADA',
+      entidad: ENTIDADES.INSTITUCION,
+      entidadId: id,
+      camposTocados: ['activo'],
+      resumen: `Devuelta al listado: ${f.razonSocial} (NIT ${f.nit})`,
+    });
+
+    return { id: f.id, razonSocial: f.razonSocial, activo: true };
   }
 
   /** Lo que un robot propuso, esperando que alguien decida. */

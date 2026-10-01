@@ -10,6 +10,7 @@ import { Pildora, Vacio } from "@/components/admin/piezas";
 import { PropuestasPendientes } from "@/components/admin/propuestas-pendientes";
 import { Tabla, type Columna } from "@/components/admin/tabla";
 import { CarguePlantilla } from "@/components/admin/cargue-plantilla";
+import { useToast } from "@/components/admin/toast";
 import { bonito, ErrorApi, enMayusculas } from "@/lib/api";
 import {
   ETIQUETA_CAMPO,
@@ -34,7 +35,27 @@ const CLASE_SUGERIDO = "font-medium text-aviso";
  * El maestro de organizaciones: una fila por NIT, con lo que
  * se sabe de cada una y si eso alcanza para reportarla.
  */
-type Vista = "banco" | "pendientes";
+/**
+ * LAS OCULTAS VAN COMO TERCERA OPCIÓN DEL SELECTOR, NO COMO CASILLA.
+ *
+ * Hacía falta poder ver las que se quitaron del listado y devolverlas:
+ * sin eso, quitar no tendría vuelta atrás. Las dos formas posibles eran
+ * una casilla «ver también las ocultas» junto al buscador, o una opción
+ * más aquí.
+ *
+ * Va aquí porque ocultar es `activo: false` y el listado filtra por
+ * `activo`, así que una fila oculta y una activa NO pueden convivir en
+ * la misma tabla: la acción de cada fila sería distinta —quitar o
+ * devolver— y habría que leer otra columna para saber cuál toca. Una
+ * casilla prometería mezclarlas y no podría cumplirlo.
+ *
+ * Y porque no estorba: el selector ya está ahí, ya se llama «Qué
+ * mirar», y una casilla más sería un segundo control en la misma fila
+ * para la misma pregunta.
+ */
+type Vista = "banco" | "pendientes" | "ocultas";
+
+const VISTAS: Vista[] = ["banco", "pendientes", "ocultas"];
 
 /**
  * El banco de empresas, con sus propuestas al lado.
@@ -52,7 +73,7 @@ export default function PaginaBancoDeEmpresas() {
   useEffect(() => {
     try {
       const guardada = window.localStorage.getItem("instituciones:vista");
-      if (guardada === "banco" || guardada === "pendientes") setVista(guardada);
+      if (VISTAS.includes(guardada as Vista)) setVista(guardada as Vista);
     } catch {
       // navegador sin almacenamiento: se queda con la de por defecto
     }
@@ -98,6 +119,11 @@ export default function PaginaBancoDeEmpresas() {
                 etiqueta: "Por revisar",
                 detalle: "propuestas del buscador web",
               },
+              {
+                valor: "ocultas",
+                etiqueta: "Quitadas del listado",
+                detalle: "se pueden devolver",
+              },
             ]}
             alElegir={(v) => cambiar(v as Vista)}
           />
@@ -118,15 +144,26 @@ export default function PaginaBancoDeEmpresas() {
         )}
       </div>
 
-      {vista === "banco" ? <Banco /> : <PropuestasPendientes />}
+      {vista === "pendientes" ? (
+        <PropuestasPendientes />
+      ) : (
+        /// `key` para que cambiar de vista MONTE otra tabla y no reuse
+        /// la anterior: el efecto que trae las filas se dispara al
+        /// montar, y sin esto la lista de ocultas se pintaría con las
+        /// activas que ya estaban en memoria.
+        <Banco key={vista} ocultas={vista === "ocultas"} />
+      )}
     </div>
   );
 }
 
-function Banco() {
+function Banco({ ocultas }: { ocultas: boolean }) {
   const [listado, setListado] = useState<Listado | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [cargando, setCargando] = useState(true);
+  /// La fila que está esperando confirmación para apartarse o volver.
+  const [enCuestion, setEnCuestion] = useState<Institucion | null>(null);
+  const toast = useToast();
 
   /// Se traen TODAS de una, no de cincuenta en cincuenta.
   ///
@@ -142,7 +179,7 @@ function Banco() {
     async function traer() {
       setCargando(true);
       try {
-        const primera = await institucionesApi.listar({ pagina: 1 });
+        const primera = await institucionesApi.listar({ pagina: 1, ocultas });
         if (!vigente) return;
 
         const paginas = Math.max(
@@ -156,7 +193,7 @@ function Banco() {
           paginas > 1
             ? await Promise.all(
                 Array.from({ length: paginas - 1 }, (_, i) =>
-                  institucionesApi.listar({ pagina: i + 2 }),
+                  institucionesApi.listar({ pagina: i + 2, ocultas }),
                 ),
               )
             : [];
@@ -181,9 +218,51 @@ function Banco() {
     return () => {
       vigente = false;
     };
-  }, []);
+  }, [ocultas]);
 
   const filas = listado?.instituciones ?? [];
+
+  /**
+   * La fila se va de la tabla sin recargar la pantalla.
+   *
+   * Y es correcto quitarla de las dos vistas con el mismo gesto: en
+   * «Empresas registradas» se acaba de ocultar, y en «Quitadas del
+   * listado» se acaba de devolver. En las dos deja de pertenecer a lo
+   * que se está mirando.
+   */
+  function sacarDeLaTabla(id: string) {
+    setListado((previo) =>
+      previo
+        ? {
+            ...previo,
+            instituciones: previo.instituciones.filter((f) => f.id !== id),
+            total: Math.max(0, previo.total - 1),
+          }
+        : previo,
+    );
+  }
+
+  async function confirmar() {
+    const f = enCuestion;
+    if (!f) return;
+    try {
+      if (ocultas) {
+        await institucionesApi.mostrar(f.id);
+        toast.exito(`${enMayusculas(f.razonSocial)} vuelve al listado.`);
+      } else {
+        await institucionesApi.ocultar(f.id);
+        toast.exito(`${enMayusculas(f.razonSocial)} se quitó del listado.`);
+      }
+      sacarDeLaTabla(f.id);
+      setEnCuestion(null);
+    } catch (e) {
+      /// El servidor se niega cuando le quedan leads —y dice cuántos—.
+      /// Ese mensaje es lo único útil aquí, así que se enseña tal cual
+      /// y la ventana se cierra: la columna que se miró estaba vieja.
+      toast.error((e as ErrorApi).message);
+      setEnCuestion(null);
+    }
+  }
 
   const columnas = useMemo<Columna<Institucion>[]>(
     () => [
@@ -339,6 +418,68 @@ function Banco() {
         filtro: "opciones",
       },
       {
+        /**
+         * LA ACCIÓN QUE FALTABA: quitar del listado, o devolver.
+         *
+         * «No tengo la opción de eliminar, ¿dónde se elimina el que no
+         * tiene leads asociados?» (cliente, 30 sep 2026).
+         *
+         * SALE SOLO DONDE SE PUEDE, y donde no, sale APAGADA diciendo
+         * por qué en vez de desaparecer. Una celda vacía no explica
+         * nada: quien viene de leer «1» en la columna de al lado se
+         * queda sin saber si la acción no existe o si es esa fila la
+         * que no la admite.
+         *
+         * `null` en leads —la cuenta no se pidió— tampoco deja quitar.
+         * No saber cuánta gente cuelga no es lo mismo que saber que no
+         * cuelga nadie.
+         */
+        clave: "apartar",
+        titulo: ocultas ? "Devolver" : "Quitar del listado",
+        nueva: true,
+        valor: (f) =>
+          ocultas
+            ? "Quitada del listado"
+            : f.leads === 0
+              ? "Se puede quitar"
+              : "Tiene leads asociados",
+        pinta: (f) =>
+          ocultas ? (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setEnCuestion(f);
+              }}
+              className="rounded-lg border border-borde px-2.5 py-1 text-xs font-medium whitespace-nowrap transition hover:bg-superficie-alterna"
+            >
+              Devolver al listado
+            </button>
+          ) : f.leads === 0 ? (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setEnCuestion(f);
+              }}
+              className="rounded-lg border border-error/40 px-2.5 py-1 text-xs font-medium whitespace-nowrap text-error transition hover:bg-error-suave"
+            >
+              Quitar del listado
+            </button>
+          ) : (
+            <span
+              className="text-xs text-texto-suave"
+              title={
+                f.leads === null
+                  ? "No se sabe cuántas personas cuelgan de esta organización."
+                  : `No se puede quitar: tiene ${f.leads} ${f.leads === 1 ? "lead asociado" : "leads asociados"}.`
+              }
+            >
+              {f.leads === null ? "—" : "Tiene leads"}
+            </span>
+          ),
+      },
+      {
         clave: "departamento",
         titulo: "Departamento",
         aparte: true,
@@ -353,7 +494,7 @@ function Banco() {
       { clave: "empleados", titulo: "Empleados", aparte: true, numerica: true, valor: (f) => f.numeroEmpleados, filtro: "numero" },
       { clave: "fuente", titulo: "Fuente", aparte: true, valor: (f) => f.fuente, filtro: "opciones" },
     ],
-    [],
+    [ocultas],
   );
 
   /// El relleno lateral lo pone la pantalla, no el
@@ -372,7 +513,17 @@ function Banco() {
 
       {!listado && cargando && <p className="text-texto-suave">Cargando…</p>}
 
-      {listado && filas.length === 0 && (
+      {listado && filas.length === 0 && ocultas && (
+        /// Vacío aquí es la buena noticia: nadie ha tenido que apartar
+        /// ninguna. El bloque dice por qué está vacío, no solo que lo está.
+        <Vacio titulo="No hay ninguna quitada del listado" icono={IconoOrganizaciones}>
+          Aquí aparecen las organizaciones que alguien quitó de «Empresas
+          registradas» porque no les colgaba ninguna persona. Ninguna se borra:
+          se quedan con todo su historial y desde aquí se pueden devolver.
+        </Vacio>
+      )}
+
+      {listado && filas.length === 0 && !ocultas && (
         <Vacio titulo="Todavía no hay organizaciones" icono={IconoOrganizaciones}>
           Estas filas salen del archivo con el que se sembró el sistema y de lo
           que averigua la consulta al RUES. Aparecen en cuanto entre el archivo o
@@ -396,16 +547,128 @@ function Banco() {
             total={listado.total}
             vacio="No hay ninguna organización con esos filtros."
             acciones={
-              <CarguePlantilla
-                entidad="instituciones"
-                admiteNuevas={false}
-                alTerminar={() => window.location.reload()}
-              />
+              /// En las quitadas no: cargar una plantilla sobre un
+              /// listado de apartadas no tiene sentido —entraría por
+              /// la puerta de las activas— y el botón invitaría a
+              /// hacerlo desde donde no toca.
+              ocultas ? undefined : (
+                <CarguePlantilla
+                  entidad="instituciones"
+                  admiteNuevas={false}
+                  alTerminar={() => window.location.reload()}
+                />
+              )
             }
           />
 
         </>
       )}
+      </div>
+
+      {enCuestion && (
+        <ConfirmarApartar
+          institucion={enCuestion}
+          devolver={ocultas}
+          alConfirmar={confirmar}
+          alCerrar={() => setEnCuestion(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+/**
+ * CONFIRMAR NOMBRANDO LA ORGANIZACIÓN.
+ *
+ * Sin pedir que se teclee el NIT, al contrario que `ConfirmarBorrado`:
+ * aquello protege algo que no se deshace, y esto se deshace con un clic
+ * desde «Quitadas del listado». Hacer teclear un número para un cambio
+ * reversible enseña a la gente a teclearlo sin leer, y entonces deja de
+ * proteger el caso en que sí importa.
+ *
+ * Lo que sí hace falta es decir CUÁL: en una tabla de filas iguales, el
+ * clic se da en la fila de al lado con una facilidad asombrosa.
+ */
+function ConfirmarApartar({
+  institucion,
+  devolver,
+  alConfirmar,
+  alCerrar,
+}: {
+  institucion: Institucion;
+  devolver: boolean;
+  alConfirmar: () => Promise<void>;
+  alCerrar: () => void;
+}) {
+  const [trabajando, setTrabajando] = useState(false);
+
+  useEffect(() => {
+    const alTeclear = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !trabajando) alCerrar();
+    };
+    window.addEventListener("keydown", alTeclear);
+    return () => window.removeEventListener("keydown", alTeclear);
+  }, [alCerrar, trabajando]);
+
+  async function seguir() {
+    setTrabajando(true);
+    await alConfirmar();
+    setTrabajando(false);
+  }
+
+  const titulo = devolver ? "Devolver al listado" : "Quitar del listado";
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label={titulo}
+      className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4"
+      onClick={(e) => {
+        if (e.target === e.currentTarget && !trabajando) alCerrar();
+      }}
+    >
+      <div className="w-full max-w-md rounded-2xl border border-borde bg-superficie p-6 shadow-lg">
+        <h2 className="text-lg font-semibold">{titulo}</h2>
+
+        <div className="mt-2 space-y-2 text-sm text-texto-suave">
+          <p>
+            {devolver ? "Volverá a salir en «Empresas registradas»:" : "Dejará de salir en «Empresas registradas»:"}{" "}
+            <span className="font-medium text-texto">
+              {enMayusculas(institucion.razonSocial)}
+            </span>{" "}
+            <span className="font-mono text-xs">(NIT {institucion.nit})</span>.
+          </p>
+          {!devolver && (
+            /// Se dice que NO se borra, y dónde queda. Es la diferencia
+            /// entre una acción que da miedo pulsar y una que no: el
+            /// cliente pidió «eliminar» y esto no elimina.
+            <p>
+              No se borra nada: la ficha se queda con todo su historial
+              —su NIT ya viajó al SENA en informes entregados— y se puede
+              devolver desde «Quitadas del listado».
+            </p>
+          )}
+        </div>
+
+        <div className="mt-6 flex items-center justify-end gap-3">
+          <button
+            type="button"
+            onClick={alCerrar}
+            disabled={trabajando}
+            className="text-sm text-texto-suave underline disabled:opacity-50"
+          >
+            Cancelar
+          </button>
+          <button
+            type="button"
+            onClick={seguir}
+            disabled={trabajando}
+            className={`rounded-xl px-5 py-2.5 text-sm font-medium text-superficie transition disabled:opacity-40 ${devolver ? "bg-marca" : "bg-error"}`}
+          >
+            {trabajando ? "Un momento…" : titulo}
+          </button>
+        </div>
       </div>
     </div>
   );

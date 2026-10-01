@@ -28,6 +28,8 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 
+import { ResultadoGestion } from '../../generated/prisma';
+
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditoriaService, ENTIDADES } from '../comun/auditoria.service';
 import type {
@@ -93,6 +95,12 @@ export class ConfiguracionDeNotasService {
       id: c.id,
       nombre: c.nombre,
       orden: c.orden,
+      /// Qué significa la categoría. Lo necesita la pantalla de
+      /// configuración para pintarlo y poder cambiarlo; los
+      /// desplegables del asesor lo ignoran, porque el resultado
+      /// lo deriva el SERVIDOR al escribir la nota y no la
+      /// pantalla. Ver `exigirClasificacion`.
+      resultado: c.resultado,
       oculta: c.ocultaEn !== null,
       ocultaEn: c.ocultaEn,
       notas: c._count.notas,
@@ -115,13 +123,26 @@ export class ConfiguracionDeNotasService {
       data: {
         nombre: dto.nombre,
         orden: dto.orden ?? (await this.siguienteOrdenDeCategoria()),
+        /// Sin elegir queda nula, y eso es válido: las notas de esa
+        /// categoría quedarán sin resultado, igual que las de antes
+        /// del catálogo.
+        resultado: dto.resultado ?? null,
       },
     });
 
     await this.anotar(
       admin,
       categoria.id,
-      `Categoría creada: «${categoria.nombre}».`,
+      `Categoría creada: «${categoria.nombre}»` +
+        /// El significado va en la auditoría: de él sale el
+        /// `resultado` de cada nota que se anote con esta
+        /// categoría, así que cambiarlo cambia lo que cuentan los
+        /// informes de ahí en adelante. Sin esto, un informe raro
+        /// no se puede explicar.
+        (categoria.resultado
+          ? ` (= ${categoria.resultado})`
+          : ' (sin resultado)') +
+        '.',
       ip,
     );
     return this.unaCategoria(categoria.id);
@@ -153,6 +174,10 @@ export class ConfiguracionDeNotasService {
       data: {
         nombre: dto.nombre,
         orden: dto.orden,
+        /// `undefined` no toca nada y `null` lo borra a propósito:
+        /// «esta categoría no significa ningún resultado» es una
+        /// decisión que se tiene que poder tomar, no solo deshacer.
+        resultado: dto.resultado,
         /// La fecha la pone el servidor. No hay forma de mandarla
         /// desde el panel: así nadie puede inventarse cuándo se
         /// ocultó algo.
@@ -168,6 +193,16 @@ export class ConfiguracionDeNotasService {
       que.push('reordenada');
     }
     if (tocaOcultar) que.push(dto.oculta ? 'OCULTADA' : 'vuelta a ofrecer');
+    if (dto.resultado !== undefined && dto.resultado !== antes.resultado) {
+      /// Se dice LO DE ANTES y LO DE AHORA: de esto depende el
+      /// `resultado` de las notas que se anoten desde ya, así que
+      /// es el renglón que explica por qué un informe cambió de
+      /// forma un martes.
+      que.push(
+        `ahora significa ${dto.resultado ?? 'ningún resultado'} ` +
+          `(antes ${antes.resultado ?? 'ninguno'})`,
+      );
+    }
 
     if (que.length) {
       await this.anotar(
@@ -324,10 +359,26 @@ export class ConfiguracionDeNotasService {
    *    funcionando, y eso es ocultar y no borrar.
    *  - Una que no existe: 400 y no 404, porque lo que no existe es lo
    *    que mandó quien llama, no la ruta.
+   *
+   * Y DEVUELVE EL `resultado`, derivado de la categoría.
+   *
+   * Desde el 30 sep 2026. Antes la pantalla preguntaba dos veces lo
+   * mismo —«Cómo salió» con [Hablé con la persona] [No contestó] [El
+   * dato no sirve], y debajo «Clasificación», cuyas categorías son
+   * esas tres más «Seguimiento»—. El cliente lo dijo así: «Ese "Cómo
+   * salió" es la "Clasificación"». Se quitó «Cómo salió».
+   *
+   * Lo deriva el SERVIDOR y no lo manda la pantalla, aunque mandarlo
+   * habría sido menos código: con dos sitios decidiéndolo, un día
+   * dirían cosas distintas y la nota quedaría guardada diciendo
+   * «Contactado · SIN_RESPUESTA», que es coherente para la base y
+   * mentira para el informe. Aquí solo se puede decidir una vez.
    */
-  async exigirClasificacion(
-    c: Clasificacion,
-  ): Promise<{ categoriaId: string | null; subcategoriaId: string | null }> {
+  async exigirClasificacion(c: Clasificacion): Promise<{
+    categoriaId: string | null;
+    subcategoriaId: string | null;
+    resultado: ResultadoGestion | null;
+  }> {
     const categoriaId = c.categoriaId ?? null;
     const subcategoriaId = c.subcategoriaId ?? null;
 
@@ -335,7 +386,7 @@ export class ConfiguracionDeNotasService {
     /// quedan las notas que escribe el sistema —la de la autorización
     /// de datos, p. ej.— y las que ya estaban antes de esto.
     if (!categoriaId && !subcategoriaId) {
-      return { categoriaId: null, subcategoriaId: null };
+      return { categoriaId: null, subcategoriaId: null, resultado: null };
     }
 
     if (!categoriaId) {
@@ -347,7 +398,14 @@ export class ConfiguracionDeNotasService {
 
     const categoria = await this.prisma.categoriaDeNota.findUnique({
       where: { id: categoriaId },
-      select: { id: true, nombre: true, ocultaEn: true },
+      select: {
+        id: true,
+        nombre: true,
+        ocultaEn: true,
+        /// Lo que la categoría DECLARA que significa. Es la única
+        /// fuente del `resultado` de la nota.
+        resultado: true,
+      },
     });
     if (!categoria) {
       throw new BadRequestException('Esa categoría de nota no existe.');
@@ -358,7 +416,13 @@ export class ConfiguracionDeNotasService {
       );
     }
 
-    if (!subcategoriaId) return { categoriaId, subcategoriaId: null };
+    if (!subcategoriaId) {
+      return {
+        categoriaId,
+        subcategoriaId: null,
+        resultado: categoria.resultado,
+      };
+    }
 
     const sub = await this.prisma.subcategoriaDeNota.findUnique({
       where: { id: subcategoriaId },
@@ -378,7 +442,11 @@ export class ConfiguracionDeNotasService {
       );
     }
 
-    return { categoriaId, subcategoriaId };
+    /// El resultado sale de la CATEGORÍA y no de la subcategoría:
+    /// «Sin respuesta» y «Buzón de voz» son las dos un intento sin
+    /// respuesta, y hacer que cada subcategoría lo declarara sería
+    /// repetir dieciséis veces lo que se dice cuatro.
+    return { categoriaId, subcategoriaId, resultado: categoria.resultado };
   }
 
   /// El nombre se compara SIN distinguir mayúsculas.

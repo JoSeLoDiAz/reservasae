@@ -4084,6 +4084,13 @@ export class CrmService {
     /// servidor. Si la subcategoria fuera de otra categoria la nota
     /// quedaria guardada y el informe contaria mal sin que nada
     /// falle: es el defecto que no se ve hasta cuadrar cifras.
+    ///
+    /// Y de aqui sale tambien el `resultado`: lo DECLARA la
+    /// categoria elegida y lo deriva el servidor. Antes del 30 sep
+    /// 2026 lo mandaba la pantalla en un segundo control --«Como
+    /// salio»-- que preguntaba lo mismo que la clasificacion; el
+    /// cliente lo senalo y se quito. Derivarlo aqui es lo que
+    /// garantiza que no haya dos sitios decidiendolo.
     const clasificacion = await this.catalogoDeNotas.exigirClasificacion(dto);
 
     // el nombre se congela: si el autor cambia el suyo,
@@ -4095,7 +4102,10 @@ export class CrmService {
         autorNombre: admin.nombre,
         texto: dto.texto,
         canales: dto.canales,
-        resultado: dto.resultado,
+        /// Nulo cuando la categoria no significa ningun resultado, o
+        /// cuando no se clasifico. Es lo mismo que les pasa a las
+        /// notas de antes del catalogo, y se leen igual.
+        resultado: clasificacion.resultado,
         categoriaId: clasificacion.categoriaId,
         subcategoriaId: clasificacion.subcategoriaId,
       },
@@ -4117,7 +4127,8 @@ export class CrmService {
       /// pero la clasificacion es un valor de catalogo y se puede
       /// leer sin abrir la ficha.
       resumen:
-        `Gestión por ${[...dto.canales].sort().join(' + ')} · ${dto.resultado}` +
+        `Gestión por ${[...dto.canales].sort().join(' + ')} · ` +
+        `${nota.resultado ?? 'sin resultado'}` +
         (nota.categoria ? ` · ${nota.categoria.nombre}` : '') +
         (nota.subcategoria ? ` › ${nota.subcategoria.nombre}` : ''),
     });

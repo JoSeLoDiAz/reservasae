@@ -391,6 +391,10 @@ export function ReservasUnificadas({
         /// Ordena por la ÚLTIMA: es la que dice quién se movió hace
         /// poco. La primera va en el cajón.
         valor: (f) => f.ultimaReserva,
+        /// ERA LA ÚNICA SIN FILTRO y su celda salía vacía en la fila
+        /// de filtros. Filtra por la ÚLTIMA reserva, que es por la que
+        /// ordena.
+        filtro: "fecha",
         /// SEPARADAS POR « / » Y NO UNA POR RENGLÓN. Estuvieron en
         /// renglones desde el 25 sep, y el modelo que entregó el
         /// cliente las trae en una sola línea --«07 de sept de 26 /
@@ -746,18 +750,31 @@ export function ReservasUnificadas({
   /// Cuántas reservas están esperando, para el pie de su tarjeta. Se
   /// cuentan reservas y no filas: una organización puede tener una
   /// acción confirmada y otra en espera.
+  /// LAS RESERVAS QUE APORTAN ESOS CUPOS, no solo las que están en
+  /// estado de espera: la tarjeta sumaba cupos de siete reservas y el
+  /// pie decía «en 2 reservas», porque contaba únicamente las
+  /// LISTA_ESPERA. Un pie que no cuadra con su cifra hace dudar de la
+  /// cifra.
   const reservasEnEspera = cargadas.reduce(
     (t, f) =>
       t +
       Object.values(f.porAccion).reduce(
-        (n, c) => n + c.reservas.filter((r) => r.estado === "LISTA_ESPERA").length,
+        (n, c) => n + c.reservas.filter((r) => r.cuposEnEspera > 0).length,
         0,
       ),
     0,
   );
   /// Cuántas apartaron más de una acción: es el dato que explica por
   /// qué esta pantalla existe.
-  const conVarias = cargadas.filter((f) => f.totalReservas > 1).length;
+  /// CUENTA ACCIONES, NO RESERVAS, que es lo que dice el rótulo.
+  ///
+  /// Contaba `totalReservas > 1` y el pie decía «con más de una
+  /// acción»: dos reservas en la MISMA acción ---la misma empresa que
+  /// aparta cupos dos veces para el mismo curso--- se contaban como
+  /// dos acciones. Decía 24 donde la base dice 22.
+  const conVarias = cargadas.filter(
+    (f) => Object.keys(f.porAccion).length > 1,
+  ).length;
 
   /// La fila abierta se vuelve a tomar de los datos vivos: si no, al
   /// cambiar un estado el cajón seguiría enseñando el de antes hasta
@@ -843,7 +860,24 @@ export function ReservasUnificadas({
           /// tocado el panel de Columnas seguiría viendo el orden
           /// viejo por mucho que aquí se declare otro. Cambiando la
           /// llave, todo el mundo empieza por el orden nuevo.
-          id="reservas-unificadas-3"
+          /// EL NOMBRE CAMBIA, Y ESO ES EL ARREGLO (cliente, 30 sep
+          /// 2026: «por organización no está la tabla como te indiqué
+          /// en el documento»).
+          ///
+          /// La tabla guarda en el navegador QUÉ columnas se ven y EN
+          /// QUÉ ORDEN. Quien ya había usado esta pantalla tenía
+          /// guardado el orden viejo, así que las quince columnas
+          /// nuevas del modelo le salían AÑADIDAS AL FINAL ---él vio
+          /// la tabla empezando por «AF7» y «Entró por»--- en vez de
+          /// en el orden de su hoja. El modelo estaba bien; lo que
+          /// mandaba era lo guardado.
+          ///
+          /// Cambiar el nombre hace que todos empiecen de cero con el
+          /// orden declarado. Lo que cada quien hubiera acomodado se
+          /// queda bajo el nombre viejo, sin estorbar: no se pierde,
+          /// se jubila. Es el precio de rehacer una tabla entera, y es
+          /// barato comparado con que nadie vea el modelo que pidió.
+          id="reservas-por-organizacion-modelo"
           columnas={columnas}
           filas={filas}
           clave={(f) => f.empresaId}

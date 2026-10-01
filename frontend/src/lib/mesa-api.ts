@@ -155,7 +155,11 @@ export const mesaApi = {
     nota: {
       texto: string;
       canales: string[];
-      resultado: string;
+      /// SIN `resultado`: lo deriva el servidor de la categoría
+      /// elegida desde el 30 sep 2026 --preguntarlo aquí y
+      /// clasificar debajo era la misma pregunta dos veces-- y si
+      /// llega lo rechaza (`forbidNonWhitelisted`).
+      ///
       /// Opcionales, igual que en la ficha y por lo mismo: el DTO
       /// del servidor es el mismo.
       categoriaId?: string;

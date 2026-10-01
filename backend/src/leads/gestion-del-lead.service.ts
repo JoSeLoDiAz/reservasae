@@ -94,6 +94,13 @@ export class GestionDelLead {
     /// antes de abrirla: es una lectura, y abrir la transacción para
     /// leer dos filas la mantiene abierta mientras se decide si hay
     /// algo que escribir.
+    ///
+    /// De aquí sale también el `resultado`: lo declara la categoría
+    /// elegida. Antes del 30 sep 2026 lo mandaba la pantalla en los
+    /// tres botones de «Cómo salió», que preguntaban lo mismo que la
+    /// clasificación —el cliente lo señaló— y se quitaron. La mesa y
+    /// la ficha lo derivan por la MISMA función, que es lo que
+    /// impide que una diga una cosa y la otra otra.
     const clasificacion = await this.catalogoDeNotas.exigirClasificacion(dto);
 
     /// La nota y la fecha de la última gestión, JUNTAS.
@@ -112,7 +119,9 @@ export class GestionDelLead {
           autorNombre: admin.nombre,
           texto: dto.texto,
           canales: dto.canales,
-          resultado: dto.resultado,
+          /// Nulo si la categoría no significa ningún resultado, o
+          /// si no se clasificó: igual que las notas de antes.
+          resultado: clasificacion.resultado,
           categoriaId: clasificacion.categoriaId,
           subcategoriaId: clasificacion.subcategoriaId,
         },
@@ -137,12 +146,13 @@ export class GestionDelLead {
       accion: 'NOTA_CREADA',
       entidad: ENTIDADES.LEAD,
       entidadId: lead.id,
-      resumen: `Gestión sobre el lead: ${dto.resultado}.`,
+      resumen: `Gestión sobre el lead: ${clasificacion.resultado ?? 'sin resultado'}.`,
       ip,
     });
 
     this.log.log(
-      `Nota en el lead ${lead.id} por ${admin.nombre} (${dto.resultado}).`,
+      `Nota en el lead ${lead.id} por ${admin.nombre} ` +
+        `(${clasificacion.resultado ?? 'sin resultado'}).`,
     );
     return { id: nota.id, creadoEn: nota.creadoEn };
   }
