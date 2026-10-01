@@ -6,7 +6,8 @@ import { useEffect, useMemo, useState } from "react";
 import { IconoOrganizaciones } from "@/components/admin/iconos";
 import { Desplegable } from "@/components/admin/desplegable";
 import { Aviso } from "@/components/admin/marco-admin";
-import { Pildora, Vacio } from "@/components/admin/piezas";
+import {
+  Encabezado, Pildora, Vacio } from "@/components/admin/piezas";
 import { conPermiso } from "@/components/admin/puerta-de-pantalla";
 import { PropuestasPendientes } from "@/components/admin/propuestas-pendientes";
 import { Tabla, type Columna } from "@/components/admin/tabla";
@@ -114,10 +115,26 @@ function PaginaBancoDeEmpresas() {
           Solo con «Empresas registradas» elegido: el texto habla de
           las sugerencias del banco, así que sobre «Por revisar»
           describiría otra pantalla. */}
-      <div className="no-imprimir m-4 flex flex-wrap items-center gap-x-6 gap-y-2">
-        <div className="w-[210px] shrink-0">
+      <div className="no-imprimir mx-4 mt-3 [&>header]:mx-0 [&>header]:mb-0">
+      {/* CON TÍTULO, como el resto del panel: «Mailing no tiene
+          títulos» / «Sistemas igual, no tiene título» (cliente, 1 oct
+          2026). Estas pantallas empezaban directamente en su contenido
+          y la única pista de dónde estaba uno era el menú de arriba,
+          que se cierra en cuanto se suelta. */}
+      <Encabezado
+        compacto
+        titulo={
+          vista === "banco"
+            ? "Empresas registradas"
+            : vista === "pendientes"
+              ? "Por revisar"
+              : "Quitadas del listado"
+        }
+      >
+        <div className="w-[16rem] shrink-0">
           <Desplegable
-            alto={34}
+            alto={44}
+            rotulo="Seleccione la vista"
             marcador="Qué mirar"
             valor={vista}
             opciones={[
@@ -140,20 +157,7 @@ function PaginaBancoDeEmpresas() {
             alElegir={(v) => cambiar(v as Vista)}
           />
         </div>
-
-        {vista === "banco" && (
-          /// Sin tope de ancho a propósito: el tope de 760 px que
-          /// usa la prosa del panel lo dejaría en tres renglones, y
-          /// aquí lo que se persigue es justo lo contrario. Es un
-          /// aviso de una frase que se lee una vez.
-          <p className="min-w-0 flex-1 text-[0.78125rem] leading-relaxed text-texto-suave">
-            El sistema proporciona estos datos como{" "}
-            <span className={CLASE_SUGERIDO}>sugerencia automática</span> de empresas
-            registradas, revise cuidadosamente cada campo del proceso de verificación
-            y apruebe si son correctos o realice las correcciones que considere
-            necesarias.
-          </p>
-        )}
+      </Encabezado>
       </div>
 
       {vista === "pendientes" ? (

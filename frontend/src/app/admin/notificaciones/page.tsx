@@ -80,11 +80,6 @@ export default function Notificaciones() {
     <div className="flex flex-col gap-3 px-4 pt-3 pb-6">
       <Encabezado
         titulo="Mis notificaciones"
-        descripcion={
-          vista === "equipo"
-            ? "Todo lo que le llegó al equipo, y si ya lo atendieron. Mirarlo aquí no se lo marca como leído a nadie."
-            : "Lo que les pasa a las fichas que usted lleva. Se avisa desde que una ficha es suya: antes de que se le asigne, no hay a quién avisar."
-        }
       >
         {vista !== "equipo" && sinLeer > 0 && (
           <BotonSuave onClick={marcarTodas} disabled={marcando}>

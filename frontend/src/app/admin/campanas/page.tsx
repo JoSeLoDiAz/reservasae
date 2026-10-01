@@ -14,7 +14,8 @@ import {
   CatalogoDeVariables,
   pegarEnElCursor,
 } from "@/components/admin/catalogo-de-variables";
-import { Cargando } from "@/components/admin/piezas";
+import {
+  Encabezado, Cargando } from "@/components/admin/piezas";
 import { conPermiso } from "@/components/admin/puerta-de-pantalla";
 import { Desplegable } from "@/components/admin/desplegable";
 import { IconoDerecha } from "@/components/admin/iconos";
@@ -111,7 +112,13 @@ function PaginaCampanas() {
     /// así que el relleno de abajo se pinta a mitad de la pantalla y
     /// los botones quedan pegados al pie. Pasó en ocho pantallas más;
     /// la explicación larga está en `usuarios/page.tsx`.
-    <div className="flex flex-col gap-4 px-4 pt-4 pb-3">
+    <div className="flex flex-col gap-4 px-4 pt-4 pb-3 [&>header]:mx-0 [&>header]:mb-0">
+      {/* CON TÍTULO, como el resto del panel: «Mailing no tiene
+          títulos» / «Sistemas igual, no tiene título» (cliente, 1 oct
+          2026). Estas pantallas empezaban directamente en su contenido
+          y la única pista de dónde estaba uno era el menú de arriba,
+          que se cierra en cuanto se suelta. */}
+      <Encabezado compacto titulo="Campañas" />
       {/* Solo cuando YA hay campañas: con la lista vacía, el
           botón lo pone la invitación de abajo, que además dice
           para qué sirve. Dos botones iguales, uno de blanco
