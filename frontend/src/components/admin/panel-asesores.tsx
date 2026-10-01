@@ -290,7 +290,11 @@ export function PanelAsesores() {
           qué es «el mes pasado» ni cuál es su anterior, solo pedir lo
           que le digan. */}
       {subvista === "inscripciones" && (
-        <DeInscripciones {...{ ventana, ventanaAntes, rotuloAnterior }} />
+        <DeInscripciones
+          {...{ ventana, ventanaAntes, rotuloAnterior }}
+          /// EL CUADRO DE DIANITA LLEVA A DONDE SALEN SUS CIFRAS.
+          alIrALaProyeccion={() => setSubvista("proyeccion")}
+        />
       )}
       {subvista === "academicos" && (
         <Academicos {...{ ventana, ventanaAntes, rotuloAnterior }} />
@@ -364,7 +368,12 @@ function vistoDe(f: FilaDeAsesor, accion: string): Vista["visto"] | null {
 /// de «Sin asesor asignado», y dos nulos no se encuentran en un `Map`.
 const llaveDeAsesor = (f: { asesorId: string | null }) => f.asesorId ?? "sin-asesor";
 
-function DeInscripciones({ ventana, ventanaAntes, rotuloAnterior }: ConPeriodo) {
+function DeInscripciones({
+  ventana,
+  ventanaAntes,
+  rotuloAnterior,
+  alIrALaProyeccion,
+}: ConPeriodo & { alIrALaProyeccion?: () => void }) {
   /// La clave lleva el periodo dentro: sin eso, cambiarlo no vuelve
   /// a pedir y la tabla se queda enseñando el periodo de antes. Y
   /// lleva TAMBIÉN el tramo con el que se compara, que es otro dato
@@ -377,18 +386,33 @@ function DeInscripciones({ ventana, ventanaAntes, rotuloAnterior }: ConPeriodo) 
   /// instante la tabla enseñaría el periodo nuevo contra el anterior
   /// viejo: dos cifras que no son comparables con cara de serlo.
   const cargar = useCallback(
-    async (): Promise<{ ahora: FilaDeAsesor[]; antes: FilaDeAsesor[] | null }> => {
-      const [ahora, antes] = await Promise.all([
+    async (): Promise<{
+      ahora: FilaDeAsesor[];
+      antes: FilaDeAsesor[] | null;
+      proyeccion: FilaDeProyeccion[];
+    }> => {
+      const [ahora, antes, proyeccion] = await Promise.all([
         crmApi.asesoresDeInscripciones(ventana),
         ventanaAntes ? crmApi.asesoresDeInscripciones(ventanaAntes) : null,
+        crmApi.proyeccionDeInscripciones(ventana),
       ]);
-      return { ahora, antes };
+      return { ahora, antes, proyeccion };
     },
     [ventana, ventanaAntes],
   );
-  const vivos = useDatosVivos<{ ahora: FilaDeAsesor[]; antes: FilaDeAsesor[] | null }>(
-    cargar,
-    { clave: `asesores-inscripciones-${clave}-${claveAntes}` },
+  const vivos = useDatosVivos<{
+    ahora: FilaDeAsesor[];
+    antes: FilaDeAsesor[] | null;
+    proyeccion: FilaDeProyeccion[];
+  }>(cargar, { clave: `asesores-inscripciones-${clave}-${claveAntes}` });
+
+  /// LO QUE ALIMENTA EL CUADRO DE DIANITA: lo que falta por cubrir,
+  /// hasta cuándo, y los asesores con nombre. Sale de la proyección
+  /// que viaja en la misma consulta, así que las dos mitades de esta
+  /// pantalla no pueden decir cosas distintas.
+  const reparto = repartoDeLaProyeccion(
+    vivos.datos?.proyeccion ?? [],
+    vivos.datos?.ahora ?? [],
   );
 
   /// EL FILTRO POR ACCIÓN, SIN TOCAR EL SERVIDOR (cliente, 23 sep
@@ -752,6 +776,28 @@ function DeInscripciones({ ventana, ventanaAntes, rotuloAnterior }: ConPeriodo) 
     {desglosado && (
       <DesgloseDelAsesor fila={desglosado} alCerrar={() => setDesglosado(null)} />
     )}
+
+    {/* EL CUADRO DE DIANITA, AQUÍ Y NO EN LA OTRA SUBVISTA.
+
+        Lo puse primero colgado de «Proyección Inscripciones», que es
+        de donde salen sus cifras, y el cliente lo pidió AQUÍ (30 sep
+        2026). Tiene razón de sobra: esta es la pantalla del equipo, y
+        las dos mitades contestan la misma pregunta por los dos lados
+        ---arriba lo que cada quien lleva hecho, abajo lo que le toca
+        por día para llegar---. Separadas hay que acordarse de mirar
+        las dos.
+
+        Se MUEVE, no se copia: dos cuadros iguales en dos pantallas
+        acaban discrepando el día que uno se cambie y el otro no. */}
+    <RepartoDiario
+      meta={reparto.meta}
+      queEs="cupos por cubrir"
+      asesores={reparto.asesores}
+      cierre={reparto.cierre}
+      alIrALaProyeccion={alIrALaProyeccion}
+      vencidas={reparto.vencidas}
+      faltaEnVencidas={reparto.faltaEnVencidas}
+    />
     </>
   );
 }
@@ -1199,7 +1245,6 @@ function Proyeccion({ ventana, ventanaAntes, rotuloAnterior }: ConPeriodo) {
   if (vivos.error) return <Aviso tipo="error">{vivos.error}</Aviso>;
   if (!vivos.datos) return <Esqueleto />;
   const datos = vivos.datos.ahora;
-  const reparto = repartoDeLaProyeccion(datos, vivos.datos.equipo);
   if (datos.length === 0) {
     return (
       <Vacio titulo="Todavía no hay acciones con leads">
@@ -1317,19 +1362,11 @@ function Proyeccion({ ventana, ventanaAntes, rotuloAnterior }: ConPeriodo) {
         vacio="Aquí aparece cada acción de formación en cuanto tenga gente detrás."
       />
 
-      {/* EL CUADRO DE DIANITA, colgado de estas mismas cifras.
-
-          «Que sea relacional con Proyección Inscripciones» (cliente,
-          30 sep 2026): esto es lo que las ata. La tabla de arriba dice
-          cuánto falta ACCIÓN POR ACCIÓN; esto dice cuánto le toca a
-          CADA ASESOR CADA DÍA para que eso ocurra. Las dos cifras
-          salen de las mismas filas, así que no pueden discrepar. */}
-      <RepartoDiario
-        meta={reparto.meta}
-        queEs="cupos por cubrir"
-        asesores={reparto.asesores}
-        cierre={reparto.cierre}
-      />
+      {/* EL CUADRO DE DIANITA YA NO ESTÁ AQUÍ: bajó a «Asesores de
+          inscripciones» (cliente, 30 sep 2026). Nació colgado de esta
+          tabla ---es de donde salen sus cifras--- pero la pantalla del
+          equipo es la otra, y allí las dos mitades contestan la misma
+          pregunta por los dos lados. Se movió, no se copió. */}
     </>
   );
 }
@@ -1359,7 +1396,17 @@ function Proyeccion({ ventana, ventanaAntes, rotuloAnterior }: ConPeriodo) {
 function repartoDeLaProyeccion(
   filas: FilaDeProyeccion[],
   equipo: FilaDeAsesor[],
-): { meta: number; cierre: Date | null; asesores: AsesorDelReparto[] } {
+): {
+  meta: number;
+  cierre: Date | null;
+  asesores: AsesorDelReparto[];
+  /// Cuántas acciones entran en el reparto y cuántas se quedan
+  /// fuera por tener el cierre vencido. Hacen falta para poder
+  /// explicar en pantalla por qué esta cifra no es la de arriba.
+  vigentes: number;
+  vencidas: number;
+  faltaEnVencidas: number;
+} {
   /**
    * LA FECHA QUE FIJA EL ADMINISTRADOR MANDA SOBRE LA DEL CRONOGRAMA.
    *
@@ -1407,7 +1454,25 @@ function repartoDeLaProyeccion(
     .filter((a) => a.asesorId !== null)
     .map((a) => ({ id: a.asesorId as string, nombre: a.nombre }));
 
-  return { meta, cierre, asesores };
+  /// LO QUE SE QUEDA FUERA, contado para decirlo.
+  ///
+  /// «Pilas, porque debe estar amarrado a esto» (cliente, 30 sep
+  /// 2026). Lo está ---la meta sale de las mismas filas que pinta
+  /// Proyección--- pero el cuadro dice 1.332 donde la tabla de
+  /// arriba suma 3.965, y sin explicación eso parece un error. No lo
+  /// es: trece de las quince acciones tienen el cierre vencido y no
+  /// se pueden repartir entre días que ya pasaron. Repartirlas sería
+  /// inventar un plazo.
+  const fueraDePlazo = filas.filter((f) => f.faltan > 0 && !vivas.includes(f));
+
+  return {
+    meta,
+    cierre,
+    asesores,
+    vigentes: vivas.length,
+    vencidas: fueraDePlazo.length,
+    faltaEnVencidas: fueraDePlazo.reduce((a, f) => a + f.faltan, 0),
+  };
 }
 
 /**
