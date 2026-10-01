@@ -47,6 +47,7 @@ import {
   type PorcionDonut,
 } from "@/components/admin/graficos";
 import {
+  ElegirConRotulo,
   FiltroDePeriodo,
   PERIODO_INICIAL,
   type Periodo as PeriodoElegido,
@@ -1559,23 +1560,45 @@ function ComparadorDeFechas({
   nota?: React.ReactNode;
   alCambiarPeriodo: (p: PeriodoElegido) => void;
 }) {
-  const [abierto, setAbierto] = useState(false);
+  /**
+   * CONTRA QUÉ SE COMPARA, en un desplegable como el periodo.
+   *
+   * «Me encanta, pero ¿y esto? ¿Cómo haces para comparar dos fechas?»
+   * (cliente, 1 oct 2026), con el periodo ya en desplegable y al lado
+   * un botón y dos enlaces subrayados sueltos. Son tres formas de
+   * contestar UNA pregunta ---contra qué se compara---, así que van
+   * donde van las respuestas a una pregunta: en una lista.
+   *
+   * Es además lo que ya hace Control de inscritos, que lleva «PERIODO»
+   * y «COMPARAR CON» uno al lado del otro.
+   *
+   * `fechas` es el único que despliega algo: los otros dos ponen las
+   * cuatro fechas ellos solos y no hay nada que preguntar.
+   */
+  const [modo, setModo] = useState<"no" | "ayer" | "semana" | "fechas">("no");
+  const abierto = modo === "fechas";
 
   function limpiar() {
     alCambiarA({ desde: "", hasta: "" });
     alCambiarB({ desde: "", hasta: "" });
   }
 
-  function hoyContraAyer() {
-    alCambiarA({ desde: hoyISO(0), hasta: hoyISO(0) });
-    alCambiarB({ desde: hoyISO(1), hasta: hoyISO(1) });
-    setAbierto(true);
-  }
-
-  function semanaContraSemana() {
-    alCambiarA({ desde: hoyISO(6), hasta: hoyISO(0) });
-    alCambiarB({ desde: hoyISO(13), hasta: hoyISO(7) });
-    setAbierto(true);
+  function elegirModo(v: string) {
+    setModo(v as typeof modo);
+    if (v === "no") limpiar();
+    else if (v === "ayer") {
+      alCambiarA({ desde: hoyISO(0), hasta: hoyISO(0) });
+      alCambiarB({ desde: hoyISO(1), hasta: hoyISO(1) });
+    } else if (v === "semana") {
+      alCambiarA({ desde: hoyISO(6), hasta: hoyISO(0) });
+      alCambiarB({ desde: hoyISO(13), hasta: hoyISO(7) });
+    } else {
+      /// `fechas`: se despliegan los dos calendarios vacíos y las pone
+      /// él. Vaciar lo que hubiera es a propósito: si no, al entrar se
+      /// verían las fechas del modo anterior como si las hubiera
+      /// elegido alguien.
+      limpiar();
+    }
   }
 
   /// LO QUE SE DESPLIEGA, que no cabe en una cabecera de 56 px: las
@@ -1589,7 +1612,7 @@ function ComparadorDeFechas({
     <>
       <FiltrosDelInforme>
       <div className="flex flex-wrap items-center gap-2">
-        <div className="mr-1">
+        <div>
           {/* SIN `alComparar`: comparar aquí es lo de las dos fechas
               del calendario, que está al lado y es lo que pidió el
               cliente («hoy contra ayer, un día contra otro en
@@ -1607,37 +1630,23 @@ function ComparadorDeFechas({
             }}
           />
         </div>
-        <span className="mx-1 hidden h-5 w-px bg-borde sm:block" aria-hidden />
-        <button
-          type="button"
-          onClick={() => setAbierto((v) => !v)}
-          className="rounded-lg border border-campo-borde px-3 py-1.5 text-sm text-texto transition hover:bg-superficie-alterna"
-        >
-          {abierto ? "Ocultar la comparación" : "Comparar dos fechas"}
-        </button>
-        <button
-          type="button"
-          onClick={hoyContraAyer}
-          className="rounded-lg px-3 py-1.5 text-sm text-marca underline underline-offset-2"
-        >
-          Hoy contra ayer
-        </button>
-        <button
-          type="button"
-          onClick={semanaContraSemana}
-          className="rounded-lg px-3 py-1.5 text-sm text-marca underline underline-offset-2"
-        >
-          Últimos 7 días contra los 7 anteriores
-        </button>
-        {comparando && (
-          <button
-            type="button"
-            onClick={limpiar}
-            className="ml-auto rounded-lg px-3 py-1.5 text-sm text-texto-suave underline underline-offset-2"
-          >
-            Quitar la comparación
-          </button>
-        )}
+        {/* LA RAYA, A LA MEDIDA DEL CONTROL. «¿Mas larga, no, para que
+            quede como a medida?» (cliente, 1 oct 2026): media 20 px al
+            lado de dos desplegables de 44 y quedaba como una marca
+            suelta en medio de la fila. */}
+        <span className="mx-1 hidden h-11 w-px bg-borde sm:block" aria-hidden />
+        <ElegirConRotulo
+          rotulo="Comparar con"
+          valor={modo}
+          opciones={[
+            { valor: "no", etiqueta: "Sin comparar" },
+            { valor: "ayer", etiqueta: "Hoy contra ayer" },
+            { valor: "semana", etiqueta: "Últimos 7 días contra los 7 anteriores" },
+            { valor: "fechas", etiqueta: "Dos fechas que yo elija" },
+          ]}
+          alElegir={elegirModo}
+          ancho="14rem"
+        />
       </div>
       </FiltrosDelInforme>
 
