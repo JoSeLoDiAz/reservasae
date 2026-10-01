@@ -72,7 +72,21 @@ export function GruposDeLaAccion({
   /// los demás no hay con qué pintar la tarjeta, y una en cero sería
   /// afirmar que ese grupo está vacío. Se enseña el suyo y la puerta
   /// de vuelta.
-  const aPintar = grupoId ? suyos.filter((g) => g.id === grupoId) : suyos;
+  /**
+   * LAS TARJETAS QUE SE PINTAN.
+   *
+   * Con un grupo elegido NO SE PINTA NINGUNA: «cuando uno la
+   * seleccione que se oculte esto, no porque vea eso cómo se ve de
+   * fatal; que quede solo "Ver todos los grupos / Ocultar la tabla" y
+   * la tarjeta se oculte» (cliente, 1 oct 2026).
+   *
+   * Tiene razón: una sola tarjeta suelta a la izquierda, con la
+   * pantalla entera vacía a su derecha y la tabla debajo, no informa
+   * de nada que no diga ya la miga de arriba ---qué acción, qué grupo,
+   * cuántas personas--- y encima empuja la tabla, que es a lo que se
+   * entra. Las tarjetas son para ELEGIR grupo; elegido ya, sobran.
+   */
+  const aPintar = grupoId ? [] : suyos;
 
   return (
     <section className="flex flex-col gap-3">
@@ -113,7 +127,7 @@ export function GruposDeLaAccion({
         </div>
       )}
 
-      {aPintar.length === 0 ? (
+      {!grupoId && aPintar.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-borde px-6 py-8 text-center">
           <p className="font-medium">Todavía no hay grupos con gente en el aula</p>
           <p className="mx-auto mt-1 max-w-md text-sm text-texto-suave">
@@ -121,8 +135,12 @@ export function GruposDeLaAccion({
             acción virtual, que son las únicas que el aula sigue.
           </p>
         </div>
-      ) : (
-        <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
+      ) : aPintar.length > 0 ? (
+        <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
+          {/* CUATRO POR FILA Y NO CINCO: «acomódalo, o sea son 8, cuatro
+              y cuatro, no?» (cliente, 1 oct 2026). Con cinco columnas
+              los ocho grupos salían 5 y 3: una fila coja y un hueco a
+              la derecha. */}
           {aPintar.map((g) => (
             <TarjetaDeGrupo
               key={g.id}
@@ -142,7 +160,7 @@ export function GruposDeLaAccion({
             />
           ))}
         </div>
-      )}
+      ) : null}
 
     </section>
   );
@@ -227,21 +245,9 @@ function TarjetaDeGrupo({
         elegido ? "border-marca" : "border-borde hover:border-marca/40"
       }`}
     >
-      {/* LA FRANJA. De `--marca` a `--acento`, y el segundo NO sale
-          del gremio a propósito: el handoff fija los `--acento*` en
-          CSS, así que el degradado se ve igual de vivo lleve el
-          gremio el verde de ADECOPRIA o el azul de BRITCHAM. Con
-          `--exito` los dos extremos eran casi el mismo verde y la
-          franja se leía como una raya lisa. */}
-      <span
-        aria-hidden
-        className="block h-[3px] w-full"
-        style={{
-          background:
-            "linear-gradient(90deg, var(--marca) 0%, var(--acento) 100%)",
-        }}
-      />
-
+      {/* SIN LA FRANJA DE COLORES ARRIBA: «sin este reborde» (cliente,
+          1 oct 2026). Con ocho tarjetas eran ocho degradados compitiendo
+          con las cifras, que es lo que se viene a leer. */}
       <div className="p-3">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">

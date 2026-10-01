@@ -96,7 +96,11 @@ export default function PaginaAcademica() {
     /// `min-h-0` hace falta además de `grow`: por defecto un hijo
     /// de flex no encoge por debajo de su contenido, así que sin él
     /// `grow` no acota nada.
-    <div className="flex min-h-0 grow flex-col gap-3 px-4 pt-3">
+    /// `pb-2` Y NO `pb-6`: la línea de respeto de abajo estaba en
+    /// CERO ---se quitó el día que sobraba aire--- y la barra de
+    /// desplazamiento de la tabla acababa pegada al pie, tocándolo.
+    /// Ocho píxeles bastan para despegarla sin que vuelva a sobrar.
+    <div className="flex min-h-0 grow flex-col gap-3 px-4 pt-3 pb-2">
       <Seguimiento />
     </div>
   );
@@ -358,7 +362,13 @@ function Seguimiento() {
     /// espacio en la línea de respeto»---. El hueco hasta el pie lo
     /// pone ya el marco.
     <div className="flex min-h-0 grow flex-col gap-3">
-      <header className="flex flex-wrap items-start justify-between gap-4">
+      {/* EN SU TARJETA, como las demás pantallas: «acá le falta el
+          fondo al título» (cliente, 1 oct 2026). Era un título suelto
+          sobre el fondo de la página. Mismas medidas que `Encabezado`
+          compacto ---borde, `px-7`, `py-2.5` y centrado--- escritas
+          aquí porque esta cabecera lleva su propio indicador de
+          actualización a la derecha. */}
+      <header className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-borde bg-superficie px-7 py-2.5">
         <div className="min-w-0">
           {/* «SEGUIMIENTO DEL AULA» Y NO «SEGUIMIENTO ACADÉMICO».
               Se llamaban igual dos pantallas distintas, y el cliente
@@ -367,7 +377,7 @@ function Seguimiento() {
               --resúmenes, sin personas--; esta es la lista con la que
               se trabaja, persona por persona. El menú ya la llamaba
               así; solo el título seguía con el nombre del otro. */}
-          <h1 className="text-[1.125rem] font-bold tracking-[-0.02em] text-titulo">
+          <h1 className="text-[1.3125rem] font-bold tracking-[-0.02em] text-titulo">
             Seguimiento del aula
           </h1>
           {/* Sin bajada (cliente, 12 sep 2026). El título ya dice
