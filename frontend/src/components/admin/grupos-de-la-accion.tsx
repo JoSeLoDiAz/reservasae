@@ -190,7 +190,13 @@ export function GruposDeLaAccion({
         )}
       </div>
 
-      {!grupoId && aPintar.length === 0 ? (
+      {/* EL VACÍO SE MIDE SOBRE LOS GRUPOS QUE HAY ---`suyos`---, no
+          sobre los que se pintan. Con la tabla abierta `aPintar` va
+          vacío a propósito, y midiendo ahí salía «Todavía no hay grupos
+          con gente en el aula» encima de una tabla con 167 personas
+          dentro: «cuando le doy limpiar se ve feo» (cliente, 1 oct
+          2026). Un cartel que dice lo contrario de lo que hay debajo. */}
+      {!grupoId && !verInscritos && suyos.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-borde px-6 py-8 text-center">
           <p className="font-medium">Todavía no hay grupos con gente en el aula</p>
           <p className="mx-auto mt-1 max-w-md text-sm text-texto-suave">

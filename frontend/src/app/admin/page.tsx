@@ -35,7 +35,8 @@ import { Suspense } from "react";
 
 import { BotonPdf, EncabezadoImpresion } from "@/components/admin/boton-pdf";
 import { useAdmin } from "@/components/admin/marco-admin";
-import { Cargando } from "@/components/admin/piezas";
+import {
+  Encabezado, Cargando } from "@/components/admin/piezas";
 import { ModuloReservas } from "@/components/admin/modulo-reservas";
 import {
   ModuloAcademico,
@@ -87,7 +88,11 @@ function Resumen() {
       : (admin.gremios?.[0]?.sigla ?? null);
 
   return (
-    <div className="resumen-impreso flex flex-col gap-3 px-4 pt-3 pb-6">
+    /// `[&>header]:mx-0`: `Encabezado` trae su propio `mx-4` y esta
+    /// página ya pone `px-4`; sumados, la cabecera caía en 32 px y su
+    /// contenido en 16. «Todos estos cambios que se ajusten a todas las
+    /// pantallas» (cliente, 1 oct 2026), medido en las treinta.
+    <div className="resumen-impreso flex flex-col gap-3 px-4 pt-3 pb-6 [&>header]:mx-0 [&>header]:mb-0">
       {/* EL PAPEL DICE QUÉ MÓDULO TRAE. Con las pestañas, el PDF ya
           no es «el resumen»: es uno de los cinco. Sin decirlo, una
           hoja con el tráfico se leería como si fuera todo. */}
