@@ -102,7 +102,7 @@ function ElegirComoSeVe({
 }) {
   return (
     <ElegirConRotulo
-      rotulo="Cómo se ve"
+      rotulo="Seleccione la vista"
       valor={valor}
       opciones={[
         { valor: "resumen", etiqueta: "Resumen" },
@@ -308,7 +308,7 @@ export function PanelAsesores() {
             etiquetas son largas y se comían la fila del título entera;
             una sola casilla dice lo mismo y deja sitio al periodo. */}
         <ElegirConRotulo
-          rotulo="Qué se mira"
+          rotulo="Seleccione el informe"
           valor={subvista}
           opciones={SUBVISTAS.map((s) => ({ valor: s.clave, etiqueta: s.etiqueta }))}
           alElegir={(v) => setSubvista(v as Subvista)}
