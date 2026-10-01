@@ -528,7 +528,17 @@ export function Tabla<T>({
         Object.fromEntries(
           Object.entries(g.anchos)
             .filter(([c]) => columnas.some((x) => x.clave === c))
-            .map(([c, px]) => [c, Math.max(ANCHO_MINIMO, Math.round(px))]),
+            .map(([c, px]) => {
+              /// El ancho que la tabla declara hoy para esa columna.
+              /// Si lo guardado se quedó por debajo, sube; si está por
+              /// encima, se respeta: eso lo ensanchó una persona.
+              const dec = columnas.find((x) => x.clave === c)?.ancho;
+              const suelo = dec ? parseInt(String(dec), 10) || 0 : 0;
+              return [
+                c,
+                Math.max(ANCHO_MINIMO, suelo, Math.round(px)),
+              ];
+            }),
         ),
       );
     }
@@ -1518,8 +1528,10 @@ function CampoFiltro<T>({
   opciones: string[];
   alCambiar: (v: string) => void;
 }) {
+  /// `min-w-0` Y NO `min-w-[6rem]`: 96 px fijos dentro de una columna
+  /// que se arrastra. Ver el comentario de arriba.
   const clases =
-    "w-full min-w-[6rem] rounded-lg border border-campo-borde bg-campo-fondo px-2 py-1 text-xs font-normal text-texto outline-none focus:border-campo-foco";
+    "w-full min-w-0 rounded-lg border border-campo-borde bg-campo-fondo px-2 py-1 text-xs font-normal text-texto outline-none focus:border-campo-foco";
 
   /// EL DE FECHA VA PRIMERO porque también es un desplegable, y así
   /// se lee al lado del de opciones, que es su hermano. La única

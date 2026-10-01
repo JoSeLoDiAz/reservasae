@@ -1649,30 +1649,46 @@ select[size]:not([size='1']) {
   text-transform: uppercase;
   padding: 0.625rem 0.875rem;
   border-bottom: 1px solid var(--borde);
-  /* El título se acomoda al ancho de su columna.
+  /* EL TÍTULO NUNCA PARTE: una línea, y lo que no quepa se corta
+     con puntos suspensivos.
 
-     Con `nowrap` se salía de la celda y la de al lado le
-     pintaba encima: «Número de teléfono» se leía «Número de
-     te». Ahora parte la línea y la cabecera crece lo que
-     haga falta, como al angostar una columna en Word.
+     Esto estuvo en `nowrap` hace tiempo y se quitó porque el texto
+     se SALÍA de la celda y la de al lado le pintaba encima:
+     «Número de teléfono» se leía «Número de te». Entonces se pasó a
+     partir la línea, y la cabecera crecía lo que hiciera falta.
 
-     `vertical-align: bottom` para que, con títulos de una y
-     de dos líneas en la misma fila, todos se apoyen abajo y
-     no queden flotando a distintas alturas. */
-  vertical-align: bottom;
-  /* `break-word` y NO `anywhere`, que es lo que las aplastaba.
+     Pero partir la línea trajo lo que el cliente señaló dos veces
+     (30 sep 2026, «se ve fatal», «no veo que se vea bien»): con
+     títulos de uno, dos y TRES renglones en la misma fila, la
+     cabecera se iba a 72 px ---más de dos filas de datos--- y
+     quedaba desigual. No estaba torcida; estaba despareja.
 
-     Los dos parten la línea, pero `anywhere` permite partir
-     DENTRO de una palabra, y al permitirlo le dice al
-     navegador que el ancho mínimo de la celda es una letra.
-     Con veinte columnas repartiéndose el ancho de la ventana,
-     cada una caía a unos 45 px y el título salía en vertical:
-     «Fecha de creación» ocupaba diecisiete renglones.
+     La diferencia con aquel `nowrap` de antes es `overflow: hidden`
+     y `text-overflow: ellipsis`: ya no se sale, se CORTA dentro de
+     su celda. Y nada se pierde ---el título entero está en el
+     `title` del encabezado, y la columna se ensancha arrastrando su
+     borde---.
 
-     `break-word` parte igual cuando hace falta, pero conserva
-     el suelo: la palabra más larga. «Número de teléfono» se
-     parte entre palabras, nunca entre letras. */
-  overflow-wrap: break-word;
+     Lo importante: esto NO depende de los anchos. Los míos hacen que
+     casi ningún título llegue a cortarse, pero quien arrastre una
+     columna hasta dejarla estrecha seguirá viendo la cabecera de UNA
+     línea, que es la promesa que no se podía cumplir midiendo. */
+  vertical-align: middle;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* El botón ES quien lleva el texto del título, así que el recorte
+   tiene que pasarle a él: si solo lo llevara la celda, el botón
+   seguiría midiendo lo que mide el texto entero y empujaría. */
+.tabla-datos thead th > button {
+  display: inline-flex;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .tabla-datos tbody td {
   /* 12,5px */
