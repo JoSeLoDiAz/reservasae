@@ -275,7 +275,12 @@ function PaginaConfiguracionNotas() {
           >
             <span>Categoría</span>
             <span>Subcategorías</span>
-            <span>Notas que la nombran</span>
+            {/* «Notas que la nombran: ¿qué es esto?» (cliente, 1 oct
+                2026). Era la cuenta de gestiones registradas con esa
+                categoría, dicho de una forma que había que descifrar.
+                Es la razón por la que no hay botón de borrar, así que
+                tiene que leerse sola. */}
+            <span>Notas con esta categoría</span>
             <span className="text-right">Ver</span>
           </div>
           {visibles.map((c) => (

@@ -389,8 +389,17 @@ export function Encabezado({
     /// que separarse del canto: de ahí el `mx-3`.
     <header
       className={
-        "mx-4 mb-2 flex flex-wrap items-start justify-between gap-4 rounded-2xl border border-borde bg-superficie px-7 " +
-        (compacto ? "pt-[13px] pb-[11px]" : "pt-[26px] pb-[22px]")
+/// `items-center` Y NO `items-start`: «títulos centrados, o sea se
+        /// ve como muy arriba» (cliente, 1 oct 2026). Desde que los
+        /// desplegables llevan el rótulo dentro miden 44 px, y con el
+        /// título alineado arriba quedaba pegado al borde de la tarjeta
+        /// mientras los controles ocupaban el resto.
+        ///
+        /// Y menos relleno ---«redúcelo un poquito, no?»---: de 13/11 a
+        /// 10 arriba y abajo. Con el control de 44 la tarjeta pasa de 70
+        /// a 64 px, y donde solo hay título, de 52 a 48.
+        "mx-4 mb-2 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-borde bg-superficie px-7 " +
+        (compacto ? "py-2.5" : "pt-[26px] pb-[22px]")
       }
     >
       <div className="min-w-0">

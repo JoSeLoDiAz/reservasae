@@ -314,6 +314,18 @@ export function PanelAsesores() {
           alElegir={(v) => setSubvista(v as Subvista)}
           ancho="13.5rem"
         />
+        {/* RESUMEN O CALENDARIO, EN LA FILA DEL TÍTULO: «déjalo sobre
+            la fila de: Seguimiento de asesores» (cliente, 1 oct 2026).
+            Estaba en la barra de la tabla, al lado de «Descargar en
+            Excel», y ahí se leía como una opción de la tabla cuando lo
+            que hace es cambiar la pantalla entera ---con el calendario
+            no hay tabla ninguna---.
+
+            Solo en la primera subvista: las otras tres no eligen
+            vista. */}
+        {subvista === "inscripciones" && (
+          <ElegirComoSeVe valor={comoSeVe} alCambiar={setComoSeVe} />
+        )}
         <FiltroDePeriodo periodo={periodo} alCambiar={setPeriodo} />
       </Encabezado>
 
@@ -327,7 +339,6 @@ export function PanelAsesores() {
           /// EL CUADRO DE DIANITA LLEVA A DONDE SALEN SUS CIFRAS.
           alIrALaProyeccion={() => setSubvista("proyeccion")}
           comoSeVe={comoSeVe}
-          alCambiarComoSeVe={setComoSeVe}
         />
       )}
       {subvista === "academicos" && (
@@ -408,12 +419,10 @@ function DeInscripciones({
   rotuloAnterior,
   alIrALaProyeccion,
   comoSeVe,
-  alCambiarComoSeVe,
 }: ConPeriodo & {
   alIrALaProyeccion?: () => void;
   /// Lo decide la barra de arriba, que es donde vive su interruptor.
   comoSeVe: "resumen" | "calendario";
-  alCambiarComoSeVe: (v: "resumen" | "calendario") => void;
 }) {
   /// La clave lleva el periodo dentro: sin eso, cambiarlo no vuelve
   /// a pedir y la tabla se queda enseñando el periodo de antes. Y
@@ -756,7 +765,6 @@ function DeInscripciones({
         así que montada igual se ve igual. */}
     {comoSeVe === "resumen" && (
     <Tabla
-      acciones={<ElegirComoSeVe valor={comoSeVe} alCambiar={alCambiarComoSeVe} />}
       cuadricula
       /// EL NOMBRE CAMBIA PORQUE CAMBIÓ EL ORDEN DE LAS COLUMNAS.
       ///
@@ -835,11 +843,6 @@ function DeInscripciones({
 
         Se MUEVE, no se copia: dos cuadros iguales en dos pantallas
         acaban discrepando el día que uno se cambie y el otro no. */}
-    {comoSeVe === "calendario" && (
-    <div className="flex justify-end">
-      <ElegirComoSeVe valor={comoSeVe} alCambiar={alCambiarComoSeVe} />
-    </div>
-    )}
     {comoSeVe === "calendario" && (
     <RepartoDiario
       meta={reparto.meta}
