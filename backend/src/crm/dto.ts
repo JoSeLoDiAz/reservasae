@@ -27,6 +27,7 @@ import {
   CanalContacto,
   EtapaParticipante,
   OrigenParticipante,
+  ResultadoGestion,
 } from '../../generated/prisma';
 import { aCelularGuardable } from '../comun/celular';
 import { aNumeroONulo as aNumero } from '../comun/campo-vacio';
@@ -439,13 +440,32 @@ export class CrearNotaDto {
   /// pero lo DERIVA EL SERVIDOR de la categoria elegida, que ahora
   /// declara que significa (`CategoriaDeNota.resultado`).
   ///
-  /// Y no se acepta aqui aunque alguien lo mande: con `whitelist` y
-  /// `forbidNonWhitelisted` puestos en `main.ts`, un cliente que
-  /// siga enviandolo recibe un 400 en vez de que se ignore en
-  /// silencio. Es lo que se quiere: si la pantalla y el catalogo
-  /// pudieran discrepar, un dia la nota diria «Contactado ·
-  /// SIN_RESPUESTA» --coherente para la base, mentira para el
-  /// informe-- y nada fallaria.
+  /// SE SIGUE ACEPTANDO UNA VERSIÓN MÁS, Y SOLO POR EL DESPLIEGUE.
+  ///
+  /// Aquí decía que NO se aceptaba, y que un cliente que lo mandara
+  /// recibiera un 400 a propósito. El razonamiento era bueno para el
+  /// estado estable y MALO para el rato del despliegue, y lo vio José
+  /// al revisar la entrega del 1 oct 2026:
+  ///
+  /// con `whitelist` y `forbidNonWhitelisted` en `main.ts`, quien
+  /// tenga el panel abierto con el bundle viejo y pulse «registrar
+  /// gestión» mientras se despliega recibe un 400 que la pantalla
+  /// pinta como «No se pudo completar la operación» ---indistinguible
+  /// de una caída--- Y LA NOTA SE PIERDE. Se pierde el trabajo de una
+  /// asesora que no hizo nada mal.
+  ///
+  /// Aceptarlo NO reabre la divergencia que preocupaba, y esa es la
+  /// clave: manda SIEMPRE lo que declara la categoría. Este campo solo
+  /// se mira cuando no vino categoría ninguna ---o sea, cuando quien
+  /// escribe es una pantalla vieja que no tenía dónde elegirla--- y
+  /// entonces es el único dato que hay. Dos sitios decidiendo lo mismo
+  /// no puede pasar: con categoría, este se ignora.
+  ///
+  /// SE QUITA EN LA VERSIÓN SIGUIENTE. Para entonces no queda ninguna
+  /// pestaña con el bundle viejo abierta.
+  @IsOptional()
+  @IsEnum(ResultadoGestion)
+  resultado?: ResultadoGestion;
 
   /// La clasificacion configurable: categoria y subcategoria.
   ///
