@@ -217,15 +217,10 @@ export function PropuestasPendientes() {
     /// EL MARGEN LATERAL VA AQUÍ, UNA VEZ, y no en cada hijo: lo
     /// llevaba solo el encabezado y el resto salía pegado al borde.
     <div className="px-4">
-      <header className="mb-3 rounded-2xl border border-borde bg-superficie px-7 pt-[26px] pb-[22px]">
-        <p className="mt-1 max-w-3xl text-texto-suave">
-          Ninguna consulta automática escribe en el registro de una organización: deja aquí
-          una propuesta. Hasta que una persona no la acepte campo por campo, ese dato no
-          se reporta al SENA. Lo que se marque queda en el registro; lo que se deje sin
-          marcar se descarta junto con la propuesta.
-        </p>
-      </header>
-
+      {/* SIN LA EXPLICACIÓN DE ARRIBA: «esto se elimina» (cliente, 1
+          oct 2026). Eran cuatro renglones en una tarjeta propia para
+          decir una regla que la pantalla ya enseña ---cada campo con su
+          casilla, y nada se aplica sin marcarlo---. */}
       {error && (
         <Aviso tipo="error">
           <p>{error}</p>
@@ -340,7 +335,29 @@ export function PropuestasPendientes() {
             )}
           </div>
 
-          <div className="space-y-5">
+          {/* COMO LISTADO, NO COMO TARJETAS: «ajústala para que se vea
+              como Por revisar en listado, y los datos, y en Ver algo
+              parecido a las notas» (cliente, 1 oct 2026). Eran tarjetas
+              de seiscientos píxeles de alto, una debajo de otra, y para
+              comparar dos propuestas había que recorrer la pantalla.
+              Con cabecera y columnas se ve de un vistazo cuál es de
+              quién, de dónde salió y cuánto lleva esperando; el detalle
+              ---los campos con sus casillas--- se abre en su sitio,
+              igual que una categoría en Configuración notas. */}
+          <div className="overflow-hidden rounded-xl border border-borde bg-superficie">
+            <div
+              className={
+                "grid grid-cols-[1.75rem_minmax(14rem,1fr)_9rem_11rem_8rem_4rem] items-center gap-3 px-4" +
+                " border-b border-borde bg-superficie-alterna py-2 text-[0.625rem] font-bold tracking-[0.08em] uppercase text-texto-suave"
+              }
+            >
+              <span />
+              <span>Organización</span>
+              <span>NIT</span>
+              <span>Procedencia</span>
+              <span>Esperando</span>
+              <span className="text-right">Ver</span>
+            </div>
             {propuestas.map((propuesta) => (
               <TarjetaPropuesta
                 key={propuesta.id}
@@ -460,63 +477,73 @@ function TarjetaPropuesta({
   /// hasta que ya se esta leyendo la tarjeta. Es el mismo borde
   /// que marca la propuesta del buscador en la ficha.
   return (
-    <article
-      className={`rounded-2xl border bg-superficie p-6 ${
-        sugerida ? "border-aviso/40" : "border-borde"
-      }`}
-    >
-      <header className="border-b border-borde bg-superficie px-7 pt-[26px] pb-[22px] flex flex-wrap items-start justify-between gap-3">
-        {/* La marca de la tarjeta entera, para el lote. Es distinta de
-            las de abajo, que eligen campos: esta dice «esta propuesta
-            va en el montón». */}
+    <details className="group border-t border-hairline first:border-t-0">
+      <summary
+        className={
+          "grid grid-cols-[1.75rem_minmax(14rem,1fr)_9rem_11rem_8rem_4rem] items-center gap-3 px-4" +
+          " sin-aro cursor-pointer list-none py-2.5 text-[0.8125rem] select-none hover:bg-superficie-alterna"
+        }
+      >
+        {/* La marca de la propuesta entera, para el lote. Es distinta de
+            las de dentro, que eligen campos: esta dice «esta propuesta
+            va en el montón».
+
+            `stopPropagation` y `preventDefault`: va DENTRO del
+            `<summary>`, así que sin esto marcar la casilla abriría y
+            cerraría la fila de paso. */}
         <input
           type="checkbox"
           checked={seleccionada}
           onChange={alSeleccionar}
+          onClick={(e) => e.stopPropagation()}
           disabled={trabajando !== null || bloqueada}
           aria-label={`Seleccionar la propuesta de ${nombre}`}
-          className="mt-1.5 h-4 w-4 shrink-0 accent-marca"
+          className="h-4 w-4 shrink-0 accent-marca"
         />
-        <div className="min-w-0 flex-1">
-          <h2 className="text-lg font-semibold">
-            <Link
-              href={`/admin/instituciones/${propuesta.institucion.id}`}
-              className="underline decoration-borde underline-offset-4 hover:decoration-marca"
-            >
-              {nombre}
-            </Link>
-          </h2>
-          <p className="mt-1 font-mono text-xs text-texto-suave">
-            NIT {propuesta.institucion.nit}
-          </p>
-        </div>
+        <span className="truncate font-medium text-titulo" title={nombre}>
+          {nombre}
+        </span>
+        <span className="font-mono text-[0.75rem] text-texto-suave">
+          {propuesta.institucion.nit}
+        </span>
+        <span
+          className={`inline-flex w-fit items-center gap-1.5 rounded-full border px-2 py-0.5 text-[0.6875rem] font-medium ${ESTILO_FUENTE[propuesta.fuente]}`}
+          title={
+            sugerida
+              ? "Lo sacó un buscador de una página pública. Es una sugerencia: no se reporta al SENA hasta que alguien la compruebe."
+              : `Procedencia: ${ETIQUETA_FUENTE[propuesta.fuente]}.`
+          }
+        >
+          <span
+            aria-hidden
+            className={`h-1.5 w-1.5 rounded-full bg-current ${sugerida ? "" : "opacity-50"}`}
+          />
+          {sugerida ? "Sin verificar" : ETIQUETA_FUENTE[propuesta.fuente]}
+        </span>
+        <span
+          className="text-texto-suave"
+          title={`Llegó el ${fechaLegible(propuesta.creadoEn)}`}
+        >
+          {espera(propuesta.creadoEn)}
+        </span>
+        <span className="text-right font-medium text-marca">
+          <span className="group-open:hidden">Ver</span>
+          <span className="hidden group-open:inline">Cerrar</span>
+        </span>
+      </summary>
 
-        <div className="flex shrink-0 flex-col items-end gap-1.5">
-          <span
-            className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium ${ESTILO_FUENTE[propuesta.fuente]}`}
-            title={
-              sugerida
-                ? "Lo sacó un buscador de una página pública. Es una sugerencia: no se reporta al SENA hasta que alguien la compruebe."
-                : `Procedencia: ${ETIQUETA_FUENTE[propuesta.fuente]}.`
-            }
-          >
-            <span
-              aria-hidden
-              className={`h-1.5 w-1.5 rounded-full bg-current ${sugerida ? "" : "opacity-50"}`}
-            />
-            {sugerida ? "Sugerido, sin verificar" : ETIQUETA_FUENTE[propuesta.fuente]}
-          </span>
-          <span
-            className="text-xs text-texto-suave"
-            title={`Llegó el ${fechaLegible(propuesta.creadoEn)}`}
-          >
-            {espera(propuesta.creadoEn)}
-          </span>
-        </div>
-      </header>
+      <div className="border-t border-hairline px-4 pt-3 pb-4">
+      <p className="text-[0.8125rem]">
+        <Link
+          href={`/admin/instituciones/${propuesta.institucion.id}`}
+          className="font-medium text-marca underline decoration-borde underline-offset-4 hover:decoration-marca"
+        >
+          Abrir el registro de {nombre}
+        </Link>
+      </p>
 
       <p
-        className={`mt-4 text-sm ${
+        className={`mt-3 text-sm ${
           sugerida
             ? "rounded-xl border border-aviso/30 bg-aviso-suave p-3 text-aviso"
             : "text-texto-suave"
@@ -592,6 +619,7 @@ function TarjetaPropuesta({
           </p>
         )}
       </div>
-    </article>
+      </div>
+    </details>
   );
 }
