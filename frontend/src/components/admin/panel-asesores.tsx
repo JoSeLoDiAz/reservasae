@@ -251,7 +251,38 @@ export function PanelAsesores() {
       {/* SIN FRASE DEBAJO DEL TÍTULO (cliente, 23 sep 2026). Cada
           bloque ya dice lo suyo, y una segunda explicación arriba
           costaba veinte píxeles de alto en todas las pantallas. */}
-      <Encabezado compacto titulo="Seguimiento de asesores" />
+      {/* LAS CUATRO SUBVISTAS, AL LADO DEL TÍTULO.
+
+          «No se puede organizado al frente del título: Seguimiento de
+          asesores» (cliente, 30 sep 2026). Ocupaban una caja propia
+          debajo, con su borde, para decir cuatro palabras.
+
+          Van en el encabezado y NO por `AccionesDePagina`: ese portal
+          escribe en la barra del MENÚ, y al probarlo las cuatro se
+          montaron encima de «Formularios» y «Configuración».
+
+          El periodo se queda abajo a propósito: manda sobre las cuatro
+          subvistas y sobre las cifras que se miran, así que vive
+          pegado a ellas. */}
+      <Encabezado compacto titulo="Seguimiento de asesores">
+        <div className="flex flex-wrap gap-1">
+          {SUBVISTAS.map((s) => (
+            <button
+              key={s.clave}
+              type="button"
+              onClick={() => setSubvista(s.clave)}
+              className={
+                "shrink-0 rounded-lg px-3 py-1 text-[0.8125rem] font-medium transition " +
+                (subvista === s.clave
+                  ? "bg-marca text-marca-texto"
+                  : "text-texto-suave hover:bg-superficie-alterna hover:text-texto")
+              }
+            >
+              {s.etiqueta}
+            </button>
+          ))}
+        </div>
+      </Encabezado>
 
       {/* LAS DOS SUBVISTAS, EN UNA SOLA FILA con su frase al lado.
           Iba debajo, a todo el ancho, y eso partía la caja en dos
@@ -263,25 +294,10 @@ export function PanelAsesores() {
           Con `justify-between` el selector queda a la izquierda y el
           periodo a la derecha; en pantalla estrecha el `wrap` lo baja
           a su propio renglón. */}
-      <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-borde bg-superficie px-2 py-1.5">
-        <div className="flex flex-wrap gap-1">
-          {SUBVISTAS.map((s) => (
-            <button
-              key={s.clave}
-              type="button"
-              onClick={() => setSubvista(s.clave)}
-              className={
-                "rounded-lg px-3 py-1 text-[0.8125rem] font-medium transition " +
-                (subvista === s.clave
-                  ? "bg-marca text-marca-texto"
-                  : "text-texto-suave hover:bg-superficie-alterna hover:text-texto")
-              }
-            >
-              {s.etiqueta}
-            </button>
-          ))}
-        </div>
-
+      {/* EL PERIODO SE QUEDA AQUÍ, al lado de las cifras sobre las que
+          manda, y ya sin la caja con borde: sola, una fila de un solo
+          control no necesita marco. */}
+      <div className="flex flex-wrap items-center justify-end gap-2">
         <FiltroDePeriodo periodo={periodo} alCambiar={setPeriodo} />
       </div>
 
