@@ -272,9 +272,12 @@ export async function reservasAgrupadas(
   const y: Prisma.ReservaWhereInput[] = [reservaDeConvenio(filtros.ambito)];
 
   if (filtros.convenio) {
-    y.push({ oferta: { accionFormacion: { convenio: { slug: filtros.convenio } } } });
+    y.push({
+      oferta: { accionFormacion: { convenio: { slug: filtros.convenio } } },
+    });
   }
-  if (filtros.accionId) y.push({ oferta: { accionFormacionId: filtros.accionId } });
+  if (filtros.accionId)
+    y.push({ oferta: { accionFormacionId: filtros.accionId } });
   if (filtros.formulario) y.push({ formulario: { slug: filtros.formulario } });
   if (filtros.incluyeCanceladas === false) {
     y.push({ estado: { not: EstadoReserva.CANCELADA } });
@@ -289,8 +292,10 @@ export async function reservasAgrupadas(
    * se busca aquí es la empresa; el contacto se busca dentro de ella.
    */
   /// Por cuándo se hizo la reserva, igual que en la lista.
-  if (filtros.llegoDesde) y.push({ creadoEn: { gte: new Date(filtros.llegoDesde) } });
-  if (filtros.llegoHasta) y.push({ creadoEn: { lt: new Date(filtros.llegoHasta) } });
+  if (filtros.llegoDesde)
+    y.push({ creadoEn: { gte: new Date(filtros.llegoDesde) } });
+  if (filtros.llegoHasta)
+    y.push({ creadoEn: { lt: new Date(filtros.llegoHasta) } });
 
   if (filtros.buscar?.trim()) {
     const texto = filtros.buscar.trim();
@@ -542,7 +547,9 @@ async function cuposConNombre(
   /// no hay nada que contar.
   if (reservas.length === 0) return new Map();
 
-  const filas = await prisma.$queryRaw<Array<{ rid: string; n: bigint }>>(Prisma.sql`
+  const filas = await prisma.$queryRaw<
+    Array<{ rid: string; n: bigint }>
+  >(Prisma.sql`
     WITH ${PRIMERA_MATRICULA}
     SELECT p."reservaId" AS rid, COUNT(*) AS n
       FROM "participantes" p
@@ -695,7 +702,9 @@ export function armarAgrupadas(
     /// cupos volvieron a la oferta y contarlas subiría la cobertura
     /// justo al cancelar. Es la misma defensa que hace el informe.
     const conNombre =
-      r.estado === EstadoReserva.CANCELADA ? 0 : (conNombrePorReserva.get(r.id) ?? 0);
+      r.estado === EstadoReserva.CANCELADA
+        ? 0
+        : (conNombrePorReserva.get(r.id) ?? 0);
     /// Acotado EN LA RESERVA y no en la fila: doce personas en una
     /// reserva de diez no llenan las sillas de otra, y acotando más
     /// arriba la sobra de una se comería los huecos de la de al lado
@@ -725,8 +734,10 @@ export function armarAgrupadas(
     celda.cuposEnEspera += r.cuposEnEspera;
     celda.conNombre += conNombre;
     celda.sinNombre += sinNombre;
-    if (r.creadoEn.toISOString() < celda.primera) celda.primera = r.creadoEn.toISOString();
-    if (r.creadoEn.toISOString() > celda.ultima) celda.ultima = r.creadoEn.toISOString();
+    if (r.creadoEn.toISOString() < celda.primera)
+      celda.primera = r.creadoEn.toISOString();
+    if (r.creadoEn.toISOString() > celda.ultima)
+      celda.ultima = r.creadoEn.toISOString();
 
     fila.totalReservas += 1;
     if (r.estado === EstadoReserva.CANCELADA) fila.reservasCanceladas += 1;
@@ -760,7 +771,8 @@ export function armarAgrupadas(
       const losSuyos = formularios.get(r.empresa.id)!;
       const entrada = losSuyos.get(r.formulario.slug);
       if (entrada) {
-        if (!entrada.codigos.includes(af.codigo)) entrada.codigos.push(af.codigo);
+        if (!entrada.codigos.includes(af.codigo))
+          entrada.codigos.push(af.codigo);
       } else {
         losSuyos.set(r.formulario.slug, {
           slug: r.formulario.slug,

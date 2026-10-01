@@ -1360,6 +1360,29 @@ model CategoriaDeNota {
   /// pregunta que se hace al mirar un informe raro de hace un mes.
   ocultaEn DateTime?
 
+  /// QUE SIGNIFICA esta categoria en terminos de `ResultadoGestion`.
+  ///
+  /// Puesto el 30 sep 2026 porque al anotar una gestion se
+  /// preguntaba LO MISMO DOS VECES: arriba «Como salio» --[Hable con
+  /// la persona] [No contesto] [El dato no sirve]-- y debajo
+  /// «Clasificacion», cuyas categorias sembradas son literalmente
+  /// esas mismas tres mas «Seguimiento». El cliente lo dijo asi:
+  /// «Ese "Como salio" es la "Clasificacion"». Se quedo la
+  /// clasificacion y los tres botones se fueron de la pantalla.
+  ///
+  /// Pero el dato `resultado` de la nota NO se puede perder: de el
+  /// cuelgan los informes y la cuenta de intentos sin respuesta
+  /// --`@@index([participanteId, resultado])`--. Asi que ahora lo
+  /// DECLARA la categoria y el servidor lo deriva al escribir. Una
+  /// sola pregunta al asesor, un solo sitio donde se decide que
+  /// significa cada opcion.
+  ///
+  /// NULABLE: una categoria puede no significar ningun resultado
+  /// --una «Nota interna» no es ni contacto ni intento-- y entonces
+  /// sus notas quedan sin resultado, que es exactamente lo que ya
+  /// les pasa a las notas de antes del catalogo.
+  resultado ResultadoGestion?
+
   creadoEn      DateTime @default(now())
   actualizadoEn DateTime @updatedAt
 

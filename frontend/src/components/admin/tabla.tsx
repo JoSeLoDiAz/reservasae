@@ -681,7 +681,22 @@ export function Tabla<T>({
           /// texto no dice nada de en qué día cae.
           if (!caeEnElRango(v[col], valor)) return false;
         } else if (def?.filtro === "numero") {
-          if (!cumpleNumero(Number(v[col]), valor)) return false;
+          /// VACÍO NO ES CERO, y esto devolvía justo lo contrario de
+          /// lo que se pedía.
+          ///
+           /// En la tabla de reservas, una celda de acción de
+          /// formación vale `null` cuando esa organización NO reservó
+          /// ahí ---lo dice el comentario de esa columna, que lo pone
+          /// a null a propósito para distinguirlo de «reservó cero»---.
+          /// Pero `Number(null)` es 0, así que filtrar «= 0» traía las
+          /// 21 que NO habían reservado y dejaba fuera a las tres que
+          /// sí, con cero inscritos. El filtro contestaba al revés.
+          ///
+          /// Lo vacío queda fuera de cualquier filtro numérico: no se
+          /// puede comparar con un número lo que no es un número.
+          const n = v[col];
+          if (n === null || n === undefined || n === "") return false;
+          if (!cumpleNumero(Number(n), valor)) return false;
         } else if (!sinTildes(celda).includes(sinTildes(valor))) return false;
       }
       if (!q) return true;
@@ -733,6 +748,12 @@ export function Tabla<T>({
     setFirmaMarcas(firmaFiltro);
     if (vigentes.length !== marcadas.size) setMarcadas(new Set(vigentes));
   }
+
+  /// LA PRIMERA COLUMNA FIJA, que es la que se pega al borde al
+  /// desplazarse a lo ancho. Solo una: dos pegadas tendrían que saber
+  /// el ancho de la anterior para colocarse, y con anchos
+  /// arrastrables esa cuenta se desincroniza sola.
+  const primeraFija = enPantalla.find((c) => c.fija)?.clave;
 
   const hayFiltro = buscar !== "" || Object.values(filtros).some((v) => v !== "");
   const chips = Object.entries(filtros).filter(([, v]) => v !== "");
@@ -1120,6 +1141,9 @@ export function Tabla<T>({
                     }}
                     className={
                       "relative select-none" +
+                      (c.clave === primeraFija
+                        ? " sticky left-0 z-20 bg-tabla-cabecera-fondo"
+                        : "") +
                       (c.numerica ? " text-right" : "") +
                       (arrastrada === c.clave ? " opacity-40" : "") +
                       /// La raya de donde va a caer, del lado por
@@ -1255,7 +1279,12 @@ export function Tabla<T>({
                   {enPantalla.map((c) => (
                     <td
                       key={c.clave}
-                      className={c.numerica ? "text-right tabular-nums" : undefined}
+                      className={
+                        (c.numerica ? "text-right tabular-nums" : "") +
+                        (c.clave === primeraFija
+                          ? " sticky left-0 z-10 bg-superficie"
+                          : "") || undefined
+                      }
                     >
                       {c.pinta ? c.pinta(f) : texto(v[c.clave])}
                     </td>

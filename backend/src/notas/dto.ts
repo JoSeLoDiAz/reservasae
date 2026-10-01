@@ -3,6 +3,7 @@
 import { Transform } from 'class-transformer';
 import {
   IsBoolean,
+  IsEnum,
   IsInt,
   IsNotEmpty,
   IsOptional,
@@ -12,6 +13,8 @@ import {
   Min,
   MinLength,
 } from 'class-validator';
+
+import { ResultadoGestion } from '../../generated/prisma';
 
 /// Se recorta antes de validar, no después.
 ///
@@ -38,6 +41,25 @@ export class CrearCategoriaDto {
   @Min(0)
   @Max(10000)
   orden?: number;
+
+  /// QUE SIGNIFICA esta categoria: CONTACTO / SIN_RESPUESTA /
+  /// DATO_MALO, o nada.
+  ///
+  /// Puesto el 30 sep 2026 porque al anotar se preguntaba lo mismo
+  /// dos veces --«Como salio» y «Clasificacion» eran la misma
+  /// pregunta-- y se quito «Como salio». El resultado de la nota
+  /// lo deriva ahora el servidor de la categoria elegida, asi que es
+  /// AQUI, al configurar el catalogo, donde se decide una sola vez
+  /// que significa cada opcion.
+  ///
+  /// El nulo es un valor valido y distinto de «no vino»: es «esta
+  /// categoria no significa ningun resultado», y sus notas quedan
+  /// sin resultado --lo mismo que ya les pasa a las notas de antes
+  /// del catalogo--. @IsOptional() deja pasar el nulo, que es
+  /// justo lo que hace falta.
+  @IsOptional()
+  @IsEnum(ResultadoGestion)
+  resultado?: ResultadoGestion | null;
 }
 
 export class ActualizarCategoriaDto {
@@ -61,6 +83,25 @@ export class ActualizarCategoriaDto {
   @IsOptional()
   @IsBoolean()
   oculta?: boolean;
+
+  /// QUE SIGNIFICA esta categoria: CONTACTO / SIN_RESPUESTA /
+  /// DATO_MALO, o nada.
+  ///
+  /// Puesto el 30 sep 2026 porque al anotar se preguntaba lo mismo
+  /// dos veces --«Como salio» y «Clasificacion» eran la misma
+  /// pregunta-- y se quito «Como salio». El resultado de la nota
+  /// lo deriva ahora el servidor de la categoria elegida, asi que es
+  /// AQUI, al configurar el catalogo, donde se decide una sola vez
+  /// que significa cada opcion.
+  ///
+  /// El nulo es un valor valido y distinto de «no vino»: es «esta
+  /// categoria no significa ningun resultado», y sus notas quedan
+  /// sin resultado --lo mismo que ya les pasa a las notas de antes
+  /// del catalogo--. @IsOptional() deja pasar el nulo, que es
+  /// justo lo que hace falta.
+  @IsOptional()
+  @IsEnum(ResultadoGestion)
+  resultado?: ResultadoGestion | null;
 }
 
 export class CrearSubcategoriaDto {

@@ -28,13 +28,49 @@ import {
   CLASE_CONTROL,
 } from "@/components/admin/marco-admin";
 import { olvidarCatalogoDeNotas } from "@/components/admin/clasificacion-de-la-nota";
+import { Desplegable } from "@/components/admin/desplegable";
 import { Bloque, Cargando } from "@/components/admin/piezas";
 import { ErrorApi } from "@/lib/api";
+import {
+  ETIQUETA_RESULTADO,
+  RESULTADOS,
+  type ResultadoGestion,
+} from "@/lib/crm-api";
 import { useDatosVivos } from "@/lib/datos-vivos";
 import {
   notasConfigApi,
   type CategoriaDeNota,
 } from "@/lib/notas-config-api";
+
+/**
+ * Lo que puede significar una categoría, con el «—» delante.
+ *
+ * Puesto el 30 sep 2026. El cliente señaló que al anotar una gestión
+ * se preguntaba LO MISMO DOS VECES: arriba «Cómo salió» --[Hablé con
+ * la persona] [No contestó] [El dato no sirve]-- y debajo
+ * «Clasificación», cuyas categorías son esas mismas tres más
+ * «Seguimiento». Textual: «Ese "Cómo salió" es la "Clasificación"».
+ *
+ * Se quitaron los tres botones. Pero el `resultado` de la nota no se
+ * podía perder --de él cuelgan los informes y la cuenta de intentos
+ * sin respuesta-- así que ahora lo DECLARA la categoría y lo deriva
+ * el servidor al escribir. Esta es la pantalla donde se declara, y
+ * por eso se dice aquí qué pasa si se deja en «—».
+ */
+const SIGNIFICADOS = [
+  /// El «—» primero y con nombre, no un hueco en blanco: «ninguno»
+  /// es una decisión, no un olvido, y tiene consecuencias --las notas
+  /// de esa categoría quedan sin resultado-- que se dicen debajo.
+  { valor: "", etiqueta: "— ninguno" },
+  ...RESULTADOS.map((r) => ({ valor: r, etiqueta: ETIQUETA_RESULTADO[r] })),
+];
+
+/// Lo que elige el desplegable, pasado a lo que entiende la API.
+/// `""` es «ninguno», que se manda como `null` y NO como ausencia:
+/// quitarle el significado a una categoría tiene que poder hacerse.
+function aResultado(v: string): ResultadoGestion | null {
+  return v ? (v as ResultadoGestion) : null;
+}
 
 export default function PaginaConfiguracionNotas() {
   /// CON `useDatosVivos` Y NO CON UN `useEffect` A MANO. Pedir en el
@@ -56,6 +92,10 @@ export default function PaginaConfiguracionNotas() {
   const [error, setError] = useState<string | null>(null);
   const [exito, setExito] = useState<string | null>(null);
   const [nueva, setNueva] = useState("");
+  /// Qué va a significar la categoría nueva. Arranca en «ninguno»
+  /// porque no se puede adivinar, y la pantalla avisa de lo que eso
+  /// implica en vez de elegir por quien configura.
+  const [nuevoSignificado, setNuevoSignificado] = useState("");
   const [guardando, setGuardando] = useState(false);
 
   async function conError(accion: () => Promise<void>, hecho?: string) {
@@ -120,8 +160,12 @@ export default function PaginaConfiguracionNotas() {
             const nombre = nueva.trim();
             if (!nombre) return;
             void conError(async () => {
-              await notasConfigApi.crearCategoria(nombre);
+              await notasConfigApi.crearCategoria(
+                nombre,
+                aResultado(nuevoSignificado),
+              );
               setNueva("");
+              setNuevoSignificado("");
             }, `Categoría «${nombre}» creada.`);
           }}
         >
@@ -132,10 +176,31 @@ export default function PaginaConfiguracionNotas() {
             maxLength={80}
             onChange={(e) => setNueva(e.target.value)}
           />
+          <label className="flex items-center gap-2 text-sm text-texto-suave">
+            Significa
+            <span className="w-[13rem]">
+              <Desplegable
+                etiquetaAria="Qué significa la categoría nueva"
+                valor={nuevoSignificado}
+                alElegir={setNuevoSignificado}
+                opciones={SIGNIFICADOS}
+              />
+            </span>
+          </label>
           <Boton type="submit" disabled={!nueva.trim() || guardando}>
             Añadir categoría
           </Boton>
         </form>
+
+        {/* Dicho DEBAJO del control y no en un aviso aparte: es la
+            consecuencia de dejarlo en «—», y donde se decide es
+            aquí. */}
+        <p className="mt-2 text-sm text-texto-suave">
+          «Significa» es cómo cuenta esta categoría en los informes. El asesor
+          ya no marca «cómo salió» aparte --era la misma pregunta-- así que de
+          esto sale el resultado de cada gestión. En «— ninguno», sus notas
+          quedan sin resultado y no cuentan como contacto ni como intento.
+        </p>
       </Bloque>
 
       {ofrecidas.map((c) => (
@@ -216,6 +281,40 @@ function FilaDeCategoria({
   return (
     <Bloque titulo={categoria.nombre} descripcion={contar(categoria.notas)}>
       <div className="space-y-4">
+        {/* QUÉ SIGNIFICA, arriba de todo: es lo que decide el
+            `resultado` de cada nota que se anote con esta categoría, y
+            cambiarlo cambia lo que cuentan los informes de ahí en
+            adelante. Las notas YA escritas no se tocan: guardaron su
+            resultado el día que se anotaron. */}
+        <label className="flex flex-wrap items-center gap-2 text-sm text-texto-suave">
+          Significa
+          <span className="w-[13rem]">
+            <Desplegable
+              etiquetaAria={`Qué significa «${categoria.nombre}»`}
+              valor={categoria.resultado ?? ""}
+              alElegir={(v) =>
+                void conError(
+                  () =>
+                    notasConfigApi
+                      .actualizarCategoria(categoria.id, {
+                        resultado: aResultado(v),
+                      })
+                      .then(() => undefined),
+                  v
+                    ? `«${categoria.nombre}» ahora significa ${ETIQUETA_RESULTADO[v as ResultadoGestion]}.`
+                    : `«${categoria.nombre}» ya no significa ningún resultado.`,
+                )
+              }
+              opciones={SIGNIFICADOS}
+            />
+          </span>
+          {categoria.resultado === null && (
+            <span className="text-xs text-texto-suave">
+              Sin esto, sus notas quedan sin resultado.
+            </span>
+          )}
+        </label>
+
         <div className="space-y-2">
           {ofrecidas.length === 0 && (
             /* Un bloque vacío dice POR QUÉ lo está. */

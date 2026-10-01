@@ -49,6 +49,20 @@ export const ACCIONES = [
   /// corregirse de una a otra) y de EMPRESA_EDITADA (editar sus
   /// datos): aquí se pasó de «sin organización» a tener una.
   'ORGANIZACION_ASIGNADA',
+  /// La organización se quitó del listado de Empresas registradas, o
+  /// se devolvió a él.
+  ///
+  /// «¿Dónde se elimina el que no tiene leads asociados?» (cliente, 30
+  /// sep 2026). No se elimina: se oculta —`activo: false`— porque su
+  /// NIT ya viajó al SENA dentro de informes entregados.
+  ///
+  /// DOS ACCIONES Y NO UNA, al contrario que en el catálogo de notas:
+  /// aquí lo que se pregunta no es «qué le pasó a esta ficha» sino
+  /// «quién la hizo desaparecer del listado». Con una sola acción
+  /// habría que leer el resumen de cada entrada para saber en qué
+  /// sentido fue el cambio, y es justo la pregunta que se hace.
+  'EMPRESA_OCULTADA',
+  'EMPRESA_MOSTRADA',
   /// Se cambió el # de asesores o la fecha de cierre de la
   /// proyección de metas de una acción.
   ///

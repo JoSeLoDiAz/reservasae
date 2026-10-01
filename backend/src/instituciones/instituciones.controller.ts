@@ -42,6 +42,7 @@ export class InstitucionesController {
     @Query('incompletas') incompletas?: string,
     @Query('sinVerificar') sinVerificar?: string,
     @Query('sugeridos') sugeridos?: string,
+    @Query('ocultas') ocultas?: string,
     @Query('pagina') pagina?: string,
   ) {
     return this.instituciones.listar({
@@ -49,6 +50,7 @@ export class InstitucionesController {
       soloIncompletas: incompletas === '1',
       soloSinVerificar: sinVerificar === '1',
       soloSugeridos: sugeridos === '1',
+      soloOcultas: ocultas === '1',
       pagina: pagina ? Number(pagina) : 1,
     });
   }
@@ -92,6 +94,35 @@ export class InstitucionesController {
   @Requiere('reserva', 'ESCRIBIR')
   desverificar(@Param('id') id: string) {
     return this.instituciones.desverificar(id);
+  }
+
+  /**
+   * Quitar del listado una organización que no tiene a nadie.
+   *
+   * ESCRIBIR, lo mismo que exige editarla: quitar del listado es menos
+   * que cambiarle la razón social, y no tendría sentido que quien puede
+   * reescribir una ficha entera no pueda apartarla.
+   *
+   * No borra: oculta. Y comprueba en el servidor que no le cuelgue
+   * nadie —lo que mande la pantalla no decide—.
+   */
+  @Post(':id/ocultar')
+  @Requiere('reserva', 'ESCRIBIR')
+  ocultar(@Param('id') id: string, @AdminActual() admin: Admin) {
+    return this.instituciones.ocultar(id, {
+      id: admin.id,
+      nombre: admin.nombre,
+    });
+  }
+
+  /** Devolverla al listado: quitar tiene que poder desandarse. */
+  @Post(':id/mostrar')
+  @Requiere('reserva', 'ESCRIBIR')
+  mostrar(@Param('id') id: string, @AdminActual() admin: Admin) {
+    return this.instituciones.mostrar(id, {
+      id: admin.id,
+      nombre: admin.nombre,
+    });
   }
 
   /**

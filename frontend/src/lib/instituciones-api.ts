@@ -180,6 +180,15 @@ export type EstadoWeb = {
   } | null;
 };
 
+/// Lo que devuelve quitar del listado o devolver a él. No trae la ficha
+/// entera a propósito: la pantalla no la vuelve a pintar —la fila
+/// desaparece— y el nombre sirve para decir qué pasó.
+export type OrganizacionApartada = {
+  id: string;
+  razonSocial: string;
+  activo: boolean;
+};
+
 export type PropuestaPendiente = Propuesta & {
   institucion: { id: string; nit: string; razonSocial: string };
 };
@@ -191,6 +200,8 @@ export const institucionesApi = {
     incompletas?: boolean;
     sinVerificar?: boolean;
     sugeridos?: boolean;
+    /// Las que se quitaron del listado, para poder devolverlas.
+    ocultas?: boolean;
     pagina?: number;
   }) => {
     const q = new URLSearchParams();
@@ -198,6 +209,7 @@ export const institucionesApi = {
     if (filtros.incompletas) q.set("incompletas", "1");
     if (filtros.sinVerificar) q.set("sinVerificar", "1");
     if (filtros.sugeridos) q.set("sugeridos", "1");
+    if (filtros.ocultas) q.set("ocultas", "1");
     if (filtros.pagina && filtros.pagina > 1) q.set("pagina", String(filtros.pagina));
     const cola = q.toString();
     return pedir<Listado>(`/admin/instituciones${cola ? `?${cola}` : ""}`);
@@ -220,6 +232,24 @@ export const institucionesApi = {
 
   desverificar: (id: string) =>
     pedir<Institucion>(`/admin/instituciones/${id}/desverificar`, { method: "POST" }),
+
+  /// QUITAR DEL LISTADO, QUE NO ES BORRAR: la fila se queda con todo su
+  /// historial —su NIT ya viajó al SENA en informes entregados— y solo
+  /// deja de salir en «Empresas registradas».
+  ///
+  /// El servidor vuelve a contar los leads y se niega si le cuelga
+  /// alguien, diciendo cuántos: la columna de la tabla puede estar vieja.
+  ocultar: (id: string) =>
+    pedir<OrganizacionApartada>(`/admin/instituciones/${id}/ocultar`, {
+      method: "POST",
+    }),
+
+  /// Devolverla al listado. Sin condiciones: quitar por error tiene que
+  /// poder desandarse.
+  mostrar: (id: string) =>
+    pedir<OrganizacionApartada>(`/admin/instituciones/${id}/mostrar`, {
+      method: "POST",
+    }),
 
   /// Que el buscador web vaya a mirar este NIT. No devuelve
   /// los datos: devuelve en que va la consulta. La respuesta

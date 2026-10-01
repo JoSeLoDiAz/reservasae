@@ -125,7 +125,12 @@ export default function PaginaReservas() {
         }),
       [periodo],
     ),
-    { activo: vista === "reserva" },
+    {
+      activo: vista === "reserva",
+      /// La clave LLEVA EL PERIODO: es lo que le dice que la pregunta
+      /// es otra y hay que volver a preguntar YA. Ver arriba.
+      clave: `reservas-${JSON.stringify(periodo)}`,
+    },
   );
 
   /// La unificada trae lo suyo del servidor: agrupar en el navegador
@@ -136,7 +141,10 @@ export default function PaginaReservas() {
     /// las dos vistas de esta pantalla ---«Por reserva» y «Por
     /// organización»--- contestarían distinto al mismo filtro.
     useCallback(() => tablerosApi.reservasAgrupadas(ventanaDe(periodo)), [periodo]),
-    { activo: vista === "organizacion" },
+    {
+      activo: vista === "organizacion",
+      clave: `reservas-agrupadas-${JSON.stringify(periodo)}`,
+    },
   );
 
   const puedeEditarEstado =

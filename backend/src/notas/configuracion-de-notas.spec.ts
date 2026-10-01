@@ -19,6 +19,7 @@
  * y los tests pasaban probando el doble.
  */
 
+import type { ResultadoGestion } from '../../generated/prisma';
 import { ConfiguracionDeNotasService } from './configuracion-de-notas.service';
 
 type FilaCategoria = {
@@ -26,6 +27,10 @@ type FilaCategoria = {
   nombre: string;
   orden: number;
   ocultaEn: Date | null;
+  /// Qué significa la categoría. Desde el 30 sep 2026 de aquí sale
+  /// el `resultado` de la nota, así que el doble tiene que tenerlo:
+  /// sin la columna, el test de la derivación probaría el doble.
+  resultado: ResultadoGestion | null;
 };
 
 type FilaSub = {
@@ -115,12 +120,21 @@ function armar(
         Promise.resolve(categorias.find((c) => casa(c, where)) ?? null),
       findUnique: ({ where }: { where: { id: string } }) =>
         Promise.resolve(categorias.find((c) => c.id === where.id) ?? null),
-      create: ({ data }: { data: { nombre: string; orden: number } }) => {
+      create: ({
+        data,
+      }: {
+        data: {
+          nombre: string;
+          orden: number;
+          resultado?: ResultadoGestion | null;
+        };
+      }) => {
         const fila: FilaCategoria = {
           id: `cat${categorias.length + 1}`,
           nombre: data.nombre,
           orden: data.orden,
           ocultaEn: null,
+          resultado: data.resultado ?? null,
         };
         categorias.push(fila);
         return Promise.resolve(fila);
@@ -219,8 +233,12 @@ function categoria(
   nombre: string,
   orden = 10,
   ocultaEn: Date | null = null,
+  /// Lo que la categoría significa. Por omisión, nada: así los tests
+  /// que ya existían siguen describiendo el caso que describían, y
+  /// el de la derivación lo pone a propósito.
+  resultado: ResultadoGestion | null = null,
 ): FilaCategoria {
-  return { id, nombre, orden, ocultaEn };
+  return { id, nombre, orden, ocultaEn, resultado };
 }
 
 function sub(
@@ -425,7 +443,11 @@ describe('una subcategoría pertenece a su categoría', () => {
 
     await expect(
       servicio.exigirClasificacion({ categoriaId: 'c1', subcategoriaId: 's1' }),
-    ).resolves.toEqual({ categoriaId: 'c1', subcategoriaId: 's1' });
+    ).resolves.toEqual({
+      categoriaId: 'c1',
+      subcategoriaId: 's1',
+      resultado: null,
+    });
   });
 
   it('rechaza una subcategoría sin categoría', async () => {
@@ -494,6 +516,179 @@ describe('una nota con la subcategoría de otra categoría se rechaza', () => {
     await expect(servicio.exigirClasificacion({})).resolves.toEqual({
       categoriaId: null,
       subcategoriaId: null,
+      resultado: null,
     });
+  });
+});
+
+/**
+ * EL RESULTADO LO DECLARA LA CATEGORÍA, Y LO DERIVA EL SERVIDOR.
+ *
+ * Puesto el 30 sep 2026, cuando el cliente señaló que al anotar una
+ * gestión se le preguntaba LO MISMO DOS VECES: arriba «Cómo salió»
+ * --[Hablé con la persona] [No contestó] [El dato no sirve]-- y
+ * debajo «Clasificación», cuyas cuatro categorías sembradas son esas
+ * mismas tres más «Seguimiento». Textual: «Ese "Cómo salió" es la
+ * "Clasificación"».
+ *
+ * Se quitaron los tres botones de la pantalla. El dato NO se podía
+ * perder --de `NotaDeGestion.resultado` cuelgan los informes y la
+ * cuenta de intentos sin respuesta-- así que la categoría declara
+ * qué significa y el servidor lo deriva al escribir.
+ *
+ * Esto es lo que estos tests fijan, y el motivo de que existan: si
+ * alguien volviera a dejar que la pantalla mandara el `resultado`,
+ * habría otra vez dos sitios decidiéndolo y un día dirían cosas
+ * distintas --«Contactado · SIN_RESPUESTA», coherente para la base y
+ * mentira para el informe--.
+ */
+describe('el resultado se deriva de la categoría', () => {
+  it('«No contactado» significa SIN_RESPUESTA', async () => {
+    const { servicio } = armar([
+      categoria('c1', 'No contactado', 10, null, 'SIN_RESPUESTA'),
+    ]);
+
+    await expect(
+      servicio.exigirClasificacion({ categoriaId: 'c1' }),
+    ).resolves.toEqual({
+      categoriaId: 'c1',
+      subcategoriaId: null,
+      resultado: 'SIN_RESPUESTA',
+    });
+  });
+
+  /// Con subcategoría sale lo MISMO: el resultado es de la
+  /// categoría. «Sin respuesta» y «Buzón de voz» son las dos un
+  /// intento sin respuesta, y hacer que cada subcategoría lo
+  /// declarara sería repetir dieciséis veces lo que se dice cuatro.
+  it('la subcategoría no cambia el resultado', async () => {
+    const { servicio } = armar(
+      [categoria('c1', 'No contactado', 10, null, 'SIN_RESPUESTA')],
+      [sub('s1', 'c1', 'Buzón de voz')],
+    );
+
+    await expect(
+      servicio.exigirClasificacion({ categoriaId: 'c1', subcategoriaId: 's1' }),
+    ).resolves.toEqual({
+      categoriaId: 'c1',
+      subcategoriaId: 's1',
+      resultado: 'SIN_RESPUESTA',
+    });
+  });
+
+  it('«El dato no sirve» significa DATO_MALO', async () => {
+    const { servicio } = armar([
+      categoria('c1', 'El dato no sirve', 10, null, 'DATO_MALO'),
+    ]);
+
+    await expect(
+      servicio.exigirClasificacion({ categoriaId: 'c1' }),
+    ).resolves.toMatchObject({ resultado: 'DATO_MALO' });
+  });
+
+  /// «Seguimiento» → CONTACTO y no nulo: a un seguimiento solo se
+  /// llega después de haber hablado con la persona.
+  it('«Seguimiento» significa CONTACTO', async () => {
+    const { servicio } = armar([
+      categoria('c1', 'Seguimiento', 10, null, 'CONTACTO'),
+    ]);
+
+    await expect(
+      servicio.exigirClasificacion({ categoriaId: 'c1' }),
+    ).resolves.toMatchObject({ resultado: 'CONTACTO' });
+  });
+
+  /// UNA CATEGORÍA PUEDE NO SIGNIFICAR NADA, y entonces la nota
+  /// queda sin resultado. No es un hueco: es lo que hace falta para
+  /// que se pueda añadir una «Nota interna» que no es ni contacto ni
+  /// intento sin que cuente en los informes de gestión.
+  it('una categoría sin resultado deja la nota sin resultado', async () => {
+    const { servicio } = armar([categoria('c1', 'Nota interna')]);
+
+    await expect(
+      servicio.exigirClasificacion({ categoriaId: 'c1' }),
+    ).resolves.toEqual({
+      categoriaId: 'c1',
+      subcategoriaId: null,
+      resultado: null,
+    });
+  });
+
+  /// LAS NOTAS VIEJAS SE SIGUEN LEYENDO Y ESCRIBIENDO IGUAL: sin
+  /// categoría, sin subcategoría y sin resultado. Es como están las
+  /// miles que ya hay en la base --guardaron su `resultado` el día
+  /// que se anotaron y nadie se lo toca-- y como quedan las que
+  /// escribe el sistema, que no las clasifica ningún asesor.
+  it('sin clasificación no hay resultado que derivar', async () => {
+    const { servicio } = armar([
+      categoria('c1', 'No contactado', 10, null, 'SIN_RESPUESTA'),
+    ]);
+
+    await expect(
+      servicio.exigirClasificacion({ categoriaId: null }),
+    ).resolves.toEqual({
+      categoriaId: null,
+      subcategoriaId: null,
+      resultado: null,
+    });
+  });
+});
+
+describe('qué significa una categoría se configura', () => {
+  it('se declara al crearla', async () => {
+    const { servicio, categorias } = armar();
+
+    await servicio.crearCategoria(
+      { nombre: 'No contactado', resultado: 'SIN_RESPUESTA' },
+      QUIEN,
+    );
+
+    expect(categorias[0].resultado).toBe('SIN_RESPUESTA');
+  });
+
+  it('sin declararlo queda sin significado', async () => {
+    const { servicio, categorias } = armar();
+
+    await servicio.crearCategoria({ nombre: 'Nota interna' }, QUIEN);
+
+    expect(categorias[0].resultado).toBeNull();
+  });
+
+  it('se puede cambiar después', async () => {
+    const { servicio, categorias } = armar([
+      categoria('c1', 'Seguimiento', 10, null, 'SIN_RESPUESTA'),
+    ]);
+
+    await servicio.actualizarCategoria('c1', { resultado: 'CONTACTO' }, QUIEN);
+
+    expect(categorias[0].resultado).toBe('CONTACTO');
+  });
+
+  /// QUITARLE EL SIGNIFICADO TIENE QUE PODERSE, y por eso el nulo
+  /// viaja y no se confunde con «no vino»: si solo se pudiera
+  /// cambiar de un resultado a otro, una categoría mal configurada
+  /// quedaría contando algo para siempre.
+  it('se le puede quitar el significado', async () => {
+    const { servicio, categorias } = armar([
+      categoria('c1', 'Nota interna', 10, null, 'CONTACTO'),
+    ]);
+
+    await servicio.actualizarCategoria('c1', { resultado: null }, QUIEN);
+
+    expect(categorias[0].resultado).toBeNull();
+  });
+
+  it('lo pinta la pantalla de configuración', async () => {
+    const { servicio } = armar([
+      categoria('c1', 'No contactado', 10, null, 'SIN_RESPUESTA'),
+      categoria('c2', 'Nota interna', 20),
+    ]);
+
+    const todo = await servicio.listar();
+
+    expect(todo.map((c) => [c.nombre, c.resultado])).toEqual([
+      ['No contactado', 'SIN_RESPUESTA'],
+      ['Nota interna', null],
+    ]);
   });
 });

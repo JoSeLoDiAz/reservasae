@@ -45,7 +45,6 @@ import {
   ClasificacionDeLaNota,
   useClasificacionDeNota,
 } from "@/components/admin/clasificacion-de-la-nota";
-import { Desplegable } from "@/components/admin/desplegable";
 import { colorEtapa } from "@/components/admin/etapa";
 import { Aviso, CLASE_CONTROL } from "@/components/admin/marco-admin";
 import { Esqueleto } from "@/components/admin/piezas";
@@ -58,12 +57,10 @@ import {
   ETIQUETA_ACADEMICA,
   ETIQUETA_CANAL_CONTACTO,
   ETIQUETA_RESULTADO,
-  RESULTADOS,
   type CanalContacto,
   type EstadoAcademico,
   type Ficha,
   type FilaAcademica,
-  type ResultadoGestion,
 } from "@/lib/crm-api";
 
 const COLOR: Record<EstadoAcademico, string> = {
@@ -124,7 +121,6 @@ export function CajonDelAula({
 
   const [texto, setTexto] = useState("");
   const [canales, setCanales] = useState<CanalContacto[]>([]);
-  const [resultado, setResultado] = useState<ResultadoGestion>("CONTACTO");
   const clasificacion = useClasificacionDeNota();
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -136,13 +132,7 @@ export function CajonDelAula({
     if (!limpio || guardando) return;
     setGuardando(true);
     try {
-      await crmApi.agregarNota(
-        fila.id,
-        limpio,
-        canales,
-        resultado,
-        clasificacion.elegida,
-      );
+      await crmApi.agregarNota(fila.id, limpio, canales, clasificacion.elegida);
       setTexto("");
       setCanales([]);
       clasificacion.limpiar();
@@ -354,37 +344,19 @@ export function CajonDelAula({
                 );
               })}
             </div>
-            {/* EL DESPLEGABLE DE LA CASA, no un `<select>` crudo
-                (cliente, 24 sep 2026: «no tengo el desplegable como
-                acción de formación»).
-
-                Este lo pintaba el SISTEMA OPERATIVO: cuadrado donde
-                los demás van redondeados, con la letra de Windows y
-                con la lista en azul de Windows. En la misma tarjeta
-                convivía con dos controles de la casa, y se veía que
-                era de otra parte.
-
-                Un `<select>` nativo no se puede peinar ---su lista
-                la dibuja el sistema y CSS no la toca---, así que la
-                única forma de que se parezca es no usarlo. Es la
-                misma razón por la que existe `Desplegable`, y está
-                escrita en su cabecera. */}
-            <div className="w-[11.5rem]">
-              <Desplegable
-                alto={30}
-                etiquetaAria="Cómo le fue"
-                valor={resultado}
-                alElegir={(v) => setResultado(v as ResultadoGestion)}
-                opciones={RESULTADOS.map((r) => ({
-                  valor: r,
-                  etiqueta: ETIQUETA_RESULTADO[r],
-                }))}
-              />
-            </div>
+            {/* AQUÍ ESTABA EL DESPLEGABLE DE «CÓMO LE FUE», y se fue
+                el 30 sep 2026 por lo mismo que los tres botones de la
+                ficha y de la mesa: preguntaba lo mismo que la
+                clasificación de arriba. «Ese "Cómo salió" es la
+                "Clasificación"» (cliente). El `resultado` de la nota
+                lo deriva ahora el servidor de la categoría elegida. */}
             <button
               type="button"
               onClick={() => void guardar()}
-              disabled={!texto.trim() || guardando}
+              /* La categoría es obligatoria cuando hay catálogo, igual
+                 que en la ficha y en la mesa: de ella sale el resultado
+                 de la nota. Ver `completa`. */
+              disabled={!texto.trim() || !clasificacion.completa || guardando}
               className="ml-auto rounded-lg border border-marca bg-marca px-3 py-1.5 text-[0.78125rem] font-semibold text-marca-texto transition hover:bg-marca-fuerte disabled:opacity-50"
             >
               {guardando ? "Guardando…" : "Registrar seguimiento"}

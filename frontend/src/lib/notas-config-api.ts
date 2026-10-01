@@ -11,6 +11,7 @@
  * encontrar.
  */
 
+import type { ResultadoGestion } from "./crm-api";
 import { pedir } from "./pedir";
 
 export type SubcategoriaDeNota = {
@@ -32,6 +33,18 @@ export type CategoriaDeNota = {
   id: string;
   nombre: string;
   orden: number;
+  /// QUÉ SIGNIFICA esta categoría: de aquí saca el servidor el
+  /// `resultado` de cada nota que se anote con ella.
+  ///
+  /// Puesto el 30 sep 2026: al anotar se preguntaba lo mismo dos
+  /// veces --«Cómo salió» arriba y «Clasificación» debajo, con las
+  /// mismas opciones-- y el cliente lo señaló: «Ese "Cómo salió" es
+  /// la "Clasificación"». Se quitó «Cómo salió» y el significado se
+  /// declara UNA vez, aquí, al configurar el catálogo.
+  ///
+  /// `null` es válido: esa categoría no significa ningún resultado y
+  /// sus notas quedan sin él, igual que las de antes del catálogo.
+  resultado: ResultadoGestion | null;
   oculta: boolean;
   ocultaEn: string | null;
   notas: number;
@@ -49,19 +62,30 @@ export const notasConfigApi = {
   ofrecidas: () =>
     pedir<CategoriaDeNota[]>("/admin/configuracion-notas?visibles=1"),
 
-  crearCategoria: (nombre: string) =>
+  /// `resultado` opcional: sin él la categoría no significa
+  /// ninguno. Se manda solo cuando se eligió --el DTO lo declara
+  /// `@IsOptional`-- para no confundir «no vino» con «ninguno».
+  crearCategoria: (nombre: string, resultado?: ResultadoGestion | null) =>
     pedir<CategoriaDeNota>("/admin/configuracion-notas/categorias", {
       method: "POST",
-      body: JSON.stringify({ nombre }),
+      body: JSON.stringify({ nombre, ...(resultado ? { resultado } : {}) }),
     }),
 
   /// NO HAY `eliminar`, y es la decisión, no un olvido: en este CRM
   /// nada se borra. `oculta: true` es lo que hace lo que la gente
   /// quiere cuando pide borrar --que deje de ofrecerse-- sin dejar
   /// huérfanas las notas que la nombran.
+  /// Aquí `resultado: null` SÍ se manda, y es distinto de no
+  /// mandarlo: es «esta categoría deja de significar un resultado»,
+  /// una decisión que se tiene que poder tomar y no solo deshacer.
   actualizarCategoria: (
     id: string,
-    datos: { nombre?: string; orden?: number; oculta?: boolean },
+    datos: {
+      nombre?: string;
+      orden?: number;
+      oculta?: boolean;
+      resultado?: ResultadoGestion | null;
+    },
   ) =>
     pedir<CategoriaDeNota>(`/admin/configuracion-notas/categorias/${id}`, {
       method: "PATCH",

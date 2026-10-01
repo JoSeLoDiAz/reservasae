@@ -54,11 +54,9 @@ import {
   ETIQUETA_CANAL,
   ETIQUETA_CANAL_CONTACTO,
   ETIQUETA_RESULTADO,
-  RESULTADOS,
   TONO_RESULTADO,
   ETIQUETA_RUI,
   type CanalContacto,
-  type ResultadoGestion,
   type ConsultaRui,
   type PropuestaDelInteresado,
   ETIQUETA_ETAPA,
@@ -191,7 +189,6 @@ export default function PaginaFicha() {
   const [error, setError] = useState<string | null>(null);
   const [nota, setNota] = useState("");
   const [canales, setCanales] = useState<CanalContacto[]>([]);
-  const [resultado, setResultado] = useState<ResultadoGestion | null>(null);
   const clasificacion = useClasificacionDeNota();
   const [borrando, setBorrando] = useState(false);
   /// La pestaña abierta. Arranca en «Datos» porque es a lo que
@@ -605,35 +602,26 @@ export default function PaginaFicha() {
                         })}
                       </div>
 
-                      {/* Cómo salió, que es distinto de por dónde fue.
+                      {/* AQUÍ ESTABAN LOS TRES BOTONES DE «CÓMO SALIÓ»
+                          --[Hablé con la persona] [No contestó] [El dato
+                          no sirve]-- y se fueron el 30 sep 2026.
 
-                          Sin esto la nota dice que se intentó y no si se
-                          logró, y entonces «lleva cuatro intentos sin
-                          contestar» no se puede saber. */}
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-sm text-texto-suave">Cómo salió:</span>
-                        {RESULTADOS.map((r) => {
-                          const puesto = resultado === r;
-                          return (
-                            <button
-                              key={r}
-                              type="button"
-                              aria-pressed={puesto}
-                              onClick={() => setResultado(puesto ? null : r)}
-                              className={`rounded-lg border px-3 py-1.5 text-sm transition ${
-                                puesto
-                                  ? "border-marca bg-marca-suave font-medium text-marca"
-                                  : "border-borde hover:bg-superficie-alterna"
-                              }`}
-                            >
-                              {ETIQUETA_RESULTADO[r]}
-                            </button>
-                          );
-                        })}
-                      </div>
+                          Eran la MISMA pregunta que la clasificación de
+                          abajo: las categorías sembradas son Contactado,
+                          No contactado, El dato no sirve y Seguimiento.
+                          El cliente lo dijo así: «Ese "Cómo salió" es la
+                          "Clasificación"». Se preguntaba dos veces lo
+                          mismo y se podía contestar distinto en cada
+                          sitio.
 
-                      {/* La clasificación, DESPUÉS de «cómo salió» y
-                          antes del texto: primero la salida, luego se
+                          El DATO no se perdió: `resultado` sigue en la
+                          nota --de él cuelgan los informes y la cuenta
+                          de intentos sin respuesta-- pero lo DERIVA EL
+                          SERVIDOR de la categoría elegida, que ahora
+                          declara qué significa. Se configura en
+                          «Configuración notas». */}
+
+                      {/* La clasificación, antes del texto: primero se
                           clasifica y al final se escribe. Debajo del
                           texto quedaría después de haberlo contado
                           con palabras, y entonces nadie la toca.
@@ -656,19 +644,27 @@ export default function PaginaFicha() {
                           onChange={(e) => setNota(e.target.value)}
                         />
                         <Boton
-                          disabled={!nota.trim() || canales.length === 0 || !resultado}
+                          /* La CATEGORÍA ocupa el sitio que tenía
+                             «cómo salió»: era lo único que no se podía
+                             dejar sin contestar, y de ella sale ahora el
+                             resultado. La subcategoría sigue siendo
+                             opcional. Ver `completa` en
+                             `clasificacion-de-la-nota.tsx`. */
+                          disabled={
+                            !nota.trim() ||
+                            canales.length === 0 ||
+                            !clasificacion.completa
+                          }
                           onClick={() =>
                             conError(async () => {
                               await crmApi.agregarNota(
                                 f.id,
                                 nota.trim(),
                                 canales,
-                                resultado!,
                                 clasificacion.elegida,
                               );
                               setNota("");
                               setCanales([]);
-                              setResultado(null);
                               clasificacion.limpiar();
                             }, "Nota agregada.")
                           }
@@ -684,12 +680,15 @@ export default function PaginaFicha() {
                         </p>
                       )}
 
-                      {canales.length > 0 && !resultado && nota.trim() !== "" && (
-                        <p className="text-sm text-texto-suave">
-                          Marque cómo salió. Es lo que separa «lo intenté» de «hablé con
-                          ella», y de eso sale a quién hay que insistirle.
-                        </p>
-                      )}
+                      {canales.length > 0 &&
+                        !clasificacion.completa &&
+                        nota.trim() !== "" && (
+                          <p className="text-sm text-texto-suave">
+                            Elija la clasificación. Es lo que separa «lo intenté» de
+                            «hablé con ella», y de eso sale a quién hay que
+                            insistirle.
+                          </p>
+                        )}
                     </div>
 
                     {f.notas.length === 0 && (

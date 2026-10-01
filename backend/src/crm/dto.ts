@@ -24,7 +24,6 @@ import {
 import {
   CanalAutorizacion,
   CanalContacto,
-  ResultadoGestion,
   EtapaParticipante,
   OrigenParticipante,
 } from '../../generated/prisma';
@@ -379,12 +378,27 @@ export class CrearNotaDto {
   @IsEnum(CanalContacto, { each: true })
   canales!: CanalContacto[];
 
-  /// Obligatorio, y por la misma razon que el motivo de una
-  /// etapa de salida: pedirlo opcional es no pedirlo. Sin esto
-  /// no se distingue "lo intente" de "hable con ella", que es
-  /// justo la lista de a quien hay que volver a llamar.
-  @IsEnum(ResultadoGestion)
-  resultado!: ResultadoGestion;
+  /// AQUI YA NO VIENE `resultado`, Y ES A PROPOSITO.
+  ///
+  /// Lo quito el cliente el 30 sep 2026: al anotar una gestion se
+  /// le preguntaba LO MISMO DOS VECES. Arriba «Como salio» --[Hable
+  /// con la persona] [No contesto] [El dato no sirve]-- y debajo
+  /// «Clasificacion», cuyas cuatro categorias sembradas son esas
+  /// mismas tres mas «Seguimiento». Textual: «Ese "Como salio" es
+  /// la "Clasificacion"».
+  ///
+  /// El DATO sigue existiendo --de `NotaDeGestion.resultado`
+  /// cuelgan los informes y la cuenta de intentos sin respuesta--,
+  /// pero lo DERIVA EL SERVIDOR de la categoria elegida, que ahora
+  /// declara que significa (`CategoriaDeNota.resultado`).
+  ///
+  /// Y no se acepta aqui aunque alguien lo mande: con `whitelist` y
+  /// `forbidNonWhitelisted` puestos en `main.ts`, un cliente que
+  /// siga enviandolo recibe un 400 en vez de que se ignore en
+  /// silencio. Es lo que se quiere: si la pantalla y el catalogo
+  /// pudieran discrepar, un dia la nota diria «Contactado ·
+  /// SIN_RESPUESTA» --coherente para la base, mentira para el
+  /// informe-- y nada fallaria.
 
   /// La clasificacion configurable: categoria y subcategoria.
   ///
