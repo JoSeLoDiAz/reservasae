@@ -10,7 +10,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-import { Bloque, Cargando } from "@/components/admin/piezas";
+import {
+  Encabezado, Bloque, Cargando } from "@/components/admin/piezas";
 import { conPermiso } from "@/components/admin/puerta-de-pantalla";
 import { Aviso, Boton, CLASE_CONTROL, useAdmin } from "@/components/admin/marco-admin";
 import { ErrorApi } from "@/lib/api";
@@ -83,7 +84,13 @@ function PaginaCorreo() {
     /// primera tarjeta, que es donde se mira.
     /// Sin `min-h-0 grow`: aquí no scrollea nada de dentro.
     /// La explicación larga está en `usuarios/page.tsx`.
-    <div className="flex flex-col gap-4 px-4 pt-4 pb-6">
+    <div className="flex flex-col gap-4 px-4 pt-4 pb-6 [&>header]:mx-0 [&>header]:mb-0">
+      {/* CON TÍTULO, como el resto del panel: «Mailing no tiene
+          títulos» / «Sistemas igual, no tiene título» (cliente, 1 oct
+          2026). Estas pantallas empezaban directamente en su contenido
+          y la única pista de dónde estaba uno era el menú de arriba,
+          que se cierra en cuanto se suelta. */}
+      <Encabezado compacto titulo="Cuenta de correo" />
       {error && <Aviso tipo="error">{error}</Aviso>}
       {exito && <Aviso tipo="exito">{exito}</Aviso>}
 
