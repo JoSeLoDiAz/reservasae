@@ -35,22 +35,51 @@
 
 import { PrismaClient } from '../generated/prisma';
 import { calcularDigitoVerificacion } from '../src/comun/nit';
+import { tamanoDeIndependiente } from '../src/crm/tamano-del-independiente';
 
 const prisma = new PrismaClient();
 const aplicar = process.argv.includes('--aplicar');
 
 async function main() {
   const empresas = await prisma.empresa.findMany({
-    select: { id: true, nit: true, razonSocial: true, digitoVerificacion: true },
+    select: {
+      id: true,
+      nit: true,
+      razonSocial: true,
+      digitoVerificacion: true,
+      tamanoSepId: true,
+      numeroTrabajadores: true,
+      sectorEconomico: true,
+      direccion: true,
+      telefono: true,
+      departamentoSepId: true,
+      municipioSepId: true,
+      contactoNombre: true,
+      contactoCorreo: true,
+    },
     orderBy: { nit: 'asc' },
   });
 
   /// Quién es independiente: su NIT es el documento de alguien. No hay
   /// bandera guardada, se deduce ---es como lo hace el CRM---.
   const personas = await prisma.persona.findMany({
-    select: { numeroDocumento: true },
+    select: {
+      numeroDocumento: true,
+      primerNombre: true,
+      segundoNombre: true,
+      primerApellido: true,
+      segundoApellido: true,
+      correo: true,
+      celular: true,
+      direccion: true,
+      departamentoSepId: true,
+      municipioSepId: true,
+    },
   });
   const documentos = new Set(personas.map((p) => p.numeroDocumento));
+  /// Por documento: para un independiente, su documento ES el NIT de
+  /// su empresa. Es la misma deducción que hace el CRM.
+  const porDocumento = new Map(personas.map((p) => [p.numeroDocumento, p]));
 
   const enDirectorio = new Set(
     (
@@ -88,6 +117,49 @@ async function main() {
   }
   console.log(`\nfuera del directorio: ${fuera.length}`);
   for (const e of fuera) console.log(`  ${comoSeLlama(e)}`);
+
+  /**
+   * LO QUE EL SEP PIDE DE LA ORGANIZACIÓN Y YA SE SABE.
+   *
+   * Solo para los INDEPENDIENTES: en ellos la empresa es la persona,
+   * así que su domicilio, su celular y su correo son los de la
+   * organización. En una empresa de verdad esto sería inventarse la
+   * sede con la casa de un empleado.
+   *
+   * Nada pisa lo que ya estuviera escrito: se rellena el hueco.
+   */
+  const aCompletar = empresas
+    .filter((e) => conNumero(e) && porDocumento.has(e.nit))
+    .map((e) => {
+      const yo = porDocumento.get(e.nit)!;
+      const nombre = [yo.primerNombre, yo.segundoNombre, yo.primerApellido, yo.segundoApellido]
+        .filter(Boolean)
+        .join(' ');
+      const puesto: Record<string, unknown> = {};
+      if (!e.direccion && yo.direccion) puesto.direccion = yo.direccion;
+      if (!e.telefono && yo.celular) puesto.telefono = yo.celular;
+      if (!e.departamentoSepId && yo.departamentoSepId)
+        puesto.departamentoSepId = yo.departamentoSepId;
+      if (!e.municipioSepId && yo.municipioSepId)
+        puesto.municipioSepId = yo.municipioSepId;
+      if (!e.contactoNombre && nombre) puesto.contactoNombre = nombre;
+      if (!e.contactoCorreo && yo.correo) puesto.contactoCorreo = yo.correo;
+      if (!e.numeroTrabajadores) puesto.numeroTrabajadores = 1;
+      if (!e.tamanoSepId) {
+        const t = tamanoDeIndependiente(e.sectorEconomico);
+        if (t) puesto.tamanoSepId = t;
+      }
+      return { e, puesto };
+    })
+    .filter((x) => Object.keys(x.puesto).length > 0);
+
+  console.log(`\nindependientes a los que se les puede rellenar: ${aCompletar.length}`);
+  for (const { e, puesto } of aCompletar) {
+    console.log(`  ${e.nit.padEnd(12)} ${e.razonSocial.padEnd(32)} -> ${Object.keys(puesto).join(', ')}`);
+    if (!e.sectorEconomico) {
+      console.log(`      (sin sector economico: el tamano se queda vacio, no se adivina)`);
+    }
+  }
 
   if (!aplicar) {
     console.log('\nSolo mirando. Con --aplicar se escriben los cambios.');
@@ -127,8 +199,13 @@ async function main() {
     creadas += 1;
   }
 
+  for (const { e, puesto } of aCompletar) {
+    await prisma.empresa.update({ where: { id: e.id }, data: puesto });
+  }
+
   console.log(
-    `\nAplicado: ${sinDigito.length} con dígito nuevo, ${creadas} añadidas al directorio.`,
+    `\nAplicado: ${sinDigito.length} con dígito nuevo, ${creadas} añadidas al ` +
+      `directorio, ${aCompletar.length} independientes completados.`,
   );
 }
 
