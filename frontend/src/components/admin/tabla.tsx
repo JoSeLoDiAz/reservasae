@@ -1073,7 +1073,10 @@ export function Tabla<T>({
                   : null),
               }}
             >
-            <thead className="sticky top-0 z-10">
+            {/* z-30: la cabecera tapa TODO lo que sube, incluidas las
+                celdas de la columna fija. Ver los cuatro niveles
+                explicados más abajo, en la celda de la esquina. */}
+            <thead className="sticky top-0 z-30">
               <tr>
                 {seleccion && (
                   <th className="w-10">
@@ -1142,7 +1145,7 @@ export function Tabla<T>({
                     className={
                       "relative select-none" +
                       (c.clave === primeraFija
-                        ? " sticky left-0 z-20 bg-tabla-cabecera-fondo"
+                        ? " sticky left-0 z-40 bg-tabla-cabecera-fondo"
                         : "") +
                       (c.numerica ? " text-right" : "") +
                       (arrastrada === c.clave ? " opacity-40" : "") +
@@ -1282,7 +1285,7 @@ export function Tabla<T>({
                       className={
                         (c.numerica ? "text-right tabular-nums" : "") +
                         (c.clave === primeraFija
-                          ? " sticky left-0 z-10 bg-superficie"
+                          ? " sticky left-0 z-20 bg-superficie"
                           : "") || undefined
                       }
                     >

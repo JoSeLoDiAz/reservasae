@@ -406,6 +406,24 @@ function DeInscripciones({
     proyeccion: FilaDeProyeccion[];
   }>(cargar, { clave: `asesores-inscripciones-${clave}-${claveAntes}` });
 
+  /**
+   * RESUMEN O CALENDARIO, UNO A LA VEZ.
+   *
+   * «¿Pero esto no sobraría? O no sé, una forma de ver así o por
+   * calendario» (cliente, 30 sep 2026), con las dos tablas apiladas.
+   *
+   * Tenía razón en lo que le chirriaba: las dos van por asesor, y
+   * «Meta diaria» del resumen era LA MISMA CIFRA que una celda del
+   * calendario. Eso sí sobraba, y por eso esa columna sale del
+   * resumen: vive en el calendario, que es donde se entiende.
+   *
+   * Lo que NO sobra es la otra tabla: una cuenta lo que cada quien
+   * lleva HECHO y la otra lo que le TOCA. Son las dos caras y las dos
+   * hacen falta; lo que no hacía falta es verlas a la vez, cada una a
+   * medio ancho y con la página el doble de larga.
+   */
+  const [comoSeVe, setComoSeVe] = useState<"resumen" | "calendario">("resumen");
+
   /// LO QUE ALIMENTA EL CUADRO DE DIANITA: lo que falta por cubrir,
   /// hasta cuándo, y los asesores con nombre. Sale de la proyección
   /// que viaja en la misma consulta, así que las dos mitades de esta
@@ -713,6 +731,36 @@ function DeInscripciones({
         Es la misma `Tabla` de Gestión de leads --con su buscador, sus
         filtros por columna, el selector de columnas y la descarga--,
         así que montada igual se ve igual. */}
+    <div className="flex flex-wrap items-center gap-1">
+      {(
+        [
+          ["resumen", "Resumen"],
+          ["calendario", "Calendario"],
+        ] as const
+      ).map(([clave, etiqueta]) => (
+        <button
+          key={clave}
+          type="button"
+          aria-pressed={comoSeVe === clave}
+          onClick={() => setComoSeVe(clave)}
+          className={
+            "rounded-lg border px-3.5 py-1 text-[0.78125rem] transition " +
+            (comoSeVe === clave
+              ? "border-marca font-semibold text-marca"
+              : "border-borde text-texto-suave hover:text-texto")
+          }
+        >
+          {etiqueta}
+        </button>
+      ))}
+      <span className="ml-1 text-[0.71875rem] text-texto-suave">
+        {comoSeVe === "resumen"
+          ? "lo que cada asesor lleva hecho"
+          : "lo que le toca a cada uno, día por día"}
+      </span>
+    </div>
+
+    {comoSeVe === "resumen" && (
     <Tabla
       /// EL NOMBRE CAMBIA PORQUE CAMBIÓ EL ORDEN DE LAS COLUMNAS.
       ///
@@ -773,7 +821,9 @@ function DeInscripciones({
       }
     />
 
-    {desglosado && (
+    )}
+
+    {comoSeVe === "resumen" && desglosado && (
       <DesgloseDelAsesor fila={desglosado} alCerrar={() => setDesglosado(null)} />
     )}
 
@@ -789,6 +839,7 @@ function DeInscripciones({
 
         Se MUEVE, no se copia: dos cuadros iguales en dos pantallas
         acaban discrepando el día que uno se cambie y el otro no. */}
+    {comoSeVe === "calendario" && (
     <RepartoDiario
       meta={reparto.meta}
       queEs="cupos por cubrir"
@@ -798,6 +849,7 @@ function DeInscripciones({
       vencidas={reparto.vencidas}
       faltaEnVencidas={reparto.faltaEnVencidas}
     />
+    )}
     </>
   );
 }
