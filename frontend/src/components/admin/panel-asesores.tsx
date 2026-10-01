@@ -211,6 +211,14 @@ type ConPeriodo = {
 export function PanelAsesores() {
   const [subvista, setSubvista] = useState<Subvista>("inscripciones");
 
+  /**
+   * QUÉ SE MIRA EN «Asesores de inscripciones»: el resumen o el
+   * calendario. Vive AQUÍ y no dentro de la subvista porque su
+   * interruptor comparte barra con el periodo, y la barra es de esta
+   * pantalla.
+   */
+  const [comoSeVe, setComoSeVe] = useState<"resumen" | "calendario">("resumen");
+
   /// EL PERIODO VIVE AQUÍ, NO DENTRO DE CADA SUBVISTA: «en todos los
   /// tableros debo tener filtros» (cliente, 27 sep 2026), y un filtro
   /// que se reinicia al cambiar de pestaña obliga a elegirlo tres
@@ -294,10 +302,45 @@ export function PanelAsesores() {
           Con `justify-between` el selector queda a la izquierda y el
           periodo a la derecha; en pantalla estrecha el `wrap` lo baja
           a su propio renglón. */}
-      {/* EL PERIODO SE QUEDA AQUÍ, al lado de las cifras sobre las que
-          manda, y ya sin la caja con borde: sola, una fila de un solo
-          control no necesita marco. */}
-      <div className="flex flex-wrap items-center justify-end gap-2">
+      {/* UNA SOLA BARRA: a la izquierda QUÉ se mira, a la derecha DE
+          CUÁNDO. Ver el porqué arriba, donde vive `comoSeVe`. */}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        {subvista === "inscripciones" ? (
+          <div className="flex flex-wrap items-center gap-1">
+            {(
+              [
+                ["resumen", "Resumen"],
+                ["calendario", "Calendario"],
+              ] as const
+            ).map(([clave, etiqueta]) => (
+              <button
+                key={clave}
+                type="button"
+                aria-pressed={comoSeVe === clave}
+                onClick={() => setComoSeVe(clave)}
+                className={
+                  "rounded-lg border px-3.5 py-1 text-[0.78125rem] transition " +
+                  (comoSeVe === clave
+                    ? "border-marca font-semibold text-marca"
+                    : "border-borde text-texto-suave hover:text-texto")
+                }
+              >
+                {etiqueta}
+              </button>
+            ))}
+            <span className="ml-1 text-[0.71875rem] text-texto-suave">
+              {comoSeVe === "resumen"
+                ? "lo que cada asesor lleva hecho"
+                : "lo que le toca a cada uno, día por día"}
+            </span>
+          </div>
+        ) : (
+          /// Las otras tres subvistas no eligen vista: el hueco se
+          /// queda para que el periodo no salte de sitio al cambiar
+          /// de pestaña.
+          <span />
+        )}
+
         <FiltroDePeriodo periodo={periodo} alCambiar={setPeriodo} />
       </div>
 
@@ -310,6 +353,7 @@ export function PanelAsesores() {
           {...{ ventana, ventanaAntes, rotuloAnterior }}
           /// EL CUADRO DE DIANITA LLEVA A DONDE SALEN SUS CIFRAS.
           alIrALaProyeccion={() => setSubvista("proyeccion")}
+          comoSeVe={comoSeVe}
         />
       )}
       {subvista === "academicos" && (
@@ -389,7 +433,12 @@ function DeInscripciones({
   ventanaAntes,
   rotuloAnterior,
   alIrALaProyeccion,
-}: ConPeriodo & { alIrALaProyeccion?: () => void }) {
+  comoSeVe,
+}: ConPeriodo & {
+  alIrALaProyeccion?: () => void;
+  /// Lo decide la barra de arriba, que es donde vive su interruptor.
+  comoSeVe: "resumen" | "calendario";
+}) {
   /// La clave lleva el periodo dentro: sin eso, cambiarlo no vuelve
   /// a pedir y la tabla se queda enseñando el periodo de antes. Y
   /// lleva TAMBIÉN el tramo con el que se compara, que es otro dato
@@ -421,24 +470,6 @@ function DeInscripciones({
     antes: FilaDeAsesor[] | null;
     proyeccion: FilaDeProyeccion[];
   }>(cargar, { clave: `asesores-inscripciones-${clave}-${claveAntes}` });
-
-  /**
-   * RESUMEN O CALENDARIO, UNO A LA VEZ.
-   *
-   * «¿Pero esto no sobraría? O no sé, una forma de ver así o por
-   * calendario» (cliente, 30 sep 2026), con las dos tablas apiladas.
-   *
-   * Tenía razón en lo que le chirriaba: las dos van por asesor, y
-   * «Meta diaria» del resumen era LA MISMA CIFRA que una celda del
-   * calendario. Eso sí sobraba, y por eso esa columna sale del
-   * resumen: vive en el calendario, que es donde se entiende.
-   *
-   * Lo que NO sobra es la otra tabla: una cuenta lo que cada quien
-   * lleva HECHO y la otra lo que le TOCA. Son las dos caras y las dos
-   * hacen falta; lo que no hacía falta es verlas a la vez, cada una a
-   * medio ancho y con la página el doble de larga.
-   */
-  const [comoSeVe, setComoSeVe] = useState<"resumen" | "calendario">("resumen");
 
   /// LO QUE ALIMENTA EL CUADRO DE DIANITA: lo que falta por cubrir,
   /// hasta cuándo, y los asesores con nombre. Sale de la proyección
@@ -747,35 +778,6 @@ function DeInscripciones({
         Es la misma `Tabla` de Gestión de leads --con su buscador, sus
         filtros por columna, el selector de columnas y la descarga--,
         así que montada igual se ve igual. */}
-    <div className="flex flex-wrap items-center gap-1">
-      {(
-        [
-          ["resumen", "Resumen"],
-          ["calendario", "Calendario"],
-        ] as const
-      ).map(([clave, etiqueta]) => (
-        <button
-          key={clave}
-          type="button"
-          aria-pressed={comoSeVe === clave}
-          onClick={() => setComoSeVe(clave)}
-          className={
-            "rounded-lg border px-3.5 py-1 text-[0.78125rem] transition " +
-            (comoSeVe === clave
-              ? "border-marca font-semibold text-marca"
-              : "border-borde text-texto-suave hover:text-texto")
-          }
-        >
-          {etiqueta}
-        </button>
-      ))}
-      <span className="ml-1 text-[0.71875rem] text-texto-suave">
-        {comoSeVe === "resumen"
-          ? "lo que cada asesor lleva hecho"
-          : "lo que le toca a cada uno, día por día"}
-      </span>
-    </div>
-
     {comoSeVe === "resumen" && (
     <Tabla
       /// EL NOMBRE CAMBIA PORQUE CAMBIÓ EL ORDEN DE LAS COLUMNAS.
