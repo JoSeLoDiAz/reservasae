@@ -518,6 +518,7 @@ function Seguimiento() {
         </div>
 
       <GruposDeLaAccion
+        alElegirAccion={setAccion}
         controles={controlesDeServidor}
         accionFormacionId={accionFormacionId}
         grupoId={grupoId}

@@ -409,7 +409,7 @@ export default function PaginaReservas() {
     /// empezaba en 32 px y las tarjetas de debajo en 16. «Los bordes del
     /// titulo deben ir al margen de las tarjetas» (cliente, 1 oct 2026),
     /// medido. Es el mismo arreglo que ya lleva Seguimiento de asesores.
-    <div className="flex min-h-0 grow flex-col gap-3 px-4 pt-3 [&>header]:mx-0 [&>header]:mb-0">
+    <div className="flex min-h-0 grow flex-col gap-3 px-4 pt-3 pb-2 [&>header]:mx-0 [&>header]:mb-0">
       {/* LAS DOS VISTAS Y EL PERIODO, EN LA MISMA FILA.
 
           «En reservas esto debe ir al lado derecho, para quitar esa
