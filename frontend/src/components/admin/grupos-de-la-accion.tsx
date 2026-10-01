@@ -78,6 +78,19 @@ export function GruposDeLaAccion({
   /**
    * LAS TARJETAS QUE SE PINTAN.
    *
+   * LA REGLA: O EL ESCOGEDOR O LA TABLA, NUNCA LOS DOS.
+   *
+   * «Cuando le doy limpiar se ven esas dos tarjetas, todo feo»
+   * (cliente, 1 oct 2026), y antes «¿por qué esto así?» con las
+   * tarjetas de acción encima de una tabla de 167 personas.
+   *
+   * Las tarjetas ---de acción o de grupo--- son el ESCOGEDOR, y la
+   * tabla es el RESULTADO. Juntas, la pantalla pregunta y responde a
+   * la vez, y encima con recortes distintos: las tarjetas separan por
+   * grupo y la tabla los junta. Con la tabla abierta manda la tabla,
+   * que es lo que se pidió ver; para volver al escogedor está
+   * «Ocultar la tabla», que queda justo encima.
+   *
    * Con un grupo elegido NO SE PINTA NINGUNA: «cuando uno la
    * seleccione que se oculte esto, no porque vea eso cómo se ve de
    * fatal; que quede solo "Ver todos los grupos / Ocultar la tabla" y
@@ -89,7 +102,7 @@ export function GruposDeLaAccion({
    * cuántas personas--- y encima empuja la tabla, que es a lo que se
    * entra. Las tarjetas son para ELEGIR grupo; elegido ya, sobran.
    */
-  const aPintar = grupoId ? [] : suyos;
+  const aPintar = grupoId || verInscritos ? [] : suyos;
 
   /**
    * SIN ACCIÓN ELEGIDA SE VEN LAS ACCIONES, NO LOS GRUPOS.
@@ -111,7 +124,25 @@ export function GruposDeLaAccion({
   const conGrupos = acciones.filter((a) =>
     grupos.some((x) => x.accionFormacionId === a.id),
   );
-  const porAccion = !accionFormacionId && !grupoId && conGrupos.length > 1;
+  /**
+   * ...Y NO CUANDO LA TABLA YA ESTÁ ABIERTA CON TODO EL MUNDO.
+   *
+   * «¿Por qué esto así?» (cliente, 1 oct 2026), con las dos tarjetas
+   * de acción encima de una tabla de 167 personas de todas las
+   * acciones.
+   *
+   * Tiene razón y la incoherencia es de este componente: las tarjetas
+   * son el ESCOGEDOR ---de qué acción quiere ver los grupos--- y la
+   * tabla es el RESULTADO. Teniéndolas a la vez, la pantalla pregunta
+   * y responde al mismo tiempo, con dos recortes distintos: las
+   * tarjetas separan por acción y la tabla las junta todas.
+   *
+   * Con la tabla abierta manda la tabla: es lo que se pidió ver. Para
+   * volver al escogedor está «Ocultar la tabla», que es justo lo que
+   * hay encima.
+   */
+  const porAccion =
+    !accionFormacionId && !grupoId && !verInscritos && conGrupos.length > 1;
 
   return (
     <section className="flex flex-col gap-3">
