@@ -23,11 +23,17 @@
  * corta.
  */
 
-import { ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditoriaService, ENTIDADES } from '../comun/auditoria.service';
 import { AQuienSeParece } from './a-quien-se-parece';
+import { ConfiguracionDeNotasService } from '../notas/configuracion-de-notas.service';
 import { porQueNoPuedoContactar, puedoContactar } from './puedo-contactar';
 
 import type { CrearNotaDto } from '../crm/dto';
@@ -42,6 +48,7 @@ export class GestionDelLead {
     private readonly prisma: PrismaService,
     private readonly auditoria: AuditoriaService,
     private readonly seParece: AQuienSeParece,
+    private readonly catalogoDeNotas: ConfiguracionDeNotasService,
   ) {}
 
   /** Deja una nota de gestión sobre un lead. */
@@ -83,6 +90,12 @@ export class GestionDelLead {
       throw new ForbiddenException(porQueNoPuedoContactar(puedo)!);
     }
 
+    /// La clasificación se comprueba FUERA de la transacción y
+    /// antes de abrirla: es una lectura, y abrir la transacción para
+    /// leer dos filas la mantiene abierta mientras se decide si hay
+    /// algo que escribir.
+    const clasificacion = await this.catalogoDeNotas.exigirClasificacion(dto);
+
     /// La nota y la fecha de la última gestión, JUNTAS.
     ///
     /// En la misma transacción porque `ultimaGestionEn` es lo que
@@ -100,6 +113,8 @@ export class GestionDelLead {
           texto: dto.texto,
           canales: dto.canales,
           resultado: dto.resultado,
+          categoriaId: clasificacion.categoriaId,
+          subcategoriaId: clasificacion.subcategoriaId,
         },
         select: { id: true, creadoEn: true },
       });
@@ -126,7 +141,9 @@ export class GestionDelLead {
       ip,
     });
 
-    this.log.log(`Nota en el lead ${lead.id} por ${admin.nombre} (${dto.resultado}).`);
+    this.log.log(
+      `Nota en el lead ${lead.id} por ${admin.nombre} (${dto.resultado}).`,
+    );
     return { id: nota.id, creadoEn: nota.creadoEn };
   }
 

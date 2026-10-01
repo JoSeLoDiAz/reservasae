@@ -4,6 +4,10 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
+import {
+  ClasificacionDeLaNota,
+  useClasificacionDeNota,
+} from "@/components/admin/clasificacion-de-la-nota";
 import { ConfirmarBorrado } from "@/components/admin/confirmar-borrado";
 import {
   IconoBrecha,
@@ -188,6 +192,7 @@ export default function PaginaFicha() {
   const [nota, setNota] = useState("");
   const [canales, setCanales] = useState<CanalContacto[]>([]);
   const [resultado, setResultado] = useState<ResultadoGestion | null>(null);
+  const clasificacion = useClasificacionDeNota();
   const [borrando, setBorrando] = useState(false);
   /// La pestaña abierta. Arranca en «Datos» porque es a lo que
   /// se entra nueve de cada diez veces.
@@ -633,6 +638,22 @@ export default function PaginaFicha() {
                         })}
                       </div>
 
+                      {/* La clasificación, DESPUÉS de «cómo salió» y
+                          antes del texto: primero la salida, luego se
+                          clasifica y al final se escribe. Debajo del
+                          texto quedaría después de haberlo contado
+                          con palabras, y entonces nadie la toca.
+
+                          «Blinda el proceso y se sabe realmente qué
+                          pasó» (cliente, 30 sep 2026): el texto libre
+                          sigue igual, esto lo enmarca. */}
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-sm text-texto-suave">
+                          Clasificación:
+                        </span>
+                        <ClasificacionDeLaNota estado={clasificacion} />
+                      </div>
+
                       <div className="flex gap-3">
                         <input
                           className={CLASE_CONTROL}
@@ -649,10 +670,12 @@ export default function PaginaFicha() {
                                 nota.trim(),
                                 canales,
                                 resultado!,
+                                clasificacion.elegida,
                               );
                               setNota("");
                               setCanales([]);
                               setResultado(null);
+                              clasificacion.limpiar();
                             }, "Nota agregada.")
                           }
                         >
@@ -692,6 +715,12 @@ export default function PaginaFicha() {
                             </span>
                           )}
                           {n.resultado ? " · " : ""}
+                          {/* Las notas de antes del catálogo no traen
+                              clasificación y aquí no se pinta nada:
+                              es lo que significa que sea opcional. */}
+                          {n.categoria && `${n.categoria.nombre}`}
+                          {n.subcategoria && ` › ${n.subcategoria.nombre}`}
+                          {n.categoria ? " · " : ""}
                           {n.autorNombre} · {fecha(n.creadoEn)}
                         </p>
                       </article>

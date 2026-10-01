@@ -606,6 +606,14 @@ export type Ficha = {
     canales?: CanalContacto[];
     /// Nulo en las de antes y en las que escribe el sistema.
     resultado?: ResultadoGestion | null;
+    /// La clasificación, con su NOMBRE y no solo el id: con el id la
+    /// pantalla tendría que cargar el catálogo entero --incluido lo
+    /// oculto-- solo para pintar una nota vieja.
+    ///
+    /// Nulas las dos en todas las notas de antes del catálogo, y en
+    /// las que escribe el sistema. Se pinta lo que haya.
+    categoria?: { id: string; nombre: string } | null;
+    subcategoria?: { id: string; nombre: string } | null;
     creadoEn: string;
   }>;
   /** Cuántas veces se le intentó y si alguna se logró. */
@@ -1804,15 +1812,33 @@ export const crmApi = {
       body: JSON.stringify({ etapa, motivo }),
     }),
 
+  /// La clasificación va al final y es OPCIONAL: así las llamadas
+  /// que había antes de que existiera el catálogo siguen compilando
+  /// y siguen anotando, sin clasificar. Es lo mismo que hace el DTO
+  /// del servidor.
   agregarNota: (
     id: string,
     texto: string,
     canales: CanalContacto[],
     resultado: ResultadoGestion,
+    clasificacion?: { categoriaId: string | null; subcategoriaId: string | null },
   ) =>
     pedir<Record<string, unknown>>(`/admin/participantes/${id}/notas`, {
       method: "POST",
-      body: JSON.stringify({ texto, canales, resultado }),
+      body: JSON.stringify({
+        texto,
+        canales,
+        resultado,
+        /// Sin la llave cuando no hay nada elegido, en vez de con
+        /// `null`: el DTO la declara `@IsOptional`, y un `null`
+        /// explícito no es «no vino».
+        ...(clasificacion?.categoriaId
+          ? { categoriaId: clasificacion.categoriaId }
+          : {}),
+        ...(clasificacion?.subcategoriaId
+          ? { subcategoriaId: clasificacion.subcategoriaId }
+          : {}),
+      }),
     }),
 
   /** Lo que mandó el interesado, si hay algo pendiente. */

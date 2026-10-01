@@ -82,6 +82,12 @@ function armar(o: {
     prisma as never,
     auditoria as never,
     seParece as never,
+    /// El catálogo de notas: aquí no se clasifica nada, así que
+    /// devuelve «sin clasificar».
+    {
+      exigirClasificacion: () =>
+        Promise.resolve({ categoriaId: null, subcategoriaId: null }),
+    } as never,
   );
   return { s, escrito };
 }

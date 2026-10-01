@@ -21,6 +21,7 @@ import {
   type Actor,
 } from '../comun/auditoria.service';
 import { taparDocumento } from '../comun/tapar';
+import { ConfiguracionDeNotasService } from '../notas/configuracion-de-notas.service';
 import { DisparadorInscripcion } from '../instituciones/web/disparador';
 import {
   CLASE_POR_CAMPO,
@@ -440,6 +441,9 @@ export class CrmService {
     private readonly disparador: DisparadorInscripcion,
     /// Al final: hay dobles de prueba que lo construyen a mano.
     private readonly notificaciones: NotificacionesService,
+    /// Y detras de el, por lo mismo: los doce dobles que construyen
+    /// este servicio a mano se pasan en orden.
+    private readonly catalogoDeNotas: ConfiguracionDeNotasService,
   ) {}
 
   async listar(filtros: Filtros) {
@@ -1534,7 +1538,18 @@ export class CrmService {
           // quien lo hizo ya se guardaba y no se veia
           include: { admin: { select: { nombre: true } } },
         },
-        notas: { orderBy: { creadoEn: 'desc' }, take: 50 },
+        notas: {
+          orderBy: { creadoEn: 'desc' },
+          take: 50,
+          /// El NOMBRE y no solo el id: la ficha pinta la nota, y
+          /// con el id la pantalla tendria que cargar el catalogo
+          /// entero para traducirlo. Las notas viejas traen las dos
+          /// en nulo, y asi se pintan: sin clasificar.
+          include: {
+            categoria: { select: { id: true, nombre: true } },
+            subcategoria: { select: { id: true, nombre: true } },
+          },
+        },
       },
     });
 
@@ -4065,6 +4080,12 @@ export class CrmService {
     const existe = await this.prisma.participante.count({ where: { id } });
     if (!existe) throw new NotFoundException('Ese participante no existe.');
 
+    /// La clasificacion se comprueba ANTES de escribir, y en el
+    /// servidor. Si la subcategoria fuera de otra categoria la nota
+    /// quedaria guardada y el informe contaria mal sin que nada
+    /// falle: es el defecto que no se ve hasta cuadrar cifras.
+    const clasificacion = await this.catalogoDeNotas.exigirClasificacion(dto);
+
     // el nombre se congela: si el autor cambia el suyo,
     // la nota sigue diciendo quien la escribio
     const nota = await this.prisma.notaDeGestion.create({
@@ -4075,6 +4096,12 @@ export class CrmService {
         texto: dto.texto,
         canales: dto.canales,
         resultado: dto.resultado,
+        categoriaId: clasificacion.categoriaId,
+        subcategoriaId: clasificacion.subcategoriaId,
+      },
+      include: {
+        categoria: { select: { id: true, nombre: true } },
+        subcategoria: { select: { id: true, nombre: true } },
       },
     });
 
@@ -4083,9 +4110,16 @@ export class CrmService {
       accion: 'NOTA_CREADA',
       entidad: ENTIDADES.PARTICIPANTE,
       entidadId: id,
-      // el resultado va aqui: sin el, la auditoria no
-      // distingue un intento de una conversacion
-      resumen: `Gestión por ${[...dto.canales].sort().join(' + ')} · ${dto.resultado}`,
+      /// El resultado va aqui: sin el, la auditoria no distingue un
+      /// intento de una conversacion. Y la categoria tambien, que es
+      /// lo que el cliente pidio para «blindar el proceso»: el texto
+      /// libre NO se copia aqui --puede traer datos de la persona--,
+      /// pero la clasificacion es un valor de catalogo y se puede
+      /// leer sin abrir la ficha.
+      resumen:
+        `Gestión por ${[...dto.canales].sort().join(' + ')} · ${dto.resultado}` +
+        (nota.categoria ? ` · ${nota.categoria.nombre}` : '') +
+        (nota.subcategoria ? ` › ${nota.subcategoria.nombre}` : ''),
     });
 
     return nota;

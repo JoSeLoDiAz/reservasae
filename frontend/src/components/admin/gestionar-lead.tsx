@@ -34,6 +34,11 @@ import {
 } from "@/lib/crm-api";
 import { mesaApi, type LeadDeLaMesa } from "@/lib/mesa-api";
 
+import {
+  ClasificacionDeLaNota,
+  useClasificacionDeNota,
+} from "./clasificacion-de-la-nota";
+
 import { Aviso, Boton } from "./marco-admin";
 
 /// ¿Pinto el botón de llamar?
@@ -59,6 +64,7 @@ export function GestionarLead({
   const [texto, setTexto] = useState("");
   const [canales, setCanales] = useState<CanalContacto[]>([]);
   const [resultado, setResultado] = useState<ResultadoGestion | null>(null);
+  const clasificacion = useClasificacionDeNota();
   const [error, setError] = useState<string | null>(null);
   const [guardando, setGuardando] = useState(false);
 
@@ -74,6 +80,14 @@ export function GestionarLead({
         texto: texto.trim(),
         canales,
         resultado,
+        /// Sin la llave cuando no hay nada elegido: el DTO la
+        /// declara opcional, y un `null` explícito no es «no vino».
+        ...(clasificacion.categoriaId
+          ? { categoriaId: clasificacion.categoriaId }
+          : {}),
+        ...(clasificacion.subcategoriaId
+          ? { subcategoriaId: clasificacion.subcategoriaId }
+          : {}),
       });
       setError(null);
       alGuardado();
@@ -198,6 +212,18 @@ export function GestionarLead({
                 </button>
               ))}
             </div>
+          </div>
+
+          {/* ENTRE «cómo salió» Y «qué pasó», que es el orden en que
+              se piensa: primero la salida, luego se clasifica, y al
+              final se escribe. Debajo del texto quedaría después de
+              haberlo contado con palabras, y entonces nadie lo
+              toca. */}
+          <div>
+            <span className="mb-1 block text-sm font-medium">
+              Clasificación
+            </span>
+            <ClasificacionDeLaNota estado={clasificacion} />
           </div>
 
           <label className="block">

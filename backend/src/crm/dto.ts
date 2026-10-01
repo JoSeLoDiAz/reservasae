@@ -404,6 +404,31 @@ export class CrearNotaDto {
   /// justo la lista de a quien hay que volver a llamar.
   @IsEnum(ResultadoGestion)
   resultado!: ResultadoGestion;
+
+  /// La clasificacion configurable: categoria y subcategoria.
+  ///
+  /// OPCIONALES LAS DOS, y no por comodidad: las notas que ya
+  /// existen no tienen categoria, asi que si fueran obligatorias
+  /// ninguna pantalla vieja podria seguir anotando mientras se
+  /// despliega. Que sea de verdad obligatorio elegir se decide en
+  /// la pantalla, donde se puede acompanar; aqui lo que importa es
+  /// que lo que llegue sea COHERENTE, y de eso se encarga
+  /// `ConfiguracionDeNotasService.exigirClasificacion`: la
+  /// subcategoria tiene que ser de esa categoria, y ninguna de las
+  /// dos puede estar oculta.
+  ///
+  /// No se validan aqui con un `@IsIn`: el catalogo esta en la
+  /// base y cambia sin desplegar, que es justo el motivo de que
+  /// exista.
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  categoriaId?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  subcategoriaId?: string;
 }
 
 export class AgregarNitDto {

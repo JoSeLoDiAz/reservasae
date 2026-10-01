@@ -3,6 +3,7 @@ import { JwtModule } from '@nestjs/jwt';
 
 import { AuditoriaService } from '../comun/auditoria.service';
 import { InstitucionesModule } from '../instituciones/instituciones.module';
+import { NotasModule } from '../notas/notas.module';
 import { PreinscripcionModule } from '../preinscripcion/preinscripcion.module';
 import { CrmController } from './crm.controller';
 import { CrmService } from './crm.service';
@@ -35,6 +36,10 @@ import { SepService } from './sep/sep.service';
     ColaRuiModule,
     // el cambio a INSCRITO dispara la validacion de la empresa
     InstitucionesModule,
+    /// La nota clasificada se valida con el MISMO servicio que usa
+    /// la pantalla de configuracion: si la comprobacion viviera
+    /// aqui copiada, un dia diria otra cosa.
+    NotasModule,
   ],
   controllers: [CrmController, SepController],
   providers: [

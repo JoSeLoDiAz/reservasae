@@ -1,0 +1,499 @@
+/** Los candados del catálogo de notas. */
+
+/**
+ * Cuatro, y cada uno protege algo que ya se rompió en esta casa de
+ * otra forma:
+ *
+ *  1. No se repite el nombre de una categoría. Dos «No contactado»
+ *     parten en dos el informe que cuelga de esa categoría.
+ *  2. Ocultar NO borra. Es la regla de la casa, y aquí es
+ *     obligatoria: hay notas que nombran la fila.
+ *  3. Una subcategoría es de SU categoría. Cruzarlas vuelve el
+ *     informe mentira sin que nada falle.
+ *  4. Una nota con una subcategoría de otra categoría se rechaza, y
+ *     se rechaza en el SERVIDOR: la ruta se llama directo.
+ *
+ * EL DOBLE APLICA LOS FILTROS DE VERDAD, como el de
+ * `notificaciones.spec.ts` y por el mismo motivo: ya se falló en
+ * este proyecto con un doble que devolvía lo primero que encontraba,
+ * y los tests pasaban probando el doble.
+ */
+
+import { ConfiguracionDeNotasService } from './configuracion-de-notas.service';
+
+type FilaCategoria = {
+  id: string;
+  nombre: string;
+  orden: number;
+  ocultaEn: Date | null;
+};
+
+type FilaSub = {
+  id: string;
+  categoriaId: string;
+  nombre: string;
+  orden: number;
+  ocultaEn: Date | null;
+};
+
+type Donde = Record<string, unknown>;
+
+/// El `mode: 'insensitive'` de Prisma, de verdad: sin esto el test
+/// de «no se repite el nombre» pasaría con el candado quitado,
+/// porque el doble compararía exacto igual que la base.
+function casaNombre(valor: string, pedido: unknown): boolean {
+  if (typeof pedido === 'string') return valor === pedido;
+  const o = pedido as { equals?: string; mode?: string };
+  if (o?.equals === undefined) return true;
+  return o.mode === 'insensitive'
+    ? valor.toLocaleLowerCase() === o.equals.toLocaleLowerCase()
+    : valor === o.equals;
+}
+
+function casa(
+  fila: Record<string, unknown>,
+  donde: Donde | undefined,
+): boolean {
+  if (!donde) return true;
+  return Object.entries(donde).every(([k, v]) => {
+    if (k === 'nombre') return casaNombre(fila.nombre as string, v);
+    if (k === 'ocultaEn') return v === null ? fila.ocultaEn === null : true;
+    if (v !== null && typeof v === 'object' && 'not' in v) {
+      return fila[k] !== v.not;
+    }
+    return fila[k] === v;
+  });
+}
+
+function armar(
+  categorias: FilaCategoria[] = [],
+  subs: FilaSub[] = [],
+  /// Las notas que ya nombran una fila. Sin esto, «ocultar no
+  /// borra» se probaría sobre un catálogo que nadie usa, que es el
+  /// caso en el que borrar no dolería.
+  notas: Array<{
+    id: string;
+    categoriaId: string | null;
+    subcategoriaId: string | null;
+  }> = [],
+) {
+  const borrados: string[] = [];
+
+  const prisma = {
+    categoriaDeNota: {
+      /// APLICA TAMBIÉN EL `where` ANIDADO de las subcategorías. Sin
+      /// eso, «la oculta no se ofrece al anotar» pasaba aunque el
+      /// servicio no filtrara las subcategorías: probaba el doble.
+      findMany: ({
+        where,
+        include,
+      }: {
+        where?: Donde;
+        include?: { subcategorias?: { where?: Donde } };
+      } = {}) =>
+        Promise.resolve(
+          categorias
+            .filter((c) => casa(c, where))
+            .sort(
+              (a, b) => a.orden - b.orden || a.nombre.localeCompare(b.nombre),
+            )
+            .map((c) => ({
+              ...c,
+              subcategorias: subs
+                .filter(
+                  (s) =>
+                    s.categoriaId === c.id &&
+                    casa(s, include?.subcategorias?.where),
+                )
+                .sort((a, b) => a.orden - b.orden),
+              _count: {
+                notas: notas.filter((n) => n.categoriaId === c.id).length,
+              },
+            })),
+        ),
+      findFirst: ({ where }: { where?: Donde } = {}) =>
+        Promise.resolve(categorias.find((c) => casa(c, where)) ?? null),
+      findUnique: ({ where }: { where: { id: string } }) =>
+        Promise.resolve(categorias.find((c) => c.id === where.id) ?? null),
+      create: ({ data }: { data: { nombre: string; orden: number } }) => {
+        const fila: FilaCategoria = {
+          id: `cat${categorias.length + 1}`,
+          nombre: data.nombre,
+          orden: data.orden,
+          ocultaEn: null,
+        };
+        categorias.push(fila);
+        return Promise.resolve(fila);
+      },
+      update: ({ where, data }: { where: { id: string }; data: Donde }) => {
+        const fila = categorias.find((c) => c.id === where.id);
+        if (!fila) throw new Error('el doble no tiene esa categoría');
+        for (const [k, v] of Object.entries(data)) {
+          if (v !== undefined) (fila as unknown as Donde)[k] = v;
+        }
+        return Promise.resolve(fila);
+      },
+      /// EL DOBLE SABE BORRAR. Y es a propósito: si el servicio
+      /// algún día llama a `delete`, el test de «ocultar no borra»
+      /// tiene que caerse. Con un doble sin `delete` reventaría por
+      /// el motivo equivocado --«no es una función»-- y eso no
+      /// prueba la regla, prueba el doble.
+      delete: ({ where }: { where: { id: string } }) => {
+        borrados.push(where.id);
+        const i = categorias.findIndex((c) => c.id === where.id);
+        if (i >= 0) categorias.splice(i, 1);
+        return Promise.resolve({ id: where.id });
+      },
+    },
+    subcategoriaDeNota: {
+      findFirst: ({ where }: { where?: Donde } = {}) =>
+        Promise.resolve(subs.find((s) => casa(s, where)) ?? null),
+      findUnique: ({ where }: { where: { id: string } }) => {
+        const s = subs.find((x) => x.id === where.id);
+        if (!s) return Promise.resolve(null);
+        const cat = categorias.find((c) => c.id === s.categoriaId);
+        return Promise.resolve({
+          ...s,
+          categoria: { nombre: cat?.nombre ?? '?' },
+        });
+      },
+      create: ({
+        data,
+      }: {
+        data: { categoriaId: string; nombre: string; orden: number };
+      }) => {
+        const fila: FilaSub = {
+          id: `sub${subs.length + 1}`,
+          categoriaId: data.categoriaId,
+          nombre: data.nombre,
+          orden: data.orden,
+          ocultaEn: null,
+        };
+        subs.push(fila);
+        return Promise.resolve(fila);
+      },
+      update: ({ where, data }: { where: { id: string }; data: Donde }) => {
+        const fila = subs.find((s) => s.id === where.id);
+        if (!fila) throw new Error('el doble no tiene esa subcategoría');
+        for (const [k, v] of Object.entries(data)) {
+          if (v !== undefined) (fila as unknown as Donde)[k] = v;
+        }
+        return Promise.resolve(fila);
+      },
+      delete: ({ where }: { where: { id: string } }) => {
+        borrados.push(where.id);
+        const i = subs.findIndex((s) => s.id === where.id);
+        if (i >= 0) subs.splice(i, 1);
+        return Promise.resolve({ id: where.id });
+      },
+    },
+    notaDeGestion: {
+      groupBy: () =>
+        Promise.resolve(
+          [...new Set(notas.map((n) => n.subcategoriaId).filter(Boolean))].map(
+            (id) => ({
+              subcategoriaId: id,
+              _count: {
+                _all: notas.filter((n) => n.subcategoriaId === id).length,
+              },
+            }),
+          ),
+        ),
+    },
+  };
+
+  const servicio = new ConfiguracionDeNotasService(
+    prisma as never,
+    {
+      registrar: () => Promise.resolve(),
+    } as never,
+  );
+
+  return { servicio, categorias, subs, borrados };
+}
+
+const QUIEN = { id: 'a1', nombre: 'Ana Jaramillo' };
+
+function categoria(
+  id: string,
+  nombre: string,
+  orden = 10,
+  ocultaEn: Date | null = null,
+): FilaCategoria {
+  return { id, nombre, orden, ocultaEn };
+}
+
+function sub(
+  id: string,
+  categoriaId: string,
+  nombre: string,
+  ocultaEn: Date | null = null,
+): FilaSub {
+  return { id, categoriaId, nombre, orden: 10, ocultaEn };
+}
+
+describe('el nombre de una categoría no se repite', () => {
+  it('rechaza el mismo nombre', async () => {
+    const { servicio, categorias } = armar([categoria('c1', 'No contactado')]);
+
+    await expect(
+      servicio.crearCategoria({ nombre: 'No contactado' }, QUIEN),
+    ).rejects.toThrow(/ya existe/i);
+
+    expect(categorias).toHaveLength(1);
+  });
+
+  /// Y SIN DISTINGUIR MAYÚSCULAS, que es lo que el `@unique` de la
+  /// base NO cubre: «no contactado» pasaría el índice y quedarían
+  /// dos filas que en el desplegable se leen igual.
+  it('rechaza el mismo nombre con otras mayúsculas', async () => {
+    const { servicio, categorias } = armar([categoria('c1', 'No contactado')]);
+
+    await expect(
+      servicio.crearCategoria({ nombre: 'NO CONTACTADO' }, QUIEN),
+    ).rejects.toThrow(/ya existe/i);
+
+    expect(categorias).toHaveLength(1);
+  });
+
+  /// Si la que choca está OCULTA, el mensaje tiene que decirlo: si
+  /// no, quien configura ve «ya existe» y no la encuentra en la
+  /// pantalla, porque está entre las ocultas.
+  it('dice que la repetida está oculta, para poder desocultarla', async () => {
+    const { servicio } = armar([
+      categoria('c1', 'No contactado', 10, new Date('2026-09-30')),
+    ]);
+
+    await expect(
+      servicio.crearCategoria({ nombre: 'No contactado' }, QUIEN),
+    ).rejects.toThrow(/oculta/i);
+  });
+
+  it('deja crear una con nombre distinto, al final del orden', async () => {
+    const { servicio, categorias } = armar([
+      categoria('c1', 'No contactado', 10),
+    ]);
+
+    await servicio.crearCategoria({ nombre: 'Contactado' }, QUIEN);
+
+    expect(categorias.map((c) => [c.nombre, c.orden])).toEqual([
+      ['No contactado', 10],
+      ['Contactado', 20],
+    ]);
+  });
+
+  /// El mismo nombre SÍ se repite entre categorías distintas: «Sin
+  /// respuesta» puede tener sentido en dos sitios, y prohibirlo
+  /// obligaría a inventar sinónimos.
+  it('la subcategoría sí repite nombre en otra categoría', async () => {
+    const { servicio, subs } = armar(
+      [categoria('c1', 'No contactado'), categoria('c2', 'Contactado')],
+      [sub('s1', 'c1', 'Sin respuesta')],
+    );
+
+    await servicio.crearSubcategoria('c2', { nombre: 'Sin respuesta' }, QUIEN);
+
+    expect(subs).toHaveLength(2);
+  });
+
+  it('pero no dentro de la misma', async () => {
+    const { servicio, subs } = armar(
+      [categoria('c1', 'No contactado')],
+      [sub('s1', 'c1', 'Sin respuesta')],
+    );
+
+    await expect(
+      servicio.crearSubcategoria('c1', { nombre: 'sin respuesta' }, QUIEN),
+    ).rejects.toThrow(/ya está/i);
+
+    expect(subs).toHaveLength(1);
+  });
+});
+
+describe('ocultar no borra', () => {
+  it('la categoría se queda, con la fecha de cuándo dejó de ofrecerse', async () => {
+    const { servicio, categorias, borrados } = armar(
+      [categoria('c1', 'No contactado')],
+      [sub('s1', 'c1', 'Sin respuesta')],
+      [{ id: 'n1', categoriaId: 'c1', subcategoriaId: 's1' }],
+    );
+
+    await servicio.actualizarCategoria('c1', { oculta: true }, QUIEN);
+
+    expect(borrados).toEqual([]);
+    expect(categorias).toHaveLength(1);
+    expect(categorias[0].ocultaEn).toBeInstanceOf(Date);
+  });
+
+  it('la subcategoría también', async () => {
+    const { servicio, subs, borrados } = armar(
+      [categoria('c1', 'No contactado')],
+      [sub('s1', 'c1', 'Sin respuesta')],
+    );
+
+    await servicio.actualizarSubcategoria('s1', { oculta: true }, QUIEN);
+
+    expect(borrados).toEqual([]);
+    expect(subs).toHaveLength(1);
+    expect(subs[0].ocultaEn).toBeInstanceOf(Date);
+  });
+
+  /// La oculta SIGUE SALIENDO en el catálogo completo, porque si no
+  /// no hay forma de volver a ofrecerla; y NO sale en el de los
+  /// desplegables, que es lo que significa ocultar.
+  it('la oculta se ve al configurar y no se ofrece al anotar', async () => {
+    const { servicio } = armar(
+      [
+        categoria('c1', 'No contactado'),
+        categoria('c2', 'Vieja', 20, new Date()),
+      ],
+      [
+        sub('s1', 'c1', 'Sin respuesta'),
+        sub('s2', 'c1', 'Antigua', new Date()),
+      ],
+    );
+
+    const todo = await servicio.listar();
+    expect(todo.map((c) => c.nombre)).toEqual(['No contactado', 'Vieja']);
+    expect(todo[1].oculta).toBe(true);
+
+    const ofrecido = await servicio.listar(true);
+    expect(ofrecido.map((c) => c.nombre)).toEqual(['No contactado']);
+    expect(ofrecido[0].subcategorias.map((s) => s.nombre)).toEqual([
+      'Sin respuesta',
+    ]);
+  });
+
+  it('se vuelve a ofrecer poniendo oculta en falso', async () => {
+    const { servicio, categorias } = armar([
+      categoria('c1', 'No contactado', 10, new Date('2026-09-01')),
+    ]);
+
+    await servicio.actualizarCategoria('c1', { oculta: false }, QUIEN);
+
+    expect(categorias[0].ocultaEn).toBeNull();
+  });
+
+  /// Reocultar algo ya oculto no puede mover la fecha: la pregunta
+  /// que contesta es «desde cuándo», y un segundo clic la perdería.
+  it('reocultar no mueve la fecha de cuándo se ocultó', async () => {
+    const cuando = new Date('2026-09-01');
+    const { servicio, categorias } = armar([
+      categoria('c1', 'No contactado', 10, cuando),
+    ]);
+
+    await servicio.actualizarCategoria('c1', { oculta: true }, QUIEN);
+
+    expect(categorias[0].ocultaEn).toEqual(cuando);
+  });
+
+  /// Nada nuevo cuelga de una categoría oculta: no se ofrecería en
+  /// ningún desplegable y quien la creó se quedaría esperando.
+  it('no deja colgar una subcategoría de una categoría oculta', async () => {
+    const { servicio, subs } = armar([
+      categoria('c1', 'No contactado', 10, new Date()),
+    ]);
+
+    await expect(
+      servicio.crearSubcategoria('c1', { nombre: 'Sin respuesta' }, QUIEN),
+    ).rejects.toThrow(/oculta/i);
+
+    expect(subs).toEqual([]);
+  });
+});
+
+describe('una subcategoría pertenece a su categoría', () => {
+  it('la lista la cuelga de la suya y no de la otra', async () => {
+    const { servicio } = armar(
+      [categoria('c1', 'No contactado', 10), categoria('c2', 'Contactado', 20)],
+      [sub('s1', 'c1', 'Sin respuesta'), sub('s2', 'c2', 'Interesado')],
+    );
+
+    const todo = await servicio.listar();
+
+    expect(todo[0].subcategorias.map((s) => s.nombre)).toEqual([
+      'Sin respuesta',
+    ]);
+    expect(todo[1].subcategorias.map((s) => s.nombre)).toEqual(['Interesado']);
+  });
+
+  it('acepta la pareja que de verdad va junta', async () => {
+    const { servicio } = armar(
+      [categoria('c1', 'No contactado')],
+      [sub('s1', 'c1', 'Sin respuesta')],
+    );
+
+    await expect(
+      servicio.exigirClasificacion({ categoriaId: 'c1', subcategoriaId: 's1' }),
+    ).resolves.toEqual({ categoriaId: 'c1', subcategoriaId: 's1' });
+  });
+
+  it('rechaza una subcategoría sin categoría', async () => {
+    const { servicio } = armar(
+      [categoria('c1', 'No contactado')],
+      [sub('s1', 'c1', 'Sin respuesta')],
+    );
+
+    await expect(
+      servicio.exigirClasificacion({ subcategoriaId: 's1' }),
+    ).rejects.toThrow(/sin categoría/i);
+  });
+});
+
+describe('una nota con la subcategoría de otra categoría se rechaza', () => {
+  /// ES EL DEFECTO QUE NO SE VE: la nota quedaría guardada, nada
+  /// fallaría, y el informe contaría «No contactado › Interesado»
+  /// hasta que alguien cuadrara cifras. Pasa de verdad --el asesor
+  /// cambia el primer desplegable y el segundo se queda con lo de
+  /// antes-- y por eso se para en el servidor y no solo en la
+  /// pantalla: esta ruta se llama directo.
+  it('no cruza las dos categorías', async () => {
+    const { servicio } = armar(
+      [categoria('c1', 'No contactado'), categoria('c2', 'Contactado')],
+      [sub('s1', 'c1', 'Sin respuesta'), sub('s2', 'c2', 'Interesado')],
+    );
+
+    await expect(
+      servicio.exigirClasificacion({ categoriaId: 'c1', subcategoriaId: 's2' }),
+    ).rejects.toThrow(/no es una subcategoría de «No contactado»/i);
+  });
+
+  it('rechaza una categoría oculta', async () => {
+    const { servicio } = armar([categoria('c1', 'Vieja', 10, new Date())]);
+
+    await expect(
+      servicio.exigirClasificacion({ categoriaId: 'c1' }),
+    ).rejects.toThrow(/ya no se ofrece/i);
+  });
+
+  it('rechaza una subcategoría oculta', async () => {
+    const { servicio } = armar(
+      [categoria('c1', 'No contactado')],
+      [sub('s1', 'c1', 'Antigua', new Date())],
+    );
+
+    await expect(
+      servicio.exigirClasificacion({ categoriaId: 'c1', subcategoriaId: 's1' }),
+    ).rejects.toThrow(/ya no se ofrece/i);
+  });
+
+  it('rechaza una que no existe', async () => {
+    const { servicio } = armar([categoria('c1', 'No contactado')]);
+
+    await expect(
+      servicio.exigirClasificacion({ categoriaId: 'inventada' }),
+    ).rejects.toThrow(/no existe/i);
+  });
+
+  /// LAS NOTAS VIEJAS NO SE ROMPEN. Sin categoría es válido, y
+  /// tiene que serlo: así están las miles que ya hay en la base y
+  /// así quedan las que escribe el sistema.
+  it('sin clasificar sigue valiendo', async () => {
+    const { servicio } = armar([categoria('c1', 'No contactado')]);
+
+    await expect(servicio.exigirClasificacion({})).resolves.toEqual({
+      categoriaId: null,
+      subcategoriaId: null,
+    });
+  });
+});

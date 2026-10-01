@@ -65,6 +65,13 @@ function servicio(vivas: string[]) {
     { alInscribir: () => Promise.resolve() } as never,
   
     { avisar: () => Promise.resolve() } as never,
+    /// El catálogo de notas. Devuelve «sin clasificar», que es lo
+    /// que anota una pantalla que todavía no ofrece los
+    /// desplegables: ninguno de estos tests clasifica nada.
+    {
+      exigirClasificacion: () =>
+        Promise.resolve({ categoriaId: null, subcategoriaId: null }),
+    } as never,
   );
   /// `obtener` lee media base; no es lo que se prueba.
   jest.spyOn(s, 'obtener').mockResolvedValue({ id: 'p1' } as never);

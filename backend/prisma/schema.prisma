@@ -100,9 +100,9 @@ model AccionFormacion {
   /// palabras. Se edita desde Formularios.
   resumenPublico String?
 
-  visible       Boolean  @default(false) /// arranca oculta: se publica cuando tiene fechas
-  orden         Int      @default(0)
-  sepAfId       Int? /// como la conoce el SEP
+  visible Boolean @default(false) /// arranca oculta: se publica cuando tiene fechas
+  orden   Int     @default(0)
+  sepAfId Int? /// como la conoce el SEP
 
   /// Cuantos asesores trabajan esta accion, para la proyeccion de
   /// metas. Lo pone el administrador a mano: no sale de ningun dato,
@@ -1324,6 +1324,88 @@ model PasoDeVisita {
   @@map("pasos_de_visita")
 }
 
+/// Con que se clasifica una gestion: la categoria.
+///
+/// ES UN CATALOGO EN LA BASE Y NO UN ENUM, y esa es la decision que
+/// lo sostiene. Lo pidio el cliente el 30 sep 2026 --«necesito que
+/// las notas sean como las plantillas personalizables [...] su
+/// categoria y su subcategoria mas lo que coloque el asesor»--: con
+/// un enum, cada razon nueva que a alguien se le ocurra un martes
+/// seria una migracion y un despliegue, y entonces nadie la pide y
+/// todo vuelve al texto libre. Que es justo lo que esto existe para
+/// evitar: con texto libre no se puede contar que paso.
+///
+/// El texto libre NO desaparece: la categoria lo enmarca, no lo
+/// sustituye. «Mas lo que coloque el asesor», textual.
+model CategoriaDeNota {
+  id String @id @default(cuid())
+
+  /// Unico, y a proposito: dos «No contactado» en el desplegable
+  /// son dos filas que cuentan la mitad cada una, y el informe que
+  /// cuelga de «No contactado» no sabria cual sumar.
+  nombre String @unique
+
+  /// El orden del desplegable. Lo manda el proceso, no el alfabeto:
+  /// «No contactado» va antes que «Contactado» porque es lo que mas
+  /// se anota.
+  orden Int @default(0)
+
+  /// Se OCULTA, NUNCA SE BORRA. Es la regla de esta casa y aqui es
+  /// obligatoria, no una preferencia: hay notas viejas que apuntan a
+  /// esta fila, y sin la fila esas notas dicen «categoria» y nadie
+  /// puede leer cual. Nula es visible; con fecha deja de ofrecerse y
+  /// se sigue pudiendo leer.
+  ///
+  /// Fecha y no booleano porque «desde cuando no se ofrece» es la
+  /// pregunta que se hace al mirar un informe raro de hace un mes.
+  ocultaEn DateTime?
+
+  creadoEn      DateTime @default(now())
+  actualizadoEn DateTime @updatedAt
+
+  subcategorias SubcategoriaDeNota[]
+  notas         NotaDeGestion[]
+
+  @@index([ocultaEn, orden])
+  @@map("categorias_de_nota")
+}
+
+/// El detalle dentro de la categoria: «No contactado» y dentro
+/// «Sin respuesta».
+///
+/// Cuelga de UNA categoria y no de varias. Compartirlas ahorraria
+/// filas y costaria lo unico que importa: «Sin respuesta» no
+/// significa lo mismo colgando de «No contactado» que de
+/// «Contactado», y un desplegable que ofreciera las dos haria que
+/// dos asesores anotaran lo mismo de forma distinta.
+model SubcategoriaDeNota {
+  id          String @id @default(cuid())
+  categoriaId String
+
+  /// Unico DENTRO de su categoria, no en toda la tabla: el mismo
+  /// nombre puede tener sentido en dos categorias distintas, y
+  /// prohibirlo obligaria a inventar sinonimos.
+  nombre String
+  orden  Int    @default(0)
+
+  /// Igual que arriba, y por lo mismo.
+  ocultaEn DateTime?
+
+  creadoEn      DateTime @default(now())
+  actualizadoEn DateTime @updatedAt
+
+  /// RESTRICT y no CASCADE: ocultar una categoria no puede
+  /// llevarse sus subcategorias, y borrarla no se puede. Si algun
+  /// dia alguien intenta un `delete` desde una consola, la base le
+  /// dice que no en vez de dejar notas senalando a la nada.
+  categoria CategoriaDeNota @relation(fields: [categoriaId], references: [id], onDelete: Restrict)
+  notas     NotaDeGestion[]
+
+  @@unique([categoriaId, nombre])
+  @@index([categoriaId, ocultaEn, orden])
+  @@map("subcategorias_de_nota")
+}
+
 model NotaDeGestion {
   id String @id @default(cuid())
 
@@ -1342,7 +1424,25 @@ model NotaDeGestion {
   canales     CanalContacto[]
   /// Nulo en las de antes y en las que escribe el sistema.
   resultado   ResultadoGestion?
-  creadoEn    DateTime          @default(now())
+
+  /// La clasificacion, OPCIONAL LAS DOS.
+  ///
+  /// Opcional no por comodidad: las notas que ya existen el dia de
+  /// la migracion no tienen categoria y tienen que seguir
+  /// leyendose. Obligarla aqui habria exigido inventarle una
+  /// categoria a miles de notas viejas --«Sin clasificar»-- y eso
+  /// es escribir en el historial algo que nadie anoto.
+  ///
+  /// Tambien quedan nulas en las que escribe el SISTEMA: la nota de
+  /// la autorizacion de datos no la clasifica ningun asesor.
+  categoriaId    String?
+  /// Siempre de `categoriaId`. Lo comprueba el servicio antes de
+  /// escribir, porque la base no puede: la coherencia entre dos
+  /// claves ajenas a tablas distintas no se expresa con una clave
+  /// ajena.
+  subcategoriaId String?
+
+  creadoEn DateTime @default(now())
 
   /// SET NULL y no CASCADE: borrar una ficha no puede llevarse el
   /// historial del lead, que sigue existiendo.
@@ -1350,10 +1450,21 @@ model NotaDeGestion {
   lead         LeadEntrante? @relation(fields: [leadId], references: [id], onDelete: SetNull)
   autor        Admin?        @relation(fields: [autorId], references: [id], onDelete: SetNull)
 
+  /// RESTRICT en las dos: una categoria que alguien ya anoto no se
+  /// puede quitar de debajo de la nota. Para dejar de ofrecerla esta
+  /// `ocultaEn`.
+  categoria    CategoriaDeNota?    @relation(fields: [categoriaId], references: [id], onDelete: Restrict)
+  subcategoria SubcategoriaDeNota? @relation(fields: [subcategoriaId], references: [id], onDelete: Restrict)
+
   @@index([participanteId, creadoEn])
   @@index([participanteId, resultado])
   @@index([leadId, creadoEn])
   @@index([leadId, resultado])
+  /// El corte del informe: cuantas gestiones por categoria y en que
+  /// periodo. Sin el, contar «No contactado» del mes recorre la
+  /// tabla entera.
+  @@index([categoriaId, creadoEn])
+  @@index([subcategoriaId, creadoEn])
   @@map("notas_participante")
 }
 
@@ -1526,6 +1637,7 @@ model Admin {
   propuestasResueltas      PropuestaDeDatos[]
   institucionesVerificadas Institucion[]
   propuestasInstitucion    PropuestaInstitucion[]
+  descartesDeCampo         DescarteDeCampo[]
 
   cargasDeParticipantes CargaDeParticipantes[] @relation("CargasDelAdmin")
 
@@ -1767,6 +1879,7 @@ model Institucion {
   verificadaPor Admin?                 @relation(fields: [verificadaPorId], references: [id], onDelete: SetNull)
   empresas      Empresa[]
   propuestas    PropuestaInstitucion[]
+  descartes     DescarteDeCampo[]
   consultas     ConsultaRues[]
 
   /// UN NIT, UNA ORGANIZACION. Orden del cliente, 3 sep 2026.
@@ -1818,6 +1931,69 @@ model PropuestaInstitucion {
   @@index([institucionId, estado])
   @@index([estado, creadoEn])
   @@map("propuestas_institucion")
+}
+
+/// LO QUE YA SE RECHAZO UNA VEZ, PARA NO VOLVER A PREGUNTARLO.
+///
+/// Es la razon de fondo de que la bandeja «Por revisar» nunca
+/// bajara: descartar cerraba la propuesta, pero la limpieza
+/// previa a crear la siguiente solo borraba las PENDIENTE y
+/// `fichaAPropuesta` solo comparaba contra lo que la ficha YA
+/// tiene. Si alguien descartaba un telefono y el campo quedaba
+/// vacio, la siguiente consulta del mismo NIT proponia EL MISMO
+/// telefono: la bandeja se rellenaba sola con lo ya rechazado.
+///
+/// POR QUE UNA TABLA APARTE Y NO UNA COLUMNA EN LA PROPUESTA:
+///   - Lo descartado es un hecho de la INSTITUCION («esta
+///     organizacion no tiene ese telefono»), no de la propuesta
+///     que resulto traerlo; vive mas que ella.
+///   - La pregunta que hay que contestar antes de proponer es
+///     «¿este campo con este valor ya se rechazo?», y aqui es un
+///     golpe a un indice unico. En una columna Json de las
+///     propuestas resueltas habria que leer el historico entero
+///     de la ficha y fundirlo en memoria en cada consulta.
+///   - El par (campo, valor) es la clave de verdad: si el
+///     buscador trae OTRO telefono, ese si se propone. Eso no se
+///     puede expresar con un indice sobre una columna de la
+///     propuesta.
+///
+/// Nada se borra: aqui solo se agrega. Para volver a admitir un
+/// valor hay que quitar su fila, y eso es una decision
+/// explicita, no un efecto de guardar.
+model DescarteDeCampo {
+  id            String @id @default(cuid())
+  institucionId String
+
+  /// El campo de la ficha: `telefono`, `correo`, `direccion`...
+  campo String
+
+  /// El valor NORMALIZADO (sin tildes, en minuscula, espacios
+  /// colapsados). Es lo que se compara, para que «Calle 24 #
+  /// 27A-56» y «calle 24 # 27a-56» cuenten como el mismo
+  /// rechazo. La normalizacion la hace `claveDescarte()`, la
+  /// misma que filtra al proponer: una sola definicion.
+  valor String
+
+  /// El valor tal como llego, para poder explicar que fue lo que
+  /// se rechazo. No se compara con esto.
+  valorMostrado String
+
+  /// De donde venia cuando se rechazo. Sirve para auditar si es
+  /// el buscador web el que insiste.
+  fuente FuenteDato
+
+  descartadoPorId String?
+  creadoEn        DateTime @default(now())
+
+  institucion   Institucion @relation(fields: [institucionId], references: [id], onDelete: Cascade)
+  descartadoPor Admin?      @relation(fields: [descartadoPorId], references: [id], onDelete: SetNull)
+
+  /// La llave del olvido: un valor rechazado por institucion y
+  /// campo se registra UNA vez, por mas veces que el robot lo
+  /// vuelva a traer.
+  @@unique([institucionId, campo, valor])
+  @@index([institucionId])
+  @@map("descartes_de_campo")
 }
 
 /// En qué va una consulta al RUES.

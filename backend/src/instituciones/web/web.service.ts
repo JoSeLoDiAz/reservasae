@@ -17,6 +17,7 @@ import { Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { EstadoConsultaRues } from '../../../generated/prisma';
 import { PrismaService } from '../../prisma/prisma.service';
 import { consolidarFichas, aFichaWeb, type FichaConsolidada } from './consenso';
+import { cargarDescartes } from './descartes';
 import { fichaAPropuesta } from './ficha-a-propuesta';
 import type { FichaWeb } from './leer-ficha-web';
 import {
@@ -289,7 +290,13 @@ export class WebService {
     });
     if (!actual) return;
 
-    const campos = fichaAPropuesta(resultado.ficha, actual);
+    /// Lo que esta institución ya rechazó no se vuelve a
+    /// proponer. Antes de esto el campo descartado quedaba vacío
+    /// y «vacío» era la condición para proponerlo otra vez, así
+    /// que cada consulta del mismo NIT devolvía a la bandeja lo
+    /// que alguien acababa de sacar de ella.
+    const descartados = await cargarDescartes(this.prisma, institucionId);
+    const campos = fichaAPropuesta(resultado.ficha, actual, descartados);
     const cuantos = Object.keys(campos).length;
 
     await this.prisma.$transaction(async (tx) => {

@@ -115,9 +115,56 @@ export function ciiuCuadraConSector(
   return null;
 }
 
+/// La clave con la que se recuerda un rechazo: campo + valor
+/// normalizado. Vive aquí, junto a `sinTildes`, porque la misma
+/// función tiene que servir para GUARDAR el descarte y para
+/// FILTRAR al proponer. Dos normalizaciones distintas serían dos
+/// bandejas distintas: el robot volvería a colar valores que la
+/// tabla cree haber vetado.
+export function claveDescarte(campo: string, valor: unknown): string {
+  return `${campo}\u0000${sinTildes(textoDelValor(valor)).replace(/\s+/g, ' ')}`;
+}
+
+/// El valor de un campo, escrito como texto. Las fechas van en
+/// día («1972-01-17») y no en instante, que es como las guarda la
+/// propuesta; lo que no sea un dato simple se serializa en vez de
+/// quedar en «[object Object]», que convertiría dos rechazos
+/// distintos en el mismo.
+export function textoDelValor(valor: unknown): string {
+  if (valor === null || valor === undefined) return '';
+  if (valor instanceof Date) return valor.toISOString().slice(0, 10);
+  if (typeof valor === 'object') return JSON.stringify(valor);
+  if (typeof valor === 'string') return valor;
+  if (typeof valor === 'number' || typeof valor === 'boolean')
+    return String(valor);
+  return '';
+}
+
+/// Quita de un juego de campos ya armado lo que esta institución
+/// rechazó antes. Es la misma criba que hace `fichaAPropuesta`,
+/// expuesta aparte para el camino del RUT (persona natural), que
+/// no pasa por la ficha del buscador.
+export function quitarDescartados(
+  campos: CamposPropuestos,
+  descartados: ReadonlySet<string>,
+): CamposPropuestos {
+  if (descartados.size === 0) return campos;
+  const limpios: CamposPropuestos = {};
+  for (const [campo, valor] of Object.entries(campos)) {
+    if (descartados.has(claveDescarte(campo, valor))) continue;
+    limpios[campo] = valor;
+  }
+  return limpios;
+}
+
 export function fichaAPropuesta(
   ficha: FichaWeb,
   actual: InstitucionActual = {},
+  /// Lo que ya se rechazó para esta institución. Sin esto la
+  /// bandeja se rellena sola: descartar un teléfono dejaba el
+  /// campo vacío, y «vacío» era justo la condición para volver a
+  /// proponer el mismo teléfono en la siguiente consulta.
+  descartados: ReadonlySet<string> = new Set(),
 ): CamposPropuestos {
   const propuesta: CamposPropuestos = {};
   const web = leerPaginaWeb(ficha.paginaWeb);
@@ -125,6 +172,7 @@ export function fichaAPropuesta(
   const poner = (campo: keyof InstitucionActual, valor: string | number | null) => {
     if (valor === null || valor === '') return;
     if (igualALoGuardado(valor, actual[campo])) return;
+    if (descartados.has(claveDescarte(campo, valor))) return;
     propuesta[campo] = valor;
   };
 
