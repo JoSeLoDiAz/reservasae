@@ -385,6 +385,10 @@ export function ReservasUnificadas({
         /// Ordena por la ÚLTIMA: es la que dice quién se movió hace
         /// poco. La primera va en el cajón.
         valor: (f) => f.ultimaReserva,
+        /// ERA LA ÚNICA SIN FILTRO y su celda salía vacía en la fila
+        /// de filtros. Filtra por la ÚLTIMA reserva, que es por la que
+        /// ordena.
+        filtro: "fecha",
         /// SEPARADAS POR « / » Y NO UNA POR RENGLÓN. Estuvieron en
         /// renglones desde el 25 sep, y el modelo que entregó el
         /// cliente las trae en una sola línea --«07 de sept de 26 /

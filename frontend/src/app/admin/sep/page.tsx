@@ -94,6 +94,7 @@ function PaginaSep() {
         <div className="min-w-[14rem]">
           <Desplegable
             alto={44}
+            rotulo="Convenio"
             etiquetaAria="Convenio"
             valor={convenioId}
             opciones={(convenios ?? []).map((c) => ({
