@@ -994,7 +994,6 @@ function ComoLeer({ hayHistorico }: { hayHistorico: boolean }) {
   return (
     <Bloque
       titulo="Cómo leer estas cifras"
-      descripcion="Es un mínimo, no el total: saldrá menos que en Meta."
       plegable
     >
       <dl className="grid gap-x-8 gap-y-3 sm:grid-cols-2 xl:grid-cols-3">

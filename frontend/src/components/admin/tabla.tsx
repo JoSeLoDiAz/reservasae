@@ -225,6 +225,18 @@ export function TiradorDeAncho({
   /// Un clic pendiente de saber si era doble.
   const clicPendiente = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  /**
+   * ¿SE ESTÁ ARRASTRANDO AHORA MISMO?
+   *
+   * «Cuando acomodo la columna debe iluminarse esa línea, no solo la
+   * fila del título, para que le dé más profesionalidad» (cliente, 1
+   * oct 2026). La línea se encendía con `hover`, y el hover se pierde
+   * en cuanto el puntero se adelanta al borde ---que con una tabla
+   * ancha pasa siempre---, así que de la guía solo quedaba encendido
+   * el trocito de la cabecera.
+   */
+  const [ajustando, setAjustando] = useState(false);
+
   function empezar(e: React.PointerEvent<HTMLDivElement>) {
     e.preventDefault();
     e.stopPropagation();
@@ -256,6 +268,7 @@ export function TiradorDeAncho({
       if (!arrastro) {
         if (Math.abs(ev.clientX - desdeX) < HOLGURA_DEL_CLIC) return;
         arrastro = true;
+        setAjustando(true);
         if (fila) alEmpezar(medidas);
         document.body.style.cursor = "col-resize";
         document.body.style.userSelect = "none";
@@ -266,6 +279,7 @@ export function TiradorDeAncho({
     const soltar = (ev: PointerEvent) => {
       window.removeEventListener("pointermove", mover);
       window.removeEventListener("pointerup", soltar);
+      setAjustando(false);
       document.body.style.cursor = "";
       document.body.style.userSelect = "";
       if (arrastro) return;
@@ -340,7 +354,15 @@ export function TiradorDeAncho({
       ///
       /// Ocho pixeles: la banda justa del borde, donde no hay
       /// texto que pulsar. Se ve solo al acercarse.
-      className="absolute top-0 right-0 z-20 w-2 cursor-col-resize touch-none select-none before:absolute before:inset-y-0 before:left-1/2 before:w-px before:-translate-x-1/2 before:bg-transparent hover:before:bg-marca"
+      className={
+        "absolute top-0 right-0 z-20 w-2 cursor-col-resize touch-none select-none before:absolute before:inset-y-0 before:left-1/2 before:-translate-x-1/2 " +
+        (ajustando
+          ? /// ENCENDIDA Y MÁS GRUESA mientras dura el arrastre: es la
+            /// guía de dónde va a quedar el borde, y tiene que verse de
+            /// arriba abajo sin depender de dónde esté el puntero.
+            "before:w-0.5 before:bg-marca"
+          : "before:w-px before:bg-transparent hover:before:bg-marca")
+      }
     />
   );
 }
@@ -386,6 +408,7 @@ function escribir(id: string, g: Guardado) {
 }
 
 export function Tabla<T>({
+  cuadricula,
   id,
   columnas,
   filas,
@@ -403,6 +426,21 @@ export function Tabla<T>({
   sinDescarga,
   ordenFijo,
 }: {
+  /**
+   * RAYA ENTRE TODAS LAS COLUMNAS, como Control de inscritos.
+   *
+   * «Formatos tabla como esta en CONTROL DE INSCRITOS» (cliente, 1
+   * oct 2026), con las dos capturas al lado. Lo que diferencia a esa
+   * tabla no son los anchos: es la cuadrícula. Con raya, el espacio
+   * que sobra en una columna se lee como celda; sin ella, como un
+   * vacío entre dos cifras sueltas, y por eso la misma tabla parece
+   * desparramada en Seguimiento de asesores y cuadrada en Control de
+   * inscritos.
+   *
+   * Es la clase que ya usan `tabla-por-accion` y `tabla-por-grupo`:
+   * misma regla, mismo color de pelo, no una copia.
+   */
+  cuadricula?: boolean;
   id: string;
   columnas: Columna<T>[];
   filas: T[] | null;
@@ -1044,15 +1082,7 @@ export function Tabla<T>({
           en 4 px --no en cero-- para que el marco de la tarjeta no
           quede pegado a la raya del pie, que es una banda con su
           propio borde. */}
-      {/* LA TARJETA MIDE LO QUE LA TABLA, no la ventana entera.
-          Con ocho columnas la tabla pide 1.206 px y la tarjeta tenía
-          1.866: la banda gris de la cabecera cortaba a media tarjeta y
-          el resto era un vacío blanco con borde, que se lee como una
-          tabla truncada. `w-fit` la hace terminar donde termina la
-          tabla; `max-w-full` la devuelve al ancho de la ventana en
-          cuanto la tabla desborda ---Gestión de leads, Reservas--- y
-          entonces esto no hace nada. */}
-      <div className="mb-1 flex min-h-0 w-fit max-w-full flex-initial flex-col overflow-hidden rounded-xl border border-borde bg-superficie">
+      <div className="mb-1 flex min-h-0 flex-initial flex-col overflow-hidden rounded-xl border border-borde bg-superficie">
         {/* Se estira con su contenedor en vez de llevar un tope
             fijo: con `max-h` quedaba media pantalla en blanco
             debajo cuando la ventana era alta. */}
@@ -1086,7 +1116,7 @@ export function Tabla<T>({
               /// no aporta nada y ensucia: son rayas que no
               /// separan nada que no separara ya el espacio.
               className={`tabla-datos w-full text-sm${
-                enPantalla.length > 8 ? " con-carriles" : ""
+                cuadricula ? " tabla-cuadricula" : enPantalla.length > 8 ? " con-carriles" : ""
               }`}
               style={{
                 /// El suelo de la tabla entera.
@@ -1104,22 +1134,6 @@ export function Tabla<T>({
                 /// la tarjeta, gana `w-full` y sigue
                 /// llenándola como hasta ahora.
                 minWidth: anchoMinimoTabla,
-                /// Y EL TECHO, que es el mismo numero.
-                ///
-                /// `w-full` sola dice «ocupa la tarjeta entera», y con
-                /// ocho columnas eso es repartir el sobrante entre las
-                /// ocho. Medido en Seguimiento de asesores: las
-                /// columnas piden 1.206 px y la tabla se pintaba en
-                /// 1.866, asi que entre el dato de una columna y el de
-                /// la siguiente ---en la MISMA fila--- habia doscientos
-                /// pixeles de nada y el ojo tenia que viajar para leer
-                /// un renglon. Con el techo cada columna se queda en lo
-                /// que declara y la fila se lee de una pasada.
-                ///
-                /// Donde las columnas piden MAS que la tarjeta ---Gestion
-                /// de leads, Reservas--- el minimo gana al maximo (es lo
-                /// que manda CSS) y todo sigue igual: desborda y recorre.
-                maxWidth: anchoMinimoTabla,
                 ...(Object.keys(anchos).length > 0
                   ? { tableLayout: "fixed" as const }
                   : null),

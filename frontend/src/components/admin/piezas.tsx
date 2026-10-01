@@ -648,22 +648,28 @@ export function CifraCompacta({
       >
         {etiqueta}
       </div>
-      <div className="mt-1 flex items-baseline gap-1.5 leading-none">
+      <div className="mt-1 leading-none">
         <span
           className="font-bold tabular-nums"
           style={{ fontSize: "1.0625rem", color }}
         >
           {valor}
         </span>
-        {detalle && (
-          <span className="truncate text-[0.6875rem] text-texto-suave" title={detalle}>
-            {detalle}
-          </span>
-        )}
       </div>
-      {pie && (
-        <div className="mt-1 truncate text-[0.6875rem] leading-none text-texto-suave" title={pie}>
-          {pie}
+      {/* EL PORCENTAJE VA DEBAJO, no al lado del número: «si usas
+          porcentaje abajo del número, ejemplo como está: 6 necesitan
+          refuerzo» (cliente, 1 oct 2026). Al lado competía con la
+          cifra ---dos números pegados y en la misma línea--- y además
+          dejaba la tarjeta de «Asesores» con el pie abajo y la de
+          «Leads gestionados» con el suyo al lado, cada una distinta.
+          Debajo, las cinco se leen igual: rótulo, cifra, y la letra
+          chica. */}
+      {(detalle || pie) && (
+        <div
+          className="mt-1 truncate text-[0.6875rem] leading-none text-texto-suave"
+          title={[detalle, pie].filter(Boolean).join(" · ")}
+        >
+          {[detalle, pie].filter(Boolean).join(" · ")}
         </div>
       )}
     </div>
