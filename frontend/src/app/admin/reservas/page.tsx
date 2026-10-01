@@ -354,10 +354,23 @@ export default function PaginaReservas() {
    * «Debemos tener los mismos botones en las dos vistas» (cliente, 25
    * sep 2026). Estaban escritos dentro de la tabla de «Por reserva»,
    * que es donde nacieron, y al pasar a «Por organización»
-   * desaparecían. No hay razón: el Excel sale del servidor con una
-   * fila por reserva --el mismo fichero se mire como se mire-- y la
-   * plantilla que se carga tampoco depende de cómo esté agrupada la
-   * pantalla.
+   * desaparecían. No hay razón: la plantilla que se carga no depende
+   * de cómo esté agrupada la pantalla.
+   *
+   * LO QUE SÍ DEPENDE ES EL FICHERO QUE BAJA (cliente, 30 sep 2026:
+   * la descarga de «Por organización» tiene que salir igual que su
+   * modelo). Hasta hoy el botón bajaba el mismo Excel en las dos
+   * vistas --una fila por reserva, otras columnas y otros rótulos--,
+   * así que desde «Por organización» bajaba una tabla que no era la
+   * que se estaba mirando. Ahora cada vista baja lo suyo: la
+   * unificada, la hoja del modelo con sus veintiuna columnas y sus
+   * dos fórmulas de Excel; el listado, el fichero de siempre con las
+   * respuestas de cada formulario, que no caben en una fila
+   * consolidada.
+   *
+   * Y LA DESCARGA LLEVA EL PERIODO. La unificada se recorta por
+   * `creadoEn` en el servidor: sin la ventana, el fichero traería
+   * organizaciones que la pantalla no está enseñando.
    *
    * Lo que refresca al terminar el cargue es la vista QUE SE ESTÁ
    * MIRANDO, no siempre el listado por reserva: subir un fichero
@@ -367,7 +380,11 @@ export default function PaginaReservas() {
   const botones = (
     <>
       <button
-        onClick={() => descargar("reservas", {})}
+        onClick={() =>
+          vista === "organizacion"
+            ? descargar("reservas-por-organizacion", ventanaDe(periodo))
+            : descargar("reservas", {})
+        }
         /// La medida de la barra de la tabla, la misma que
         /// los dos de `CarguePlantilla` que vienen detrás:
         /// 32 de alto, radio 9, relleno 13.

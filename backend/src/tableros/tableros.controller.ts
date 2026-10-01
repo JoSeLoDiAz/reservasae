@@ -17,6 +17,7 @@ import { EstadoReserva, RolAdmin, type Admin } from '../../generated/prisma';
 import { AdminGuard, Requiere, Roles, type Ambito } from '../admin/admin.guard';
 import { EditarEmpresaDto } from './editar-empresa.dto';
 import { construirLibro, nombreArchivo } from './exportar';
+import { hojaPorOrganizacion } from './exportar-por-organizacion';
 import { filtrosDelInforme } from './informe-de-reservas';
 import { AdminActual, AmbitoActual } from '../admin/admin-actual.decorator';
 import { TablerosService, valorLegible, type FiltrosReservas } from './tableros.service';
@@ -335,6 +336,45 @@ export class TablerosController {
     ]);
 
     this.enviar(res, libro, nombreArchivo('reservas'));
+  }
+
+  /**
+   * El Excel de la vista «Por organización»: UNA FILA POR
+   * ORGANIZACIÓN, con el modelo que entregó el cliente.
+   *
+   * Va aparte de `exportar/reservas` y no es duplicado: aquel baja
+   * una fila por reserva con las respuestas del formulario, que es
+   * lo que necesita quien trabaja reserva por reserva. Este es el
+   * fichero que él le entrega al gremio, y tiene que salir igual que
+   * su hoja --sus columnas, sus rótulos, su verde y sus dos
+   * fórmulas--: ver `exportar-por-organizacion.ts`.
+   *
+   * LOS MISMOS FILTROS QUE `reservas-agrupadas`, uno por uno. Si la
+   * descarga recortara distinto que la pantalla, el fichero no
+   * cuadraría con lo que se está mirando al pulsar el botón, que es
+   * la manera más rápida de que nadie se crea ninguno de los dos.
+   */
+  @Get('exportar/reservas-por-organizacion')
+  @Roles(RolAdmin.SUPERADMIN, RolAdmin.GESTOR)
+  async exportarReservasPorOrganizacion(
+    @Query() consulta: Record<string, string>,
+    @AmbitoActual() ambito: Ambito,
+    @Res() res: Response,
+  ) {
+    const datos = await this.tableros.reservasAgrupadas({
+      ambito: ambito.convenios,
+      llegoDesde: consulta.llegoDesde || undefined,
+      llegoHasta: consulta.llegoHasta || undefined,
+      buscar: consulta.buscar || undefined,
+      convenio: consulta.convenio || undefined,
+      accionId: consulta.accionId || undefined,
+      formulario: consulta.formulario || undefined,
+      incluyeCanceladas: consulta.canceladas !== 'no',
+    });
+
+    const libro = await construirLibro([hojaPorOrganizacion(datos)]);
+
+    this.enviar(res, libro, nombreArchivo('reservas-por-organizacion'));
   }
 
   @Get('exportar/ocupacion')

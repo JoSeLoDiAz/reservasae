@@ -7,6 +7,7 @@ import { IconoOrganizaciones } from "@/components/admin/iconos";
 import { Desplegable } from "@/components/admin/desplegable";
 import { Aviso } from "@/components/admin/marco-admin";
 import { Pildora, Vacio } from "@/components/admin/piezas";
+import { conPermiso } from "@/components/admin/puerta-de-pantalla";
 import { PropuestasPendientes } from "@/components/admin/propuestas-pendientes";
 import { Tabla, type Columna } from "@/components/admin/tabla";
 import { CarguePlantilla } from "@/components/admin/cargue-plantilla";
@@ -67,7 +68,13 @@ const VISTAS: Vista[] = ["banco", "pendientes", "ocultas"];
  *
  * Se monta solo la que se mira: las dos piden datos distintos.
  */
-export default function PaginaBancoDeEmpresas() {
+/// LA PUERTA, CON EL MISMO PAR `area`/`nivel` QUE DECLARA SU
+/// ENTRADA EN `navegacion.ts`. Sin esto la pantalla cargaba entera
+/// para quien no la puede usar y el no del servidor solo llegaba
+/// al pulsar un botón (repaso de QA, 30 sep 2026).
+export default conPermiso("reserva", "VER", PaginaBancoDeEmpresas);
+
+function PaginaBancoDeEmpresas() {
   const [vista, setVista] = useState<Vista>("banco");
 
   useEffect(() => {

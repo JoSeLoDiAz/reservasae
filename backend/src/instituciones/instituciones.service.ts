@@ -205,6 +205,33 @@ export class InstitucionesService {
           orderBy: { creadoEn: 'desc' },
           select: { id: true, campos: true, fuente: true, creadoEn: true },
         },
+        /// LOS DESCARTES, PARA PODER DESHACERLOS.
+        ///
+        /// Van en la ficha y no en una pantalla propia porque la
+        /// pregunta que trae a alguien aquí es la de al lado: «esta
+        /// organización tiene un teléfono raro, ¿por qué el buscador
+        /// no lo corrige?». La respuesta ---porque alguien descartó
+        /// el bueno--- tiene que estar donde se hace la pregunta, al
+        /// lado de las propuestas y del control de cambios, no en
+        /// otro sitio al que habría que saber ir.
+        ///
+        /// Sin `take`: son catorce campos como máximo, así que la
+        /// lista no puede crecer tanto como para pedir paginación, y
+        /// cortarla esconderia justo la fila que alguien busca.
+        descartes: {
+          orderBy: { creadoEn: 'desc' },
+          select: {
+            id: true,
+            campo: true,
+            /// El valor TAL COMO LLEGÓ, no el normalizado: lo que hay
+            /// que poder reconocer es el teléfono que se descartó, y
+            /// `valor` está en minúscula y sin tildes para comparar.
+            valorMostrado: true,
+            fuente: true,
+            creadoEn: true,
+            descartadoPor: { select: { nombre: true } },
+          },
+        },
         consultas: {
           orderBy: { creadoEn: 'desc' },
           take: 5,
@@ -221,7 +248,23 @@ export class InstitucionesService {
     if (!f)
       throw new NotFoundException('No hay ninguna institución con ese id.');
 
-    const historial = await this.auditoria.historial('Institucion', id, 50);
+    /// CON `ENTIDADES.INSTITUCION` Y NO CON LA CADENA 'Institucion'.
+    ///
+    /// Era el único sitio del backend que seguía escribiendo el
+    /// nombre de la entidad a mano, y con otra mayúscula: todo lo que
+    /// se audita de una organización se guarda como 'institucion'
+    /// ---`editar`, `ocultar`, `mostrar`--- así que esta consulta no
+    /// encontraba NADA y el «Control de cambios» de la ficha salía
+    /// siempre vacío sin que pareciera un fallo, porque una lista
+    /// vacía se ve igual que una organización que nadie ha tocado.
+    /// Es justo lo que avisa el comentario de `ENTIDADES`.
+    /// (30 sep 2026, al dejar auditado el deshacer de un descarte:
+    /// sin esto la traza existía pero no se podía leer.)
+    const historial = await this.auditoria.historial(
+      ENTIDADES.INSTITUCION,
+      id,
+      50,
+    );
 
     return {
       ...this.conFaltantes(f),
@@ -229,6 +272,7 @@ export class InstitucionesService {
       digitoVerificacion: calcularDigitoVerificacion(f.nit),
       empresas: f.empresas,
       propuestas: f.propuestas,
+      descartes: f.descartes,
       consultas: f.consultas,
     };
   }
@@ -621,6 +665,72 @@ export class InstitucionesService {
     });
 
     return { descartadas: count, yaResueltas: ids.length - propuestas.length };
+  }
+
+  /**
+   * DESHACER UN DESCARTE: que ese valor vuelva a proponerse.
+   *
+   * POR QUÉ HACE FALTA (repaso de QA, 30 sep 2026). Descartar un
+   * campo escribe una fila en `descartes_de_campo` para que el
+   * buscador no vuelva a proponer lo mismo ---eso arregló la bandeja
+   * que no bajaba de 45--- pero no había ninguna pantalla que las
+   * listara ni las quitara. Descartar por error el teléfono BUENO
+   * dejaba ese teléfono fuera para siempre, sin aviso y sin salida.
+   * Choca de frente con la regla de la casa: nada se pierde sin
+   * vuelta atrás.
+   *
+   * Y AQUÍ SÍ SE BORRA LA FILA, que es la excepción y conviene
+   * explicarla. En esta casa una categoría se oculta y una empresa
+   * se quita del listado, pero la fila se queda. Esto no es un dato
+   * de nadie: es un APUNTE de que alguien dijo «no» una vez, y la
+   * llave única es (institución, campo, valor). Marcarlo como
+   * revocado en vez de quitarlo tendría dos consecuencias malas: el
+   * buscador seguiría filtrando por esa llave ---o habría que
+   * acordarse de excluir los revocados en los dos sitios que la
+   * leen--- y volver a descartar el mismo valor más adelante
+   * chocaría con la fila vieja y `skipDuplicates` lo tiraría en
+   * silencio, dejando un descarte que no descarta. Así que la fila
+   * se va y la traza se queda en el control de cambios, con quién y
+   * cuándo, que es lo que había que no perder.
+   */
+  async permitirDeNuevo(id: string, admin: { id: string; nombre: string }) {
+    const d = await this.prisma.descarteDeCampo.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        campo: true,
+        valorMostrado: true,
+        institucion: { select: { id: true, nit: true } },
+      },
+    });
+    /// Dos personas pueden estar mirando la misma ficha. Que ya no
+    /// esté no es un error del servidor: es que alguien se adelantó,
+    /// y hay que decirlo así y no con un 500.
+    if (!d) {
+      throw new NotFoundException(
+        'Ese dato descartado ya no está en la lista: puede que alguien ' +
+          'acabara de volver a permitirlo.',
+      );
+    }
+
+    await this.prisma.descarteDeCampo.delete({ where: { id } });
+
+    await this.auditoria.registrar({
+      actor: { id: admin.id, nombre: admin.nombre },
+      accion: 'DESCARTE_REVOCADO',
+      entidad: ENTIDADES.INSTITUCION,
+      entidadId: d.institucion.id,
+      camposTocados: [d.campo],
+      /// Con el valor dentro: sin él la entrada diría «se volvió a
+      /// permitir un teléfono» y la pregunta que se hace es CUÁL.
+      /// Es dato de una organización, no de una persona, así que no
+      /// cae en la regla del `resumen`.
+      resumen:
+        `Se volvió a permitir «${d.valorMostrado}» en ${d.campo}: el ` +
+        `buscador puede proponerlo otra vez (NIT ${d.institucion.nit})`,
+    });
+
+    return { id: d.id, campo: d.campo, valorMostrado: d.valorMostrado };
   }
 
   /**

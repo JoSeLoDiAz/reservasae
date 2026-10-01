@@ -12,13 +12,20 @@ import {
   useAdmin,
 } from "@/components/admin/marco-admin";
 import { Bloque, Esqueleto } from "@/components/admin/piezas";
+import { conPermiso } from "@/components/admin/puerta-de-pantalla";
 import { adminApi } from "@/lib/admin-api";
 import { ErrorApi } from "@/lib/api";
 import { formulariosApi, type ResumenFormulario } from "@/lib/formularios-api";
 
 type Convenio = { id: string; slug: string; nombre: string; sigla: string | null };
 
-export default function PaginaFormularios() {
+/// LA PUERTA, CON EL MISMO PAR `area`/`nivel` QUE DECLARA SU
+/// ENTRADA EN `navegacion.ts`. Sin esto la pantalla cargaba entera
+/// para quien no la puede usar y el no del servidor solo llegaba
+/// al pulsar un botón (repaso de QA, 30 sep 2026).
+export default conPermiso("configuracion", "ESCRIBIR", PaginaFormularios);
+
+function PaginaFormularios() {
   const [formularios, setFormularios] = useState<ResumenFormulario[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [duplicando, setDuplicando] = useState<string | null>(null);

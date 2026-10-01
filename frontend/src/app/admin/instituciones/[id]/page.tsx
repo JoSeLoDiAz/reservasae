@@ -8,9 +8,12 @@ import {
   Boton,
   CLASE_CONTROL,
   Tarjeta,
+  useAdmin,
 } from "@/components/admin/marco-admin";
-import { Cargando } from "@/components/admin/piezas";
+import { BotonSuave, Cargando } from "@/components/admin/piezas";
+import { conPermiso } from "@/components/admin/puerta-de-pantalla";
 import { useToast } from "@/components/admin/toast";
+import { alcanza } from "@/lib/admin-api";
 import { bonito, ErrorApi } from "@/lib/api";
 import { SECTORES } from "@/lib/sectores";
 import {
@@ -23,6 +26,7 @@ import {
   type CambioRegistrado,
   type ClasificacionEmpresa,
   type ConsultaRues,
+  type DatoDescartado,
   type FichaInstitucion,
   type FuenteDato,
   type Propuesta,
@@ -235,12 +239,27 @@ function marcasIniciales(f: FichaInstitucion) {
   return marcas;
 }
 
-export default function PaginaInstitucion({
+/// LA PUERTA, CON EL MISMO PAR `area`/`nivel` QUE DECLARA SU
+/// ENTRADA EN `navegacion.ts`. Sin esto la pantalla cargaba entera
+/// para quien no la puede usar y el no del servidor solo llegaba
+/// al pulsar un botón (repaso de QA, 30 sep 2026).
+export default conPermiso("reserva", "VER", PaginaInstitucion);
+
+function PaginaInstitucion({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
+
+  /// Para saber si se le puede OFRECER deshacer un descarte. La
+  /// puerta de esta pantalla pide `reserva` VER ---consultar la ficha
+  /// es consultar--- así que aquí dentro hay gente que mira y no
+  /// escribe, y a esa el botón no se le pinta: el servidor se lo
+  /// negaría igual. Mismo criterio que `/admin/reservas`.
+  const { admin } = useAdmin();
+  const puedeResolver =
+    !admin.permisos || alcanza(admin.permisos.reserva, "ESCRIBIR");
 
   const [ficha, setFicha] = useState<FichaInstitucion | null>(null);
   const [cargado, setCargado] = useState<Borrador | null>(null);
@@ -303,6 +322,9 @@ export default function PaginaInstitucion({
   const hayCambios = Object.keys(cambios).length > 0;
   const desajuste = desajusteDeTamano(borrador.tamano, borrador.numeroEmpleados);
   const verificada = ficha.verificadaEn !== null;
+  /// Con `?? []` porque el servidor de pruebas puede ser un build
+  /// anterior a este campo: ver el comentario del tipo.
+  const descartes = ficha.descartes ?? [];
   const sinRazonSocial = borrador.razonSocial.trim() === "";
 
   /// Ya hay una pedida y sin responder: pedir otra no la
@@ -781,6 +803,31 @@ export default function PaginaInstitucion({
         </section>
       )}
 
+      {/* VA AQUÍ, JUSTO DEBAJO DE LAS PROPUESTAS, y el sitio es parte
+          del arreglo: lo descartado es la cara B de lo propuesto.
+          Quien llega a esta ficha preguntándose «¿por qué el buscador
+          no corrige este teléfono?» está mirando las propuestas, y la
+          respuesta ---porque alguien descartó el bueno--- tiene que
+          estar en el mismo sitio donde se hace la pregunta. En una
+          pantalla propia habría que saber que existe. */}
+      {descartes.length > 0 && (
+        <DatosDescartados
+          descartes={descartes}
+          puedeResolver={puedeResolver}
+          ocupado={ocupado}
+          alPermitir={(descarte) =>
+            conError(async () => {
+              await institucionesApi.permitirDescarte(descarte.id);
+              return (
+                `«${descarte.valorMostrado}» vuelve a poder proponerse en ` +
+                `${ETIQUETA_CAMPO[descarte.campo] ?? descarte.campo}. ` +
+                "Saldrá como propuesta la próxima vez que el buscador lo encuentre."
+              );
+            })
+          }
+        />
+      )}
+
       {ficha.empresas.length > 0 && (
         <Tarjeta
           titulo="Empresas enlazadas"
@@ -843,6 +890,95 @@ export default function PaginaInstitucion({
 
       <ControlDeCambios historial={ficha.historial} />
     </div>
+  );
+}
+
+/**
+ * LO QUE ALGUIEN DESCARTÓ, CON LA SALIDA PUESTA.
+ *
+ * POR QUÉ EXISTE (repaso de QA, 30 sep 2026). Al resolver una
+ * propuesta, lo que no se marca se guarda en `DescarteDeCampo` para
+ * que el buscador no vuelva a proponer lo mismo. Eso arregló la
+ * bandeja «Por revisar», que no bajaba de 45 porque se rellenaba
+ * sola con lo ya rechazado. Pero no había ninguna pantalla que
+ * listara esas filas ni que las quitara: descartar por error el
+ * teléfono BUENO lo dejaba fuera PARA SIEMPRE, sin aviso y sin
+ * vuelta atrás. Choca con la regla de la casa.
+ *
+ * Cada fila dice las cuatro cosas que hacen falta para decidir: qué
+ * campo, qué valor, quién lo descartó y cuándo. Sin el autor y la
+ * fecha, «volver a permitirlo» sería una apuesta.
+ */
+function DatosDescartados({
+  descartes,
+  puedeResolver,
+  ocupado,
+  alPermitir,
+}: {
+  descartes: DatoDescartado[];
+  puedeResolver: boolean;
+  ocupado: boolean;
+  alPermitir: (descarte: DatoDescartado) => void;
+}) {
+  return (
+    <Tarjeta
+      titulo="Datos descartados"
+      descripcion={
+        descartes.length === 1
+          ? "Un dato que alguien rechazó y que por eso no se vuelve a proponer."
+          : `${descartes.length} datos que alguien rechazó y que por eso no se vuelven a proponer.`
+      }
+    >
+      {/* DICHO ANTES DE LA LISTA, no después: es lo que explica por
+          qué estas filas están aquí y qué hace el botón. Sin esto,
+          «Volver a permitirlo» parece que escribe el valor en la
+          ficha, y no: solo deja que se vuelva a proponer. */}
+      <p className="rounded-lg border border-borde bg-superficie-alterna px-3 py-2 text-sm text-texto-suave">
+        Mientras un dato esté en esta lista, el buscador web y el RUES no lo
+        volverán a proponer para esta organización, aunque lo encuentren.
+        Volver a permitirlo <strong>no cambia la ficha</strong>: solo deja que
+        se proponga de nuevo, para que alguien decida otra vez.
+      </p>
+
+      <ul className="mt-3 divide-y divide-borde">
+        {descartes.map((d) => (
+          <li
+            key={d.id}
+            className="flex flex-wrap items-center justify-between gap-3 py-3 first:pt-0 last:pb-0"
+          >
+            <div className="min-w-0">
+              <p className="text-sm font-medium">
+                {ETIQUETA_CAMPO[d.campo] ?? d.campo}
+              </p>
+              {/* El valor con `break-words`: una pagina web o una
+                  direccion larga desbordaba la fila a lo ancho. */}
+              <p className="break-words text-sm text-texto-suave">
+                {d.valorMostrado}
+              </p>
+              <p className="mt-1 text-xs text-texto-suave">
+                {/* SIN AUTOR SE DICE QUE NO LO HAY, no se calla: la
+                    cuenta pudo darse de baja y la fila se queda. Un
+                    hueco en blanco parecería un fallo de carga. */}
+                {d.descartadoPor
+                  ? `Lo descartó ${d.descartadoPor.nombre}`
+                  : "Lo descartó una cuenta que ya no existe"}
+                {` el ${fechaLarga(d.creadoEn)} · ${ETIQUETA_FUENTE[d.fuente]}`}
+              </p>
+            </div>
+            {puedeResolver && (
+              <BotonSuave
+                type="button"
+                disabled={ocupado}
+                onClick={() => alPermitir(d)}
+                className="shrink-0"
+              >
+                Volver a permitirlo
+              </BotonSuave>
+            )}
+          </li>
+        ))}
+      </ul>
+    </Tarjeta>
   );
 }
 

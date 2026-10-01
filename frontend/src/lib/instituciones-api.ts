@@ -143,11 +143,42 @@ export type CambioRegistrado = {
   creadoEn: string;
 };
 
+/**
+ * UN DATO QUE ALGUIEN DESCARTÓ, Y QUE POR ESO NO SE VUELVE A
+ * PROPONER.
+ *
+ * Al resolver una propuesta, lo que no se marca se apunta aquí para
+ * que el buscador no lo traiga otra vez ---es lo que arregló la
+ * bandeja «Por revisar» que no bajaba de 45---. El efecto secundario
+ * es que descartar por error un teléfono BUENO lo dejaba fuera para
+ * siempre, así que esto es lo que la ficha necesita enseñar para
+ * poder deshacerlo (repaso de QA, 30 sep 2026).
+ */
+export type DatoDescartado = {
+  id: string;
+  campo: string;
+  /// El valor tal como llegó, que es el que se reconoce. El que se
+  /// compara está normalizado y no se manda a la pantalla.
+  valorMostrado: string;
+  fuente: FuenteDato;
+  creadoEn: string;
+  /// `null` cuando la cuenta que lo descartó ya no existe: la fila
+  /// se queda igual, con la fecha, y la pantalla lo dice.
+  descartadoPor: { nombre: string } | null;
+};
+
 export type FichaInstitucion = Institucion & {
   digitoVerificacion: string;
   historial: CambioRegistrado[];
   empresas: Array<{ id: string; razonSocial: string; _count: { participantes: number } }>;
   propuestas: Propuesta[];
+  /// OPCIONAL, y no por descuido: el panel puede estar hablando con
+  /// un backend compilado ANTES de que este campo existiera ---en
+  /// pruebas el servidor corre un `dist` que no se reconstruye con
+  /// cada cambio---. Con el campo obligatorio, `descartes.length`
+  /// reventaba la ficha ENTERA en ese rato, y una sección que no sale
+  /// es mucho menos grave que una ficha que no carga.
+  descartes?: DatoDescartado[];
   consultas: ConsultaRues[];
 };
 
@@ -281,6 +312,14 @@ export const institucionesApi = {
       method: "POST",
       body: JSON.stringify({ ids }),
     }),
+
+  /// DESHACER UN DESCARTE. El mismo permiso que resolver una
+  /// propuesta (`reserva` ESCRIBIR): es la misma decisión al revés.
+  permitirDescarte: (id: string) =>
+    pedir<{ id: string; campo: string; valorMostrado: string }>(
+      `/admin/instituciones/descartes/${id}/permitir`,
+      { method: "POST" },
+    ),
 
   aplicarPropuesta: (id: string, campos: string[]) =>
     pedir<{ aplicados: number; descartados: number }>(
