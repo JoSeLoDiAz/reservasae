@@ -130,6 +130,7 @@ import {
   siglaDocumento,
   TAMANOS_EMPRESA_SEP,
 } from './catalogos-sep';
+import { motivoParaNoInscribir } from './una-sola-accion';
 /// `ETAPAS_DEL_AULA` NO se importa: este fichero tiene la suya propia
 /// unas líneas más abajo, y traerla además la duplicaba.
 import { OCUPAN_SILLA, RETIENEN_ASIENTO } from './etapas';
@@ -1969,6 +1970,62 @@ export class CrmService {
               'Nadie cuenta dos veces contra la meta.',
           );
         }
+
+        /**
+         * Y TAMPOCO EN OTRA, que es la regla de verdad.
+         *
+         * «¿Esto no debería pasar, no? ¿Por qué no lo unificó el
+         * sistema?» (cliente, 1 oct 2026), con una persona saliendo
+         * dos veces en Gestión de leads: en AF2 desde el 16 de
+         * septiembre y en AF6 desde hoy.
+         *
+         * NO ERA UN FALLO DE UNIFICACIÓN: la persona es una sola ---un
+         * documento, un registro--- y lo que estaba dos veces era la
+         * PARTICIPACIÓN, que es una por acción a propósito.
+         *
+         * Lo que fallaba es que «solo se puede tomar una acción de
+         * formación» guardaba una sola puerta. El formulario público
+         * la aplicaba; el panel comprobaba únicamente LA MISMA acción,
+         * así que crear a la misma persona en otra distinta pasaba sin
+         * que nadie dijera nada. Dos asesoras acababan llamando a la
+         * misma persona por dos cursos.
+         *
+         * Es la MISMA función que usa el formulario, no una copia: si
+         * mañana cambia la regla ---hoy los foros están exentos---
+         * cambia en los tres sitios a la vez.
+         *
+         * Lo que esto NO toca: cambiar de acción desde la ficha. Eso
+         * mueve la participación que ya existe, no crea una segunda.
+         */
+        const suyas = await tx.participante.findMany({
+          where: { personaId: persona.id, accionFormacionId: { not: null } },
+          select: {
+            accionFormacionId: true,
+            accionFormacion: {
+              select: { codigo: true, nombre: true, evento: true },
+            },
+          },
+        });
+        const laPedida = await tx.accionFormacion.findUnique({
+          where: { id: accionId },
+          select: { evento: true },
+        });
+        const motivo = motivoParaNoInscribir(
+          { id: accionId, evento: laPedida?.evento ?? null },
+          suyas.flatMap((x) =>
+            x.accionFormacionId && x.accionFormacion
+              ? [
+                  {
+                    accionFormacionId: x.accionFormacionId,
+                    codigo: x.accionFormacion.codigo,
+                    nombre: x.accionFormacion.nombre,
+                    evento: x.accionFormacion.evento,
+                  },
+                ]
+              : [],
+          ),
+        );
+        if (motivo) throw new ConflictException(motivo);
       }
 
       const participante = await tx.participante.create({
