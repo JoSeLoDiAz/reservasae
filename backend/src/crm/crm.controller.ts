@@ -48,6 +48,7 @@ import {
   AgregarNitDto,
   ResolverPropuestaDto,
   BorrarEnLoteDto,
+  UnirParticipacionesDto,
   AsignarAsesorEnLoteDto,
   AsignarGrupoEnLoteDto,
   AsignarFormacionDto,
@@ -698,6 +699,40 @@ export class CrmController {
    * `Post` y no `Delete`: la lista va en el cuerpo, y un `Delete` con
    * cuerpo lo tratan distinto los proxys y los clientes.
    */
+  /**
+   * Une dos fichas de la misma persona.
+   *
+   * MISMO CANDADO QUE BORRAR ---administrador--- y por lo mismo: esto
+   * QUITA una participación. Abrirla más que la de borrar sería dejar
+   * la puerta de atrás sin cerrojo.
+   *
+   * `Post` y no `Patch`: no es editar una ficha, es que dos pasen a
+   * ser una.
+   */
+  @Post('unir')
+  @Roles(RolAdmin.SUPERADMIN)
+  @Requiere('inscripciones', 'ESCRIBIR')
+  unirParticipaciones(
+    @Body() dto: UnirParticipacionesDto,
+    @AdminActual() admin: Admin,
+    @AmbitoActual() ambito: Ambito,
+    @IpReal() ip: string,
+  ) {
+    return this.crm.unirParticipaciones(
+      dto as never,
+      { id: admin.id, nombre: admin.nombre },
+      ambito.convenios,
+      ip,
+    );
+  }
+
+  /** Las personas que están en más de una acción de formación. */
+  @Get('repetidas')
+  @Requiere('inscripciones', 'VER')
+  repetidas(@AmbitoActual() ambito: Ambito) {
+    return this.crm.personasEnVariasAcciones(ambito.convenios);
+  }
+
   @Post('lote/borrar')
   @Roles(RolAdmin.SUPERADMIN)
   @Requiere('inscripciones', 'ESCRIBIR')

@@ -11,6 +11,7 @@ import {
   IsIn,
   IsInt,
   IsNotEmpty,
+  IsObject,
   IsOptional,
   IsString,
   Max,
@@ -326,6 +327,33 @@ export class ActualizarEmpresaSepDto {
  * pantalla de tabla con todo seleccionado, y pone un techo a lo que
  * un clic puede destruir.
  */
+/**
+ * UNIR DOS FICHAS DE LA MISMA PERSONA.
+ *
+ * `deDonde` es el «cómo fusionarlos» que pidió el cliente: por campo,
+ * el id de la ficha de la que sale su valor. Lo que no se nombre se
+ * queda como está en la que sobrevive.
+ *
+ * Va suelto como `Record` y no como una clase con diez campos
+ * opcionales a propósito: la lista de lo fusionable vive en
+ * `fusionar-participaciones.ts`, que es donde se decide, y el
+ * servicio IGNORA lo que no esté en ella. Una clase aquí sería la
+ * misma lista escrita dos veces, lista para discrepar.
+ */
+export class UnirParticipacionesDto {
+  @IsString()
+  @IsNotEmpty()
+  conservarId!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  absorberId!: string;
+
+  @IsOptional()
+  @IsObject()
+  deDonde?: Record<string, string>;
+}
+
 export class BorrarEnLoteDto {
   @IsArray()
   @ArrayNotEmpty()

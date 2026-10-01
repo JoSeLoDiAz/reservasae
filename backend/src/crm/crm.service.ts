@@ -130,7 +130,13 @@ import {
   siglaDocumento,
   TAMANOS_EMPRESA_SEP,
 } from './catalogos-sep';
+import {
+  type CampoFusionable,
+  comoQuedaLaFusion,
+  porQueNoSePuedenUnir,
+} from './fusionar-participaciones';
 import { motivoParaNoInscribir } from './una-sola-accion';
+import { enPalabras, moverLaGestion } from './unir-participaciones';
 /// `ETAPAS_DEL_AULA` NO se importa: este fichero tiene la suya propia
 /// unas líneas más abajo, y traerla además la duplicaba.
 import { OCUPAN_SILLA, RETIENEN_ASIENTO } from './etapas';
@@ -3506,6 +3512,212 @@ export class CrmService {
       documento: p.persona.numeroDocumento,
       avancesBorrados: p._count.avances,
       notasBorradas: p._count.notas,
+    };
+  }
+
+  /**
+   * LAS PERSONAS QUE ESTÁN EN MÁS DE UNA ACCIÓN DE FORMACIÓN.
+   *
+   * Lo que la pantalla de unir fichas tiene que enseñar: quién está
+   * repetido, en qué acciones, en qué etapa y con qué asesora en cada
+   * una. Con eso se decide a cuál va de verdad.
+   *
+   * LOS FOROS NO CUENTAN, igual que en la regla que lo impide y que en
+   * `db:integridad`: un foro no consume el cupo de formación. Si
+   * contaran, la lista saldría llena de casos que no son problema y
+   * nadie volvería a abrirla.
+   *
+   * Se trae todo y se agrupa aquí, y no con un `groupBy`, porque hace
+   * falta el detalle de cada ficha ---etapa, asesora, fecha--- para
+   * poder elegir; un recuento solo diría cuántas hay.
+   */
+  async personasEnVariasAcciones(ambito: string[]) {
+    const filas = await this.prisma.participante.findMany({
+      where: { convenioId: { in: ambito }, accionFormacionId: { not: null } },
+      select: {
+        id: true,
+        personaId: true,
+        etapa: true,
+        creadoEn: true,
+        convenioId: true,
+        accionFormacion: { select: { codigo: true, nombre: true, evento: true } },
+        asesor: { select: { id: true, nombre: true } },
+        empresa: { select: { razonSocial: true } },
+        _count: { select: { notas: true, avances: true } },
+        persona: {
+          select: {
+            primerNombre: true,
+            segundoNombre: true,
+            primerApellido: true,
+            segundoApellido: true,
+            numeroDocumento: true,
+            correo: true,
+          },
+        },
+      },
+      orderBy: { creadoEn: 'asc' },
+    });
+
+    const esForo = (e: string | null | undefined) =>
+      (e ?? '').toUpperCase().includes('FORO');
+
+    const porPersona = new Map<string, typeof filas>();
+    for (const f of filas) {
+      if (esForo(f.accionFormacion?.evento)) continue;
+      const suyas = porPersona.get(f.personaId) ?? [];
+      suyas.push(f);
+      porPersona.set(f.personaId, suyas);
+    }
+
+    return [...porPersona.values()]
+      .filter((x) => x.length > 1)
+      .map((x) => ({
+        personaId: x[0].personaId,
+        nombre: [
+          x[0].persona.primerNombre,
+          x[0].persona.segundoNombre,
+          x[0].persona.primerApellido,
+          x[0].persona.segundoApellido,
+        ]
+          .filter(Boolean)
+          .join(' '),
+        documento: x[0].persona.numeroDocumento,
+        correo: x[0].persona.correo,
+        fichas: x.map((f) => ({
+          id: f.id,
+          codigo: f.accionFormacion?.codigo ?? null,
+          accion: f.accionFormacion?.nombre ?? null,
+          etapa: f.etapa,
+          asesor: f.asesor?.nombre ?? null,
+          empresa: f.empresa?.razonSocial ?? null,
+          creadoEn: f.creadoEn,
+          notas: f._count.notas,
+          avances: f._count.avances,
+        })),
+      }))
+      /// Primero las que más gestión tienen encima: son las que más
+      /// cuesta deshacer a mano y las que más urge unir bien.
+      .sort(
+        (a, b) =>
+          b.fichas.reduce((t, f) => t + f.notas, 0) -
+          a.fichas.reduce((t, f) => t + f.notas, 0),
+      );
+  }
+
+  /**
+   * UNE DOS FICHAS DE LA MISMA PERSONA.
+   *
+   * «La única opción es crear una herramienta de unificación para esos
+   * casos, y dejar el lead de acuerdo a qué AF realmente va a elegir, y
+   * fusionar los datos, pero teniendo la posibilidad de CÓMO
+   * fusionarlos» (cliente, 1 oct 2026).
+   *
+   * Las tres decisiones son suyas y van en el dto: cuál sobrevive
+   * ---o sea, a qué acción va de verdad---, cuál se absorbe, y de cuál
+   * de las dos sale cada campo.
+   *
+   * LO QUE NO SE ELIGE: la gestión se mueve entera. Las notas de las
+   * dos asesoras, el historial de etapas y de dónde llegó el lead
+   * pasan a la que queda. Una fusión que las tire es un borrado con
+   * otro nombre.
+   *
+   * EL MISMO CANDADO QUE BORRAR, y por lo mismo: esto QUITA una
+   * participación. El borrado individual y el de lote son de
+   * administrador desde el 13 sep 2026, y abrir esta puerta más que
+   * aquella sería dejar la de atrás sin cerrojo.
+   *
+   * El orden de mover vive en `unir-participaciones.ts` y el de
+   * quitar en `borrar-participaciones.ts`: aquí solo se encadenan.
+   */
+  async unirParticipaciones(
+    dto: {
+      conservarId: string;
+      absorberId: string;
+      deDonde?: Partial<Record<CampoFusionable, string>>;
+    },
+    admin: Actor,
+    ambito: string[],
+    ip?: string,
+  ) {
+    /// Las dos tienen que estar en el ámbito de quien une: comprobar
+    /// solo una dejaría mover gestión desde un gremio que no se ve.
+    await this.exigirParticipante(dto.conservarId, ambito);
+    await this.exigirParticipante(dto.absorberId, ambito);
+
+    const campos = {
+      id: true,
+      personaId: true,
+      convenioId: true,
+      etapa: true,
+      asesorId: true,
+      empresaId: true,
+      cargoEnEmpresa: true,
+      nivelEducativo: true,
+      nivelOcupacional: true,
+      nivelOcupacionalSepId: true,
+      beneficiarioPrevio: true,
+      origenLead: true,
+      campanaDeEntrada: true,
+      accionFormacion: { select: { codigo: true, nombre: true } },
+      persona: {
+        select: {
+          primerNombre: true,
+          primerApellido: true,
+          numeroDocumento: true,
+        },
+      },
+    } as const;
+
+    const [conservar, absorbida] = await Promise.all([
+      this.prisma.participante.findUnique({ where: { id: dto.conservarId }, select: campos }),
+      this.prisma.participante.findUnique({ where: { id: dto.absorberId }, select: campos }),
+    ]);
+    if (!conservar || !absorbida) {
+      throw new NotFoundException('Una de las dos fichas ya no existe.');
+    }
+
+    const noSePuede = porQueNoSePuedenUnir(conservar, absorbida);
+    if (noSePuede) throw new BadRequestException(noSePuede);
+
+    const queQueda = comoQuedaLaFusion(
+      conservar as never,
+      absorbida as never,
+      dto.deDonde ?? {},
+    );
+
+    const movido = await this.prisma.$transaction(async (tx) => {
+      const m = await moverLaGestion(
+        tx as never,
+        absorbida.id,
+        conservar.id,
+        queQueda,
+      );
+      /// Y se va por la puerta de siempre, que ya sabe el orden. Lo que
+      /// borraría ---notas, movimientos--- ya no está: se movió.
+      await borrarParticipaciones(tx, { id: absorbida.id });
+      return m;
+    });
+
+    const quien = `${conservar.persona.primerNombre} ${conservar.persona.primerApellido ?? ''}`.trim();
+    await this.auditoria.registrar({
+      actor: admin,
+      accion: 'PARTICIPANTE_BORRADO',
+      entidad: ENTIDADES.PARTICIPANTE,
+      entidadId: absorbida.id,
+      convenioId: absorbida.convenioId,
+      resumen:
+        `Se unieron dos fichas de ${quien} (doc. ${taparDocumento(conservar.persona.numeroDocumento)}): ` +
+        `se queda en ${conservar.accionFormacion?.codigo ?? 'sin acción'} y se absorbió la de ` +
+        `${absorbida.accionFormacion?.codigo ?? 'sin acción'}. ` +
+        enPalabras(movido),
+      ip,
+    });
+
+    return {
+      unidas: true,
+      seQueda: conservar.accionFormacion?.codigo ?? null,
+      seAbsorbio: absorbida.accionFormacion?.codigo ?? null,
+      ...movido,
     };
   }
 
