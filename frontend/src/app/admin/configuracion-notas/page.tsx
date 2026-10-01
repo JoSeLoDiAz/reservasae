@@ -28,7 +28,7 @@ import {
   CLASE_CONTROL,
 } from "@/components/admin/marco-admin";
 import { olvidarCatalogoDeNotas } from "@/components/admin/clasificacion-de-la-nota";
-import { Bloque, Cargando } from "@/components/admin/piezas";
+import { Bloque, Cargando, Encabezado } from "@/components/admin/piezas";
 import { conPermiso } from "@/components/admin/puerta-de-pantalla";
 import { ErrorApi } from "@/lib/api";
 import { useDatosVivos } from "@/lib/datos-vivos";
@@ -145,33 +145,55 @@ function PaginaConfiguracionNotas() {
       : ofrecidas;
 
   return (
-    <div className="flex flex-col gap-4 px-4 pt-4 pb-6">
-      <header>
-        <h1 className="text-[1.3125rem] font-bold tracking-[-0.02em] text-titulo">
-          Configuración notas
-        </h1>
-        <p className="mt-1 text-texto-suave">
-          Con qué se clasifica una gestión. El asesor elige una categoría y una
-          subcategoría, y además escribe lo que pasó: esto enmarca su texto, no
-          lo sustituye.
-        </p>
-      </header>
+    <div className="flex flex-col gap-4 px-4 pt-4 pb-6 [&>header]:mx-0 [&>header]:mb-0">
+      {/* EN SU TARJETA, como las demas pantallas: «¿esto por que no esta
+          igual, o sea por que el titulo no tiene su margen?» (cliente, 1
+          oct 2026). Era un titulo suelto sobre el fondo mientras sus
+          hermanas lo llevan en recuadro, y asi la pantalla parecia de
+          otra aplicacion. */}
+      <Encabezado compacto titulo="Configuración notas" />
 
       {error && <Aviso tipo="error">{error}</Aviso>}
       {exito && <Aviso tipo="exito">{exito}</Aviso>}
 
-      {/* UNA LÍNEA, NO UN PÁRRAFO.
-
-          Estaba en cuatro renglones explicando por qué no hay botón de
-          borrar, con su «sin que nadie pueda saber cuál». El cliente lo
-          leyó y contestó «el léxico» (30 sep 2026). Tiene razón: quien
-          abre esta pantalla quiere ver sus categorías, no una lección.
-          Lo que hay que decir cabe en una línea; el porqué vive en el
-          código, que es donde sirve. */}
-      <p className="text-sm text-texto-suave">
-        Nada se elimina: una categoría se <strong>oculta</strong> y deja de
-        ofrecerse, pero las notas que ya la nombran siguen leyéndose.
-      </p>
+      {/* LO QUE HAY QUE EXPLICAR, PLEGADO. «Esto no dice nada; acá
+          pienso algo como en Tráfico del formulario» (cliente, 1 oct
+          2026), con la captura de «Cómo leer estas cifras». Dos
+          párrafos sueltos encima de la pantalla se leen una vez y
+          estorban siempre; plegados son un renglón y se abren el día
+          que alguien pregunta. */}
+      <Bloque titulo="Cómo funciona esta pantalla" plegable>
+        <dl className="grid gap-x-8 gap-y-3 sm:grid-cols-2">
+          <div>
+            <dt className="font-medium text-titulo">Categoría y subcategoría</dt>
+            <dd className="text-texto-suave">
+              Son los dos desplegables que el asesor elige al dejar una nota.
+              Enmarcan lo que escribe; no lo sustituyen.
+            </dd>
+          </div>
+          <div>
+            <dt className="font-medium text-titulo">Nada se elimina</dt>
+            <dd className="text-texto-suave">
+              Una categoría se oculta y deja de ofrecerse, pero las notas que ya
+              la nombran siguen leyéndose.
+            </dd>
+          </div>
+          <div>
+            <dt className="font-medium text-titulo">Cuántas notas la nombran</dt>
+            <dd className="text-texto-suave">
+              Es la cifra de cada fila, y es la razón por la que no hay botón de
+              borrar.
+            </dd>
+          </div>
+          <div>
+            <dt className="font-medium text-titulo">Cuenta en los informes</dt>
+            <dd className="text-texto-suave">
+              Lo que la categoría declara es lo que suman los tableros de
+              gestión.
+            </dd>
+          </div>
+        </dl>
+      </Bloque>
 
       <Bloque
         titulo="Añadir una categoría"
@@ -232,14 +254,40 @@ function PaginaConfiguracionNotas() {
         </p>
       )}
 
-      {visibles.map((c) => (
-        <FilaDeCategoria
-          key={c.id}
-          categoria={c}
-          guardando={guardando}
-          conError={conError}
-        />
-      ))}
+      {/* LAS CATEGORÍAS, COMO TABLA. «No sé, esto como en tabla o de
+          otra forma, es que la visual se ve rara» (cliente, 1 oct
+          2026). Eran cinco tarjetas a todo lo ancho con tres palabras
+          cada una y un «Ver» solo en la otra punta: mil ochocientos
+          píxeles de nada entre el nombre y su enlace.
+
+          Con cabecera y columnas se lee de un vistazo cuál tiene
+          subcategorías y cuál no, que es lo que se viene a mirar. Cada
+          fila sigue abriéndose en su sitio: lo que se edita de una
+          categoría son sus subcategorías, y sacarlas a otra pantalla
+          seria un viaje por cada cambio. */}
+      {visibles.length > 0 && (
+        <div className="overflow-hidden rounded-xl border border-borde bg-superficie">
+          <div
+            className={
+              "grid grid-cols-[minmax(12rem,1fr)_8rem_12rem_4rem] items-center gap-3 px-4" +
+              " border-b border-borde bg-superficie-alterna py-2 text-[0.625rem] font-bold tracking-[0.08em] uppercase text-texto-suave"
+            }
+          >
+            <span>Categoría</span>
+            <span>Subcategorías</span>
+            <span>Notas que la nombran</span>
+            <span className="text-right">Ver</span>
+          </div>
+          {visibles.map((c) => (
+            <FilaDeCategoria
+              key={c.id}
+              categoria={c}
+              guardando={guardando}
+              conError={conError}
+            />
+          ))}
+        </div>
+      )}
 
       {ocultas.length > 0 && (
         <Bloque
@@ -339,18 +387,27 @@ function FilaDeCategoria({
      * nombran y --si no cuenta en los informes-- el aviso, porque esa
      * es justo la que hay que abrir.
      */
-    <Bloque
-      plegable
-      titulo={categoria.nombre}
-      descripcion={
-        <>
-          {contarSub(categoria.subcategorias.length)}
-          {" · "}
-          {contar(categoria.notas)}
-        </>
-      }
-    >
-      <div className="space-y-4">
+    <details className="group border-t border-hairline first:border-t-0">
+      <summary
+        className={
+          "grid grid-cols-[minmax(12rem,1fr)_8rem_12rem_4rem] items-center gap-3 px-4" +
+          " sin-aro cursor-pointer list-none py-2.5 text-[0.8125rem] select-none hover:bg-superficie-alterna"
+        }
+      >
+        <span className="truncate font-medium text-titulo">{categoria.nombre}</span>
+        <span className="tabular-nums text-texto-suave">
+          {categoria.subcategorias.length}
+        </span>
+        <span className="tabular-nums text-texto-suave">{categoria.notas}</span>
+        <span className="text-right font-medium text-marca">
+          {/* El mismo «Ver» de antes, que ahora dice además si está
+              abierta sin necesidad de buscar la flecha. */}
+          <span className="group-open:hidden">Ver</span>
+          <span className="hidden group-open:inline">Cerrar</span>
+        </span>
+      </summary>
+
+      <div className="space-y-4 border-t border-hairline px-4 py-3">
         <div className="space-y-2">
           {ofrecidas.length === 0 && (
             /* Un bloque vacío dice POR QUÉ lo está. */
@@ -458,6 +515,6 @@ function FilaDeCategoria({
         </form>
 
       </div>
-    </Bloque>
+    </details>
   );
 }

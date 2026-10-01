@@ -234,20 +234,18 @@ export function ElegirConRotulo({
   alElegir: (v: string) => void;
   ancho?: string;
 }) {
+  /// EL RÓTULO VA DENTRO, en la primera línea de la lista. Fuera
+  /// costaba sitio en la fila y gritaba; ver el porqué en `Desplegable`.
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <p className="text-[0.625rem] font-bold tracking-[0.08em] uppercase text-texto-suave">
-        {rotulo}
-      </p>
-      <div style={{ minWidth: ancho }}>
-        <Desplegable
-          alto={30}
-          etiquetaAria={rotulo}
-          valor={valor}
-          opciones={opciones}
-          alElegir={alElegir}
-        />
-      </div>
+    <div style={{ minWidth: ancho }}>
+      <Desplegable
+        alto={30}
+        rotulo={rotulo}
+        etiquetaAria={rotulo}
+        valor={valor}
+        opciones={opciones}
+        alElegir={alElegir}
+      />
     </div>
   );
 }

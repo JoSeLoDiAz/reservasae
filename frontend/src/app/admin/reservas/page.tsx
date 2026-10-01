@@ -403,7 +403,13 @@ export default function PaginaReservas() {
   );
 
   return (
-    <div className="flex min-h-0 grow flex-col gap-3 px-4 pt-3">
+    /// `[&>header]:mx-0`: `Encabezado` trae `mx-4` suyo ---nacio para
+    /// paginas que lo ponen FUERA de su contenedor con relleno--- y aqui
+    /// va DENTRO del `px-4`, asi que los dos se sumaban: la cabecera
+    /// empezaba en 32 px y las tarjetas de debajo en 16. «Los bordes del
+    /// titulo deben ir al margen de las tarjetas» (cliente, 1 oct 2026),
+    /// medido. Es el mismo arreglo que ya lleva Seguimiento de asesores.
+    <div className="flex min-h-0 grow flex-col gap-3 px-4 pt-3 [&>header]:mx-0 [&>header]:mb-0">
       {/* LAS DOS VISTAS Y EL PERIODO, EN LA MISMA FILA.
 
           «En reservas esto debe ir al lado derecho, para quitar esa

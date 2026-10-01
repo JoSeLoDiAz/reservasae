@@ -24,6 +24,7 @@ export type OpcionDesplegable = {
  * permite: modales, desplegables, cajón y toast.
  */
 export function Desplegable({
+  rotulo,
   valor,
   opciones,
   alElegir,
@@ -35,6 +36,17 @@ export function Desplegable({
   enBarra,
   subrayado,
 }: {
+  /**
+   * UN TÍTULO DENTRO DE LA LISTA, en la primera línea y sin poder
+   * elegirse.
+   *
+   * «No me gusta; si el "Seleccione la vista" dentro del desplegable
+   * como título, no sé, pero se ve asqueroso» (cliente, 1 oct 2026),
+   * sobre el rótulo en versalitas que iba FUERA, a la izquierda. Ese
+   * rótulo cuesta sitio en la fila y grita; dentro dice lo mismo y
+   * solo cuando se abre, que es cuando hace falta.
+   */
+  rotulo?: string;
   valor: string;
   opciones: OpcionDesplegable[];
   alElegir: (valor: string) => void;
@@ -278,6 +290,14 @@ export function Desplegable({
             "shadow-[0_10px_30px_-10px_rgba(15,23,42,0.28)]"
           }
         >
+          {rotulo && (
+            <li
+              aria-hidden
+              className="border-b border-hairline px-3 pt-1 pb-2 text-[0.625rem] font-bold tracking-[0.08em] uppercase text-texto-suave"
+            >
+              {rotulo}
+            </li>
+          )}
           {opciones.length === 0 && (
             <li className="px-3 py-2 text-[0.78125rem] text-texto-suave">
               No hay opciones disponibles.

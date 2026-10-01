@@ -1579,9 +1579,11 @@ function ComparadorDeFechas({
   }
 
   /// LO QUE SE DESPLIEGA, que no cabe en una cabecera de 56 px: las
-  /// dos fechas del calendario y la nota del contador. Se queda abajo,
-  /// y solo hay tarjeta cuando hay algo que enseñar.
-  const hayCaja = abierto || !!nota;
+  /// dos fechas del calendario. Solo entonces hay tarjeta: la nota
+  /// sola no la necesita ---«sin rebordes y sin que ocupe mucho
+  /// espacio la visual» (cliente, 1 oct 2026)---, que era un recuadro
+  /// entero para un renglón de letra chica.
+  const hayCaja = abierto;
 
   return (
     <>
@@ -1663,17 +1665,17 @@ function ComparadorDeFechas({
       {/* La nota, a sangre dentro de la caja y bajo una raya: los
           márgenes negativos compensan el relleno de la caja para que la
           raya cruce de canto a canto. */}
-      {nota && (
-        <div
-          className={
-            "px-4 py-3 text-[0.8125rem] leading-relaxed text-texto-suave" +
-            (abierto ? " -mx-4 -mb-4 mt-4 border-t border-hairline" : "")
-          }
-        >
+      {nota && abierto && (
+        <div className="-mx-4 -mb-4 mt-4 border-t border-hairline px-4 py-3 text-[0.8125rem] leading-relaxed text-texto-suave">
           {nota}
         </div>
       )}
       </div>
+      )}
+
+      {/* LA NOTA SOLA: sin recuadro y en una línea. */}
+      {nota && !abierto && (
+        <p className="px-1 text-[0.78125rem] leading-snug text-texto-suave">{nota}</p>
       )}
     </>
   );
