@@ -177,13 +177,57 @@ export function Desplegable({
 
   useEffect(() => {
     if (!abierto) return;
+    /// «FUERA» ES FUERA DEL DISPARADOR *Y* DE LA LISTA.
+    ///
+    /// Con `enPortal` la lista se pinta en `document.body`, asi que
+    /// NO esta dentro de `caja`: para el DOM, pulsar una opcion era
+    /// pulsar fuera. Este oyente cerraba en el `mousedown`, React
+    /// desmontaba la lista antes del `mouseup`, y el `click` de la
+    /// opcion no llegaba a dispararse nunca.
+    ///
+    /// El efecto: TODO desplegable con portal se abria y no dejaba
+    /// elegir nada con el raton. Medido el 1 oct 2026 en los filtros
+    /// de columna de la tabla --«Filtrar por Fecha de creacion»
+    /// seguia en «Todas» despues de pulsar «Hoy»--, que es codigo
+    /// que lleva ahi desde antes de este cambio: no se veia porque
+    /// con el teclado si funcionaba y porque un filtro que no filtra
+    /// se lee como «no hay datos».
+    ///
+    /// El portal rompe el arbol del DOM, no el de React: hay que
+    /// preguntar por los dos nodos.
     function fuera(e: MouseEvent) {
-      if (!caja.current?.contains(e.target as Node)) setAbierto(false);
+      const donde = e.target as Node;
+      if (caja.current?.contains(donde)) return;
+      if (lista.current?.contains(donde)) return;
+      setAbierto(false);
     }
     /// En scroll y en cambio de tamaño se cierra: el panel va
     /// colocado con `absolute` y quedaria flotando lejos.
     function cerrar() {
       setAbierto(false);
+    }
+    /// SALVO QUE EL QUE RECORRE SEA LA PROPIA LISTA.
+    ///
+    /// La lista se cerraba sola NADA MAS ABRIRLA en cuanto era lo
+    /// bastante larga para scrollear y el valor guardado caia por
+    /// debajo del primer pantallazo: medido el 1 oct 2026 en el
+    /// cajon del lead, «Departamento» con MAGDALENA puesto --el
+    /// numero 21 de 33-- no llegaba a verse.
+    ///
+    /// La cadena era esta: al abrir, el efecto de arriba lleva la
+    /// opcion marcada a la vista con `scrollIntoView`; eso dispara
+    /// un `scroll` en el propio `<ul>`; y este oyente, que escucha
+    /// en CAPTURA para enterarse del scroll de una tabla, lo oia
+    /// tambien y cerraba. O sea: el desplegable se cerraba por su
+    /// propio movimiento.
+    ///
+    /// Lo que hay que cerrar es lo que mueve al DISPARADOR --la
+    /// pagina, la tabla, el cajon--, no lo que pasa dentro de la
+    /// lista, que no la descoloca.
+    function alRecorrer(e: Event) {
+      const donde = e.target as Node | null;
+      if (donde && lista.current?.contains(donde)) return;
+      cerrar();
     }
     document.addEventListener("mousedown", fuera);
     window.addEventListener("resize", cerrar);
@@ -191,11 +235,11 @@ export function Desplegable({
     /// dentro ---la tabla--- NO burbujea hasta `window`. Sin la fase de
     /// captura, recorrer la tabla con la lista abierta la dejaba
     /// flotando sobre la pantalla, quieta y lejos de su columna.
-    document.addEventListener("scroll", cerrar, true);
+    document.addEventListener("scroll", alRecorrer, true);
     return () => {
       document.removeEventListener("mousedown", fuera);
       window.removeEventListener("resize", cerrar);
-      document.removeEventListener("scroll", cerrar, true);
+      document.removeEventListener("scroll", alRecorrer, true);
     };
   }, [abierto]);
 
