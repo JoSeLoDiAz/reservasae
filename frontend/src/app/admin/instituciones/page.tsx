@@ -97,7 +97,12 @@ function PaginaBancoDeEmpresas() {
   }
 
   return (
-    <div className="flex min-h-0 grow flex-col">
+    /// `pb-2`: LA LÍNEA DE RESPETO. El barrido de QA del 1 oct 2026 la
+    /// midió en 5 px ---la última fila quedaba cortada contra la raya
+    /// del pie--- mientras las otras tres tablas que recorren están en
+    /// 13. Se quedó fuera del repaso de esa mañana porque su raíz no
+    /// lleva `px-4` y yo buscaba justo eso.
+    <div className="flex min-h-0 grow flex-col pb-2">
       {/* EL AVISO A LA DERECHA DEL DESPLEGABLE, EN LA MISMA FILA.
           «A la parte derecha de esa lista desplegable de la
           izquierda para ganar espacio» (cliente, 12 sep 2026).

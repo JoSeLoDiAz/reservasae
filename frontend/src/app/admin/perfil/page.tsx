@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 
-import { Bloque } from "@/components/admin/piezas";
+import {
+  Encabezado, Bloque } from "@/components/admin/piezas";
 import { FormularioCambioClave } from "@/components/admin/cambio-clave";
 import {
   Aviso,
@@ -51,13 +52,17 @@ export default function PaginaPerfil() {
   return (
     /// Sin `min-h-0 grow`: aquí no scrollea nada de dentro.
     /// La explicación larga está en `usuarios/page.tsx`.
-    <div className="flex flex-col gap-4 px-4 pt-4 pb-6">
-      <header>
-        <h1 className="text-[1.3125rem] font-bold tracking-[-0.02em] text-titulo">Mi perfil</h1>
-        <p className="mt-1 text-texto-suave">
-          {admin.correo} · {comoSePresenta(admin)}
-        </p>
-      </header>
+    <div className="flex flex-col gap-4 px-4 pt-4 pb-6 [&>header]:mx-0 [&>header]:mb-0">
+      {/* EN SU TARJETA, como las otras veinticuatro pantallas del
+          panel. El barrido de QA del 1 oct 2026 lo midió: el título
+          arrancaba en x=16 ---pegado al borde del lienzo--- mientras su
+          contenido arrancaba en x=45, un escalón de 29 px entre el
+          título y lo que titula. */}
+      <Encabezado
+        compacto
+        titulo="Mi perfil"
+        descripcion={`${admin.correo} · ${comoSePresenta(admin)}`}
+      />
 
       <Bloque titulo="Mis datos">
         {/* `space-y-5` y no 4: entre el pie de un campo y el

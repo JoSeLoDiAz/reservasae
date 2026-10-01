@@ -413,7 +413,17 @@ function ListaParticipantes({
         /// donde lo pone el prototipo: primero se decide qué se
         /// mira, y luego se resume lo que hay.
         resumen={resumen}
-        id="participantes"
+        /// EL ID CAMBIA CADA VEZ QUE CAMBIAN LAS COLUMNAS, y esta
+        /// vez es por «Estado de importación» (1 oct 2026).
+        ///
+        /// El navegador guarda en `localStorage` la clave
+        /// `tabla:<id>` con el orden, los anchos y las columnas
+        /// elegidas, y lo guardado le GANA al código: dejando el id
+        /// anterior, quien ya hubiera tocado sus columnas no vería
+        /// nunca la nueva. Ha costado tres veces en este proyecto.
+        /// Lo que se pierde al renombrar --sus anchos a mano-- es
+        /// barato al lado de una columna invisible.
+        id="participantes-v2"
         columnas={columnas}
         filas={filas}
         clave={(f) => f.id}

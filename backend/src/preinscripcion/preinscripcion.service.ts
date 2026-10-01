@@ -450,8 +450,27 @@ export class PreinscripcionService {
     /// enlace, que es lo que ya se hacia. Lo que se corta es
     /// elegir OTRA.
     if (!yaEsta) {
+      /**
+       * DENTRO DE SU MISMO GREMIO, y esto no es un detalle.
+       *
+       * «Una sola acción de formación» es una regla DEL CONVENIO:
+       * cada gremio tiene su propia oferta, su propio cupo y su
+       * propio reporte al SENA. La misma persona puede estar en
+       * ADECOPRIA y en BRITCHAM, y eso es legítimo ---en la base de
+       * pruebas hay cuatro así---.
+       *
+       * Sin el filtro, la regla cruzaba gremios y bloqueaba justo
+       * eso: alguien de ADECOPRIA no podía entrar en BRITCHAM. Lo
+       * encontré el 1 oct 2026 al ejercitar la pantalla de unir
+       * fichas, cuando los cuatro «repetidos» que listaba resultaron
+       * ser cruces de gremio y ninguno un duplicado.
+       */
       const suyas = await this.prisma.participante.findMany({
-        where: { personaId: persona.id, accionFormacionId: { not: null } },
+        where: {
+          personaId: persona.id,
+          convenioId: convenio.id,
+          accionFormacionId: { not: null },
+        },
         select: {
           accionFormacionId: true,
           accionFormacion: { select: { codigo: true, nombre: true, evento: true } },

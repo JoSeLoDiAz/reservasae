@@ -170,7 +170,24 @@ export function GruposDeLaAccion({
             {grupoId && (
               <button
                 type="button"
-                onClick={() => alElegirGrupo("")}
+                /// CIERRA LA TABLA, ADEMÁS DE SOLTAR EL GRUPO.
+                ///
+                /// El botón promete GRUPOS, y hasta ahora entregaba una
+                /// tabla: soltaba el grupo pero la tabla seguía abierta,
+                /// y como con la tabla abierta no se pintan tarjetas
+                /// ---esa es la regla de «o el escogedor o la tabla»---
+                /// lo que salía eran las 83 personas de la acción
+                /// entera. Para ver los grupos había que pasar por
+                /// «Ocultar la tabla» y volver a entrar.
+                ///
+                /// Lo encontró el barrido de QA del 1 oct 2026, y es un
+                /// efecto que yo mismo introduje ese día al separar el
+                /// escogedor de la tabla: la regla era correcta y este
+                /// botón se quedó diciendo lo de antes.
+                onClick={() => {
+                  alElegirGrupo("");
+                  if (verInscritos) alAlternarTabla();
+                }}
                 className="font-medium text-marca underline hover:no-underline"
               >
                 ← Ver todos los grupos

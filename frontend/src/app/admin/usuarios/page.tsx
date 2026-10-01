@@ -22,7 +22,8 @@ import {
   type RolAdmin,
   type RolConvenio,
 } from "@/lib/admin-api";
-import { Bloque, Pildora } from "@/components/admin/piezas";
+import {
+  Encabezado, Bloque, Pildora } from "@/components/admin/piezas";
 import { ErrorApi } from "@/lib/api";
 
 /**
@@ -214,13 +215,17 @@ export default function PaginaUsuarios() {
     /// Solo lo llevan las pantallas donde algo de DENTRO scrollea
     /// --las de `Tabla`, que se queda con el alto que sobra--. En un
     /// formulario manda el scroll de `<main>`.
-    <div className="flex flex-col gap-4 px-4 pt-4 pb-6">
-      <header>
-        <h1 className="text-[1.3125rem] font-bold tracking-[-0.02em] text-titulo">Usuarios</h1>
-        <p className="mt-1 text-texto-suave">
-          Quién puede entrar al panel y qué puede hacer.
-        </p>
-      </header>
+    <div className="flex flex-col gap-4 px-4 pt-4 pb-6 [&>header]:mx-0 [&>header]:mb-0">
+      {/* EN SU TARJETA, como las otras veinticuatro pantallas del
+          panel. El barrido de QA del 1 oct 2026 lo midió: el título
+          arrancaba en x=16 ---pegado al borde del lienzo--- mientras su
+          contenido arrancaba en x=45, un escalón de 29 px entre el
+          título y lo que titula. */}
+      <Encabezado
+        compacto
+        titulo="Usuarios"
+        descripcion="Quién puede entrar al panel y qué puede hacer."
+      />
 
       {error && <Aviso tipo="error">{error}</Aviso>}
 

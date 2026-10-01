@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-import { Bloque, Cargando } from "@/components/admin/piezas";
+import {
+  Encabezado, Bloque, Cargando } from "@/components/admin/piezas";
 import { conPermiso } from "@/components/admin/puerta-de-pantalla";
 import { conEnlaces } from "@/components/caja-de-politica";
 
@@ -86,21 +87,22 @@ function PaginaPoliticas() {
     /// Sin `min-h-0 grow`: aquí no scrollea nada de dentro. Con él,
     /// la cola del texto vigente quedaba 171 px POR DEBAJO del pie.
     /// La explicación larga está en `usuarios/page.tsx`.
-    <div className="flex flex-col gap-4 px-4 pt-4 pb-6">
+    <div className="flex flex-col gap-4 px-4 pt-4 pb-6 [&>header]:mx-0 [&>header]:mb-0">
       {/* «Habeas Data» y no «Políticas de datos».
           El menú y la miga dicen una cosa y el título decía
           otra, que es justo el lío que se acaba de arreglar en
           las dos pantallas hermanas de este módulo. Lo que la
           cosa ES lo explica la bajada, que para eso está. */}
-      <header>
-        <h1 className="text-[1.3125rem] font-bold tracking-[-0.02em] text-titulo">
-          Habeas Data
-        </h1>
-        <p className="mt-1 max-w-3xl text-texto-suave">
-          El texto que la gente acepta. Se versiona: el que alguien ya aceptó no se
-          cambia nunca, se publica uno nuevo.
-        </p>
-      </header>
+      {/* EN SU TARJETA, como las otras veinticuatro pantallas del
+          panel. El barrido de QA del 1 oct 2026 lo midió: el título
+          arrancaba en x=16 ---pegado al borde del lienzo--- mientras su
+          contenido arrancaba en x=45, un escalón de 29 px entre el
+          título y lo que titula. */}
+      <Encabezado
+        compacto
+        titulo="Habeas Data"
+        descripcion="El texto que la gente acepta. Se versiona: el que alguien ya aceptó no se cambia nunca, se publica uno nuevo."
+      />
 
       {error && <Aviso tipo="error">{error}</Aviso>}
       {exito && <Aviso tipo="exito">{exito}</Aviso>}

@@ -11,6 +11,7 @@ import { sectoresConElActual } from "@/lib/sectores";
 import { preinscripcionApi, type FichaAbierta } from "@/lib/preinscripcion-api";
 
 import { BandaDePasos } from "./banda-de-pasos";
+import { Desplegable } from "./admin/desplegable";
 import { ModalPolitica } from "./modal-politica";
 import { FondoPublico } from "./fondo-publico";
 import { BannerLogos, FilaDeMarca, PiePublico } from "./marca-publica";
@@ -43,6 +44,17 @@ const HACE_100 = (() => {
 const CAMPO =
   "w-full rounded-xl border border-campo-borde bg-campo-fondo px-3 py-2.5 text-texto " +
   "outline-none transition focus:border-campo-foco focus:ring-2 focus:ring-campo-foco/25";
+
+/**
+ * LO QUE MIDE UN CAMPO DE ESTA FICHA, en píxeles.
+ *
+ * `Desplegable` viene del panel, donde los controles miden 32, y
+ * aquí un campo de texto mide otra cosa: `py-2.5` son 10 px arriba
+ * y 10 abajo, el renglón de 16 px ocupa 24, y el borde suma 2. Son
+ * 46. Sin esto el desplegable quedaba más bajo que el `<input>` de
+ * su misma fila, y en una rejilla de dos columnas eso se ve.
+ */
+const ALTO_CAMPO = 46;
 
 type Paso = "PERSONA" | "EMPRESA" | "HECHO";
 
@@ -690,25 +702,31 @@ export function CompletarFicha({ token }: { token: string }) {
               </label>
               )}
 
+              {/* UN `<div>` Y NO UN `<label>` donde antes había un
+                  `<select>`: una etiqueta se ata al primer control
+                  «atable» que lleva dentro, y el disparador del
+                  `Desplegable` es un `<button>`, que no lo es. El
+                  `<label>` quedaría apuntando al vacío, así que el nombre
+                  se le da por `etiquetaAria`. Vale para los cinco de este
+                  archivo. */}
               {pide("estrato") && (
-              <label className="block">
+              <div className="block">
                 <span className="mb-1.5 block text-sm font-medium">Estrato</span>
-                <select
-                  value={persona.estrato ?? ""}
-                  onChange={(e) => setPersona((p) => ({ ...p, estrato: e.target.value }))}
-                  className={CAMPO}
-                >
-                  <option value="">Seleccione…</option>
-                  {[1, 2, 3, 4, 5, 6].map((n) => (
-                    <option key={n} value={n}>
-                      {n}
-                    </option>
-                  ))}
-                </select>
+                <Desplegable
+                  etiquetaAria="Estrato"
+                  alto={ALTO_CAMPO}
+                  marcador="Seleccione…"
+                  valor={persona.estrato ?? ""}
+                  opciones={[1, 2, 3, 4, 5, 6].map((n) => ({
+                    valor: String(n),
+                    etiqueta: String(n),
+                  }))}
+                  alElegir={(v) => setPersona((p) => ({ ...p, estrato: v }))}
+                />
                 <span className="mt-1 block text-xs text-texto-suave">
                   Del 1 al 6, según su recibo de servicios.
                 </span>
-              </label>
+              </div>
               )}
 
               {/* DONDE VIVE, solo si no lo tenemos.
@@ -782,61 +800,66 @@ export function CompletarFicha({ token }: { token: string }) {
                   /// pide. Pasa con quien entró sin elegir
                   /// ubicación.
                   <>
-                    <label className="block">
+                    <div className="block">
                       <span className="mb-1.5 block text-sm font-medium">
                         Departamento de residencia
                       </span>
-                      <select
-                        value={persona.departamentoSepId ?? ""}
-                        onChange={(e) =>
+                      <Desplegable
+                        etiquetaAria="Departamento de residencia"
+                        alto={ALTO_CAMPO}
+                        marcador="Seleccione…"
+                        valor={persona.departamentoSepId ?? ""}
+                        opciones={(ficha?.departamentos ?? []).map((d) => ({
+                          valor: String(d.id),
+                          etiqueta: d.etiqueta,
+                        }))}
+                        alElegir={(v) =>
                           // cambiar de departamento invalida el municipio
                           setPersona((p) => ({
                             ...p,
-                            departamentoSepId: e.target.value,
+                            departamentoSepId: v,
                             municipioSepId: "",
                           }))
                         }
-                        className={CAMPO}
-                      >
-                        <option value="">Seleccione…</option>
-                        {(ficha?.departamentos ?? []).map((d) => (
-                          <option key={d.id} value={d.id}>
-                            {d.etiqueta}
-                          </option>
-                        ))}
-                      </select>
+                      />
                       <span className="mt-1 block text-xs text-texto-suave">
                         Su domicilio, no la sede donde se dicta.
                       </span>
-                    </label>
+                    </div>
 
-                    <label className="block">
+                    <div className="block">
                       <span className="mb-1.5 block text-sm font-medium">
                         Municipio de residencia
                       </span>
-                      <select
-                        value={persona.municipioSepId ?? ""}
-                        onChange={(e) =>
+                      {/* EL AVISO VA EN EL MARCADOR, no en una opción
+                          vacía: el `<select>` apagado enseñaba «Elija
+                          primero el departamento» como si fuera un valor
+                          elegible, y aquí es el texto gris que se ve
+                          mientras no hay nada puesto. `desactivado` es su
+                          `disabled`, y la lista de municipios se busca
+                          tecleando. */}
+                      <Desplegable
+                        etiquetaAria="Municipio de residencia"
+                        alto={ALTO_CAMPO}
+                        marcador={
+                          persona.departamentoSepId
+                            ? "Seleccione…"
+                            : "Elija primero el departamento"
+                        }
+                        desactivado={!persona.departamentoSepId}
+                        valor={persona.municipioSepId ?? ""}
+                        opciones={municipios.map((m) => ({
+                          valor: String(m[0]),
+                          etiqueta: m[2],
+                        }))}
+                        alElegir={(v) =>
                           setPersona((p) => ({
                             ...p,
-                            municipioSepId: e.target.value,
+                            municipioSepId: v,
                           }))
                         }
-                        disabled={!persona.departamentoSepId}
-                        className={CAMPO}
-                      >
-                        <option value="">
-                          {persona.departamentoSepId
-                            ? "Seleccione…"
-                            : "Elija primero el departamento"}
-                        </option>
-                        {municipios.map((m) => (
-                          <option key={m[0]} value={m[0]}>
-                            {m[2]}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
+                      />
+                    </div>
                   </>
                 )}
 
@@ -859,23 +882,22 @@ export function CompletarFicha({ token }: { token: string }) {
               )}
 
               {pide("nivelOcupacionalSepId") && (
-              <label className="block">
+              <div className="block">
                 <span className="mb-1.5 block text-sm font-medium">Nivel ocupacional</span>
-                <select
-                  value={persona.nivelOcupacionalSepId ?? ""}
-                  onChange={(e) =>
-                    setPersona((p) => ({ ...p, nivelOcupacionalSepId: e.target.value }))
+                <Desplegable
+                  etiquetaAria="Nivel ocupacional"
+                  alto={ALTO_CAMPO}
+                  marcador="Elija…"
+                  valor={persona.nivelOcupacionalSepId ?? ""}
+                  opciones={ficha.nivelesOcupacionales.map((n) => ({
+                    valor: String(n.id),
+                    etiqueta: n.etiqueta,
+                  }))}
+                  alElegir={(v) =>
+                    setPersona((p) => ({ ...p, nivelOcupacionalSepId: v }))
                   }
-                  className={CAMPO}
-                >
-                  <option value="">Elija…</option>
-                  {ficha.nivelesOcupacionales.map((n) => (
-                    <option key={n.id} value={n.id}>
-                      {n.etiqueta}
-                    </option>
-                  ))}
-                </select>
-              </label>
+                />
+              </div>
               )}
 
               {pide("beneficiarioPrevio") && (
@@ -1371,24 +1393,26 @@ function SelectorDeSector({
   set: React.Dispatch<React.SetStateAction<Record<string, string>>>;
 }) {
   return (
-    <label className="block">
+    <div className="block">
       <span className="mb-1.5 block text-sm font-medium">Sector económico</span>
       {/* Los quince del cliente (11 sep 2026), en `lib/sectores.ts`.
           Se guarda el texto tal cual porque es lo que sale en el
           F7 que recibe el SENA. */}
-      <select
-        value={empresa.sectorEconomico ?? ""}
-        onChange={(e) => set((x) => ({ ...x, sectorEconomico: e.target.value }))}
-        className={CAMPO}
-      >
-        <option value="">Elija…</option>
-        {sectoresConElActual(empresa.sectorEconomico).map((s) => (
-          <option key={s} value={s}>
-            {s}
-          </option>
-        ))}
-      </select>
-    </label>
+      {/* El VALOR es el propio texto del sector, como antes: eso es
+          lo que viaja al F7, y cambiarlo por un código sería cambiar
+          el entregable. */}
+      <Desplegable
+        etiquetaAria="Sector económico"
+        alto={ALTO_CAMPO}
+        marcador="Elija…"
+        valor={empresa.sectorEconomico ?? ""}
+        opciones={sectoresConElActual(empresa.sectorEconomico).map((s) => ({
+          valor: s,
+          etiqueta: s,
+        }))}
+        alElegir={(v) => set((x) => ({ ...x, sectorEconomico: v }))}
+      />
+    </div>
   );
 }
 
