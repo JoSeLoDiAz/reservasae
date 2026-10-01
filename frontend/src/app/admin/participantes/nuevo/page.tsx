@@ -124,8 +124,12 @@ export default function PaginaNuevoParticipante() {
         </p>
       </header>
 
+      {/* El aviso es una CAJA, como las tarjetas, asi que se alinea con
+          el canto de ellas ---`mx-4`, x=16---, no con el texto de dentro.
+          Con `px-7` arrancaba en x=28: ni una cosa ni la otra, y la
+          pagina quedaba con tres margenes izquierdos distintos. */}
       {error && (
-        <div className="px-7 pt-4">
+        <div className="mx-4 pt-4">
           <Aviso tipo="error">{error}</Aviso>
         </div>
       )}
@@ -134,7 +138,11 @@ export default function PaginaNuevoParticipante() {
         titulo="Quién es"
         descripcion="El documento identifica a la persona en todo el sistema: si ya está en otro curso, se reconoce sola. Lo que quede en blanco se puede completar después desde su lead."
       >
-        <div className="space-y-4">
+        {/* `space-y-6` y no `space-y-4`: la nota de abajo iba a 16 px del
+            ultimo control, que es EXACTAMENTE lo que separa una fila de
+            campos de la siguiente, asi que se leia como una fila mas.
+            24 px la despegan y vuelve a ser un pie de pagina. */}
+        <div className="space-y-6">
           <CamposDeLaPersona
             c={p}
             setC={setP}
@@ -184,7 +192,19 @@ export default function PaginaNuevoParticipante() {
         titulo="De dónde viene"
         descripcion="El convenio decide quién la ve y a qué catálogo pertenece. No se cambia después."
       >
-        <div className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-x-7 gap-y-4">
+        {/* LA MISMA REJILLA QUE LA TARJETA DE ARRIBA. «se ve montado los
+            campos» (cliente, 1 oct 2026): esta iba con
+            `auto-fit,minmax(220px,1fr)` y `gap-x-7`, y con solo dos campos
+            el navegador resolvia CUATRO columnas ---dos de 0 px--- de
+            581 px con 28 de calle, mientras los trece campos de «Quién es»
+            van en dos de 587 con 16. Resultado medido a 1280 y a 1900:
+            «Convenio» cerraba en x=626 y todo lo de encima en x=632, y
+            «Origen» abría en x=654 contra x=648. Seis pixeles de desnivel
+            en cada columna, repetidos tarjeta tras tarjeta, es lo que hace
+            que las cajas parezcan corridas unas sobre otras.
+            De paso se va el `220px`: una medida fija dentro de algo que
+            escala, que es justo lo que la casa no quiere. */}
+        <div className="grid gap-4 sm:grid-cols-2">
           <Campo etiqueta="Convenio">
             <select
               className={CLASE_CONTROL}
@@ -216,7 +236,13 @@ export default function PaginaNuevoParticipante() {
         </div>
       </Tarjeta>
 
-      <div className="flex items-center gap-4 px-7 py-5">
+      {/* El boton tiene que nacer donde nacen los campos. Con solo `px-7`
+          salia en x=28 y toda la pagina ---rotulos, titulos, controles---
+          en x=45: «Inscribir» colgaba 17 px por fuera del formulario.
+          `mx-4 px-7` lo mete en la misma calle que las tarjetas (queda a
+          44; el pixel que falta es el borde de la tarjeta, que esta fila
+          no tiene). */}
+      <div className="mx-4 flex items-center gap-4 px-7 py-5">
         <Boton onClick={guardar} disabled={!listo || guardando}>
           {guardando ? "Guardando…" : "Inscribir"}
         </Boton>

@@ -15,6 +15,7 @@ import {
   type Reserva,
 } from "@/lib/api";
 import { CajaDePolitica, usePolitica } from "@/components/caja-de-politica";
+import { Desplegable } from "@/components/admin/desplegable";
 import { PantallaDeCarga, useEsperaCompleta } from "@/components/pantalla-de-carga";
 import {
   formularioPublico,
@@ -135,6 +136,40 @@ export function FormularioReserva({ slug }: { slug: string }) {
 
     if (!oferta) {
       setError("Elija el curso y la ubicación.");
+      return;
+    }
+
+    /**
+     * LO OBLIGATORIO QUE EL NAVEGADOR YA NO MIRA.
+     *
+     * Las preguntas de selección única eran `<select required>` y de
+     * comprobarlas se encargaba el navegador al enviar. Al pasarlas
+     * a `Desplegable` --un `<button>`-- ese guarda desapareció: un
+     * botón no se valida, y este formulario no tiene otra red, su
+     * `type="submit"` solo se apaga mientras envía. Sin esto una
+     * reserva salía con una pregunta marcada como obligatoria en
+     * blanco, y eso no se descubre hasta que alguien va a leer la
+     * respuesta y no está.
+     *
+     * Se mira `visible`: una pregunta que depende de otra y está
+     * escondida no se puede exigir, porque no hay dónde contestarla.
+     *
+     * Y SE DICE QUÉ FALTA, por su rótulo. «Complete los campos
+     * obligatorios» en un formulario de veinte preguntas obliga a
+     * recorrerlo entero adivinando.
+     */
+    const sinContestar = todas
+      .filter(
+        (p) =>
+          p.tipo === "SELECCION_UNICA" &&
+          p.obligatoria &&
+          visible(p) &&
+          !(typeof valores[p.id] === "string" && valores[p.id]),
+      )
+      .map((p) => p.etiqueta);
+
+    if (sinContestar.length) {
+      setError(`Falta contestar: ${sinContestar.join(", ")}.`);
       return;
     }
 
@@ -295,6 +330,17 @@ const CLASE_CONTROL =
   "w-full rounded-xl border border-campo-borde bg-campo-fondo px-3 py-2.5 text-texto " +
   "outline-none transition focus:border-campo-foco focus:ring-2 focus:ring-campo-foco/25";
 
+/**
+ * LO QUE MIDE UN CONTROL DE ESTE FORMULARIO, en píxeles.
+ *
+ * `Desplegable` viene del panel, donde los controles miden 32, y
+ * `CLASE_CONTROL` mide otra cosa: `py-2.5` son 10 px arriba y 10
+ * abajo, el renglón de 16 px ocupa 24, y el borde suma 2. Son 46.
+ * Sin esto el desplegable quedaba más bajo que el `<input>` de al
+ * lado.
+ */
+const ALTO_CONTROL = 46;
+
 function ControlPregunta({
   pregunta,
   valor,
@@ -345,23 +391,37 @@ function ControlPregunta({
   if (pregunta.controlEspecial === "OFERTA") {
     if (!accion) return null;
     return (
-      <Campo pregunta={pregunta} ayuda={pregunta.ayuda ?? ayudaUbicacion(accion)}>
-        <select
-          required={pregunta.obligatoria}
-          value={(valor as string) ?? ""}
-          onChange={(e) => poner(e.target.value)}
-          className={CLASE_CONTROL}
-        >
-          <option value="">Seleccione…</option>
-          {accion.ofertas.map((o) => (
-            <option key={o.id} value={o.id}>
-              {bonito(o.ubicacion)} — {MODALIDAD[o.modalidad]} —{" "}
-              {o.estado === "COMPLETO"
-                ? "sin cupos, entraría en lista de espera"
-                : `${o.cuposDisponibles} cupos disponibles`}
-            </option>
-          ))}
-        </select>
+      <Campo
+        pregunta={pregunta}
+        ayuda={pregunta.ayuda ?? ayudaUbicacion(accion)}
+        comoDiv
+      >
+        {/* SIN EL `required` DEL NAVEGADOR, y aquí sí había que
+            reponerlo: este formulario se manda con un `type="submit"`
+            que solo se apaga mientras envía, así que el `<select>`
+            era la única comprobación que tenía. Lo cubre el guarda
+            `if (!oferta)` de `enviar`, que ya existía y dice «Elija el
+            curso y la ubicación».
+
+            LA UBICACIÓN EN LA PRIMERA LÍNEA Y LOS CUPOS EN LA
+            SEGUNDA: cabían en un solo renglón porque la lista del
+            sistema no sabe hacer dos, y «MEDELLÍN — Presencial — 12
+            cupos disponibles» se cortaba por la mitad en el móvil. */}
+        <Desplegable
+          etiquetaAria={pregunta.etiqueta}
+          alto={ALTO_CONTROL}
+          marcador="Seleccione…"
+          valor={(valor as string) ?? ""}
+          opciones={accion.ofertas.map((o) => ({
+            valor: o.id,
+            etiqueta: `${bonito(o.ubicacion)} — ${MODALIDAD[o.modalidad]}`,
+            detalle:
+              o.estado === "COMPLETO"
+                ? "Sin cupos, entraría en lista de espera"
+                : `${o.cuposDisponibles} cupos disponibles`,
+          }))}
+          alElegir={(v) => poner(v)}
+        />
         {oferta && <ResumenOferta oferta={oferta} />}
       </Campo>
     );
@@ -455,20 +515,24 @@ function ControlPregunta({
 
   if (pregunta.tipo === "SELECCION_UNICA") {
     return (
-      <Campo pregunta={pregunta}>
-        <select
-          required={pregunta.obligatoria}
-          value={(valor as string) ?? ""}
-          onChange={(e) => poner(e.target.value)}
-          className={CLASE_CONTROL}
-        >
-          <option value="">Seleccione…</option>
-          {pregunta.opciones.map((o) => (
-            <option key={o.id} value={o.valor}>
-              {o.etiqueta}
-            </option>
-          ))}
-        </select>
+      <Campo pregunta={pregunta} comoDiv>
+        {/* EL `required` SE PERDIÓ Y HUBO QUE REPONERLO A MANO.
+            Era la única comprobación de estas preguntas: el botón de
+            enviar solo se apaga mientras envía, así que sin el
+            `<select required>` una reserva salía con una pregunta
+            obligatoria en blanco y nadie se enteraba hasta leer la
+            respuesta. La repone `sinContestar` en `enviar`. */}
+        <Desplegable
+          etiquetaAria={pregunta.etiqueta}
+          alto={ALTO_CONTROL}
+          marcador="Seleccione…"
+          valor={(valor as string) ?? ""}
+          opciones={pregunta.opciones.map((o) => ({
+            valor: o.valor,
+            etiqueta: o.etiqueta,
+          }))}
+          alElegir={(v) => poner(v)}
+        />
       </Campo>
     );
   }
@@ -570,22 +634,35 @@ function soloCelular(valor: string): string {
 function Campo({
   pregunta,
   ayuda,
+  comoDiv,
   children,
 }: {
   pregunta: PreguntaPublica;
   ayuda?: string | null;
+  /**
+   * UN `<div>` EN LUGAR DEL `<label>`, para los desplegables.
+   *
+   * Una etiqueta se ata al primer control «atable» que lleva
+   * dentro, y el disparador del `Desplegable` es un `<button>`, que
+   * no es de los que se pueden atar: el `<label>` quedaría
+   * apuntando al vacío y el control sin nombre. Los que envuelven
+   * un `<input>` siguen siendo `<label>`, que es lo que hace que
+   * pulsar el rótulo lleve el foco a la casilla.
+   */
+  comoDiv?: boolean;
   children: React.ReactNode;
 }) {
   const texto = ayuda ?? pregunta.ayuda;
+  const Envoltorio = comoDiv ? "div" : "label";
   return (
-    <label className="block">
+    <Envoltorio className="block">
       <span className="mb-1.5 block text-sm font-medium">
         {pregunta.etiqueta}
         {pregunta.obligatoria && <span className="text-error"> *</span>}
       </span>
       {children}
       {texto && <span className="mt-1.5 block text-xs text-texto-suave">{texto}</span>}
-    </label>
+    </Envoltorio>
   );
 }
 

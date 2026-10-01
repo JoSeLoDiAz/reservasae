@@ -78,6 +78,74 @@ function detalleDeLoQueFalta(f: FilaParticipante): string {
   return partes.join(" · ") || "Le falta algún dato.";
 }
 
+/// Los cuatro estados de importación, y son CUATRO a propósito.
+///
+/// Con `filtro: "opciones"` el valor TIENE que ser de cardinalidad
+/// baja: el desplegable saca sus opciones de los datos, así que
+/// poner ahí el nombre del archivo daría una opción por carga
+/// --cien opciones y ninguna que agrupe-- que es justo lo contrario
+/// de poder pedir «los que entraron por archivo». El archivo se
+/// enseña en la celda y en el título; lo que se filtra es el estado.
+///
+/// «Importado sin registro» no es un caso de laboratorio: el
+/// histórico de cargas (`CargaDeParticipantes`) es POSTERIOR a las
+/// primeras importaciones, y hay fichas con `origenLead =
+/// IMPORTACION` sin `cargaId`. Decir de ellas «No importado» es
+/// mentir; decir «Importado de archivo» es inventarse el archivo.
+type EstadoDeImportacion =
+  | "No importado"
+  | "Importado de archivo"
+  | "Importado pegado"
+  | "Importado sin registro";
+
+function estadoDeImportacion(f: FilaParticipante): EstadoDeImportacion {
+  const carga = f.carga ?? null;
+  if (carga) {
+    return carga.origen === "PEGADO"
+      ? "Importado pegado"
+      : "Importado de archivo";
+  }
+  if (f.origenLead === "IMPORTACION") return "Importado sin registro";
+  return "No importado";
+}
+
+/// El color va en la LETRA y SOLO cuando dice algo.
+///
+/// La mayoría de las filas no vino de un archivo: cuatrocientas
+/// etiquetas de color para decir «aquí no pasó nada» tapan a las
+/// pocas que sí hay que mirar. En ámbar van las dos que piden algo
+/// --la carga que dejó filas fallidas y la que no consta--, y en
+/// verde la importación que salió limpia.
+function tonoDeImportacion(f: FilaParticipante): string {
+  const estado = estadoDeImportacion(f);
+  if (estado === "No importado") return "text-texto-suave";
+  if (estado === "Importado sin registro") return "text-aviso";
+  return (f.carga?.fallidos ?? 0) > 0 ? "text-aviso" : "text-exito";
+}
+
+/// De qué archivo vino, cuándo, quién la hizo y cómo salió.
+///
+/// Los recuentos son DE LA CARGA y así se escriben: «120 filas, 118
+/// nuevas» no es un dato de esta persona, y leído como suyo haría
+/// pensar que la ficha se importó ciento veinte veces.
+function detalleDeLaImportacion(f: FilaParticipante): string {
+  const carga = f.carga ?? null;
+  if (!carga) {
+    return f.origenLead === "IMPORTACION"
+      ? "Entró por una importación anterior al histórico de cargas: no consta de qué archivo vino."
+      : "No vino de un archivo: entró por el formulario público, por una reserva de empresa o la escribió un asesor.";
+  }
+  const resumen =
+    `Esa carga: ${carga.filas} filas, ${carga.creados} nuevas, ` +
+    `${carga.yaExistian} ya estaban` +
+    (carga.fallidos > 0 ? `, ${carga.fallidos} fallaron` : "");
+  return [
+    carga.nombreArchivo ?? "Tabla pegada a mano",
+    `${fechaHora(carga.creadoEn)} · ${carga.autor}`,
+    resumen,
+  ].join(" · ");
+}
+
 /**
  * Las columnas de un lead, en un solo sitio.
  *
@@ -287,6 +355,45 @@ export function columnasDeParticipante(): Columna<FilaParticipante>[] {
           {f.campanaDeEntrada && (
             <span className="block truncate font-mono text-xs text-texto-suave">
               {f.campanaDeEntrada}
+            </span>
+          )}
+        </span>
+      ),
+      filtro: "opciones",
+    },
+    {
+      /// Punto 2.0 del cliente: «visibilidad del estado de
+      /// importación en Gestión de leads». Hoy, cargado un archivo,
+      /// la tabla no decía de qué carga venía cada lead ni cómo le
+      /// fue, y eso solo se podía reconstruir abriendo el histórico
+      /// de Carga de participantes y comparando a mano.
+      ///
+      /// VA PEGADA A «Fuente formulario» y «Canal de entrada», que
+      /// son las otras dos de procedencia: las tres contestan de
+      /// dónde salió la ficha, y leerlas juntas es lo que separa un
+      /// lead que se ganó de uno que se subió en una lista.
+      clave: "importacion",
+      /// Llegó el 1 oct 2026, con selecciones ya guardadas.
+      nueva: true,
+      ancho: "190px",
+      titulo: "Estado de importación",
+      valor: (f) => estadoDeImportacion(f),
+      pinta: (f) => (
+        <span
+          className="block leading-tight"
+          title={detalleDeLaImportacion(f)}
+        >
+          <span className={`block font-medium ${tonoDeImportacion(f)}`}>
+            {estadoDeImportacion(f)}
+          </span>
+          {f.carga && (
+            /// El archivo debajo, en mono y recortado: es lo que
+            /// de verdad se pregunta --«¿este vino en la lista de
+            /// ayer?»-- y la fecha al lado desempata las dos
+            /// cargas del mismo archivo.
+            <span className="block truncate font-mono text-xs text-texto-suave">
+              {f.carga.nombreArchivo ?? "pegado"} ·{" "}
+              {fechaHora(f.carga.creadoEn)}
             </span>
           )}
         </span>

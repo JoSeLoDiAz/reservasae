@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { conEnlaces, TEXTO_DE_RESPALDO } from "@/components/caja-de-politica";
+import { Desplegable } from "@/components/admin/desplegable";
 import { ErrorApi, codigoDelFallo } from "@/lib/api";
 import { primero, resto } from "@/lib/nombres";
 import {
@@ -39,6 +40,18 @@ type Pantalla = "eleccion" | "datos" | "revision";
 const CAMPO =
   "w-full rounded-xl border border-campo-borde bg-campo-fondo px-3 py-2.5 text-texto " +
   "outline-none transition focus:border-campo-foco focus:ring-2 focus:ring-campo-foco/25";
+
+/**
+ * LO QUE MIDE UN CAMPO DE ESTE FORMULARIO, en píxeles.
+ *
+ * `Desplegable` nació en el panel, donde los controles miden 32, y
+ * aquí los campos de texto miden otra cosa: `py-2.5` son 10 px
+ * arriba y 10 abajo, el renglón de 16 px ocupa 24, y el borde suma
+ * 2. Son 46. Puesto al lado de un `<input>` con la altura de
+ * fábrica, el desplegable quedaba un dedo más bajo que la casilla
+ * de su misma fila.
+ */
+const ALTO_CAMPO = 46;
 
 export function PreinscripcionPublica({ slug }: { slug: string }) {
   const [catalogo, setCatalogo] = useState<CatalogoPreinscripcion | null>(null);
@@ -346,13 +359,29 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
           </p>
 
           <div className="mt-5 grid gap-4 sm:grid-cols-2">
-            <label className="block">
+            {/* UN `<div>` Y NO UN `<label>`, desde que esto dejó de ser
+                un `<select>`: una etiqueta se ata al primer control que
+                lleva dentro, y un `<button>` no es de los que se pueden
+                atar. El `<label>` quedaría apuntando al vacío, así que el
+                nombre se le da al control por `etiquetaAria`. */}
+            <div className="block">
               <span className="mb-1.5 block text-sm font-medium">Departamento</span>
-              <select
-                required
-                value={departamento}
-                onChange={(e) => {
-                  const nuevo = e.target.value;
+              {/* SIN EL `required` DEL NAVEGADOR, y no se pierde nada:
+                  nunca llegó a validar. El `<select>` vivía en la
+                  pantalla 1 y el único `type="submit"` está en la 3, con
+                  esta pantalla ya desmontada. Lo que de verdad obliga a
+                  elegir departamento es que las tarjetas de acción no se
+                  pintan hasta que hay departamento Y municipio. */}
+              <Desplegable
+                etiquetaAria="Departamento"
+                alto={ALTO_CAMPO}
+                marcador="Elija…"
+                valor={departamento}
+                opciones={catalogo.ubicaciones.map((u) => ({
+                  valor: u.departamento,
+                  etiqueta: u.departamento,
+                }))}
+                alElegir={(nuevo) => {
                   setDepartamento(nuevo);
                   if (nuevo) marcar(slug, "ELIGIO_UBICACION", nuevo);
                   /// SI EL DEPARTAMENTO TIENE UNA SOLA SEDE, SE PONE
@@ -380,60 +409,59 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
                   setAccionId("");
                   setOfertaId("");
                 }}
-                className={CAMPO}
-              >
-                <option value="">Elija…</option>
-                {catalogo.ubicaciones.map((u) => (
-                  <option key={u.departamento} value={u.departamento}>
-                    {u.departamento}
-                  </option>
-                ))}
-              </select>
-            </label>
+              />
+            </div>
 
-            <label className="block">
+            <div className="block">
               <span className="mb-1.5 block text-sm font-medium">
                 Municipio donde vive
               </span>
-              <select
-                value={ciudad}
-                disabled={!departamento}
-                onChange={(e) => {
-                  setCiudad(e.target.value);
+              {/* `desactivado` es el `disabled` de este control: hasta que
+                  no hay departamento no hay municipios que ofrecer, y el
+                  propio `Desplegable` se pinta en gris y no se abre. El
+                  `opacity-50` que llevaba el `<select>` sobra: lo trae él
+                  con `disabled:opacity-60`. */}
+              {/* SOLO LAS SEDES, CUANDO EL DEPARTAMENTO TIENE.
+
+                  «Te dije que solo Medellín y solo Popayán» (cliente,
+                  23 sep 2026, y era la segunda vez). Iban las sedes
+                  arriba y debajo los 126 municipios de Antioquia en un
+                  grupo «Todos los municipios», así que la lista pedía
+                  buscar entre ciento veintiséis nombres para acabar
+                  eligiendo el primero.
+
+                  Si el departamento NO tiene sede --oferta solo
+                  virtual-- sí van todos: sin eso, nadie de ese
+                  departamento podría decir dónde vive y el formulario
+                  se cerraría solo. */}
+              {/* LOS DOS GRUPOS, SIEMPRE. Esto llegó ofreciendo
+                  SOLO las sedes cuando el departamento tenía
+                  alguna, y ese campo es «Municipio donde vive»:
+                  quien vive en Bello no podía decir Bello, y ese
+                  dato es el DOMICILIO que viaja al cargue del SEP
+                  con su código DANE. Un formulario que solo deja
+                  decir la sede recoge un domicilio falso. */}
+              {/* Y SE PUEDEN BUSCAR TECLEANDO, que con 126 municipios
+                  importa: `Desplegable` lleva la misma búsqueda por
+                  letras que el `<select>` nativo, así que escribir
+                  «med» salta a Medellín sin bajar con la flecha. */}
+              <Desplegable
+                etiquetaAria="Municipio donde vive"
+                alto={ALTO_CAMPO}
+                marcador="Elija…"
+                desactivado={!departamento}
+                valor={ciudad}
+                opciones={[...conSede, ...elResto].map((c) => ({
+                  valor: c,
+                  etiqueta: c + (sedes.has(c) ? " (con formación presencial)" : ""),
+                }))}
+                alElegir={(nueva) => {
+                  setCiudad(nueva);
                   setAccionId("");
                   setOfertaId("");
                 }}
-                className={CAMPO + (departamento ? "" : " opacity-50")}
-              >
-                <option value="">Elija…</option>
-                {/* SOLO LAS SEDES, CUANDO EL DEPARTAMENTO TIENE.
-
-                    «Te dije que solo Medellín y solo Popayán» (cliente,
-                    23 sep 2026, y era la segunda vez). Iban las sedes
-                    arriba y debajo los 126 municipios de Antioquia en un
-                    grupo «Todos los municipios», así que la lista pedía
-                    buscar entre ciento veintiséis nombres para acabar
-                    eligiendo el primero.
-
-                    Si el departamento NO tiene sede --oferta solo
-                    virtual-- sí van todos: sin eso, nadie de ese
-                    departamento podría decir dónde vive y el formulario
-                    se cerraría solo. */}
-                {/* LOS DOS GRUPOS, SIEMPRE. Esto llegó ofreciendo
-                    SOLO las sedes cuando el departamento tenía
-                    alguna, y ese campo es «Municipio donde vive»:
-                    quien vive en Bello no podía decir Bello, y ese
-                    dato es el DOMICILIO que viaja al cargue del SEP
-                    con su código DANE. Un formulario que solo deja
-                    decir la sede recoge un domicilio falso. */}
-                {[...conSede, ...elResto].map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                    {sedes.has(c) ? " (con formación presencial)" : ""}
-                  </option>
-                ))}
-              </select>
-            </label>
+              />
+            </div>
           </div>
         </section>
 
@@ -602,23 +630,29 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
               sinOpcional
             />
 
-            <label className="block">
+            <div className="block">
               <span className="mb-1.5 block text-sm font-medium">Género</span>
-              <select
-                required
-                value={datos.generoSepId}
-                onChange={(e) => {
-                  cambiar("generoSepId", e.target.value);
-                  if (e.target.value !== "OTRO") cambiar("generoOtroCual", "");
+              {/* El `required` que había aquí tampoco validaba nunca: de
+                  esta pantalla se sale con el botón «Continuar», que es
+                  `type="button"`, y el navegador solo mira los `required`
+                  cuando se ENVÍA. Quien obliga a contestar es
+                  `faltaEnDatos`, que apaga el botón y nombra «género». */}
+              <Desplegable
+                etiquetaAria="Género"
+                alto={ALTO_CAMPO}
+                marcador="Elija…"
+                valor={datos.generoSepId}
+                opciones={[
+                  { valor: "1", etiqueta: "Masculino" },
+                  { valor: "2", etiqueta: "Femenino" },
+                  { valor: "OTRO", etiqueta: "Otro" },
+                ]}
+                alElegir={(v) => {
+                  cambiar("generoSepId", v);
+                  if (v !== "OTRO") cambiar("generoOtroCual", "");
                 }}
-                className={CAMPO}
-              >
-                <option value="">Elija…</option>
-                <option value="1">Masculino</option>
-                <option value="2">Femenino</option>
-                <option value="OTRO">Otro</option>
-              </select>
-            </label>
+              />
+            </div>
 
             {esOtroGenero && (
               <div className="sm:col-span-2 lg:col-span-3">
@@ -651,30 +685,31 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
               />
             </div>
 
-            <label className="block">
+            <div className="block">
               <span className="mb-1.5 block text-sm font-medium">Tipo de documento</span>
-              <select
-                required
-                value={datos.tipoDocumentoSepId}
-                onChange={(e) => {
-                  cambiar("tipoDocumentoSepId", e.target.value);
+              {/* Mismo caso que el género: el `required` era decorativo
+                  --no hay envío en esta pantalla-- y lo que de verdad
+                  obliga es `faltaEnDatos` con «tipo de documento». */}
+              <Desplegable
+                etiquetaAria="Tipo de documento"
+                alto={ALTO_CAMPO}
+                marcador="Elija…"
+                valor={datos.tipoDocumentoSepId}
+                opciones={catalogo.documentos.map((d) => ({
+                  valor: String(d.id),
+                  etiqueta: d.etiqueta,
+                }))}
+                alElegir={(v) => {
+                  cambiar("tipoDocumentoSepId", v);
                   // cambiar de tipo cambia lo que se admite:
                   // dejar lo tecleado deja un numero invalido
                   cambiar("numeroDocumento", "");
-                  if (Number(e.target.value) !== DOCUMENTO_OTRO) {
+                  if (Number(v) !== DOCUMENTO_OTRO) {
                     cambiar("documentoOtroCual", "");
                   }
                 }}
-                className={CAMPO}
-              >
-                <option value="">Elija…</option>
-                {catalogo.documentos.map((d) => (
-                  <option key={d.id} value={d.id}>
-                    {d.etiqueta}
-                  </option>
-                ))}
-              </select>
-            </label>
+              />
+            </div>
 
             <Texto
               etiqueta="Número de documento"

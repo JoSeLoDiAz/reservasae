@@ -19,7 +19,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-import { Bloque, Cargando } from "@/components/admin/piezas";
+import {
+  Encabezado, Bloque, Cargando } from "@/components/admin/piezas";
 import { conPermiso } from "@/components/admin/puerta-de-pantalla";
 import { Aviso, Boton } from "@/components/admin/marco-admin";
 import { ErrorApi } from "@/lib/api";
@@ -318,16 +319,25 @@ function PaginaMeta() {
     /// abajo no tiene margen como en la tabla de Gestión de leads?»
     /// (cliente, 12 sep 2026). La explicación larga está en
     /// `usuarios/page.tsx`.
-    <div className="flex flex-col gap-4 px-4 pt-4 pb-6">
-      <header>
-        <h1 className="text-[1.3125rem] font-bold tracking-[-0.02em] text-titulo">Webhook de Meta</h1>
-        <p className="mt-1 max-w-3xl text-texto-suave">
-          Por aquí entran los leads que se pagan en Facebook e Instagram. Hay{" "}
-          <strong>una app de Meta por gremio</strong>, así que cada uno tiene su
-          propia URL, su propio secreto y su propio token: lo que esté bien en
-          uno no dice nada del otro.
-        </p>
-      </header>
+    <div className="flex flex-col gap-4 px-4 pt-4 pb-6 [&>header]:mx-0 [&>header]:mb-0">
+      {/* EN SU TARJETA, como las otras veinticuatro pantallas del
+          panel. El barrido de QA del 1 oct 2026 lo midió: el título
+          arrancaba en x=16 ---pegado al borde del lienzo--- mientras su
+          contenido arrancaba en x=45, un escalón de 29 px entre el
+          título y lo que titula. */}
+      <Encabezado
+        compacto
+        titulo="Webhook de Meta"
+        descripcionAncha
+        descripcion={
+          <>
+            Por aquí entran los leads que se pagan en Facebook e Instagram. Hay{" "}
+            <strong>una app de Meta por gremio</strong>, así que cada uno tiene su
+            propia URL, su propio secreto y su propio token: lo que esté bien en
+            uno no dice nada del otro.
+          </>
+        }
+      />
 
       {error && <Aviso tipo="error">{error}</Aviso>}
 

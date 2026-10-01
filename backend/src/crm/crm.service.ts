@@ -502,6 +502,26 @@ export class CrmService {
           /// por la cobertura, que es de donde cuelga la persona.
           cobertura: { select: { grupo: { select: { numero: true } } } },
           asesor: { select: { id: true, nombre: true } },
+          /// DE QUE IMPORTACION VINO, para la columna «Estado de
+          /// importacion» de Gestion de leads (lista del cliente, 2.0).
+          ///
+          /// `cargaId` ya viajaba en la fila y no lo miraba nadie: sin
+          /// la carga al lado, la tabla no podia decir de que archivo
+          /// salio cada lead ni como fue esa carga, que es justo lo que
+          /// se pregunta cuando una importacion sale rara.
+          carga: {
+            select: {
+              id: true,
+              nombreArchivo: true,
+              origen: true,
+              creadoEn: true,
+              autor: true,
+              filas: true,
+              creados: true,
+              yaExistian: true,
+              fallidos: true,
+            },
+          },
           empresa: {
             select: {
               razonSocial: true,
@@ -2003,8 +2023,27 @@ export class CrmService {
          * Lo que esto NO toca: cambiar de acción desde la ficha. Eso
          * mueve la participación que ya existe, no crea una segunda.
          */
+        /**
+         * DENTRO DE SU MISMO GREMIO, y esto no es un detalle.
+         *
+         * «Una sola acción de formación» es una regla DEL CONVENIO:
+         * cada gremio tiene su propia oferta, su propio cupo y su
+         * propio reporte al SENA. La misma persona puede estar en
+         * ADECOPRIA y en BRITCHAM, y eso es legítimo ---en la base de
+         * pruebas hay cuatro así---.
+         *
+         * Sin el filtro, la regla cruzaba gremios y bloqueaba justo
+         * eso: alguien de ADECOPRIA no podía entrar en BRITCHAM. Lo
+         * encontré el 1 oct 2026 al ejercitar la pantalla de unir
+         * fichas, cuando los cuatro «repetidos» que listaba resultaron
+         * ser cruces de gremio y ninguno un duplicado.
+         */
         const suyas = await tx.participante.findMany({
-          where: { personaId: persona.id, accionFormacionId: { not: null } },
+          where: {
+            personaId: persona.id,
+            convenioId: dto.convenioId,
+            accionFormacionId: { not: null },
+          },
           select: {
             accionFormacionId: true,
             accionFormacion: {
@@ -3561,12 +3600,28 @@ export class CrmService {
     const esForo = (e: string | null | undefined) =>
       (e ?? '').toUpperCase().includes('FORO');
 
+    /**
+     * SE AGRUPA POR PERSONA **Y GREMIO**, no solo por persona.
+     *
+     * La misma persona en ADECOPRIA y en BRITCHAM NO es un duplicado:
+     * son dos convenios distintos, con su propia oferta y su propio
+     * reporte al SENA, y es legítimo estar en los dos. Agrupando solo
+     * por persona, los cuatro casos de la base de pruebas salían como
+     * repetidos y NINGUNO lo era: la pantalla ofrecía unir fichas que
+     * el propio servidor rechaza después ---«están en gremios
+     * distintos»---, que es la peor forma de equivocarse, porque la
+     * lista promete trabajo que no se puede hacer.
+     *
+     * Lo encontré al ejercitar la pantalla de verdad, no leyéndola: el
+     * botón devolvió 400 y el 400 tenía razón.
+     */
     const porPersona = new Map<string, typeof filas>();
     for (const f of filas) {
       if (esForo(f.accionFormacion?.evento)) continue;
-      const suyas = porPersona.get(f.personaId) ?? [];
+      const llave = `${f.personaId}|${f.convenioId}`;
+      const suyas = porPersona.get(llave) ?? [];
       suyas.push(f);
-      porPersona.set(f.personaId, suyas);
+      porPersona.set(llave, suyas);
     }
 
     return [...porPersona.values()]
@@ -6582,6 +6637,19 @@ export class CrmService {
       creadoEn: Date;
     }>;
     _count: { notas: number; movimientos: number };
+    /// De que importacion vino, si vino de una. Nulo = entro por el
+    /// formulario, por una reserva o a mano.
+    carga?: {
+      id: string;
+      nombreArchivo: string | null;
+      origen: string;
+      creadoEn: Date;
+      autor: string;
+      filas: number;
+      creados: number;
+      yaExistian: number;
+      fallidos: number;
+    } | null;
     /// Cuantas veces se le edito un campo. Sale del registro
     /// de auditoria, que es donde queda esa traza.
     ediciones: number;
@@ -6686,6 +6754,10 @@ export class CrmService {
       /// guardar la ficha tambien deja movimiento.
       cambios: p.ediciones,
       datosEmpresa: this.estadoDeEmpresa(p.empresa),
+      /// La carga entera y no solo su id: la tabla enseña el archivo y
+      /// el recuento de esa importacion, y pedirlos aparte por cada
+      /// fila serian cincuenta consultas por pagina.
+      carga: p.carga ?? null,
       antiguedadDias: Math.floor(
         (Date.now() - p.creadoEn.getTime()) / 86_400_000,
       ),

@@ -60,6 +60,8 @@ async function enDosAcciones(): Promise<Hallazgo> {
     where: { accionFormacionId: { not: null } },
     select: {
       personaId: true,
+      convenioId: true,
+      convenio: { select: { sigla: true } },
       persona: { select: { numeroDocumento: true, primerNombre: true, primerApellido: true } },
       accionFormacion: { select: { codigo: true, evento: true } },
       asesor: { select: { nombre: true } },
@@ -70,12 +72,25 @@ async function enDosAcciones(): Promise<Hallazgo> {
   const esForo = (e: string | null | undefined) =>
     (e ?? '').toUpperCase().includes('FORO');
 
+  /**
+   * POR PERSONA **Y GREMIO**, no solo por persona.
+   *
+   * La misma persona en ADECOPRIA y en BRITCHAM NO es un duplicado:
+   * son dos convenios, cada uno con su oferta y su propio reporte al
+   * SENA, y es legitimo estar en los dos.
+   *
+   * Agrupando solo por persona, en la base de pruebas salian CUATRO
+   * casos y ninguno lo era: los cuatro eran cruces entre gremios. Un
+   * sondeo que grita por cosas que estan bien se deja de leer a la
+   * tercera vez.
+   */
   const porPersona = new Map<string, typeof filas>();
   for (const f of filas) {
     if (esForo(f.accionFormacion?.evento)) continue;
-    const suyas = porPersona.get(f.personaId) ?? [];
+    const llave = `${f.personaId}|${f.convenioId}`;
+    const suyas = porPersona.get(llave) ?? [];
     suyas.push(f);
-    porPersona.set(f.personaId, suyas);
+    porPersona.set(llave, suyas);
   }
 
   const repetidas = [...porPersona.values()].filter((x) => x.length > 1);
@@ -91,7 +106,7 @@ async function enDosAcciones(): Promise<Hallazgo> {
             `${f.accionFormacion?.codigo ?? '—'} (${f.etapa}, ${f.asesor?.nombre ?? 'sin asesor'})`,
         )
         .join('  +  ');
-      return `${p.numeroDocumento}  ${p.primerNombre} ${p.primerApellido ?? ''}  ->  ${donde}`;
+      return `${p.numeroDocumento}  ${p.primerNombre} ${p.primerApellido ?? ''}  [${x[0].convenio?.sigla ?? '?'}]  ->  ${donde}`;
     }),
     comoSeArregla:
       'Con la herramienta de unir fichas: se elige a qué acción va de verdad y de dónde sale cada dato. Las notas de las dos se conservan.',

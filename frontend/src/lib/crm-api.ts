@@ -409,6 +409,40 @@ export type FilaParticipante = {
   cambios: number;
   datosEmpresa: "SIN" | "PARCIAL" | "COMPLETA";
   antiguedadDias: number;
+
+  /**
+   * De qué importación salió la ficha, cuando salió de una.
+   *
+   * OPCIONAL A PROPÓSITO, con el mismo criterio que
+   * `faltaDeLaEmpresa`: la arma `listar()` desde
+   * `Participante.cargaId`, y un backend que todavía no la manda
+   * tiene que dejar la columna diciendo «No importado», no romper
+   * la tabla. Se lee siempre con `?? null`.
+   *
+   * Nula = no vino de un archivo: entró por el formulario público,
+   * por una reserva de empresa o la escribió un asesor a mano.
+   *
+   * Los recuentos son DE LA CARGA, no de esta fila: son el mismo
+   * resumen que se le enseñó a quien confirmó la importación, y son
+   * lo único que contesta «cómo le fue» sin abrir el histórico.
+   */
+  carga?: {
+    id: string;
+    /** El archivo tal como se subió. Nulo si se pegó la tabla. */
+    nombreArchivo: string | null;
+    origen: "ARCHIVO" | "PEGADO";
+    /** Cuándo se confirmó la importación. */
+    creadoEn: string;
+    /**
+     * Quién la hizo, congelado en texto: el histórico tiene que
+     * poder decirlo aunque la cuenta ya no exista.
+     */
+    autor: string;
+    filas: number;
+    creados: number;
+    yaExistian: number;
+    fallidos: number;
+  } | null;
 };
 
 export const ETIQUETA_ORIGEN_LEAD: Record<
@@ -1430,6 +1464,27 @@ export type CargaEnUnaAccion = {
   pendientes: number;
 };
 
+/** Una ficha de alguien que está repetido. */
+export type FichaRepetida = {
+  id: string;
+  codigo: string | null;
+  accion: string | null;
+  etapa: string;
+  asesor: string | null;
+  empresa: string | null;
+  creadoEn: string;
+  notas: number;
+  avances: number;
+};
+
+export type PersonaRepetida = {
+  personaId: string;
+  nombre: string;
+  documento: string;
+  correo: string | null;
+  fichas: FichaRepetida[];
+};
+
 export type FilaDeAsesor = {
   asesorId: string | null;
   nombre: string;
@@ -1729,6 +1784,40 @@ export const crmApi = {
       "/admin/participantes/lote/borrar",
       { method: "POST", body: JSON.stringify({ ids }) },
     ),
+
+  /**
+   * LAS PERSONAS QUE ESTÁN EN MÁS DE UNA ACCIÓN DE FORMACIÓN.
+   *
+   * Cada una con sus fichas: en qué acción, en qué etapa, con qué
+   * asesora y cuánta gestión lleva encima. Con eso se decide a cuál va
+   * de verdad, que es la pregunta que la pantalla hace.
+   */
+  repetidas: () =>
+    pedir<PersonaRepetida[]>("/admin/participantes/repetidas"),
+
+  /**
+   * Une dos fichas de la misma persona.
+   *
+   * `deDonde` es el «cómo fusionarlos»: por campo, el id de la ficha
+   * de la que sale su valor. Lo que no se nombre se queda como está en
+   * la que sobrevive.
+   */
+  unirFichas: (
+    conservarId: string,
+    absorberId: string,
+    deDonde: Record<string, string>,
+  ) =>
+    pedir<{
+      unidas: boolean;
+      seQueda: string | null;
+      seAbsorbio: string | null;
+      notas: number;
+      movimientos: number;
+      avancesQueSePierden: number;
+    }>("/admin/participantes/unir", {
+      method: "POST",
+      body: JSON.stringify({ conservarId, absorberId, deDonde }),
+    }),
 
   asignarAsesorEnLote: (ids: string[], asesorId: string | null) =>
     pedir<{ cambiadas: number; fuera: number; sinCambio: number }>(

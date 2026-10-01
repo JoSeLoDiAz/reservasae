@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
-import { Bloque, Cargando } from "@/components/admin/piezas";
+import {
+  Encabezado, Bloque, Cargando } from "@/components/admin/piezas";
 import { Desplegable } from "@/components/admin/desplegable";
 import { EditorColores } from "@/components/admin/editor-colores";
 import {
@@ -341,15 +342,21 @@ export default function PaginaMarca() {
     /// La explicación larga está en `usuarios/page.tsx` (12 sep
     /// 2026). Era la peor de las ocho: 3.121 px de contenido en una
     /// raíz de 938.
-    <div className="flex flex-col gap-4 px-4 pt-4 pb-6">
-      <header>
-        <h1 className="text-[1.3125rem] font-bold tracking-[-0.02em] text-titulo">Apariencia</h1>
-        <p className="mt-1 text-texto-suave">
-          {editor
+    <div className="flex flex-col gap-4 px-4 pt-4 pb-6 [&>header]:mx-0 [&>header]:mb-0">
+      {/* EN SU TARJETA, como las otras veinticuatro pantallas del
+          panel. El barrido de QA del 1 oct 2026 lo midió: el título
+          arrancaba en x=16 ---pegado al borde del lienzo--- mientras su
+          contenido arrancaba en x=45, un escalón de 29 px entre el
+          título y lo que titula. */}
+      <Encabezado
+        compacto
+        titulo="Apariencia"
+        descripcion={
+          editor
             ? "Sus colores le quedan solo a usted. Más abajo está lo que cambia para todo el equipo: logos, textos y colores."
-            : "Elija los colores de su panel: le quedan solo a usted. Los logos y la marca del sistema los cambian solo las personas autorizadas."}
-        </p>
-      </header>
+            : "Elija los colores de su panel: le quedan solo a usted. Los logos y la marca del sistema los cambian solo las personas autorizadas."
+        }
+      />
 
       {error && <Aviso tipo="error">{error}</Aviso>}
       {guardado && !error && <Aviso tipo="exito">Cambios guardados.</Aviso>}
