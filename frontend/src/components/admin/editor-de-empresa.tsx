@@ -327,7 +327,7 @@ export function EditorDeEmpresa({
     return d;
   }
 
-    if (!puedeEscribir) return null;
+  if (!puedeEscribir) return null;
 
   const ROTULO = "mb-1 block text-[0.71875rem] text-texto-suave";
   const rotulo = crear

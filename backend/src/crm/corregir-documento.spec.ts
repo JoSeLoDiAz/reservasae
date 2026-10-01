@@ -85,6 +85,15 @@ function armar(opciones: { rol: string; otraPersona?: unknown }) {
     {} as never,
     {} as never,
     { avisar: () => Promise.resolve() } as never,
+    /// EL SÉPTIMO: el catálogo de notas, que entró el 30 sep 2026 con
+    /// «Configuración notas». Este spec nació en `dev` contra un
+    /// constructor de seis, así que al fundir las dos ramas quedaba
+    /// una llamada corta: git funde el fichero sin conflicto ---nadie
+    /// tocó estas líneas--- y el fallo solo sale al compilar.
+    ///
+    /// Es justo lo que avisa el comentario del constructor: los dobles
+    /// que lo construyen a mano se pasan en orden.
+    {} as never,
   );
 
   const cualquiera = s as unknown as Record<string, unknown>;
