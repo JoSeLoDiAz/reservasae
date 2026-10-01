@@ -53,6 +53,7 @@ import { n } from "./graficos";
 import { Aviso } from "./marco-admin";
 import { SelectorBuscable } from "./selector-buscable";
 import { CifraCompacta, Encabezado, Esqueleto, Vacio } from "./piezas";
+import { RepartoDiario, type AsesorDelReparto } from "./reparto-diario";
 import { type Columna, Tabla } from "./tabla";
 
 /**
@@ -1073,18 +1074,25 @@ function Proyeccion({ ventana, ventanaAntes, rotuloAnterior }: ConPeriodo) {
     async (): Promise<{
       ahora: FilaDeProyeccion[];
       antes: FilaDeProyeccion[] | null;
+      equipo: FilaDeAsesor[];
     }> => {
-      const [ahora, antes] = await Promise.all([
+      /// EL EQUIPO VIENE EN LA MISMA CONSULTA. El cuadro de Dianita va
+      /// por NOMBRE ---Julieth, Kathe---, no por un número: una meta
+      /// con nombre se le pide a alguien, y una meta «entre dos
+      /// asesores» no se le pide a nadie.
+      const [ahora, antes, equipo] = await Promise.all([
         crmApi.proyeccionDeInscripciones(ventana),
         ventanaAntes ? crmApi.proyeccionDeInscripciones(ventanaAntes) : null,
+        crmApi.asesoresDeInscripciones(ventana),
       ]);
-      return { ahora, antes };
+      return { ahora, antes, equipo };
     },
     [ventana, ventanaAntes],
   );
   const vivos = useDatosVivos<{
     ahora: FilaDeProyeccion[];
     antes: FilaDeProyeccion[] | null;
+    equipo: FilaDeAsesor[];
   }>(cargar, {
     clave: `proyeccion-${JSON.stringify(ventana)}-${JSON.stringify(ventanaAntes)}`,
   });
@@ -1175,6 +1183,7 @@ function Proyeccion({ ventana, ventanaAntes, rotuloAnterior }: ConPeriodo) {
   if (vivos.error) return <Aviso tipo="error">{vivos.error}</Aviso>;
   if (!vivos.datos) return <Esqueleto />;
   const datos = vivos.datos.ahora;
+  const reparto = repartoDeLaProyeccion(datos, vivos.datos.equipo);
   if (datos.length === 0) {
     return (
       <Vacio titulo="Todavía no hay acciones con leads">
@@ -1291,8 +1300,98 @@ function Proyeccion({ ventana, ventanaAntes, rotuloAnterior }: ConPeriodo) {
         porPagina={25}
         vacio="Aquí aparece cada acción de formación en cuanto tenga gente detrás."
       />
+
+      {/* EL CUADRO DE DIANITA, colgado de estas mismas cifras.
+
+          «Que sea relacional con Proyección Inscripciones» (cliente,
+          30 sep 2026): esto es lo que las ata. La tabla de arriba dice
+          cuánto falta ACCIÓN POR ACCIÓN; esto dice cuánto le toca a
+          CADA ASESOR CADA DÍA para que eso ocurra. Las dos cifras
+          salen de las mismas filas, así que no pueden discrepar. */}
+      <RepartoDiario
+        meta={reparto.meta}
+        queEs="cupos por cubrir"
+        asesores={reparto.asesores}
+        cierre={reparto.cierre}
+      />
     </>
   );
+}
+
+/**
+ * LO QUE ALIMENTA EL CUADRO DE DIANITA.
+ *
+ * Sale de las MISMAS filas que pinta la tabla de arriba ---no de otra
+ * consulta--- y por eso las dos no pueden decir cosas distintas.
+ *
+ *   - LA META: todo lo que falta por cubrir, sumando las acciones.
+ *   - EL CIERRE: el MÁS PRÓXIMO de todas, porque es el primero que
+ *     obliga. Repartir hasta el más lejano daría una cifra diaria
+ *     cómoda y falsa.
+ *   - LOS ASESORES: los de verdad, con nombre.
+ *
+ * LAS ACCIONES CERRADAS O YA CUBIERTAS NO ENTRAN: ni suman lo que les
+ * falta ---no les falta nada que se pueda hacer--- ni adelantan el
+ * cierre. Sin esta regla, una acción vencida la semana pasada tiraría
+ * el cierre hacia atrás y el cuadro no tendría ni un día donde
+ * repartir.
+ *
+ * Y LA FILA «SIN ASESOR ASIGNADO» NO ES UNA PERSONA: no se le puede
+ * pedir una meta. Contarla repartiría el trabajo entre un asesor de
+ * más y dejaría a los de verdad por debajo de lo que les toca.
+ */
+function repartoDeLaProyeccion(
+  filas: FilaDeProyeccion[],
+  equipo: FilaDeAsesor[],
+): { meta: number; cierre: Date | null; asesores: AsesorDelReparto[] } {
+  /**
+   * LA FECHA QUE FIJA EL ADMINISTRADOR MANDA SOBRE LA DEL CRONOGRAMA.
+   *
+   * Es la que él teclea en esta misma tabla, y existe justo para
+   * cuando el cronograma se quedó viejo.
+   */
+  const cierreDe = (f: FilaDeProyeccion): Date | null => {
+    const cuando = f.cierreProyeccion ?? f.cierre;
+    if (!cuando) return null;
+    const d = new Date(`${cuando}T00:00:00.000Z`);
+    return Number.isNaN(d.getTime()) ? null : d;
+  };
+
+  /**
+   * QUÉ ACCIÓN ENTRA EN EL REPARTO, y por qué no se mira el veredicto.
+   *
+   * Mirarlo era lo primero que hice y estaba mal: el veredicto lo
+   * calcula el servidor con la fecha del CRONOGRAMA, así que una
+   * acción cuyo cronograma venció en julio sale «CERRADO» aunque el
+   * administrador le haya puesto a mano un cierre en octubre. Con el
+   * filtro por veredicto, esa acción se caía ANTES de que nadie
+   * mirara su fecha nueva, y el cuadro decía «no hay fecha de cierre»
+   * teniéndola a dos columnas de distancia. Lo vi en pruebas.
+   *
+   * Así que se juzga con la MISMA fecha con la que se va a repartir:
+   * entra la que tenga algo que cubrir y un cierre que no haya
+   * pasado.
+   */
+  const hoy = new Date();
+  const vivas = filas.filter((f) => {
+    if (f.faltan <= 0) return false;
+    const d = cierreDe(f);
+    return d !== null && d.getTime() >= hoy.getTime();
+  });
+
+  const meta = vivas.reduce((a, f) => a + f.faltan, 0);
+
+  let cierre: Date | null = null;
+  for (const f of vivas) {
+    const d = cierreDe(f);
+    if (d && (!cierre || d < cierre)) cierre = d;
+  }
+
+  const asesores = equipo
+    .filter((a) => a.asesorId !== null)
+    .map((a) => ({ id: a.asesorId as string, nombre: a.nombre }));
+
+  return { meta, cierre, asesores };
 }
 
 /**
