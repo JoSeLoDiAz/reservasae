@@ -402,17 +402,16 @@ export default function PaginaReservas() {
 
   return (
     <div className="flex min-h-0 grow flex-col gap-3 px-4 pt-3">
-      <ElegirVista vista={vista} alElegir={elegirVista} />
+      {/* LAS DOS VISTAS Y EL PERIODO, EN LA MISMA FILA.
 
-      {/* EL PERIODO, junto a las dos vistas, que es donde están los
-          filtros de pantalla.
-
-          Aquí vivía un aviso diciendo que esta vista no se recortaba
-          por periodo. Era verdad y por eso estaba: el control se
-          pintaba y el servidor lo ignoraba en silencio. Ya no: `Reserva`
-          se recorta por `creadoEn`, en la lista Y en el agrupado, así
-          que el aviso sobra. */}
-      <FiltroDePeriodo periodo={periodo} alCambiar={setPeriodo} />
+          «En reservas esto debe ir al lado derecho, para quitar esa
+          fila y ganar espacio» (cliente, 30 sep 2026). El periodo se
+          comía un renglón entero él solo, debajo de las dos vistas, y
+          las dos cosas contestan lo mismo: qué se mira. */}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <ElegirVista vista={vista} alElegir={elegirVista} />
+        <FiltroDePeriodo periodo={periodo} alCambiar={setPeriodo} />
+      </div>
 
       {/* Sin título ni conteo: lo dice la miga, y la cifra
           va en el pie de la tabla. El aviso solo aparece si

@@ -328,11 +328,6 @@ export function PanelAsesores() {
                 {etiqueta}
               </button>
             ))}
-            <span className="ml-1 text-[0.71875rem] text-texto-suave">
-              {comoSeVe === "resumen"
-                ? "lo que cada asesor lleva hecho"
-                : "lo que le toca a cada uno, día por día"}
-            </span>
           </div>
         ) : (
           /// Las otras tres subvistas no eligen vista: el hueco se
@@ -998,9 +993,7 @@ function Academicos({ ventana, ventanaAntes, rotuloAnterior }: ConPeriodo) {
           <Link href="/admin/acciones/cronograma" className="font-medium underline">
             Acciones de formación · Cronograma
           </Link>
-          : se abre la acción, se entra a «Editar grupo» y ahí está «Asesor
-          académico». En cuanto un grupo tenga el suyo, aparece aquí con su
-          carga.
+          .
         </p>
       </div>
     )}

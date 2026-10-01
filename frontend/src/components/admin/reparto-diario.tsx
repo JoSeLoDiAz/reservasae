@@ -175,38 +175,42 @@ export function RepartoDiario({
     <div className="flex flex-col gap-2.5">
       <div>
         <h3 className="text-sm font-bold">Reparto diario por asesor</h3>
-        <p className="mt-0.5 text-[0.71875rem] leading-relaxed text-texto-suave">
-          Cuántos le tocan a cada asesor cada día para llegar.{" "}
-          <strong className="font-semibold text-titulo">{meta}</strong> {queEs},
-          entre {asesores.length}{" "}
-          {asesores.length === 1 ? "asesor" : "asesores"} y{" "}
-          {r.dias.length} {r.dias.length === 1 ? "día" : "días"} de trabajo
-          hasta el {r.hastaCuando}.
-          {r.topado && " Se enseñan los primeros 60 días."}
+        {/* DOS LÍNEAS, NO TRES PÁRRAFOS.
+
+            Esto llegó a tener catorce renglones explicando la cuenta,
+            por qué unas acciones quedan fuera y qué hacer para que
+            entren. «¿Qué es este lenguaje, Claude, de verdad?»
+            (cliente, 30 sep 2026). Un cuadro de metas dice las cifras;
+            quien quiera la cuenta la hace, y quien quiera el detalle
+            pulsa el enlace. */}
+        <p className="mt-0.5 text-[0.71875rem] text-texto-suave">
+          <strong className="font-semibold text-titulo">{meta}</strong> {queEs}
+          {" · "}
+          {asesores.length} {asesores.length === 1 ? "asesor" : "asesores"}
+          {" · "}
+          {r.dias.length} {r.dias.length === 1 ? "día" : "días"} hasta el{" "}
+          {r.hastaCuando}
+          {vencidas > 0 && (
+            <>
+              {" · "}
+              <span className="text-aviso">
+                {vencidas} con el cierre vencido, fuera ({faltaEnVencidas})
+              </span>
+            </>
+          )}
+          {alIrALaProyeccion && (
+            <>
+              {" · "}
+              <button
+                type="button"
+                onClick={alIrALaProyeccion}
+                className="text-marca underline underline-offset-2 hover:opacity-80"
+              >
+                ver en Proyección
+              </button>
+            </>
+          )}
         </p>
-
-        {/* POR QUÉ ESTA CIFRA NO ES LA DE PROYECCIÓN. */}
-        {vencidas > 0 && (
-          <p className="mt-1 text-[0.6875rem] leading-relaxed text-aviso">
-            Se reparten solo las acciones con el plazo abierto. Quedan
-            fuera {vencidas}{" "}
-            {vencidas === 1 ? "acción con el cierre vencido" : "acciones con el cierre vencido"}
-            , que suman {faltaEnVencidas} cupos más: no se pueden repartir
-            entre días que ya pasaron. Para que entren, hay que ponerles
-            una fecha de cierre nueva en Proyección.
-          </p>
-        )}
-
-        {/* DE DÓNDE SALE, dicho y enlazado. */}
-        {alIrALaProyeccion && (
-          <button
-            type="button"
-            onClick={alIrALaProyeccion}
-            className="mt-1 text-[0.71875rem] text-marca underline underline-offset-2 hover:opacity-80"
-          >
-            Sale de Proyección Inscripciones, acción por acción →
-          </button>
-        )}
       </div>
 
       <div className="caja-scroll overflow-x-auto rounded-xl border border-borde">
@@ -258,16 +262,16 @@ export function RepartoDiario({
         </table>
       </div>
 
-      {/* DE DÓNDE SALE CADA NÚMERO, en una línea. Un cuadro de metas
-          que no dice su cuenta se discute en cada reunión. */}
-      <p className="text-[0.6875rem] leading-relaxed text-texto-suave">
-        {meta} ÷ {asesores.length}{" "}
-        {asesores.length === 1 ? "asesor" : "asesores"} = {r.porAsesor} cada uno
-        · {r.porAsesor} ÷ {r.dias.length}{" "}
-        {r.dias.length === 1 ? "día" : "días"} = {r.porDia} al día. Los días son
-        de trabajo, de lunes a sábado. Todo se redondea hacia arriba, así que el
-        cuadro suma {r.total} y la meta es {meta}: nadie llama a media persona,
-        y una meta redondeada hacia abajo se queda corta.
+      {/* LA CUENTA, EN SIGNOS Y NO EN PROSA.
+
+          Eran seis renglones explicando el redondeo y por qué el total
+          pasa de la meta. «¿Qué es este lenguaje?» (cliente, 30 sep
+          2026). Quien quiera comprobarla la lee de un vistazo; el
+          porqué del redondeo vive en el comentario de arriba, que es
+          donde sirve. */}
+      <p className="text-[0.6875rem] text-texto-suave tabular-nums">
+        {meta} ÷ {asesores.length} = {r.porAsesor} · {r.porAsesor} ÷{" "}
+        {r.dias.length} = {r.porDia} al día · total {r.total}
       </p>
     </div>
   );
