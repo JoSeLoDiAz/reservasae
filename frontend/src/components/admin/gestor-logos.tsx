@@ -2,7 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 
+import { Desplegable } from "@/components/admin/desplegable";
 import { Boton, CLASE_CONTROL } from "@/components/admin/marco-admin";
+
 import { useMarca } from "@/components/marca-publica";
 import {
   adminApi,
@@ -214,29 +216,43 @@ export function GestorLogos({ formularioId, heredados, temas, alCambiar }: Props
                   sale cuando le toca. Lo normal es dejarlo en «Los
                   dos temas»: un logo sin texto aguanta los dos
                   fondos y no hay que subir nada dos veces. */}
-              <label className="min-w-40">
+              {/* El desplegable de la casa, no el `<select>` nativo: su
+                  lista la pinta el sistema operativo ---cuadrada, azul
+                  de Windows, sorda al CSS--- y «no debe haber
+                  desplegables cuadrados, todos deben ser redondeados»
+                  (cliente, 1 oct 2026).
+
+                  Sin `enPortal`: esta fila no vive dentro de nada con
+                  `overflow`, así que la lista `absolute` acompaña al
+                  disparador sola y no hay nada que recorte.
+
+                  Y `<label>` pasa a `<div>`: la etiqueta se ataría al
+                  primer control atable de dentro, y ahora el
+                  disparador es un `<button>`; el nombre va por
+                  `etiquetaAria`. */}
+              <div className="min-w-40">
                 <span className="mb-1 block text-xs text-texto-suave">
                   ¿En qué tema sale?
                 </span>
-                <select
-                  value={logo.esquema}
-                  disabled={ocupado}
-                  onChange={(e) =>
+                <Desplegable
+                  alto={34}
+                  etiquetaAria={`¿En qué tema sale ${logo.etiqueta}?`}
+                  valor={logo.esquema}
+                  desactivado={ocupado}
+                  opciones={ESQUEMAS_DE_LOGO.map((valor) => ({
+                    valor,
+                    etiqueta: NOMBRE_DEL_ESQUEMA[valor],
+                  }))}
+                  alElegir={(valor) =>
                     accion(() =>
                       adminApi.actualizarLogo(logo.id, {
-                        esquema: e.target.value as EsquemaDeLogo,
+                        esquema: valor as EsquemaDeLogo,
                       }),
                     )
                   }
-                  className={CLASE_CONTROL}
-                >
-                  {ESQUEMAS_DE_LOGO.map((valor) => (
-                    <option key={valor} value={valor}>
-                      {NOMBRE_DEL_ESQUEMA[valor]}
-                    </option>
-                  ))}
-                </select>
-              </label>
+                />
+              </div>
+
 
               <div className="flex items-center gap-1">
                 <button
@@ -285,23 +301,23 @@ export function GestorLogos({ formularioId, heredados, temas, alCambiar }: Props
             texto blanco sale un rato en el tema claro -- donde es
             justo invisible--, que es el problema que este campo
             existe para quitar. */}
-        <label className="min-w-44">
+        <div className="min-w-44">
           <span className="mb-1 block text-xs text-texto-suave">
             El que suba, ¿en qué tema sale?
           </span>
-          <select
-            value={esquemaNuevo}
-            disabled={ocupado}
-            onChange={(e) => setEsquemaNuevo(e.target.value as EsquemaDeLogo)}
-            className={CLASE_CONTROL}
-          >
-            {ESQUEMAS_DE_LOGO.map((valor) => (
-              <option key={valor} value={valor}>
-                {NOMBRE_DEL_ESQUEMA[valor]}
-              </option>
-            ))}
-          </select>
-        </label>
+          <Desplegable
+            alto={34}
+            etiquetaAria="El que suba, ¿en qué tema sale?"
+            valor={esquemaNuevo}
+            desactivado={ocupado}
+            opciones={ESQUEMAS_DE_LOGO.map((valor) => ({
+              valor,
+              etiqueta: NOMBRE_DEL_ESQUEMA[valor],
+            }))}
+            alElegir={(valor) => setEsquemaNuevo(valor as EsquemaDeLogo)}
+          />
+        </div>
+
 
         <input
           ref={entradaArchivo}

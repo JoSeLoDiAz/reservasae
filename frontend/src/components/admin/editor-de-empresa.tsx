@@ -2,7 +2,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 
+import { Desplegable } from "@/components/admin/desplegable";
 import { Boton, CLASE_CONTROL } from "@/components/admin/marco-admin";
+
 import { crmApi, type CatalogosSep, type Ficha } from "@/lib/crm-api";
 import { digitoVerificacion, partirNitPegado } from "@/lib/nit";
 
@@ -505,62 +507,95 @@ export function EditorDeEmpresa({
           />
         </label>
 
-        <label className="block">
+        {/* LOS TRES, CON EL DESPLEGABLE DE LA CASA.
+
+            La lista de un `<select>` la pinta el sistema operativo
+            ---cuadrada y en azul de Windows, sin que le llegue el
+            CSS---, y «no debe haber desplegables cuadrados, todos
+            deben ser redondeados» (cliente, 1 oct 2026).
+
+            Dos consecuencias del cambio, y las dos están aquí:
+
+            1. El `<label>` pasa a `<div>`. Una etiqueta se ata al
+               primer control atable que lleva dentro; el disparador
+               del `Desplegable` es un `<button>`, así que la atadura
+               ya no sirve para darle nombre y se da por
+               `etiquetaAria`. Dejarlo en `<label>` solo dejaría una
+               etiqueta apuntando al aire.
+
+            2. `enPortal` EN DOS DE LOS TRES, y está medido. El cuerpo
+               del modal es un `overflow-y-auto` (ver más arriba), así
+               que lo que sobresalga se recorta. Abiertas las tres el
+               1 oct 2026: la de departamentos (33 opciones) y la de
+               municipios (los del departamento elegido) se cortaban
+               contra el borde inferior del modal ---con las esquinas
+               de abajo en escuadra, que es justo lo que se viene a
+               quitar---, y la de sector económico, que son tres, cabía
+               entera. Portal donde se cortaba y en ningún sitio más:
+               un portal se paga con que la lista se cierre al recorrer
+               el modal. */}
+
+        <div className="block">
           <span className={ROTULO}>Departamento</span>
-          <select
-            className={CLASE_CONTROL}
-            value={v.departamentoSepId}
-            onChange={(e) => poner("departamentoSepId", e.target.value)}
-          >
-            <option value="">—</option>
-            {(catalogos?.departamentos ?? []).map((d) => (
-              <option key={d.id} value={d.id}>
-                {d.etiqueta}
-              </option>
-            ))}
-          </select>
-        </label>
+          <Desplegable
+            enPortal
+            alto={34}
+            etiquetaAria="Departamento"
+            valor={v.departamentoSepId}
+            opciones={[
+              { valor: "", etiqueta: "—" },
+              ...(catalogos?.departamentos ?? []).map((d) => ({
+                valor: String(d.id),
+                etiqueta: d.etiqueta,
+              })),
+            ]}
+            alElegir={(x) => poner("departamentoSepId", x)}
+          />
+        </div>
 
-        <label className="block">
+        <div className="block">
           <span className={ROTULO}>Municipio</span>
-          <select
-            className={CLASE_CONTROL}
-            value={v.municipioSepId}
-            disabled={v.departamentoSepId === ""}
-            onChange={(e) => poner("municipioSepId", e.target.value)}
-          >
-            <option value="">
-              {v.departamentoSepId === "" ? "Elija departamento" : "—"}
-            </option>
-            {municipios.map((m) => (
-              <option key={m[0]} value={m[0]}>
-                {m[2]}
-              </option>
-            ))}
-          </select>
-        </label>
+          <Desplegable
+            enPortal
+            alto={34}
+            etiquetaAria="Municipio"
+            valor={v.municipioSepId}
+            desactivado={v.departamentoSepId === ""}
+            opciones={[
+              {
+                valor: "",
+                etiqueta: v.departamentoSepId === "" ? "Elija departamento" : "—",
+              },
+              ...municipios.map((m) => ({ valor: String(m[0]), etiqueta: m[2] })),
+            ]}
+            alElegir={(x) => poner("municipioSepId", x)}
+          />
+        </div>
 
-        <label className="block">
+        <div className="block">
           <span className={ROTULO}>Sector económico</span>
           {/* Desplegable y no texto libre: al F7 solo le entran
               los tres del Decreto 957, y un «servicios» en
               minúscula le tumba el archivo entero. */}
-          <select
-            className={CLASE_CONTROL}
-            value={v.sectorEconomico}
-            onChange={(e) => poner("sectorEconomico", e.target.value)}
-          >
-            <option value="">—</option>
-            {(catalogos?.sectoresEconomicos ?? []).map((s) => (
-              <option key={s.id} value={s.etiqueta}>
-                {s.etiqueta}
-              </option>
-            ))}
-          </select>
-        </label>
+          <Desplegable
+            alto={34}
+            etiquetaAria="Sector económico"
+
+            valor={v.sectorEconomico}
+            opciones={[
+              { valor: "", etiqueta: "—" },
+              ...(catalogos?.sectoresEconomicos ?? []).map((s) => ({
+                valor: s.etiqueta,
+                etiqueta: s.etiqueta,
+              })),
+            ]}
+            alElegir={(x) => poner("sectorEconomico", x)}
+          />
+        </div>
 
         <label className="block">
           <span className={ROTULO}>Número de trabajadores</span>
+
           <input
             className={CLASE_CONTROL}
             value={v.numeroTrabajadores}

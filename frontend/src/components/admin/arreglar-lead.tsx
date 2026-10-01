@@ -28,6 +28,7 @@ import {
   type ListadoDeLaMesa,
 } from "@/lib/mesa-api";
 
+import { Desplegable } from "./desplegable";
 import { Aviso, Boton } from "./marco-admin";
 
 const CAMPO =
@@ -124,41 +125,65 @@ export function ArreglarLead({
             </p>
           )}
 
-          <Campo etiqueta="Curso">
-            <select
-              className={CAMPO}
-              value={v("accionFormacionId") ?? ""}
-              onChange={(e) => set("accionFormacionId", e.target.value || null)}
-            >
-              <option value="">Sin curso</option>
-              {cursos.map((x) => (
-                <option key={x.id} value={x.id}>
-                  {x.codigo} · {x.nombre}
-                </option>
-              ))}
-            </select>
-          </Campo>
+          {/* LOS DESPLEGABLES, CON EL DE LA CASA.
+              «No debe haber desplegables cuadrados, todos deben ser
+              redondeados» (cliente, 1 oct 2026): la lista de un
+              `<select>` la pinta Windows --cuadrada y con su azul--
+              y ninguna regla de CSS llega hasta ahi.
+
+              TODOS con `enPortal`: este cajon es un `<aside>` con
+              `overflow-y-auto` propio, y lo que sobresale de un
+              contenedor con `overflow` se recorta. Sin portal, una
+              lista de cuarenta cursos abierta en el ultimo campo
+              quedaba cortada por el canto del cajon. */}
+          <CampoLista etiqueta="Curso">
+            <Desplegable
+              enPortal
+              etiquetaAria="Curso"
+              marcador="Sin curso"
+              valor={v("accionFormacionId") ?? ""}
+              alElegir={(x) => set("accionFormacionId", x || null)}
+              opciones={[
+                /// «Sin curso» es un valor, no un marcador vacio: el
+                /// lead puede quedarse sin curso a proposito y hay
+                /// que poder volver a eso.
+                { valor: "", etiqueta: "Sin curso" },
+                /// El codigo Y el nombre en la misma linea, como
+                /// estaban: el codigo solo no distingue nada --se
+                /// repiten entre gremios-- y el nombre solo no se
+                /// cruza con el listado de acciones.
+                ...cursos.map((x) => ({
+                  valor: x.id,
+                  etiqueta: `${x.codigo} · ${x.nombre}`,
+                })),
+              ]}
+            />
+          </CampoLista>
 
           <div className="grid grid-cols-2 gap-3">
-            <Campo etiqueta="Tipo de documento">
-              <select
-                className={CAMPO}
-                value={v("tipoDocumentoSepId") ?? ""}
-                onChange={(e) =>
-                  set(
-                    "tipoDocumentoSepId",
-                    e.target.value ? Number(e.target.value) : null,
-                  )
+            <CampoLista etiqueta="Tipo de documento">
+              <Desplegable
+                enPortal
+                etiquetaAria="Tipo de documento"
+                /// «Elija…» NO va como opcion de la lista: no es un
+                /// valor, es la ausencia de uno. Va de marcador, que
+                /// es donde se lee sin ocupar un renglon.
+                marcador="Elija…"
+                valor={
+                  v("tipoDocumentoSepId") === null ||
+                  v("tipoDocumentoSepId") === undefined
+                    ? ""
+                    : String(v("tipoDocumentoSepId"))
                 }
-              >
-                <option value="">Elija…</option>
-                {(catalogos?.documentosPersona ?? []).map((d) => (
-                  <option key={d.id} value={d.id}>
-                    {d.sigla} · {d.etiqueta}
-                  </option>
-                ))}
-              </select>
-            </Campo>
+                alElegir={(x) =>
+                  set("tipoDocumentoSepId", x ? Number(x) : null)
+                }
+                opciones={(catalogos?.documentosPersona ?? []).map((d) => ({
+                  valor: String(d.id),
+                  etiqueta: `${d.sigla} · ${d.etiqueta}`,
+                }))}
+              />
+            </CampoLista>
 
             <Campo etiqueta="Número">
               <input
@@ -211,69 +236,72 @@ export function ArreglarLead({
             </Campo>
           </div>
 
-          <Campo etiqueta="Departamento">
-            <select
-              className={CAMPO}
-              value={v("departamentoSepId") ?? ""}
-              onChange={(e) => {
-                const dep = e.target.value ? Number(e.target.value) : null;
+          <CampoLista etiqueta="Departamento">
+            <Desplegable
+              enPortal
+              etiquetaAria="Departamento"
+              marcador="Sin departamento"
+              valor={
+                v("departamentoSepId") ? String(v("departamentoSepId")) : ""
+              }
+              alElegir={(x) => {
+                const dep = x ? Number(x) : null;
                 set("departamentoSepId", dep);
                 /// Al cambiar de departamento se limpia la
                 /// ciudad: dejarla sería un par que el servidor
                 /// rechaza, y con razón.
                 set("municipioSepId", null);
               }}
-            >
-              <option value="">Sin departamento</option>
-              {(catalogos?.departamentos ?? []).map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.etiqueta}
-                </option>
-              ))}
-            </select>
-          </Campo>
+              opciones={[
+                { valor: "", etiqueta: "Sin departamento" },
+                ...(catalogos?.departamentos ?? []).map((d) => ({
+                  valor: String(d.id),
+                  etiqueta: d.etiqueta,
+                })),
+              ]}
+            />
+          </CampoLista>
 
-          <Campo etiqueta="Ciudad">
-            <select
-              className={CAMPO}
-              value={v("municipioSepId") ?? ""}
-              onChange={(e) =>
-                set(
-                  "municipioSepId",
-                  e.target.value ? Number(e.target.value) : null,
-                )
-              }
-              disabled={!v("departamentoSepId")}
-            >
-              <option value="">
-                {v("departamentoSepId")
+          <CampoLista etiqueta="Ciudad">
+            <Desplegable
+              enPortal
+              etiquetaAria="Ciudad"
+              desactivado={!v("departamentoSepId")}
+              /// Apagado y vacio parece roto: el marcador dice por
+              /// que no se puede tocar todavia.
+              marcador={
+                v("departamentoSepId")
                   ? "Sin ciudad"
-                  : "Elija primero el departamento"}
-              </option>
-              {municipios.map((m) => (
-                <option key={m[0]} value={m[0]}>
-                  {m[2]}
-                </option>
-              ))}
-            </select>
-          </Campo>
-
-          <Campo etiqueta="Género">
-            <select
-              className={CAMPO}
-              value={v("generoSepId") ?? ""}
-              onChange={(e) =>
-                set("generoSepId", e.target.value ? Number(e.target.value) : null)
+                  : "Elija primero el departamento"
               }
-            >
-              <option value="">Sin decir</option>
-              {(catalogos?.generos ?? []).map((g) => (
-                <option key={g.id} value={g.id}>
-                  {g.etiqueta}
-                </option>
-              ))}
-            </select>
-          </Campo>
+              valor={v("municipioSepId") ? String(v("municipioSepId")) : ""}
+              alElegir={(x) => set("municipioSepId", x ? Number(x) : null)}
+              opciones={[
+                { valor: "", etiqueta: "Sin ciudad" },
+                ...municipios.map((m) => ({
+                  valor: String(m[0]),
+                  etiqueta: m[2],
+                })),
+              ]}
+            />
+          </CampoLista>
+
+          <CampoLista etiqueta="Género">
+            <Desplegable
+              enPortal
+              etiquetaAria="Género"
+              marcador="Sin decir"
+              valor={v("generoSepId") ? String(v("generoSepId")) : ""}
+              alElegir={(x) => set("generoSepId", x ? Number(x) : null)}
+              opciones={[
+                { valor: "", etiqueta: "Sin decir" },
+                ...(catalogos?.generos ?? []).map((g) => ({
+                  valor: String(g.id),
+                  etiqueta: g.etiqueta,
+                })),
+              ]}
+            />
+          </CampoLista>
         </div>
 
         <footer className="mt-auto flex items-center gap-3 border-t border-borde px-6 py-4">
@@ -311,5 +339,29 @@ function Campo({
       <span className="mb-1 block text-sm font-medium">{etiqueta}</span>
       {children}
     </label>
+  );
+}
+
+/**
+ * El mismo campo, en `<div>`: es el que lleva un desplegable.
+ *
+ * Un `<label>` se ata al primer control ATABLE de dentro, y el
+ * disparador del `Desplegable` es un `<button>`, que no lo es:
+ * la etiqueta quedaria apuntando al vacio y el clic en el
+ * rotulo no haria nada. El nombre se da entonces por
+ * `etiquetaAria`, que es lo que oye un lector de pantalla.
+ */
+function CampoLista({
+  etiqueta,
+  children,
+}: {
+  etiqueta: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="block">
+      <span className="mb-1 block text-sm font-medium">{etiqueta}</span>
+      {children}
+    </div>
   );
 }

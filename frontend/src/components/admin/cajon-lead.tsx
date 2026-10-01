@@ -14,6 +14,7 @@ import {
 } from "@/lib/crm-api";
 
 import { Cajon, Dato } from "./cajon";
+import { Desplegable } from "./desplegable";
 import { PildoraEtapa } from "./etapa";
 import { Aviso, Boton, CLASE_CONTROL } from "./marco-admin";
 
@@ -104,18 +105,36 @@ function Acciones({
           Asesor
         </span>
         <div className="flex flex-wrap items-center gap-2">
-          <select
-            value={asesorId}
-            onChange={(e) => setAsesorId(e.target.value)}
-            className={`${CLASE_CONTROL} min-w-52 flex-1`}
-          >
-            <option value="">Sin asignar</option>
-            {asesores.map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.nombre}
-              </option>
-            ))}
-          </select>
+          {/* El desplegable de la casa, no un `<select>`.
+              «No debe haber desplegables cuadrados, todos deben
+              ser redondeados» (cliente, 1 oct 2026): la lista de
+              un `<select>` la dibuja el sistema operativo y no
+              hay CSS que entre ahi.
+
+              `enPortal` porque esto vive dentro del cajon, cuyo
+              cuerpo es `overflow-y-auto`: lo que sobresale de un
+              contenedor con `overflow` se recorta, y la lista de
+              asesores se cortaba contra el borde.
+
+              El `min-w-52 flex-1` va en una envoltura y no en el
+              control: el `Desplegable` ya es `w-full` dentro de
+              lo que se le de. */}
+          <div className="min-w-52 flex-1">
+            <Desplegable
+              enPortal
+              etiquetaAria="Asesor"
+              marcador="Sin asignar"
+              valor={asesorId}
+              alElegir={setAsesorId}
+              opciones={[
+                /// «Sin asignar» es un valor de verdad --quitarle el
+                /// asesor a un lead es una accion-- y por eso si va
+                /// en la lista, no solo de marcador.
+                { valor: "", etiqueta: "Sin asignar" },
+                ...asesores.map((a) => ({ valor: a.id, etiqueta: a.nombre })),
+              ]}
+            />
+          </div>
           <Boton
             onClick={() =>
               void conError(async () => {
@@ -473,8 +492,30 @@ export function CajonLead({
                     {g.titulo}
                   </h3>
                   <div className="grid sm:grid-cols-2">
-                    {campos.map((c) => (
-                      <label
+                    {campos.map((c) => {
+                      /// LISTA Y «SÍ O NO» VAN EN `div`, NO EN `label`.
+                      ///
+                      /// Una etiqueta se ata al primer control ATABLE
+                      /// que lleva dentro, y el disparador del
+                      /// `Desplegable` es un `<button>`, que no lo es:
+                      /// el `<label>` quedaria apuntando al vacio y el
+                      /// clic en el rotulo no haria nada. Los que
+                      /// siguen siendo `input` conservan su `label`,
+                      /// que ahi si funciona, y el nombre del
+                      /// desplegable va por `etiquetaAria`.
+                      const conLista = c.tipo === "lista" || c.tipo === "si-no";
+                      const Marco = conLista ? "div" : "label";
+                      /// El mismo nombre que se ve, mas el «falta»: el
+                      /// `aria-label` tiene que decir lo que dice la
+                      /// pantalla, o el lector de pantalla y el ojo
+                      /// cuentan cosas distintas.
+                      const nombre =
+                        c.exigido && !borrador[c.clave]
+                          ? `${c.etiqueta} (falta)`
+                          : c.etiqueta;
+
+                      return (
+                      <Marco
                         key={c.clave}
                         className={`block ${c.ancho ? "sm:col-span-2" : ""}`}
                       >
@@ -485,40 +526,54 @@ export function CajonLead({
                           )}
                         </span>
 
+                        {/* `enPortal` en los dos: el cuerpo del cajon
+                            es `overflow-y-auto`, y una lista de
+                            treinta y tres departamentos abierta en un
+                            campo de abajo se recortaba contra el
+                            canto. */}
                         {c.tipo === "lista" ? (
-                          <select
-                            value={borrador[c.clave] ?? ""}
-                            onChange={(e) =>
+                          <Desplegable
+                            enPortal
+                            etiquetaAria={nombre}
+                            marcador="Sin definir"
+                            valor={borrador[c.clave] ?? ""}
+                            alElegir={(x) =>
                               setBorrador((b) => ({
                                 ...b,
-                                [c.clave]: e.target.value,
+                                [c.clave]: x,
                                 // cambiar de departamento invalida el municipio
                                 ...(c.clave === "departamentoSepId"
                                   ? { municipioSepId: "" }
                                   : {}),
                               }))
                             }
-                            className={CLASE_CONTROL}
-                          >
-                            <option value="">Sin definir</option>
-                            {opciones(c.clave).map((o) => (
-                              <option key={o.id} value={String(o.id)}>
-                                {o.etiqueta}
-                              </option>
-                            ))}
-                          </select>
+                            opciones={[
+                              /// «Sin definir» va en la lista porque es
+                              /// un valor --`null` en el servidor-- y
+                              /// hay que poder volver a el: un dato
+                              /// puesto por error se deshace asi.
+                              { valor: "", etiqueta: "Sin definir" },
+                              ...opciones(c.clave).map((o) => ({
+                                valor: String(o.id),
+                                etiqueta: o.etiqueta,
+                              })),
+                            ]}
+                          />
                         ) : c.tipo === "si-no" ? (
-                          <select
-                            value={borrador[c.clave] ?? ""}
-                            onChange={(e) =>
-                              setBorrador((b) => ({ ...b, [c.clave]: e.target.value }))
+                          <Desplegable
+                            enPortal
+                            etiquetaAria={nombre}
+                            marcador="Sin definir"
+                            valor={borrador[c.clave] ?? ""}
+                            alElegir={(x) =>
+                              setBorrador((b) => ({ ...b, [c.clave]: x }))
                             }
-                            className={CLASE_CONTROL}
-                          >
-                            <option value="">Sin definir</option>
-                            <option value="SI">Sí</option>
-                            <option value="NO">No</option>
-                          </select>
+                            opciones={[
+                              { valor: "", etiqueta: "Sin definir" },
+                              { valor: "SI", etiqueta: "Sí" },
+                              { valor: "NO", etiqueta: "No" },
+                            ]}
+                          />
                         ) : (
                           <input
                             type={
@@ -539,8 +594,9 @@ export function CajonLead({
                             className={CLASE_CONTROL}
                           />
                         )}
-                      </label>
-                    ))}
+                      </Marco>
+                      );
+                    })}
                   </div>
                 </section>
               );

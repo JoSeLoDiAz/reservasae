@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import {
-  Aviso, CLASE_CONTROL, Tarjeta, useAdmin } from "@/components/admin/marco-admin";
+  Aviso, Tarjeta, useAdmin } from "@/components/admin/marco-admin";
+import { Desplegable } from "@/components/admin/desplegable";
 import {
   Encabezado, Cargando, MenuDeAcciones } from "@/components/admin/piezas";
 import { CajonLead } from "@/components/admin/cajon-lead";
@@ -607,27 +608,42 @@ function AsignarLote({
   }
 
   return (
-    <label className="flex items-center gap-3 text-sm">
+    /* UN `<div>` y no un `<label>`: el disparador del `Desplegable`
+       es un `<button>`, y una etiqueta no se ata a un boton ---se
+       quedaria apuntando al vacio---. El nombre lo da `etiquetaAria`. */
+    <div className="flex items-center gap-3 text-sm">
       <span className="whitespace-nowrap">Asignar a</span>
-      <select
-        disabled={trabajando}
-        defaultValue=""
-        onChange={(e) => {
-          const v = e.target.value;
-          e.currentTarget.value = "";
-          if (v === "") return;
-          void asignar(v === "NADIE" ? null : v);
-        }}
-        className={`${CLASE_CONTROL} max-w-[13rem] py-1.5 text-sm`}
-      >
-        <option value="">Elija un asesor…</option>
-        {asesores.map((a) => (
-          <option key={a.id} value={a.id}>
-            {a.nombre}
-          </option>
-        ))}
-        <option value="NADIE">— Quitarles el asesor —</option>
-      </select>
-    </label>
+      <div className="max-w-[13rem] min-w-[11rem]">
+        {/* ESTO ES UNA ACCION, no un campo con valor: se elige un
+            asesor, se asigna el lote y el control vuelve a quedar en
+            blanco. De ahi el `valor=""` fijo ---nunca se queda
+            «puesto»--- y el marcador siempre a la vista.
+
+            SIN `enPortal`, y medido: esta barra NO vive dentro de la
+            `.caja-scroll` de la tabla ---va encima de ella---, asi que
+            el primer ancestro con `overflow` es el `<main>`, y la
+            lista cabe de sobra ahi. Con portal, ademas, hoy no se
+            puede elegir con el raton: el oyente de «clic fuera» del
+            `Desplegable` mira si el clic cae dentro de su propio
+            `div`, y la lista por portal vive en el `<body>`, asi que
+            el `mousedown` sobre una opcion cierra la lista antes de
+            que llegue el `click`. Con `absolute` la opcion si esta
+            dentro y se elige bien. */}
+        <Desplegable
+          valor=""
+          desactivado={trabajando}
+          etiquetaAria="Asignar los seleccionados a un asesor"
+          marcador="Elija un asesor…"
+          alElegir={(v) => {
+            if (v === "") return;
+            void asignar(v === "NADIE" ? null : v);
+          }}
+          opciones={[
+            ...asesores.map((a) => ({ valor: a.id, etiqueta: a.nombre })),
+            { valor: "NADIE", etiqueta: "— Quitarles el asesor —" },
+          ]}
+        />
+      </div>
+    </div>
   );
 }

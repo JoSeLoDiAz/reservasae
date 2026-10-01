@@ -1646,18 +1646,36 @@ export function Tarjeta({
 export function Campo({
   etiqueta,
   ayuda,
+  comoDiv,
   children,
 }: {
   etiqueta: string;
   ayuda?: string;
+  /**
+   * UN `<div>` EN LUGAR DEL `<label>`, para los desplegables.
+   *
+   * Una etiqueta se ata al primer control «atable» que lleva
+   * dentro, y el disparador del `Desplegable` es un `<button>`,
+   * que no es de los que se pueden atar: el `<label>` quedaria
+   * apuntando al vacio y el control sin nombre. Por eso el que va
+   * con `comoDiv` repite su rotulo en `etiquetaAria`.
+   *
+   * Los que envuelven un `<input>` siguen siendo `<label>`, que es
+   * lo que hace que pulsar el rotulo lleve el foco a la casilla.
+   *
+   * Es el mismo reparto que en `formulario-reserva.tsx`, donde
+   * esto se resolvio primero.
+   */
+  comoDiv?: boolean;
   children: React.ReactNode;
 }) {
+  const Envoltorio = comoDiv ? "div" : "label";
   return (
-    <label className="block">
+    <Envoltorio className="block">
       <span className="mb-1.5 block text-[12.5px] font-medium">{etiqueta}</span>
       {children}
       {ayuda && <span className="mt-1.5 block text-xs text-texto-suave">{ayuda}</span>}
-    </label>
+    </Envoltorio>
   );
 }
 

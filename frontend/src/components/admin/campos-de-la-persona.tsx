@@ -16,8 +16,42 @@
 
 import { useMemo } from "react";
 
+import { Desplegable } from "@/components/admin/desplegable";
 import { Campo, CLASE_CONTROL } from "@/components/admin/marco-admin";
 import type { CatalogosSep } from "@/lib/crm-api";
+
+/**
+ * Un campo igual que `Campo`, pero en `<div>` y no en `<label>`.
+ *
+ * Una etiqueta se ata al primer control ATABLE que lleva dentro,
+ * y el disparador del `Desplegable` es un `<button>`, que no lo
+ * es: el `<label>` se quedaria apuntando al vacio --un nombre
+ * que no nombra a nada-- y encima el clic en el rotulo no haria
+ * nada, que es peor que no tener rotulo. Asi que los
+ * desplegables van en un `div` y el nombre se da por
+ * `etiquetaAria`.
+ *
+ * Se escribe aqui y no en `marco-admin` porque `Campo` lo usan
+ * veinte pantallas con `input` dentro, donde el `<label>` SI
+ * sirve y no hay por que quitarselo.
+ */
+function CampoLista({
+  etiqueta,
+  ayuda,
+  children,
+}: {
+  etiqueta: string;
+  ayuda?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="block">
+      <span className="mb-1.5 block text-[12.5px] font-medium">{etiqueta}</span>
+      {children}
+      {ayuda && <span className="mt-1.5 block text-xs text-texto-suave">{ayuda}</span>}
+    </div>
+  );
+}
 
 /** Lo que el cargue al SEP necesita de cada persona. */
 export type DatosDeLaPersona = {
@@ -166,52 +200,75 @@ export function CamposDeLaPersona({
           />
         </Campo>
 
-        <Campo etiqueta="Género">
-          <select
-            className={CLASE_CONTROL}
-            value={c.generoSepId ?? ""}
-            onChange={(e) => poner("generoSepId", numero(e.target.value))}
-          >
-            <option value="">Sin indicar</option>
-            {(catalogos?.generos ?? []).map((g) => (
-              <option key={g.id} value={g.id}>
-                {g.etiqueta}
-              </option>
-            ))}
-          </select>
-        </Campo>
+        {/* LOS DESPLEGABLES, CON EL DE LA CASA Y NO CON `<select>`.
+            «No debe haber desplegables cuadrados, todos deben ser
+            redondeados» (cliente, 1 oct 2026). La lista de un
+            `<select>` la dibuja Windows: cuadrada, con su azul de
+            sistema, y no hay CSS que llegue ahi.
 
-        <Campo etiqueta="Estrato socioeconómico">
-          <select
-            className={CLASE_CONTROL}
-            value={c.estrato ?? ""}
-            onChange={(e) => poner("estrato", numero(e.target.value))}
-          >
-            <option value="">Sin indicar</option>
-            {[1, 2, 3, 4, 5, 6].map((n) => (
-              <option key={n} value={n}>
-                {n}
-              </option>
-            ))}
-          </select>
-        </Campo>
+            `enPortal` en todos: estos campos viven en la pestana
+            «Datos» de la ficha, y esa pantalla entera va dentro de
+            una `<section className="overflow-hidden">`. Lo que
+            sobresale de un contenedor con `overflow` se recorta, asi
+            que una lista de treinta y tres departamentos quedaria
+            cortada por el canto de la banda. */}
+        <CampoLista etiqueta="Género">
+          <Desplegable
+            enPortal
+            etiquetaAria="Género"
+            marcador="Sin indicar"
+            valor={c.generoSepId === null ? "" : String(c.generoSepId)}
+            alElegir={(v) => poner("generoSepId", numero(v))}
+            opciones={[
+              /// «Sin indicar» SI va en la lista: no es un marcador
+              /// falso, es un valor de verdad --`null`-- y sin el no
+              /// habria forma de deshacer un genero puesto por error.
+              { valor: "", etiqueta: "Sin indicar" },
+              ...(catalogos?.generos ?? []).map((g) => ({
+                valor: String(g.id),
+                etiqueta: g.etiqueta,
+              })),
+            ]}
+          />
+        </CampoLista>
 
-        <Campo etiqueta="Nivel ocupacional">
-          <select
-            className={CLASE_CONTROL}
-            value={c.nivelOcupacionalSepId ?? ""}
-            onChange={(e) =>
-              poner("nivelOcupacionalSepId", numero(e.target.value))
+        <CampoLista etiqueta="Estrato socioeconómico">
+          <Desplegable
+            enPortal
+            etiquetaAria="Estrato socioeconómico"
+            marcador="Sin indicar"
+            valor={c.estrato === null ? "" : String(c.estrato)}
+            alElegir={(v) => poner("estrato", numero(v))}
+            opciones={[
+              { valor: "", etiqueta: "Sin indicar" },
+              ...[1, 2, 3, 4, 5, 6].map((n) => ({
+                valor: String(n),
+                etiqueta: String(n),
+              })),
+            ]}
+          />
+        </CampoLista>
+
+        <CampoLista etiqueta="Nivel ocupacional">
+          <Desplegable
+            enPortal
+            etiquetaAria="Nivel ocupacional"
+            marcador="Sin indicar"
+            valor={
+              c.nivelOcupacionalSepId === null
+                ? ""
+                : String(c.nivelOcupacionalSepId)
             }
-          >
-            <option value="">Sin indicar</option>
-            {(catalogos?.nivelesOcupacionales ?? []).map((n) => (
-              <option key={n.id} value={n.id}>
-                {n.etiqueta}
-              </option>
-            ))}
-          </select>
-        </Campo>
+            alElegir={(v) => poner("nivelOcupacionalSepId", numero(v))}
+            opciones={[
+              { valor: "", etiqueta: "Sin indicar" },
+              ...(catalogos?.nivelesOcupacionales ?? []).map((n) => ({
+                valor: String(n.id),
+                etiqueta: n.etiqueta,
+              })),
+            ]}
+          />
+        </CampoLista>
 
         <Campo etiqueta="Correo">
           <input
@@ -231,51 +288,60 @@ export function CamposDeLaPersona({
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <Campo
+        <CampoLista
           etiqueta="Departamento de domicilio"
           ayuda="Dónde vive, no dónde es el curso."
         >
-          <select
-            className={CLASE_CONTROL}
-            value={c.departamentoSepId ?? ""}
-            onChange={(e) => {
-              const dep = numero(e.target.value);
+          <Desplegable
+            enPortal
+            etiquetaAria="Departamento de domicilio"
+            marcador="Sin indicar"
+            valor={
+              c.departamentoSepId === null ? "" : String(c.departamentoSepId)
+            }
+            alElegir={(v) => {
+              const dep = numero(v);
               // el municipio cuelga del departamento
-              setC((v) => ({
-                ...v,
+              setC((x) => ({
+                ...x,
                 departamentoSepId: dep,
                 municipioSepId: null,
               }));
             }}
-          >
-            <option value="">Sin indicar</option>
-            {(catalogos?.departamentos ?? []).map((d) => (
-              <option key={d.id} value={d.id}>
-                {d.etiqueta}
-              </option>
-            ))}
-          </select>
-        </Campo>
+            opciones={[
+              { valor: "", etiqueta: "Sin indicar" },
+              ...(catalogos?.departamentos ?? []).map((d) => ({
+                valor: String(d.id),
+                etiqueta: d.etiqueta,
+              })),
+            ]}
+          />
+        </CampoLista>
 
-        <Campo etiqueta="Municipio de domicilio">
-          <select
-            className={CLASE_CONTROL}
-            value={c.municipioSepId ?? ""}
-            disabled={c.departamentoSepId === null}
-            onChange={(e) => poner("municipioSepId", numero(e.target.value))}
-          >
-            <option value="">
-              {c.departamentoSepId === null
+        <CampoLista etiqueta="Municipio de domicilio">
+          <Desplegable
+            enPortal
+            etiquetaAria="Municipio de domicilio"
+            desactivado={c.departamentoSepId === null}
+            /// Sin departamento el marcador DICE que falta elegirlo
+            /// antes: un desplegable apagado y vacio, sin explicacion,
+            /// parece roto.
+            marcador={
+              c.departamentoSepId === null
                 ? "Elija el departamento"
-                : "Sin indicar"}
-            </option>
-            {municipios.map((m) => (
-              <option key={m[0]} value={m[0]}>
-                {m[2]}
-              </option>
-            ))}
-          </select>
-        </Campo>
+                : "Sin indicar"
+            }
+            valor={c.municipioSepId === null ? "" : String(c.municipioSepId)}
+            alElegir={(v) => poner("municipioSepId", numero(v))}
+            opciones={[
+              { valor: "", etiqueta: "Sin indicar" },
+              ...municipios.map((m) => ({
+                valor: String(m[0]),
+                etiqueta: m[2],
+              })),
+            ]}
+          />
+        </CampoLista>
 
         <Campo etiqueta="Barrio o vereda">
           <input
@@ -301,28 +367,28 @@ export function CamposDeLaPersona({
           />
         </Campo>
 
-        <Campo etiqueta="¿Se ha beneficiado antes?">
-          <select
-            className={CLASE_CONTROL}
-            value={
+        <CampoLista etiqueta="¿Se ha beneficiado antes?">
+          <Desplegable
+            enPortal
+            etiquetaAria="¿Se ha beneficiado antes?"
+            marcador="Sin indicar"
+            valor={
               c.beneficiarioPrevio === null
                 ? ""
                 : c.beneficiarioPrevio
                   ? "si"
                   : "no"
             }
-            onChange={(e) =>
-              poner(
-                "beneficiarioPrevio",
-                e.target.value === "" ? null : e.target.value === "si",
-              )
+            alElegir={(v) =>
+              poner("beneficiarioPrevio", v === "" ? null : v === "si")
             }
-          >
-            <option value="">Sin indicar</option>
-            <option value="no">No</option>
-            <option value="si">Sí</option>
-          </select>
-        </Campo>
+            opciones={[
+              { valor: "", etiqueta: "Sin indicar" },
+              { valor: "no", etiqueta: "No" },
+              { valor: "si", etiqueta: "Sí" },
+            ]}
+          />
+        </CampoLista>
       </div>
     </div>
   );

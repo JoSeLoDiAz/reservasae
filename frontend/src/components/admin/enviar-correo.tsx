@@ -16,7 +16,8 @@ import {
   type VistaPrevia,
 } from "@/lib/plantillas-correo-api";
 
-import { Boton, CLASE_CONTROL } from "./marco-admin";
+import { Desplegable } from "./desplegable";
+import { Boton } from "./marco-admin";
 import { useToast } from "./toast";
 
 export function EnviarCorreo({ participanteId }: { participanteId: string }) {
@@ -123,29 +124,33 @@ export function EnviarCorreo({ participanteId }: { participanteId: string }) {
     <div className="space-y-4 rounded-xl border border-borde bg-superficie-alterna p-4">
       <div className="flex flex-wrap items-end gap-3">
         <div className="min-w-[16rem] flex-1">
-          <label htmlFor="plantilla" className="mb-1.5 block text-sm font-medium">
-            Qué plantilla
-          </label>
-          <select
+          {/* UN `<div>` y no un `<label>`: el disparador del
+              `Desplegable` es un `<button>`, y una etiqueta no se ata a
+              un boton. El nombre lo da `etiquetaAria`. */}
+          <div className="mb-1.5 block text-sm font-medium">Qué plantilla</div>
+          {/* Las que no aplican salen APAGADAS y con el motivo
+              al lado, no escondidas. Una plantilla que
+              desaparece del desplegable manda a la gente a
+              preguntar quién se la borró; una apagada que dice
+              «esta persona está interesada y esto es para
+              inscritos» se entiende sola.
+
+              El motivo va de `detalle` ---segunda linea en gris--- y no
+              pegado al nombre: en el `<option>` nativo no habia otro
+              sitio, aqui si. */}
+          <Desplegable
             id="plantilla"
-            className={CLASE_CONTROL}
-            value={elegida}
-            onChange={(e) => setElegida(e.target.value)}
-          >
-            <option value="">Escoja una…</option>
-            {/* Las que no aplican salen APAGADAS y con el
-                motivo al lado, no escondidas. Una plantilla
-                que desaparece del desplegable manda a la
-                gente a preguntar quién se la borró; una
-                apagada que dice «esta persona está interesada
-                y esto es para inscritos» se entiende sola. */}
-            {(plantillas ?? []).map((p) => (
-              <option key={p.id} value={p.id} disabled={Boolean(p.bloqueo)}>
-                {p.nombre}
-                {p.bloqueo ? "  —  no aplica en esta etapa" : ""}
-              </option>
-            ))}
-          </select>
+            valor={elegida}
+            etiquetaAria="Qué plantilla"
+            marcador="Escoja una…"
+            alElegir={setElegida}
+            opciones={(plantillas ?? []).map((p) => ({
+              valor: p.id,
+              etiqueta: p.nombre,
+              detalle: p.bloqueo ? "No aplica en esta etapa" : undefined,
+              desactivada: Boolean(p.bloqueo),
+            }))}
+          />
         </div>
         <button
           type="button"

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { Desplegable } from "@/components/admin/desplegable";
 import {
   Aviso,
   Boton,
@@ -153,20 +154,23 @@ export default function PaginaNuevoParticipante() {
             catalogos={catalogos}
             identidad={
               <>
-                <Campo etiqueta="Tipo de documento">
-                  <select
-                    className={CLASE_CONTROL}
-                    value={f.tipoDocumentoSepId}
-                    onChange={(e) =>
-                      setF({ ...f, tipoDocumentoSepId: Number(e.target.value) })
+                {/* El desplegable de la casa. El nativo lo pinta el
+                    sistema operativo: la lista sale cuadrada y con su
+                    azul, y ninguna regla de CSS llega ahi. */}
+                <Campo comoDiv etiqueta="Tipo de documento">
+                  <Desplegable
+                    valor={String(f.tipoDocumentoSepId)}
+                    etiquetaAria="Tipo de documento"
+                    /// El id viaja como texto por el desplegable y vuelve
+                    /// a numero al guardar: es lo que espera el servidor.
+                    alElegir={(v) =>
+                      setF({ ...f, tipoDocumentoSepId: Number(v) })
                     }
-                  >
-                    {(catalogos?.documentosPersona ?? []).map((t) => (
-                      <option key={t.id} value={t.id}>
-                        {t.etiqueta}
-                      </option>
-                    ))}
-                  </select>
+                    opciones={(catalogos?.documentosPersona ?? []).map((t) => ({
+                      valor: String(t.id),
+                      etiqueta: t.etiqueta,
+                    }))}
+                  />
                 </Campo>
 
                 <Campo etiqueta="Número de documento">
@@ -209,33 +213,31 @@ export default function PaginaNuevoParticipante() {
             De paso se va el `220px`: una medida fija dentro de algo que
             escala, que es justo lo que la casa no quiere. */}
         <div className="grid gap-4 sm:grid-cols-2">
-          <Campo etiqueta="Convenio">
-            <select
-              className={CLASE_CONTROL}
-              value={f.convenioId}
-              onChange={(e) => setF({ ...f, convenioId: e.target.value })}
-            >
-              <option value="">Elija uno</option>
-              {(convenios ?? []).map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.sigla ?? c.nombre}
-                </option>
-              ))}
-            </select>
+          <Campo comoDiv etiqueta="Convenio">
+            {/* «Elija uno» es el MARCADOR, no una opcion de la lista:
+                como opcion falsa se podia volver a elegir y dejaba el
+                convenio en blanco, que es justo lo que `listo` exige. */}
+            <Desplegable
+              valor={f.convenioId}
+              etiquetaAria="Convenio"
+              marcador="Elija uno"
+              alElegir={(v) => setF({ ...f, convenioId: v })}
+              opciones={(convenios ?? []).map((c) => ({
+                valor: c.id,
+                etiqueta: c.sigla ?? c.nombre,
+              }))}
+            />
           </Campo>
 
-          <Campo etiqueta="Origen">
-            <select
-              className={CLASE_CONTROL}
-              value={f.origen}
-              onChange={(e) => setF({ ...f, origen: e.target.value as Origen })}
-            >
-              {Object.entries(ETIQUETA_ORIGEN).map(([valor, etiqueta]) => (
-                <option key={valor} value={valor}>
-                  {etiqueta}
-                </option>
-              ))}
-            </select>
+          <Campo comoDiv etiqueta="Origen">
+            <Desplegable
+              valor={f.origen}
+              etiquetaAria="Origen"
+              alElegir={(v) => setF({ ...f, origen: v as Origen })}
+              opciones={Object.entries(ETIQUETA_ORIGEN).map(
+                ([valor, etiqueta]) => ({ valor, etiqueta }),
+              )}
+            />
           </Campo>
         </div>
       </Tarjeta>

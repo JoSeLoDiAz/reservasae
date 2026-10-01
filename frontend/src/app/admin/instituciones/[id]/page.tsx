@@ -10,7 +10,9 @@ import {
   Tarjeta,
   useAdmin,
 } from "@/components/admin/marco-admin";
+import { Desplegable } from "@/components/admin/desplegable";
 import { BotonSuave, Cargando } from "@/components/admin/piezas";
+
 import { conPermiso } from "@/components/admin/puerta-de-pantalla";
 import { useToast } from "@/components/admin/toast";
 import { alcanza } from "@/lib/admin-api";
@@ -625,18 +627,37 @@ function PaginaInstitucion({
               fuente={fuentes.clasificacion}
               cambiado={tocado("clasificacion")}
             >
-              <select
-                className={CLASE_CONTROL}
-                value={borrador.clasificacion}
-                onChange={(e) => escribir("clasificacion")(e.target.value)}
-              >
-                <option value="">Sin definir</option>
-                {Object.entries(ETIQUETA_CLASIFICACION).map(([valor, etiqueta]) => (
-                  <option key={valor} value={valor}>
-                    {etiqueta}
-                  </option>
-                ))}
-              </select>
+              {/* El desplegable de la casa y no el `<select>` nativo:
+                  su lista la dibuja el sistema operativo ---cuadrada,
+                  azul de Windows y sin que le llegue una regla de
+                  CSS--- y «no debe haber desplegables cuadrados, todos
+                  deben ser redondeados» (cliente, 1 oct 2026).
+
+                  Aquí el envoltorio sigue siendo el `<label>` de
+                  `CampoConFuente`, que es el mismo de los doce `input`
+                  de la rejilla y no se puede volver `<div>` sin
+                  dejarlos a todos sin etiqueta. Lo que se hace es dar
+                  el nombre otra vez por `etiquetaAria`, porque el
+                  disparador del `Desplegable` es un `<button>` y no se
+                  puede contar con esa atadura.
+
+                  Sin `enPortal`: la rejilla de la ficha no tiene
+                  ancestro con `overflow`, y estas dos listas son de
+                  cuatro y cinco opciones. */}
+              <Desplegable
+                alto={34}
+                etiquetaAria={ETIQUETA_CAMPO.clasificacion ?? "Clasificación"}
+                valor={borrador.clasificacion}
+                opciones={[
+                  { valor: "", etiqueta: "Sin definir" },
+                  ...Object.entries(ETIQUETA_CLASIFICACION).map(([valor, etiqueta]) => ({
+                    valor,
+                    etiqueta,
+                  })),
+                ]}
+                alElegir={escribir("clasificacion")}
+              />
+
             </CampoConFuente>
 
             <CampoConFuente
@@ -644,18 +665,20 @@ function PaginaInstitucion({
               fuente={fuentes.tamano}
               cambiado={tocado("tamano")}
             >
-              <select
-                className={CLASE_CONTROL}
-                value={borrador.tamano}
-                onChange={(e) => escribir("tamano")(e.target.value)}
-              >
-                <option value="">Sin definir</option>
-                {Object.entries(ETIQUETA_TAMANO).map(([valor, etiqueta]) => (
-                  <option key={valor} value={valor}>
-                    {etiqueta}
-                  </option>
-                ))}
-              </select>
+              <Desplegable
+                alto={34}
+                etiquetaAria={ETIQUETA_CAMPO.tamano ?? "Tamaño"}
+                valor={borrador.tamano}
+                opciones={[
+                  { valor: "", etiqueta: "Sin definir" },
+                  ...Object.entries(ETIQUETA_TAMANO).map(([valor, etiqueta]) => ({
+                    valor,
+                    etiqueta,
+                  })),
+                ]}
+                alElegir={escribir("tamano")}
+              />
+
             </CampoConFuente>
 
             <CampoConFuente
