@@ -51,7 +51,7 @@ import {
   PERIODO_INICIAL,
   type Periodo as PeriodoElegido,
 } from "@/components/admin/filtro-de-periodo";
-import { Aviso } from "@/components/admin/marco-admin";
+import { Aviso, FiltrosDelInforme } from "@/components/admin/marco-admin";
 import { Bloque, Cargando, Vacio } from "@/components/admin/piezas";
 import { ErrorApi } from "@/lib/api";
 import {
@@ -1354,7 +1354,10 @@ export function TablaDeCortes({ datos, periodo }: { datos: EmbudoPublico; period
           1.100 px en blanco que el ojo tenía que cruzar para unir
           el nombre con su número. A 760 px el rótulo más largo cabe
           y las cifras quedan a su lado. */}
-      <table className="hidden w-full max-w-[760px] border-collapse sm:table print:table">
+      {/* CON CUADRÍCULA, como Control de inscritos: es la misma regla
+          de `globals.css` que usan `tabla-por-accion` y
+          `tabla-por-grupo`, no una copia. */}
+      <table className="tabla-cuadricula hidden w-full max-w-[760px] border-collapse sm:table print:table">
         <caption className="sr-only">Dispositivo, dirección y campaña</caption>
         <thead>
           <tr className="border-b border-borde">
@@ -1575,8 +1578,14 @@ function ComparadorDeFechas({
     setAbierto(true);
   }
 
+  /// LO QUE SE DESPLIEGA, que no cabe en una cabecera de 56 px: las
+  /// dos fechas del calendario y la nota del contador. Se queda abajo,
+  /// y solo hay tarjeta cuando hay algo que enseñar.
+  const hayCaja = abierto || !!nota;
+
   return (
-    <div className="rounded-2xl border border-borde bg-superficie p-4">
+    <>
+      <FiltrosDelInforme>
       <div className="flex flex-wrap items-center gap-2">
         <div className="mr-1">
           {/* SIN `alComparar`: comparar aquí es lo de las dos fechas
@@ -1628,9 +1637,17 @@ function ComparadorDeFechas({
           </button>
         )}
       </div>
+      </FiltrosDelInforme>
 
+      {hayCaja && (
+      /// SIN RELLENO CUANDO SOLO HAY NOTA: la nota trae el suyo. Con
+      /// el de la caja quedaba una banda vacia encima de una sola
+      /// linea de texto ---«¿esto que putas?» (cliente, 1 oct 2026)---,
+      /// que es lo que separaba la nota de la fila del periodo cuando
+      /// la fila vivia aqui. Ahora vive en la cabecera.
+      <div className={"rounded-2xl border border-borde bg-superficie" + (abierto ? " p-4" : "")}>
       {abierto && (
-        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-4 sm:grid-cols-2">
           <Periodo titulo="Periodo A" valor={a} alCambiar={alCambiarA} />
           <Periodo titulo="Contra el periodo B" valor={b} alCambiar={alCambiarB} />
         </div>
@@ -1647,11 +1664,18 @@ function ComparadorDeFechas({
           márgenes negativos compensan el relleno de la caja para que la
           raya cruce de canto a canto. */}
       {nota && (
-        <div className="-mx-4 -mb-4 mt-4 border-t border-hairline px-4 py-3 text-[0.8125rem] leading-relaxed text-texto-suave">
+        <div
+          className={
+            "px-4 py-3 text-[0.8125rem] leading-relaxed text-texto-suave" +
+            (abierto ? " -mx-4 -mb-4 mt-4 border-t border-hairline" : "")
+          }
+        >
           {nota}
         </div>
       )}
-    </div>
+      </div>
+      )}
+    </>
   );
 }
 
