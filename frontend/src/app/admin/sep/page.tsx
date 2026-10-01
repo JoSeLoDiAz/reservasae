@@ -6,7 +6,8 @@ import { useCallback, useEffect, useState } from "react";
 import { Aviso, Boton } from "@/components/admin/marco-admin";
 import { Desplegable } from "@/components/admin/desplegable";
 import { n } from "@/components/admin/graficos";
-import { Bloque, BotonSuave, TarjetaCifra } from "@/components/admin/piezas";
+import {
+  Encabezado, Bloque, BotonSuave, TarjetaCifra } from "@/components/admin/piezas";
 import { conPermiso } from "@/components/admin/puerta-de-pantalla";
 import { adminApi } from "@/lib/admin-api";
 import { ErrorApi } from "@/lib/api";
@@ -75,45 +76,35 @@ function PaginaSep() {
     /// Resumen o Control se veía de otra aplicación. Ahora usa
     /// la cabecera plana, el mismo margen y bloques con tarjeta,
     /// que es como se leen las demás hojas.
-    <div className="flex flex-col gap-3 px-4 pt-3 pb-6">
-      <header className="flex flex-wrap items-start justify-between gap-4">
-        <div className="min-w-0">
-          <h1 className="text-[1.125rem] font-bold tracking-[-0.02em] text-titulo">
-            Reportes al SENA
-          </h1>
-          {/* LAS DOS FRASES JUNTAS, a la izquierda.
-              «Más orden a esto» (cliente, 12 sep 2026): la columna
-              de la derecha apilaba rótulo, desplegable y una nota de
-              dos renglones, y esa nota es lo que la dejaba ragged.
-              Aquí hay ancho y cabe en un renglón; allí queda solo el
-              control, que es lo que se va a usar. */}
-          <p className="mt-0.5 text-[0.78125rem] text-texto-suave">
-            Quién entra en el archivo y quién no, antes de generarlo. Un archivo
-            por convenio: el SEP nunca ha visto uno con los dos.
-          </p>
-        </div>
+    <div className="flex flex-col gap-3 px-4 pt-3 pb-6 [&>header]:mx-0 [&>header]:mb-0">
+      {/* EN SU TARJETA, como el resto del panel: «este no tiene el
+          diseño del título» / «módulo Formularios no tiene diseño en
+          los títulos» (cliente, 1 oct 2026). Eran títulos sueltos sobre
+          el fondo mientras sus hermanas los llevan en recuadro. */}
+      {/* Y SIN LA FRASE DE DEBAJO ---«quién entra en el archivo y quién
+          no…»---: «eliminar» (cliente, 1 oct 2026). Lo que decía lo
+          dicen ya las dos cifras de abajo, «Entran en el archivo» y
+          «Se quedan fuera», que es a donde va el ojo.
 
-        {/* El convenio, en la cabecera: enmarca la pantalla
-            entera --un archivo por convenio-- y no es un filtro
-            que se cambie mientras se lee. */}
-        <div className="min-w-0">
-          <p className="mb-1.5 text-[0.625rem] font-bold tracking-[0.08em] uppercase text-texto-suave">
-            Convenio
-          </p>
-          <div className="min-w-[13rem]">
-            <Desplegable
-              alto={34}
-              etiquetaAria="Convenio"
-              valor={convenioId}
-              opciones={(convenios ?? []).map((c) => ({
-                valor: c.id,
-                etiqueta: c.sigla ?? c.nombre,
-              }))}
-              alElegir={setConvenioId}
-            />
-          </div>
+          El convenio va DENTRO de la cabecera y con su rótulo dentro
+          del control, como el periodo de las demás pantallas: enmarca
+          la hoja entera ---un archivo por convenio--- y no es un
+          filtro que se cambie mientras se lee. */}
+      <Encabezado compacto titulo="Reportes al SENA">
+        <div className="min-w-[14rem]">
+          <Desplegable
+            alto={44}
+            rotulo="Convenio"
+            etiquetaAria="Convenio"
+            valor={convenioId}
+            opciones={(convenios ?? []).map((c) => ({
+              valor: c.id,
+              etiqueta: c.sigla ?? c.nombre,
+            }))}
+            alElegir={setConvenioId}
+          />
         </div>
-      </header>
+      </Encabezado>
 
       {error && <Aviso tipo="error">{error}</Aviso>}
 
@@ -188,11 +179,19 @@ function PaginaSep() {
             )}
           </Bloque>
 
+          {/* PLEGADO: «en desplegable para que no ocupe tanto espacio»
+              (cliente, 1 oct 2026). Son cuatro motivos de hasta cuatro
+              renglones cada uno ---la lista entera de lo que le falta a
+              una persona, encadenada--- y ocupaban media pantalla entre
+              las cifras y la tabla de quiénes se quedan fuera, que es a
+              lo que se entra. Cerrado es un renglón; se abre el día que
+              hace falta.
+
+              Y sin la bajada: «ordenado por a cuántas personas afecta
+              cada motivo» describía el orden de una lista que ya se ve
+              ordenada, con su cuenta al lado de cada fila. */}
           {datos.motivos.length > 0 && (
-            <Bloque
-              titulo="Por qué no entran"
-              descripcion="Ordenado por a cuántas personas afecta cada motivo."
-            >
+            <Bloque titulo="Por qué no entran" plegable>
               <div className="space-y-2">
                 {datos.motivos.map((m) => (
                   <div

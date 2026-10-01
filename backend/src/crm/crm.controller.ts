@@ -36,6 +36,7 @@ import { enviarLibro } from '../tableros/exportar';
 import { CrmService } from './crm.service';
 import { AsignarGrupo } from './asignar-grupo.service';
 import { SoloQuienAsignaGrupo } from './quien-asigna-grupo';
+import { SoloQuienCargaPlano } from './quien-carga-plano';
 import { DirectorioService } from './directorio.service';
 import { PlantillasCorreoService } from '../correo/plantillas/plantillas-correo.service';
 import { RuiService } from './rui/rui.service';
@@ -563,6 +564,7 @@ export class CrmController {
 
   @Post('carga/previsualizar')
   @Requiere('inscripciones', 'ESCRIBIR')
+  @SoloQuienCargaPlano()
   previsualizarCarga(@Body() dto: CargaDto, @AmbitoActual() ambito: Ambito) {
     return this.crm.previsualizarCarga(dto, ambito.convenios);
   }
@@ -597,6 +599,7 @@ export class CrmController {
 
   @Post('carga/archivo')
   @Requiere('inscripciones', 'ESCRIBIR')
+  @SoloQuienCargaPlano()
   /// El limite va en multer, no en una comprobacion de abajo:
   /// sin el, el archivo entero entra en memoria antes de que
   /// podamos rechazarlo.
@@ -655,6 +658,7 @@ export class CrmController {
 
   @Post('carga/confirmar')
   @Requiere('inscripciones', 'ESCRIBIR')
+  @SoloQuienCargaPlano()
   confirmarCarga(
     @Body() dto: CargaDto,
     @AdminActual() admin: Admin,
