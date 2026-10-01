@@ -63,7 +63,14 @@ function ordenarCampos(campos: Record<string, unknown>): string[] {
 }
 
 function fechaLegible(iso: string): string {
-  const fecha = new Date(iso);
+  /// A MEDIODÍA Y NO A MEDIANOCHE.
+  ///
+  /// `new Date("1998-04-12")` es medianoche UTC, que en Colombia son
+  /// las siete de la tarde del 11: la tarjeta decía «11 de abril» de
+  /// una propuesta que trae el 12. Poniéndolo a mediodía, ninguna
+  /// zona horaria del mundo lo mueve de día.
+  const soloDia = /^\d{4}-\d{2}-\d{2}$/.test(iso);
+  const fecha = soloDia ? new Date(`${iso}T12:00:00`) : new Date(iso);
   if (Number.isNaN(fecha.getTime())) return iso;
   return fecha.toLocaleDateString("es-CO", {
     day: "2-digit",
@@ -207,8 +214,10 @@ export function PropuestasPendientes() {
   }
 
   return (
-    <div>
-      <header className="mx-4 mb-3 rounded-2xl border border-borde bg-superficie px-7 pt-[26px] pb-[22px]">
+    /// EL MARGEN LATERAL VA AQUÍ, UNA VEZ, y no en cada hijo: lo
+    /// llevaba solo el encabezado y el resto salía pegado al borde.
+    <div className="px-4">
+      <header className="mb-3 rounded-2xl border border-borde bg-superficie px-7 pt-[26px] pb-[22px]">
         <p className="mt-1 max-w-3xl text-texto-suave">
           Ninguna consulta automática escribe en el registro de una organización: deja aquí
           una propuesta. Hasta que una persona no la acepte campo por campo, ese dato no
