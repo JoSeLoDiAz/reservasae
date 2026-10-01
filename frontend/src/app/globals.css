@@ -1781,6 +1781,18 @@ select[size]:not([size='1']) {
   border-right: 1px solid var(--hairline);
 }
 
+/* LA FRONTERA ENTRE GRUPOS DE COLUMNAS.
+ *
+ * Más marcada que el carril de `con-carriles` ---que separa todas
+ * las columnas por igual--- y del color del borde, no del pelo: tiene
+ * que verse de un vistazo sin leer los títulos, que es para lo que
+ * está. Dos píxeles y el color del borde la hacen leerse como el
+ * canto de un bloque, no como una raya más de la rejilla.
+ */
+.tabla-datos .frontera-de-grupo {
+  border-left: 2px solid var(--borde);
+}
+
 /* Lo que no cabe se queda dentro.
 
    Con el ancho ajustado a mano la tabla pasa a `fixed`, y una
