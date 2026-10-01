@@ -28,7 +28,9 @@ import {
   CLASE_CONTROL,
 } from "@/components/admin/marco-admin";
 import { olvidarCatalogoDeNotas } from "@/components/admin/clasificacion-de-la-nota";
-import { Bloque, Cargando, Encabezado } from "@/components/admin/piezas";
+import { Desplegable } from "@/components/admin/desplegable";
+import { n } from "@/components/admin/graficos";
+import { Bloque, Cargando, Cifra, Encabezado } from "@/components/admin/piezas";
 import { conPermiso } from "@/components/admin/puerta-de-pantalla";
 import { ErrorApi } from "@/lib/api";
 import { useDatosVivos } from "@/lib/datos-vivos";
@@ -72,6 +74,20 @@ import {
  *
  */
 
+/// QUÉ FILA SE MIRA: las que se ofrecen, las ocultas, o todas.
+///
+/// Tres valores y no un interruptor de dos: «todas» tiene que existir
+/// porque es lo que había antes de la barra ---la tabla arriba y las
+/// ocultas abajo--- y quitarlo sería cambiar la pantalla por el filtro.
+type EstadoCatalogo = "" | "ofrecidas" | "ocultas";
+
+/// El valor del desplegable llega como `string`. Se estrecha aquí en
+/// vez de forzarlo con un `as`: cualquier cosa que no sea una de las
+/// dos opciones es «todas», que es el estado neutro.
+function aEstado(valor: string): EstadoCatalogo {
+  return valor === "ofrecidas" || valor === "ocultas" ? valor : "";
+}
+
 /// LA PUERTA, CON EL MISMO PAR `area`/`nivel` QUE DECLARA SU
 /// ENTRADA EN `navegacion.ts`. Sin esto la pantalla cargaba entera
 /// para quien no la puede usar y el no del servidor solo llegaba
@@ -104,10 +120,12 @@ function PaginaConfiguracionNotas() {
   /// Lo pidió el cliente el 30 sep 2026: «¿Organiza eso? O sea, si
   /// tengo 10, ¿cómo voy a bajar hasta ver el último?». Plegar las
   /// categorías arregla el bajar; esto arregla el BUSCAR, que es la
-  /// otra mitad de la pregunta. Solo aparece cuando hay suficientes
-  /// para que buscar gane a mirar: con cuatro, un buscador es un
-  /// control de más en una pantalla que se toca una vez al mes.
+  /// otra mitad de la pregunta.
   const [filtro, setFiltro] = useState("");
+  /// Y por estado, en la misma barra: la pantalla tiene DOS listas
+  /// --las que se ofrecen arriba, las ocultas abajo-- y buscar solo en
+  /// la de arriba dejaba la mitad del catálogo fuera del buscador.
+  const [estado, setEstado] = useState<EstadoCatalogo>("");
 
   async function conError(accion: () => Promise<void>, hecho?: string) {
     setError(null);
@@ -135,14 +153,37 @@ function PaginaConfiguracionNotas() {
   const ofrecidas = categorias.filter((c) => !c.oculta);
   const ocultas = categorias.filter((c) => c.oculta);
 
-  /// El umbral del buscador: siete en adelante. Con seis o menos la
-  /// lista plegada entra de un vistazo y el buscador sobra.
-  const conBuscador = ofrecidas.length > 6;
+  /// LAS CIFRAS, DE LO QUE YA ESTÁ CARGADO. `listar()` trae el catálogo
+  /// entero --ocultas incluidas-- con sus subcategorías y su contador de
+  /// notas dentro, así que las cuatro salen de sumar lo que hay en la
+  /// mano. Nada de pedir un resumen aparte: sería un viaje más para
+  /// repetir números que ya están en esta misma respuesta, y los dos
+  /// podrían no cuadrar.
+  const totalSub = categorias.reduce((t, c) => t + c.subcategorias.length, 0);
+  /// Las que se ofrecen y no tienen ninguna: son las que están a medio
+  /// configurar, y al asesor le sale el segundo desplegable apagado.
+  const sinSub = ofrecidas.filter((c) => c.subcategorias.length === 0).length;
+  /// Las notas se cuentan por CATEGORÍA y no sumando también las
+  /// subcategorías: una nota nombra una categoría y, si acaso, una
+  /// subcategoría suya, así que sumar las dos listas contaría dos veces
+  /// la misma nota.
+  const notasClasificadas = categorias.reduce((t, c) => t + c.notas, 0);
+
+  /// LA BARRA, SIEMPRE QUE HAYA CATÁLOGO. Estuvo escondida hasta la
+  /// séptima categoría --«con seis o menos la lista entra de un
+  /// vistazo»--, y el umbral era el error: un control que aparece solo
+  /// no se busca cuando hace falta, porque nadie sabe que existe. Y con
+  /// el filtro de estado ya no es solo buscar: es decidir qué mitad del
+  /// catálogo se mira.
+  const conBarra = categorias.length > 0;
   const aguja = filtro.trim().toLocaleLowerCase("es");
-  const visibles =
-    conBuscador && aguja
-      ? ofrecidas.filter((c) => c.nombre.toLocaleLowerCase("es").includes(aguja))
-      : ofrecidas;
+  const coincide = (c: CategoriaDeNota) =>
+    !aguja || c.nombre.toLocaleLowerCase("es").includes(aguja);
+  /// Cada lista se filtra por su lado y el estado decide si se pinta:
+  /// así «Ocultas» deja de ser un cajón al final y pasa a ser una vista.
+  const visibles = estado === "ocultas" ? [] : ofrecidas.filter(coincide);
+  const ocultasVisibles = estado === "ofrecidas" ? [] : ocultas.filter(coincide);
+  const filtrando = Boolean(aguja) || estado !== "";
 
   return (
     <div className="flex flex-col gap-4 px-4 pt-4 pb-6 [&>header]:mx-0 [&>header]:mb-0">
@@ -155,6 +196,44 @@ function PaginaConfiguracionNotas() {
 
       {error && <Aviso tipo="error">{error}</Aviso>}
       {exito && <Aviso tipo="exito">{exito}</Aviso>}
+
+      {/* LAS CUATRO CIFRAS, como en las demás pantallas del panel. Con
+          `Cifra` --la tira apretada de Gestión de leads-- y no con
+          `TarjetaCifra`: 110 px de alto en una pantalla cuyo contenido
+          es una tabla se comen justo lo que se viene a mirar.
+
+          Son las cuatro preguntas que se contestaban bajando y contando
+          a mano: cuántas se ofrecen, cuántas se ocultaron, cuántas
+          subcategorías hay en todo el catálogo y cuántas notas lo
+          nombran. La última es además la cifra que sostiene la regla de
+          la casa: con notas clasificadas, borrar no es una opción. */}
+      {categorias.length > 0 && (
+        <div className="flex flex-wrap items-stretch gap-2">
+          <Cifra
+            etiqueta="Se ofrecen"
+            valor={n(ofrecidas.length)}
+            pie={`de ${n(categorias.length)} en el catálogo`}
+          />
+          <Cifra
+            etiqueta="Ocultas"
+            valor={n(ocultas.length)}
+            pie={ocultas.length > 0 ? "ya no se ofrecen" : "ninguna"}
+          />
+          {/* EN AVISO CUANDO ALGUNA SE OFRECE SIN SUBCATEGORÍAS: es la
+              única de las cuatro que señala algo por arreglar. */}
+          <Cifra
+            etiqueta="Subcategorías"
+            valor={n(totalSub)}
+            pie={sinSub > 0 ? `${n(sinSub)} categorías sin ninguna` : "todas con alguna"}
+            color={sinSub > 0 ? "var(--aviso)" : undefined}
+          />
+          <Cifra
+            etiqueta="Notas clasificadas"
+            valor={n(notasClasificadas)}
+            pie="por eso no hay borrar"
+          />
+        </div>
+      )}
 
       {/* LO QUE HAY QUE EXPLICAR, PLEGADO. «Esto no dice nada; acá
           pienso algo como en Tráfico del formulario» (cliente, 1 oct
@@ -225,21 +304,44 @@ function PaginaConfiguracionNotas() {
 
       </Bloque>
 
-      {/* EL BUSCADOR, solo de siete en adelante. Ver `conBuscador`. */}
-      {conBuscador && (
+      {/* LA BARRA DE FILTROS. Ver `conBarra`: en cuanto hay catálogo.
+
+          Con `Desplegable` y nunca un `<select>`: la lista del nativo la
+          dibuja el sistema, cuadrada y con su azul, y el cliente la
+          rechazó. Sin portal, que es como va donde no hay recorte: la
+          barra es un div suelto de la columna y la tabla de abajo es su
+          hermana, así que la lista abierta pasa por encima sola. */}
+      {conBarra && (
         <div className="flex flex-wrap items-center gap-3">
           <input
             type="search"
             className={`${CLASE_CONTROL} max-w-xs`}
-            placeholder="Buscar una categoría por nombre"
+            placeholder="Buscar por nombre"
             aria-label="Buscar una categoría por nombre"
             value={filtro}
             onChange={(e) => setFiltro(e.target.value)}
           />
+          <div className="w-48">
+            <Desplegable
+              alto={33}
+              etiquetaAria="Estado de la categoría"
+              marcador="Todas"
+              valor={estado}
+              opciones={[
+                { valor: "", etiqueta: "Todas" },
+                { valor: "ofrecidas", etiqueta: "Se ofrecen" },
+                { valor: "ocultas", etiqueta: "Ocultas" },
+              ]}
+              alElegir={(v) => setEstado(aEstado(v))}
+            />
+          </div>
+          {/* La cuenta SOBRE EL CATÁLOGO ENTERO cuando se filtra: el
+              filtro cruza las dos listas, y decir «de las ofrecidas»
+              dejaría fuera lo que se está mirando. */}
           <p className="text-sm text-texto-suave">
-            {aguja
-              ? `${visibles.length} de ${ofrecidas.length}`
-              : `${ofrecidas.length} categorías se ofrecen`}
+            {filtrando
+              ? `${visibles.length + ocultasVisibles.length} de ${categorias.length}`
+              : `${ofrecidas.length} se ofrecen`}
           </p>
         </div>
       )}
@@ -247,10 +349,9 @@ function PaginaConfiguracionNotas() {
       {/* Un bloque vacío dice POR QUÉ lo está: aquí la lista no está
           vacía, está filtrada, y decirlo evita que alguien crea que
           se le borró algo en una pantalla donde nada se borra. */}
-      {conBuscador && aguja && visibles.length === 0 && (
+      {filtrando && visibles.length === 0 && ocultasVisibles.length === 0 && (
         <p className="rounded-lg border border-borde bg-superficie-alterna px-3 py-2 text-sm text-texto-suave">
-          Ninguna categoría se llama así. Las ocultas no se buscan: están
-          listadas abajo.
+          Ninguna categoría coincide con el filtro.
         </p>
       )}
 
@@ -294,13 +395,17 @@ function PaginaConfiguracionNotas() {
         </div>
       )}
 
-      {ocultas.length > 0 && (
+      {/* LAS OCULTAS, YA FILTRADAS. Antes se pintaban todas siempre, al
+          margen del buscador: con el filtro cruzando las dos listas,
+          dejarlas fuera sería que buscar un nombre oculto no diera nada
+          y la fila estuviera ahí abajo. */}
+      {ocultasVisibles.length > 0 && (
         <Bloque
           titulo="Ocultas"
           descripcion="Ya no se ofrecen al anotar. Siguen aquí porque hay notas que las nombran."
         >
           <div className="space-y-3">
-            {ocultas.map((c) => (
+            {ocultasVisibles.map((c) => (
               <div
                 key={c.id}
                 className="flex flex-wrap items-center justify-between gap-3 border-t border-borde pt-3 first:border-t-0 first:pt-0"
