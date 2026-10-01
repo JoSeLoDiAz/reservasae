@@ -853,6 +853,35 @@ html:has(.marco-panel) body {
   }
 }
 
+/*
+ * LA BARRA FINA, EN TODO LO QUE SCROLLEA Y NO SOLO EN LA PÁGINA.
+ *
+ * «Nunca una barra así de ancha, o sea ¿qué es esa asquerosidad?»
+ * (cliente, 30 sep 2026), con una barra gris de sistema, con sus
+ * flechitas, al lado de una interfaz de trazos de un píxel.
+ *
+ * LA CAUSA ESTÁ EN UN CAMBIO DEL NAVEGADOR, no en un descuido de
+ * aquí. Chrome ya entiende `scrollbar-width`, y en cuanto lo
+ * entiende DEJA DE HACER CASO a `::-webkit-scrollbar`. Esta casa
+ * tenía los dos: la propiedad en `html`, `.caja-scroll` y
+ * `.barra-visible`, y el pseudo-elemento para el resto. Mientras
+ * Chrome ignoraba la propiedad, el pseudo-elemento vestía TODAS las
+ * barras; desde que la entiende, viste solo esas tres y las demás
+ * vuelven a la del sistema.
+ *
+ * Y `scrollbar-width` NO SE HEREDA: ponerla en `html` no alcanza a
+ * un cajón que scrollea dentro. Por eso va en el universal, que es
+ * el único sitio donde cubre lo que haya hoy y lo que se escriba
+ * mañana sin tener que acordarse de una clase.
+ */
+*,
+*::before,
+*::after {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in oklab, var(--texto-suave) 40%, transparent)
+    transparent;
+}
+
 html {
   scrollbar-width: thin;
   scrollbar-color: color-mix(in oklab, var(--texto-suave) 40%, transparent) transparent;

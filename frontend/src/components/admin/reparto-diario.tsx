@@ -98,6 +98,9 @@ export function RepartoDiario({
   queEs,
   asesores,
   cierre,
+  alIrALaProyeccion,
+  vencidas = 0,
+  faltaEnVencidas = 0,
   ahora = new Date(),
 }: {
   /// Lo que falta por conseguir. Es la cifra que encabeza su cuadro.
@@ -107,6 +110,23 @@ export function RepartoDiario({
   asesores: AsesorDelReparto[];
   /// Hasta cuándo hay que conseguirlo.
   cierre: Date | null;
+  /// LLEVA A DONDE SALEN LAS CIFRAS.
+  ///
+  /// «Pilas, porque debe estar amarrado a esto» (cliente, 30 sep
+  /// 2026, señalando «Proyección Inscripciones»). Y lo está: la meta
+  /// y el cierre vienen de ahí, en la misma consulta. Lo que no
+  /// estaba era VERSE, y una cifra de la que no se sabe de dónde sale
+  /// se discute en cada reunión. Con el enlace, quien dude va y lo
+  /// comprueba acción por acción.
+  alIrALaProyeccion?: () => void;
+  /// LO QUE SE QUEDA FUERA DEL REPARTO, para poder decirlo.
+  ///
+  /// Sin esto el cuadro dice una cifra y la tabla de Proyección dice
+  /// otra mayor, y nadie sabe por qué. No es un descuadre: las
+  /// acciones con el cierre vencido no se pueden repartir entre días
+  /// que ya pasaron. Pero hay que DECIRLO, o parece un error.
+  vencidas?: number;
+  faltaEnVencidas?: number;
   ahora?: Date;
 }) {
   const r = useMemo(() => {
@@ -164,6 +184,29 @@ export function RepartoDiario({
           hasta el {r.hastaCuando}.
           {r.topado && " Se enseñan los primeros 60 días."}
         </p>
+
+        {/* POR QUÉ ESTA CIFRA NO ES LA DE PROYECCIÓN. */}
+        {vencidas > 0 && (
+          <p className="mt-1 text-[0.6875rem] leading-relaxed text-aviso">
+            Se reparten solo las acciones con el plazo abierto. Quedan
+            fuera {vencidas}{" "}
+            {vencidas === 1 ? "acción con el cierre vencido" : "acciones con el cierre vencido"}
+            , que suman {faltaEnVencidas} cupos más: no se pueden repartir
+            entre días que ya pasaron. Para que entren, hay que ponerles
+            una fecha de cierre nueva en Proyección.
+          </p>
+        )}
+
+        {/* DE DÓNDE SALE, dicho y enlazado. */}
+        {alIrALaProyeccion && (
+          <button
+            type="button"
+            onClick={alIrALaProyeccion}
+            className="mt-1 text-[0.71875rem] text-marca underline underline-offset-2 hover:opacity-80"
+          >
+            Sale de Proyección Inscripciones, acción por acción →
+          </button>
+        )}
       </div>
 
       <div className="caja-scroll overflow-x-auto rounded-xl border border-borde">
