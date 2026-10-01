@@ -77,7 +77,11 @@ export default function Notificaciones() {
     /// respeto» (cliente, 26 sep 2026)---. `px-4 pt-3 pb-6` con
     /// `gap-3` es lo que usan Resumen, SEP, Acciones y la ficha de
     /// la persona; no es una medida nueva, es la de la casa.
-    <div className="flex flex-col gap-3 px-4 pt-3 pb-6">
+    /// `[&>header]:mx-0`: `Encabezado` trae su propio `mx-4` y esta
+    /// página ya pone `px-4`; sumados, la cabecera caía en 32 px y su
+    /// contenido en 16. «Todos estos cambios que se ajusten a todas las
+    /// pantallas» (cliente, 1 oct 2026), medido en las treinta.
+    <div className="flex flex-col gap-3 px-4 pt-3 pb-6 [&>header]:mx-0 [&>header]:mb-0">
       <Encabezado
         titulo="Mis notificaciones"
       >

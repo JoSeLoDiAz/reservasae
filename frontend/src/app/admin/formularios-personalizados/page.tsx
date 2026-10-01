@@ -51,7 +51,11 @@ export default function FormulariosPersonalizados() {
   return (
     /// Sin `min-h-0 grow`: aquí no scrollea nada de dentro. La
     /// explicación larga está en `usuarios/page.tsx`.
-    <div className="flex flex-col gap-4 px-4 pt-4 pb-6">
+    /// `[&>header]:mx-0`: `Encabezado` trae su propio `mx-4` y esta
+    /// página ya pone `px-4`; sumados, la cabecera caía en 32 px y su
+    /// contenido en 16. «Todos estos cambios que se ajusten a todas las
+    /// pantallas» (cliente, 1 oct 2026), medido en las treinta.
+    <div className="flex flex-col gap-4 px-4 pt-4 pb-6 [&>header]:mx-0 [&>header]:mb-0">
       {/* LA MISMA CABECERA QUE LOS TABLEROS, en tarjeta y de 56 px.
           «¿No se puede dejar como los títulos de los tableros, o sea
           que le dé estética?» (cliente, 23 sep 2026). Era un h1 suelto

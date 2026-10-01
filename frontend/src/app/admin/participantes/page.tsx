@@ -5,7 +5,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import {
   Aviso, CLASE_CONTROL, Tarjeta, useAdmin } from "@/components/admin/marco-admin";
-import { Cargando, MenuDeAcciones } from "@/components/admin/piezas";
+import {
+  Encabezado, Cargando, MenuDeAcciones } from "@/components/admin/piezas";
 import { CajonLead } from "@/components/admin/cajon-lead";
 import { ConfirmarBorrado } from "@/components/admin/confirmar-borrado";
 import { IconoCerrar } from "@/components/admin/iconos";
@@ -222,7 +223,12 @@ export default function PaginaParticipantes() {
     /// Inscritos y Seguimiento del aula, que son justo las cuatro que
     /// recorren en horizontal. Ocho píxeles despegan la barra sin que
     /// vuelva a sobrar aire.
-    <div className="flex min-h-0 grow flex-col gap-3 px-4 pt-3 pb-2">
+    <div className="flex min-h-0 grow flex-col gap-3 px-4 pt-3 pb-2 [&>header]:mx-0 [&>header]:mb-0">
+      {/* CON TÍTULO, como el resto del panel. Era la pantalla más usada
+          del CRM y la única sin cabecera: lo que se estaba mirando solo
+          lo decía el menú de arriba, que se cierra al soltarlo. */}
+      <Encabezado compacto titulo="Gestión de leads" />
+
       {error && <Aviso tipo="error">{error}</Aviso>}
 
       {/* El embudo.
