@@ -238,8 +238,10 @@ export function ElegirConRotulo({
   /// costaba sitio en la fila y gritaba; ver el porqué en `Desplegable`.
   return (
     <div style={{ minWidth: ancho }}>
+      {/* 44 px y no 30: el control lleva dos renglones ---el rótulo y
+          el valor---. Sigue entrando en la cabecera de 56. */}
       <Desplegable
-        alto={30}
+        alto={44}
         rotulo={rotulo}
         etiquetaAria={rotulo}
         valor={valor}
@@ -266,13 +268,13 @@ export function FiltroDePeriodo({
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <p className="text-[0.625rem] font-bold tracking-[0.08em] uppercase text-texto-suave">
-        Periodo
-      </p>
-
+      {/* SU RÓTULO VA DENTRO, como los demás: fuera eran dos alturas
+          distintas en la misma fila ---44 px el de la vista y 30 este---
+          y la cabecera se leía torcida. */}
       <div className="min-w-[11.5rem]">
         <Desplegable
-          alto={30}
+          alto={44}
+          rotulo="Periodo"
           etiquetaAria="Periodo"
           valor={periodo.rango}
           opciones={RANGOS_DEL_PANEL.map((r) => ({

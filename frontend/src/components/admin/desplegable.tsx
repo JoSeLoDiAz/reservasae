@@ -244,9 +244,26 @@ export function Desplegable({
               (abierto ? "border-marca" : "border-campo-borde hover:border-marca/60"))
         }
       >
-        <span className={"min-w-0 flex-1 truncate " + (elegida ? "" : "text-texto-suave")}>
-          {elegida?.etiqueta ?? marcador}
-        </span>
+        {/* EL RÓTULO, DENTRO DEL PROPIO CONTROL y encima del valor.
+            «¿Dónde está el título?» (cliente, 1 oct 2026): puesto solo
+            en la lista, con el desplegable cerrado no se veía nada. Aquí
+            está siempre, no cuesta una fila de pantalla como el rótulo
+            de fuera, y no compite con el valor porque va en letra
+            chica y en gris. */}
+        {rotulo ? (
+          <span className="flex min-w-0 flex-1 flex-col items-start justify-center leading-tight">
+            <span className="text-[0.5625rem] font-bold tracking-[0.08em] uppercase text-texto-suave">
+              {rotulo}
+            </span>
+            <span className={"w-full truncate " + (elegida ? "" : "text-texto-suave")}>
+              {elegida?.etiqueta ?? marcador}
+            </span>
+          </span>
+        ) : (
+          <span className={"min-w-0 flex-1 truncate " + (elegida ? "" : "text-texto-suave")}>
+            {elegida?.etiqueta ?? marcador}
+          </span>
+        )}
         <span
           aria-hidden="true"
           className={
