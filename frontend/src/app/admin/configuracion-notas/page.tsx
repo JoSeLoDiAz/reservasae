@@ -30,6 +30,7 @@ import {
 import { olvidarCatalogoDeNotas } from "@/components/admin/clasificacion-de-la-nota";
 import { Desplegable } from "@/components/admin/desplegable";
 import { Bloque, Cargando } from "@/components/admin/piezas";
+import { conPermiso } from "@/components/admin/puerta-de-pantalla";
 import { ErrorApi } from "@/lib/api";
 import {
   ETIQUETA_RESULTADO,
@@ -72,7 +73,13 @@ function aResultado(v: string): ResultadoGestion | null {
   return v ? (v as ResultadoGestion) : null;
 }
 
-export default function PaginaConfiguracionNotas() {
+/// LA PUERTA, CON EL MISMO PAR `area`/`nivel` QUE DECLARA SU
+/// ENTRADA EN `navegacion.ts`. Sin esto la pantalla cargaba entera
+/// para quien no la puede usar y el no del servidor solo llegaba
+/// al pulsar un botón (repaso de QA, 30 sep 2026).
+export default conPermiso("configuracion", "ESCRIBIR", PaginaConfiguracionNotas);
+
+function PaginaConfiguracionNotas() {
   /// CON `useDatosVivos` Y NO CON UN `useEffect` A MANO. Pedir en el
   /// efecto y poner el estado ahí mismo es lo que el linter de React
   /// para en seco --cascada de renders-- y además este hook trae

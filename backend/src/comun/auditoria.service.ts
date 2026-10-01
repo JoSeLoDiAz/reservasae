@@ -84,6 +84,21 @@ export const ACCIONES = [
   /// alguien oculta esa categoría, el informe se queda sin
   /// alimentarse y nadie sabría quién la quitó.
   'CATALOGO_DE_NOTAS_EDITADO',
+  /// Se volvió a permitir un dato que alguien había descartado en
+  /// la bandeja «Por revisar».
+  ///
+  /// Descartar un campo deja una fila en `descartes_de_campo` para
+  /// que el buscador no lo vuelva a proponer, y eso no tenía vuelta
+  /// atrás: un teléfono correcto descartado por error no se volvía
+  /// a proponer NUNCA y nadie podía deshacerlo (repaso de QA, 30
+  /// sep 2026).
+  ///
+  /// Deshacerlo QUITA la fila ---es la única forma de que el valor
+  /// vuelva a proponerse, porque la llave única es
+  /// (institución, campo, valor) y mientras exista el buscador lo
+  /// filtra---, así que esta entrada es la traza: sin ella, el
+  /// deshacer sería el único paso del proceso sin autor.
+  'DESCARTE_REVOCADO',
 ] as const;
 
 export type Accion = (typeof ACCIONES)[number];

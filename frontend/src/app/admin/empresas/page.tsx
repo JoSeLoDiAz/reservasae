@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { n } from "@/components/admin/graficos";
 import { Aviso } from "@/components/admin/marco-admin";
 import { Tabla, type Columna } from "@/components/admin/tabla";
+import { conPermiso } from "@/components/admin/puerta-de-pantalla";
 import { CarguePlantilla } from "@/components/admin/cargue-plantilla";
 import { EditarEmpresa } from "@/components/admin/editar-empresa";
 import { bonito, ErrorApi, enMayusculas } from "@/lib/api";
@@ -16,7 +17,13 @@ import {
 } from "@/lib/tableros-api";
 
 /** Cuántos cupos lleva cada organización. */
-export default function PaginaEmpresas() {
+/// LA PUERTA, CON EL MISMO PAR `area`/`nivel` QUE DECLARA SU
+/// ENTRADA EN `navegacion.ts`. Sin esto la pantalla cargaba entera
+/// para quien no la puede usar y el no del servidor solo llegaba
+/// al pulsar un botón (repaso de QA, 30 sep 2026).
+export default conPermiso("reserva", "VER", PaginaEmpresas);
+
+function PaginaEmpresas() {
   const [pagina, setPagina] = useState<PaginaEmpresas | null>(null);
   const [todas, setTodas] = useState<{ base: FilaEmpresa[]; filas: FilaEmpresa[] } | null>(
     null,

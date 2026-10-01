@@ -879,7 +879,11 @@ export const tablerosApi = {
 
 /** Descarga por navegación. */
 export function descargar(
-  informe: "reservas" | "ocupacion" | "empresas",
+  /// «reservas-por-organizacion» ES OTRO FICHERO, no otra forma de
+  /// mirar el mismo: una fila por organización, con las columnas y
+  /// las dos fórmulas del modelo que entregó el cliente. Ver
+  /// `backend/src/tableros/exportar-por-organizacion.ts`.
+  informe: "reservas" | "reservas-por-organizacion" | "ocupacion" | "empresas",
   filtros: Record<string, string | number | undefined> = {},
 ) {
   window.location.href = `/api/admin/tableros/exportar/${informe}${consulta(filtros)}`;

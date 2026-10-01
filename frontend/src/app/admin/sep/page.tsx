@@ -7,6 +7,7 @@ import { Aviso, Boton } from "@/components/admin/marco-admin";
 import { Desplegable } from "@/components/admin/desplegable";
 import { n } from "@/components/admin/graficos";
 import { Bloque, BotonSuave, TarjetaCifra } from "@/components/admin/piezas";
+import { conPermiso } from "@/components/admin/puerta-de-pantalla";
 import { adminApi } from "@/lib/admin-api";
 import { ErrorApi } from "@/lib/api";
 import {
@@ -18,7 +19,13 @@ import {
 
 type Convenio = { id: string; nombre: string; sigla: string | null; activo: boolean };
 
-export default function PaginaSep() {
+/// LA PUERTA, CON EL MISMO PAR `area`/`nivel` QUE DECLARA SU
+/// ENTRADA EN `navegacion.ts`. Sin esto la pantalla cargaba entera
+/// para quien no la puede usar y el no del servidor solo llegaba
+/// al pulsar un botón (repaso de QA, 30 sep 2026).
+export default conPermiso("reportes", "VER", PaginaSep);
+
+function PaginaSep() {
   const [convenios, setConvenios] = useState<Convenio[] | null>(null);
   const [convenioId, setConvenioId] = useState("");
   const [datos, setDatos] = useState<Alistamiento | null>(null);

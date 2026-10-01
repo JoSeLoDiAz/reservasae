@@ -23,6 +23,7 @@ import {
   pegarEnElCursor,
 } from "@/components/admin/catalogo-de-variables";
 import { Cargando } from "@/components/admin/piezas";
+import { conPermiso } from "@/components/admin/puerta-de-pantalla";
 import { Desplegable } from "@/components/admin/desplegable";
 import { IconoDerecha, IconoIzquierda } from "@/components/admin/iconos";
 import {
@@ -124,7 +125,13 @@ const FILTROS: Array<[Filtro, string]> = [
   ["apagadas", "Apagadas"],
 ];
 
-export default function PaginaPlantillasCorreo() {
+/// LA PUERTA, CON EL MISMO PAR `area`/`nivel` QUE DECLARA SU
+/// ENTRADA EN `navegacion.ts`. Sin esto la pantalla cargaba entera
+/// para quien no la puede usar y el no del servidor solo llegaba
+/// al pulsar un botón (repaso de QA, 30 sep 2026).
+export default conPermiso("configuracion", "ESCRIBIR", PaginaPlantillasCorreo);
+
+function PaginaPlantillasCorreo() {
   const [plantillas, setPlantillas] = useState<PlantillaCorreo[] | null>(null);
   const [variables, setVariables] = useState<VariableCorreo[]>([]);
   const [error, setError] = useState<string | null>(null);

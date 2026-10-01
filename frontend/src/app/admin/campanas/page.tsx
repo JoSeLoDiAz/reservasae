@@ -15,6 +15,7 @@ import {
   pegarEnElCursor,
 } from "@/components/admin/catalogo-de-variables";
 import { Cargando } from "@/components/admin/piezas";
+import { conPermiso } from "@/components/admin/puerta-de-pantalla";
 import { Desplegable } from "@/components/admin/desplegable";
 import { IconoDerecha } from "@/components/admin/iconos";
 
@@ -50,7 +51,13 @@ import type { VariableCorreo } from "@/lib/plantillas-correo-api";
 const fecha = (s: string) =>
   new Date(s).toLocaleString("es-CO", { dateStyle: "medium", timeStyle: "short" });
 
-export default function PaginaCampanas() {
+/// LA PUERTA, CON EL MISMO PAR `area`/`nivel` QUE DECLARA SU
+/// ENTRADA EN `navegacion.ts`. Sin esto la pantalla cargaba entera
+/// para quien no la puede usar y el no del servidor solo llegaba
+/// al pulsar un botón (repaso de QA, 30 sep 2026).
+export default conPermiso("inscripciones", "ESCRIBIR", PaginaCampanas);
+
+function PaginaCampanas() {
   const toast = useToast();
   const { gremio, gremios } = useAdmin();
   const [campanas, setCampanas] = useState<Campana[] | null>(null);

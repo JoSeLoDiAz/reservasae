@@ -20,6 +20,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { Bloque, Cargando } from "@/components/admin/piezas";
+import { conPermiso } from "@/components/admin/puerta-de-pantalla";
 import { Aviso, Boton } from "@/components/admin/marco-admin";
 import { ErrorApi } from "@/lib/api";
 import {
@@ -287,7 +288,13 @@ function PanelDeGremio({
   );
 }
 
-export default function PaginaMeta() {
+/// LA PUERTA, CON EL MISMO PAR `area`/`nivel` QUE DECLARA SU
+/// ENTRADA EN `navegacion.ts`. Sin esto la pantalla cargaba entera
+/// para quien no la puede usar y el no del servidor solo llegaba
+/// al pulsar un botón (repaso de QA, 30 sep 2026).
+export default conPermiso("configuracion", "ESCRIBIR", PaginaMeta);
+
+function PaginaMeta() {
   const [estado, setEstado] = useState<EstadoMeta | null>(null);
   const [error, setError] = useState<string | null>(null);
 

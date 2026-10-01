@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { Bloque, Cargando } from "@/components/admin/piezas";
+import { conPermiso } from "@/components/admin/puerta-de-pantalla";
 import { conEnlaces } from "@/components/caja-de-politica";
 
 import {
@@ -35,7 +36,13 @@ const DESTINATARIOS: Array<{ valor: Destinatario; ayuda: string }> = [
   },
 ];
 
-export default function PaginaPoliticas() {
+/// LA PUERTA, CON EL MISMO PAR `area`/`nivel` QUE DECLARA SU
+/// ENTRADA EN `navegacion.ts`. Sin esto la pantalla cargaba entera
+/// para quien no la puede usar y el no del servidor solo llegaba
+/// al pulsar un botón (repaso de QA, 30 sep 2026).
+export default conPermiso("configuracion", "ESCRIBIR", PaginaPoliticas);
+
+function PaginaPoliticas() {
   const [politicas, setPoliticas] = useState<Politica[] | null>(null);
   const [cobertura, setCobertura] = useState<Cobertura[] | null>(null);
   const [error, setError] = useState<string | null>(null);

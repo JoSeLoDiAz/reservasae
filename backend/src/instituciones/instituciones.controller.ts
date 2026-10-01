@@ -192,4 +192,29 @@ export class InstitucionesController {
   ) {
     return this.instituciones.aplicarPropuesta(id, dto, admin.id);
   }
+
+  /**
+   * DESHACER UN DESCARTE: el dato vuelve a poder proponerse.
+   *
+   * CON EL MISMO PERMISO QUE RESOLVER UNA PROPUESTA ---`reserva`
+   * ESCRIBIR---, y no es casualidad: es exactamente la misma
+   * decisión al revés. Quien puede decir «este teléfono no sirve»
+   * es quien tiene que poder decir «me equivoqué». Pedir más
+   * dejaría al asesor que se equivocó esperando a otra persona para
+   * arreglar lo suyo; pedir menos dejaría volver a proponer datos a
+   * quien no puede ni aceptarlos.
+   *
+   * `@Post` y no `@Delete` por la costumbre de las otras puertas de
+   * este controlador ---`ocultar`, `mostrar`, `verificar`---: lo que
+   * se nombra es la DECISIÓN, no la fila que la implementa. Desde la
+   * pantalla esto no borra nada, permite.
+   *
+   * Listar no lleva puerta propia: los descartes van dentro de la
+   * ficha (`GET :id`), que ya exige `reserva` VER en la clase.
+   */
+  @Post('descartes/:id/permitir')
+  @Requiere('reserva', 'ESCRIBIR')
+  permitirDeNuevo(@Param('id') id: string, @AdminActual() admin: Admin) {
+    return this.instituciones.permitirDeNuevo(id, admin);
+  }
 }
