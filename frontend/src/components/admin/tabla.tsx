@@ -9,6 +9,7 @@ import {
   type ReactNode,
 } from "react";
 
+import { Desplegable } from "./desplegable";
 import {
   IconoAbajo,
   IconoArriba,
@@ -1970,22 +1971,23 @@ function Pie({
           página: es lo que deja BAJAR a 10 cuando hay 40 filas y
           uno quiere revisarlas de a poquitos. Escondiéndolo
           cuando `paginas === 1` no habría forma de llegar a él. */}
+      {/* CON EL `Desplegable` DE LA CASA, no con un `<select>`. «No
+          debe haber desplegables cuadrados, todos deben ser
+          redondeados» (cliente, 1 oct 2026). La lista de un `<select>`
+          la dibuja Windows ---cuadro cuadrado y azul de sistema--- y no
+          hay CSS que llegue ahi: la unica forma de redondearla es no
+          usar la del sistema. */}
       {filtradas > 0 && (
-        <label className="flex items-center gap-2">
+        <div className="flex items-center gap-2">
           <span>Por página:</span>
-          <select
-            value={tamano}
-            onChange={(e) => setTamano(Number(e.target.value))}
-            aria-label="Cuántas filas por página"
-            className="rounded-lg border border-borde bg-superficie px-2 py-1 text-xs"
-          >
-            {TAMANOS.map((n) => (
-              <option key={n} value={n}>
-                {n}
-              </option>
-            ))}
-          </select>
-        </label>
+          <Desplegable
+            alto={26}
+            etiquetaAria="Cuántas filas por página"
+            valor={String(tamano)}
+            opciones={TAMANOS.map((n) => ({ valor: String(n), etiqueta: String(n) }))}
+            alElegir={(v) => setTamano(Number(v))}
+          />
+        </div>
       )}
 
       {paginas > 1 && (
