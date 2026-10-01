@@ -152,7 +152,15 @@ export const mesaApi = {
   /// tabla y el mismo DTO del servidor.
   agregarNota: (
     id: string,
-    nota: { texto: string; canales: string[]; resultado: string },
+    nota: {
+      texto: string;
+      canales: string[];
+      resultado: string;
+      /// Opcionales, igual que en la ficha y por lo mismo: el DTO
+      /// del servidor es el mismo.
+      categoriaId?: string;
+      subcategoriaId?: string;
+    },
   ) =>
     pedir<{ id: string; creadoEn: string }>(`/admin/leads/${id}/notas`, {
       method: "POST",

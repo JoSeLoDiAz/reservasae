@@ -15,7 +15,11 @@ import {
 import type { Admin } from '../../generated/prisma';
 import { AdminActual } from '../admin/admin-actual.decorator';
 import { AdminGuard, Requiere } from '../admin/admin.guard';
-import { AplicarPropuestaDto, EditarInstitucionDto } from './dto';
+import {
+  AplicarPropuestaDto,
+  EditarInstitucionDto,
+  PropuestasEnLoteDto,
+} from './dto';
 import { InstitucionesService } from './instituciones.service';
 import { webConectado } from './web/proveedor-web';
 import { WebService } from './web/web.service';
@@ -120,6 +124,32 @@ export class InstitucionesController {
   @Get(':id/estado-web')
   estadoWeb(@Param('id') id: string) {
     return this.web.estado(id);
+  }
+
+  /**
+   * Descartar varias propuestas de un tirón.
+   *
+   * Va ANTES de `propuestas/:id/aplicar` en el fichero por
+   * costumbre de rutas, no por necesidad: los segmentos fijos
+   * («descartar», «aceptar») no colisionan con `:id` porque van
+   * en otra posición de la ruta.
+   */
+  @Post('propuestas/descartar')
+  @Requiere('reserva', 'ESCRIBIR')
+  descartarVarias(
+    @Body() dto: PropuestasEnLoteDto,
+    @AdminActual() admin: Admin,
+  ) {
+    return this.instituciones.descartarVarias(dto.ids, admin.id);
+  }
+
+  /// Aceptar en lote acepta TODOS los campos de esas propuestas:
+  /// no hay forma de elegir. Quien avisa de eso es la pantalla,
+  /// antes de confirmar.
+  @Post('propuestas/aceptar')
+  @Requiere('reserva', 'ESCRIBIR')
+  aceptarVarias(@Body() dto: PropuestasEnLoteDto, @AdminActual() admin: Admin) {
+    return this.instituciones.aceptarVarias(dto.ids, admin.id);
   }
 
   @Post('propuestas/:id/aplicar')

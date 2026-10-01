@@ -32,6 +32,7 @@
 
 import { EstadoReserva, Prisma, type Modalidad } from '../../generated/prisma';
 import { enPeriodo, PRIMERA_MATRICULA } from '../crm/anclas';
+import { OCUPAN_SILLA } from '../crm/etapas';
 import type { PrismaService } from '../prisma/prisma.service';
 import { reservaDeConvenio } from './ambito';
 
@@ -153,6 +154,54 @@ export type ContactoConsolidado = {
   codigos: string[];
 };
 
+/**
+ * Lo que la organización ha hecho con los leads que le llegaron.
+ *
+ * Es la mitad derecha del modelo que entregó el cliente (hoja
+ * «Reservas», 30 sep 2026): de los cupos que apartó, cuántas
+ * personas aparecieron, cuántas se inscribieron y cuántas se
+ * cayeron por el camino. Hasta hoy esta vista solo sabía contar
+ * cupos, que es la mitad de la pregunta que se hace delante de
+ * ella: «aparté 40, ¿y qué pasó con ellos?».
+ *
+ * Se calcula en el servidor --no se deriva en el navegador-- porque
+ * sale de `participantes` y de sus notas de gestión, que esta
+ * pantalla no se trae: agruparlo allá sería traerse el CRM entero
+ * para pintar seis columnas.
+ */
+export type CifrasDeLeads = {
+  /** Personas de esa organización que entraron al CRM. */
+  leadsRecibidos: number;
+  inscritos: number;
+  descartados: number;
+  noContactable: number;
+  /**
+   * `inscritos + descartados + noContactable`. En su hoja es una
+   * fórmula (`=K2+L2+M2`); aquí se calcula, y por eso los tres
+   * cubos tienen que ser DISJUNTOS: ver `SQL_DE_LOS_CUBOS`.
+   */
+  totalLeadGestionados: number;
+  /**
+   * `cuposConfirmados − leadsRecibidos`, acotado a cero.
+   *
+   * En su hoja es `=I2-J2` y puede salir negativa; aquí no: quien
+   * mandó más personas que cupos apartó no tiene «−5 cupos
+   * pendientes», tiene cero y una sobra, que es otra cifra y no
+   * esta.
+   */
+  cuposPendientes: number;
+};
+
+/** Una organización sin un solo lead: todo a cero, nada en blanco. */
+export const SIN_LEADS: CifrasDeLeads = {
+  leadsRecibidos: 0,
+  inscritos: 0,
+  descartados: 0,
+  noContactable: 0,
+  totalLeadGestionados: 0,
+  cuposPendientes: 0,
+};
+
 export type FilaAgrupada = {
   empresaId: string;
   nit: string;
@@ -182,6 +231,9 @@ export type FilaAgrupada = {
       reservas. Ver `ReservaEnCelda`. */
   conNombre: number;
   sinNombre: number;
+
+  /// Lo que pasó con sus leads. Ver `CifrasDeLeads`.
+  leads: CifrasDeLeads;
 
   /// La fila, abierta por acción. La llave es `accionFormacionId`.
   porAccion: Record<string, CeldaReserva>;
@@ -307,7 +359,164 @@ export async function reservasAgrupadas(
     },
   });
 
-  return armarAgrupadas(reservas, await cuposConNombre(prisma, reservas));
+  const conNombre = await cuposConNombre(prisma, reservas);
+  const leads = await cifrasDeLeadsPorEmpresa(
+    prisma,
+    [...new Set(reservas.map((r) => r.empresa.id))],
+    filtros.ambito,
+  );
+
+  return armarAgrupadas(reservas, conNombre, leads);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   LOS CUBOS DE UN LEAD — PROVISIONAL, UN SOLO SITIO
+
+   Aquí vive la ÚNICA definición de «inscrito», «descartado» y «no
+   contactable» de esta pantalla, y está en un solo sitio a
+   propósito: dos de las tres son provisionales y van a cambiar.
+
+   DE DÓNDE VENDRÁN DESPUÉS: hay otro proceso construyendo las
+   CATEGORÍAS DE NOTA de gestión --«No contactado» pasa a llamarse
+   «Sin respuesta»--, y esa categoría será la fuente definitiva de
+   «No contactable». Mientras no exista, se deduce del resultado de
+   las notas, que es lo más parecido que hay hoy. «Descartados» sale
+   de la etapa PERDIDO, que también está por confirmar: no es seguro
+   que «descartado» y «perdido» sean la misma cosa para el cliente.
+
+   El día que lleguen las categorías se cambia ESTE fragmento de SQL
+   y nada más: ni la consulta, ni el agrupado, ni la pantalla saben
+   de etapas ni de resultados.
+
+   LOS TRES CUBOS SON DISJUNTOS, y no es un detalle: el cliente suma
+   los tres en «Total lead gestionados» (=K2+L2+M2 en su hoja). Si
+   un PERDIDO al que nadie logró contactar contara en dos cubos, el
+   total pasaría de los leads recibidos y la fila se leería como un
+   error de cuentas. La precedencia es inscrito → descartado → no
+   contactable: quien se inscribió fue contactado, se mire como se
+   mire, y quien está PERDIDO está descartado aunque además no
+   contestara nunca.
+   ═══════════════════════════════════════════════════════════════ */
+
+/**
+ * Los tres cubos, en SQL, contra los alias `p` (el participante) y
+ * `sg` (el resumen de sus notas de gestión).
+ *
+ * Va aparte de la consulta para que se lea de un tirón y para que
+ * el día del cambio no haya que entender el resto del SELECT.
+ */
+function sqlDeLosCubos(): Prisma.Sql {
+  /// «Inscrito» con el MISMO criterio que ocupa silla --inscrito o
+  /// más allá-- y no `etapa = 'INSCRITO'` a secas: quien ya está en
+  /// formación o certificado se inscribió, y dejarlo fuera haría
+  /// que la columna bajara sola el día que empiezan las clases.
+  const ocupaSilla = Prisma.sql`p."etapa"::text IN (${Prisma.join(OCUPAN_SILLA)})`;
+  const descartado = Prisma.sql`p."etapa"::text = 'PERDIDO'`;
+  /// Intentos de gestión sin un solo contacto logrado. Las notas sin
+  /// resultado --las de antes del canal y las que escribe el
+  /// sistema-- no son intentos: no dicen que se llamara a nadie.
+  const nadieLoContacto = Prisma.sql`COALESCE(sg."intentos", 0) > 0
+                                     AND COALESCE(sg."contactos", 0) = 0`;
+
+  return Prisma.sql`
+    COUNT(*)                              AS "leadsRecibidos",
+    COUNT(*) FILTER (WHERE ${ocupaSilla}) AS inscritos,
+    COUNT(*) FILTER (WHERE NOT (${ocupaSilla}) AND ${descartado})
+                                          AS descartados,
+    COUNT(*) FILTER (WHERE NOT (${ocupaSilla}) AND NOT (${descartado})
+                       AND (${nadieLoContacto}))
+                                          AS "noContactable"
+  `;
+}
+
+/** Las cuatro cifras que salen de la base, sin las dos fórmulas. */
+export type LeadsCrudos = Omit<
+  CifrasDeLeads,
+  'totalLeadGestionados' | 'cuposPendientes'
+>;
+
+/**
+ * Las cifras de leads de cada organización, de una sola consulta.
+ *
+ * POR EMPRESA Y NO POR RESERVA, y la empresa de un lead se busca
+ * por DOS caminos: su propio `empresaId` --donde trabaja, que se
+ * rellena aunque llegara por su cuenta-- y, si no lo tiene, el de
+ * la reserva por la que entró. En la base de hoy son 5 por el
+ * primero y 80 por el segundo: mirando solo uno de los dos,
+ * «leads recibidos» salía casi en cero y no se veía por qué.
+ *
+ * Acotada al ámbito por `convenioId`: la misma empresa puede tener
+ * fichas en los dos gremios, y una cuenta de ADECOPRIA no puede ver
+ * los leads de Grupo AE.
+ */
+export async function cifrasDeLeadsPorEmpresa(
+  prisma: PrismaService,
+  empresaIds: string[],
+  ambito: string[],
+): Promise<Map<string, LeadsCrudos>> {
+  /// `Prisma.join` de una lista vacía es un SQL roto, y sin
+  /// organizaciones --o sin ámbito-- no hay nada que contar.
+  if (empresaIds.length === 0 || ambito.length === 0) return new Map();
+
+  const filas = await prisma.$queryRaw<
+    Array<{
+      eid: string;
+      leadsRecibidos: bigint;
+      inscritos: bigint;
+      descartados: bigint;
+      noContactable: bigint;
+    }>
+  >(Prisma.sql`
+    WITH gestion AS (
+      SELECT n."participanteId" AS pid,
+             COUNT(*) FILTER (
+               WHERE n."resultado"::text IN ('SIN_RESPUESTA', 'DATO_MALO')
+             ) AS intentos,
+             COUNT(*) FILTER (WHERE n."resultado"::text = 'CONTACTO') AS contactos
+        FROM "notas_participante" n
+       WHERE n."participanteId" IS NOT NULL
+       GROUP BY 1
+    )
+    SELECT COALESCE(p."empresaId", res."empresaId") AS eid,
+           ${sqlDeLosCubos()}
+      FROM "participantes" p
+      LEFT JOIN "reservas" res ON res."id" = p."reservaId"
+      LEFT JOIN gestion sg     ON sg."pid" = p."id"
+     WHERE COALESCE(p."empresaId", res."empresaId") IN (${Prisma.join(empresaIds)})
+       AND p."convenioId" IN (${Prisma.join(ambito)})
+     GROUP BY 1
+  `);
+
+  return new Map(
+    filas.map((f) => [
+      f.eid,
+      {
+        leadsRecibidos: Number(f.leadsRecibidos),
+        inscritos: Number(f.inscritos),
+        descartados: Number(f.descartados),
+        noContactable: Number(f.noContactable),
+      },
+    ]),
+  );
+}
+
+/**
+ * Las dos fórmulas de su hoja, cerradas sobre las cifras crudas.
+ *
+ * Exportada y aparte de la consulta porque es lo que se prueba: que
+ * el total sume los tres cubos y que los pendientes resten, sin
+ * base de datos de por medio.
+ */
+export function cerrarCifrasDeLeads(
+  crudas: LeadsCrudos,
+  cuposConfirmados: number,
+): CifrasDeLeads {
+  return {
+    ...crudas,
+    totalLeadGestionados:
+      crudas.inscritos + crudas.descartados + crudas.noContactable,
+    cuposPendientes: Math.max(0, cuposConfirmados - crudas.leadsRecibidos),
+  };
 }
 
 /**
@@ -395,6 +604,10 @@ export function armarAgrupadas(
   /// porque las pruebas arman filas a mano y lo que comprueban es el
   /// agrupado, no la cobertura; sin él, todo sale sin nombre.
   conNombrePorReserva: Map<string, number> = new Map(),
+  /// Organización -> lo que pasó con sus leads, sin las dos
+  /// fórmulas: las cierra esta función con los cupos ya sumados de
+  /// la fila, que es cuando se conocen. Opcional por lo mismo.
+  leadsPorEmpresa: Map<string, LeadsCrudos> = new Map(),
 ): ReservasAgrupadas {
   const columnas = new Map<string, ColumnaAccion>();
   const porEmpresa = new Map<string, FilaAgrupada>();
@@ -452,6 +665,9 @@ export function armarAgrupadas(
         cuposSolicitados: 0,
         conNombre: 0,
         sinNombre: 0,
+        /// Se rellena al cerrar la fila, cuando ya están sumados sus
+        /// cupos: «Cupos pendientes» los resta.
+        leads: SIN_LEADS,
         porAccion: {},
       };
       porEmpresa.set(r.empresa.id, fila);
@@ -558,6 +774,15 @@ export function armarAgrupadas(
   for (const [empresaId, fila] of porEmpresa) {
     fila.contactos = [...contactos.get(empresaId)!.values()];
     fila.formularios = [...formularios.get(empresaId)!.values()];
+
+    /// Las dos fórmulas de la hoja del cliente, AQUÍ y no en la
+    /// consulta: «Cupos pendientes» resta los leads de los cupos
+    /// CONFIRMADOS de la fila, que es una suma de sus reservas y no
+    /// un dato de la base.
+    fila.leads = cerrarCifrasDeLeads(
+      leadsPorEmpresa.get(empresaId) ?? SIN_LEADS,
+      fila.cuposConfirmados,
+    );
 
     /// El estado de cada celda, ya con todas sus reservas dentro.
     /// Manda la que más sitio tiene: si una de las dos sedes quedó

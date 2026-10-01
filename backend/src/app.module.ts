@@ -7,6 +7,7 @@ import { LeadsModule } from './leads/leads.module';
 import { EmbudoModule } from './embudo/embudo.module';
 import { IntegracionesModule } from './integraciones/integraciones.module';
 import { LucidModule } from './lucid/lucid.module';
+import { NotasModule } from './notas/notas.module';
 import { NotificacionesModule } from './notificaciones/notificaciones.module';
 import { AdminModule } from './admin/admin.module';
 import { AppController } from './app.controller';
@@ -32,6 +33,7 @@ import { TablerosModule } from './tableros/tableros.module';
     IntegracionesModule,
     LucidModule,
     NotificacionesModule,
+    NotasModule,
     // sin esto backend/.env no se lee fuera de Docker
     ConfigModule.forRoot({ isGlobal: true }),
     // límite general de peticiones

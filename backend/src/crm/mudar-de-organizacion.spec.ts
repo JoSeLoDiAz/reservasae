@@ -101,6 +101,13 @@ function armar(opts: {
     {} as never,
     {} as never,
     { avisar: () => Promise.resolve() } as never,
+    /// El catálogo de notas. Devuelve «sin clasificar», que es lo
+    /// que anota una pantalla que todavía no ofrece los
+    /// desplegables: ninguno de estos tests clasifica nada.
+    {
+      exigirClasificacion: () =>
+        Promise.resolve({ categoriaId: null, subcategoriaId: null }),
+    } as never,
   );
 
   const mudar = (nit: string, ambito = ['c-adecopria']) =>

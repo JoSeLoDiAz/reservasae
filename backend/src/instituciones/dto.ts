@@ -2,6 +2,8 @@
 
 import { Transform } from 'class-transformer';
 import {
+  ArrayMaxSize,
+  ArrayNotEmpty,
   IsArray,
   IsEnum,
   IsInt,
@@ -105,4 +107,20 @@ export class AplicarPropuestaDto {
   @IsArray()
   @IsString({ each: true })
   campos!: string[];
+}
+
+/**
+ * Las propuestas que se resuelven de una sola vez.
+ *
+ * Con la bandeja en 45 propuestas y entre dos y siete clics
+ * cada una, resolverlas de a una son hasta 315 clics. El tope
+ * de 200 no es por rendimiento: es para que un lote quepa en
+ * algo que una persona haya podido mirar antes de confirmar.
+ */
+export class PropuestasEnLoteDto {
+  @IsArray()
+  @ArrayNotEmpty()
+  @ArrayMaxSize(200)
+  @IsString({ each: true })
+  ids!: string[];
 }

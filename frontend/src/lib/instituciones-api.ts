@@ -97,6 +97,16 @@ export type Institucion = {
   fuente: FuenteDato;
   /// Campo → de dónde salió.
   fuentePorCampo: Record<string, FuenteDato> | null;
+  /// CUÁNTAS PERSONAS CUELGAN DE ESTA ORGANIZACIÓN.
+  ///
+  /// «Colocar otra columna que diga leads asociados, así se sabe si
+  /// se puede o no» (cliente, 30 sep 2026), hablando de quitar del
+  /// listado una organización que quedó vacía.
+  ///
+  /// `null` NO ES CERO: es «no se pidió la cuenta». Cero quiere decir
+  /// que no le queda nadie ---y entonces se puede quitar---, y
+  /// pintarlos igual sería dar permiso sin haber mirado.
+  leads: number | null;
   verificadaEn: string | null;
   verificadaPor: { nombre: string } | null;
   /// Lo que le falta para poder reportarse al SENA.
@@ -219,6 +229,28 @@ export const institucionesApi = {
     pedir<EstadoWeb>(`/admin/instituciones/${id}/validar-web`, { method: "POST" }),
 
   estadoWeb: (id: string) => pedir<EstadoWeb>(`/admin/instituciones/${id}/estado-web`),
+
+  /// Cierra varias propuestas de un tirón sin tocar ninguna
+  /// ficha. Es la salida de una bandeja atascada: de a una,
+  /// cuarenta y cinco propuestas son cientos de clics.
+  descartarPropuestas: (ids: string[]) =>
+    pedir<{ descartadas: number; yaResueltas: number }>(
+      "/admin/instituciones/propuestas/descartar",
+      { method: "POST", body: JSON.stringify({ ids }) },
+    ),
+
+  /// ACEPTA TODOS LOS CAMPOS de esas propuestas: en lote no hay
+  /// forma de elegir. Quien tiene que advertirlo es la pantalla,
+  /// antes de confirmar.
+  aceptarPropuestas: (ids: string[]) =>
+    pedir<{
+      aceptadas: number;
+      aplicados: number;
+      fallidas: Array<{ id: string; motivo: string }>;
+    }>("/admin/instituciones/propuestas/aceptar", {
+      method: "POST",
+      body: JSON.stringify({ ids }),
+    }),
 
   aplicarPropuesta: (id: string, campos: string[]) =>
     pedir<{ aplicados: number; descartados: number }>(

@@ -58,6 +58,18 @@ export const ACCIONES = [
   /// meta que se le exige a cada asesor, así que quién la movió y
   /// cuándo tiene que constar.
   'PROYECCION_EDITADA',
+  /// Se tocó el catálogo de categorías de nota: se creó una, se
+  /// renombró, se ocultó o se volvió a ofrecer.
+  ///
+  /// UNA sola acción para las cuatro, y el detalle va en el
+  /// resumen. Cuatro acciones distintas obligarían a quien lee el
+  /// control de cambios a conocer el catálogo de acciones para
+  /// buscar; con una, filtra por ella y lee.
+  ///
+  /// Importa porque de «No contactado» cuelga un informe: si
+  /// alguien oculta esa categoría, el informe se queda sin
+  /// alimentarse y nadie sabría quién la quitó.
+  'CATALOGO_DE_NOTAS_EDITADO',
 ] as const;
 
 export type Accion = (typeof ACCIONES)[number];
@@ -83,6 +95,13 @@ export const ENTIDADES = {
   EMPRESA: 'empresa',
   LEAD: 'lead',
   ACCION: 'accion',
+  /// La fila del catálogo: la categoría o la subcategoría.
+  ///
+  /// Las dos con el mismo nombre de entidad a propósito: el
+  /// historial que interesa es «qué le pasó al catálogo», y partirlo
+  /// en dos obligaría a mirar dos listas para reconstruir un cambio
+  /// que la persona hizo de un tirón.
+  CATEGORIA_DE_NOTA: 'categoria_de_nota',
 } as const;
 
 export type Entidad = (typeof ENTIDADES)[keyof typeof ENTIDADES];

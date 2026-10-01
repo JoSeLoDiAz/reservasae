@@ -113,6 +113,13 @@ export function PropuestasPendientes() {
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [exito, setExito] = useState<string | null>(null);
+  /// Qué propuestas están marcadas para resolver en lote. Son
+  /// propuestas enteras, no campos: en lote no se eligen campos.
+  const [seleccion, setSeleccion] = useState<string[]>([]);
+  const [enLote, setEnLote] = useState<"descartar" | "aceptar" | null>(null);
+  /// El lote de aceptar no se dispara al primer clic: primero se
+  /// dice en voz alta que entran TODOS los campos.
+  const [confirmarAceptar, setConfirmarAceptar] = useState(false);
 
   const cargar = useCallback(async () => {
     setCargando(true);
@@ -136,11 +143,68 @@ export function PropuestasPendientes() {
   /// iba y moviendo de sitio lo que tenia bajo el cursor.
   function quitar(id: string, mensaje: string) {
     setPropuestas((previas) => (previas ?? []).filter((p) => p.id !== id));
+    setSeleccion((previa) => previa.filter((s) => s !== id));
     setError(null);
     setExito(mensaje);
   }
 
+  function alternarSeleccion(id: string) {
+    setSeleccion((previa) =>
+      previa.includes(id) ? previa.filter((s) => s !== id) : [...previa, id],
+    );
+    setConfirmarAceptar(false);
+  }
+
   const sugeridas = propuestas?.filter((p) => p.fuente === "WEB").length ?? 0;
+  const hay = propuestas?.length ?? 0;
+  const todasSeleccionadas = hay > 0 && seleccion.length === hay;
+
+  /// Resuelve de golpe lo marcado. Lo que se resolvió se quita
+  /// de la lista; si alguna falló se dice cuántas y se queda,
+  /// porque seguir viéndola es la única forma de arreglarla.
+  async function resolverLote(modo: "descartar" | "aceptar") {
+    if (seleccion.length === 0) return;
+    const ids = [...seleccion];
+    setEnLote(modo);
+    try {
+      if (modo === "descartar") {
+        const r = await institucionesApi.descartarPropuestas(ids);
+        setPropuestas((previas) => (previas ?? []).filter((p) => !ids.includes(p.id)));
+        setSeleccion([]);
+        setError(null);
+        setExito(
+          `${r.descartadas === 1 ? "1 propuesta descartada" : `${r.descartadas} propuestas descartadas`}. ` +
+            "No se modificó ningún dato, y lo descartado no volverá a proponerse." +
+            (r.yaResueltas > 0
+              ? ` (${r.yaResueltas} ya las había resuelto alguien.)`
+              : ""),
+        );
+      } else {
+        const r = await institucionesApi.aceptarPropuestas(ids);
+        const fallidas = r.fallidas.map((f) => f.id);
+        setPropuestas((previas) =>
+          (previas ?? []).filter((p) => !ids.includes(p.id) || fallidas.includes(p.id)),
+        );
+        setSeleccion(fallidas);
+        setExito(
+          `${r.aceptadas === 1 ? "Se aceptó 1 propuesta" : `Se aceptaron ${r.aceptadas} propuestas`} y ` +
+            `${r.aplicados === 1 ? "entró 1 dato" : `entraron ${r.aplicados} datos`} en el registro. ` +
+            "La organización NO queda verificada por esto: lo del buscador sigue sin comprobar.",
+        );
+        setError(
+          r.fallidas.length === 0
+            ? null
+            : `${r.fallidas.length} no se pudieron aplicar y siguen aquí: ${r.fallidas[0].motivo}`,
+        );
+      }
+    } catch (e) {
+      setExito(null);
+      setError((e as ErrorApi).message);
+    } finally {
+      setEnLote(null);
+      setConfirmarAceptar(false);
+    }
+  }
 
   return (
     <div>
@@ -178,11 +242,103 @@ export function PropuestasPendientes() {
                 : ` ${sugeridas} las trajo el buscador web: son las que conviene revisar con más cuidado.`)}
           </p>
 
+          {/* La barra de lote: es la salida de una bandeja atascada.
+              Resolver de a una cuesta entre dos y siete clics, así que
+              con 45 esperando son cientos. Va arriba y fija en el
+              flujo, no al final de la lista, porque si hay que bajar
+              45 tarjetas para encontrarla no sirve de nada. */}
+          <div className="mt-3 rounded-2xl border border-borde bg-superficie-alterna px-5 py-4">
+            <div className="flex flex-wrap items-center gap-3">
+              <label className="flex cursor-pointer items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={todasSeleccionadas}
+                  onChange={() =>
+                    setSeleccion(todasSeleccionadas ? [] : propuestas.map((p) => p.id))
+                  }
+                  disabled={enLote !== null}
+                  className="h-4 w-4 accent-marca"
+                />
+                {todasSeleccionadas
+                  ? "Quitar la selección"
+                  : `Seleccionar las ${hay} que esperan`}
+              </label>
+
+              <span className="text-sm text-texto-suave">
+                {seleccion.length === 0
+                  ? "Marque propuestas para resolverlas de una sola vez."
+                  : `${seleccion.length} seleccionada${seleccion.length === 1 ? "" : "s"}.`}
+              </span>
+
+              <div className="ml-auto flex flex-wrap items-center gap-3">
+                <button
+                  onClick={() => void resolverLote("descartar")}
+                  disabled={seleccion.length === 0 || enLote !== null}
+                  className="inline-flex items-center justify-center rounded-xl border border-borde px-5 py-2.5 text-sm font-medium text-error transition hover:bg-error-suave disabled:opacity-50"
+                >
+                  {enLote === "descartar"
+                    ? "Descartando…"
+                    : seleccion.length === 0
+                      ? "Descartar las seleccionadas"
+                      : `Descartar ${seleccion.length === 1 ? "la seleccionada" : `las ${seleccion.length} seleccionadas`}`}
+                </button>
+
+                <Boton
+                  onClick={() => setConfirmarAceptar(true)}
+                  disabled={seleccion.length === 0 || enLote !== null || confirmarAceptar}
+                >
+                  {enLote === "aceptar"
+                    ? "Aceptando…"
+                    : seleccion.length === 0
+                      ? "Aceptar las seleccionadas"
+                      : `Aceptar ${seleccion.length === 1 ? "la seleccionada" : `las ${seleccion.length} seleccionadas`}`}
+                </Boton>
+              </div>
+            </div>
+
+            {/* Aceptar en lote NO pregunta campo por campo: entra todo.
+                Decirlo después de hacerlo no sirve, así que el aviso se
+                interpone entre el clic y la llamada. */}
+            {confirmarAceptar && (
+              <div className="mt-3 rounded-xl border border-aviso/40 bg-aviso-suave p-3 text-sm text-aviso">
+                <p>
+                  Aceptar en lote deja entrar <strong>todos los campos</strong> de{" "}
+                  {seleccion.length === 1
+                    ? "la propuesta seleccionada"
+                    : `las ${seleccion.length} propuestas seleccionadas`}
+                  , sin elegir uno por uno. Lo
+                  que venga del buscador web entrará marcado como sugerido y la
+                  organización <strong>no</strong> quedará verificada por ello. Si quiere
+                  escoger campos, hágalo propuesta por propuesta.
+                </p>
+                <div className="mt-3 flex flex-wrap gap-3">
+                  <button
+                    onClick={() => void resolverLote("aceptar")}
+                    disabled={enLote !== null}
+                    className="inline-flex items-center justify-center rounded-xl border border-aviso/50 px-5 py-2.5 text-sm font-medium transition hover:bg-superficie disabled:opacity-50"
+                  >
+                    Sí, aceptar todos los campos de{" "}
+                    {seleccion.length === 1 ? "la propuesta" : `las ${seleccion.length}`}
+                  </button>
+                  <button
+                    onClick={() => setConfirmarAceptar(false)}
+                    className="text-sm underline"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
           <div className="space-y-5">
             {propuestas.map((propuesta) => (
               <TarjetaPropuesta
                 key={propuesta.id}
                 propuesta={propuesta}
+                seleccionada={seleccion.includes(propuesta.id)}
+                alSeleccionar={() => alternarSeleccion(propuesta.id)}
+                bloqueada={enLote !== null}
                 alResolver={(mensaje) => quitar(propuesta.id, mensaje)}
                 alFallar={(mensaje) => {
                   setExito(null);
@@ -200,15 +356,21 @@ export function PropuestasPendientes() {
           descripcion="La bandeja está vacía, y no se debe a una falla."
         >
           <div className="max-w-3xl space-y-3 text-sm text-texto-suave">
+            {/* El texto decía que el buscador web «no está en
+                funcionamiento». Lleva tiempo encendido: era justo esta
+                pantalla la que se llenaba. Afirmar lo contrario hacía
+                creer que una bandeja con 45 propuestas era un error del
+                sistema y no trabajo esperando. */}
             <p>
-              Es lo normal por ahora: mientras las consultas al RUES y al buscador web no
-              estén en funcionamiento, no hay quien proponga datos y esta bandeja no se
-              llena sola.
+              Significa que no queda nada pendiente de decidir: cada propuesta que
+              llegó se aceptó o se descartó. Y lo que se descartó no vuelve a
+              proponerse, así que la bandeja no se rellena sola con lo ya rechazado.
             </p>
             <p>
-              Cuando entren en funcionamiento, cada dato que encuentren llegará aquí como
-              propuesta y quedará esperando a que una persona lo acepte. Hasta entonces
-              los datos se corrigen a mano desde el registro de cada institución.
+              Cuando una consulta al buscador web o al RUES encuentre un dato nuevo,
+              llegará aquí como propuesta y esperará a que una persona lo acepte campo
+              por campo. Mientras tanto, los datos se corrigen a mano desde el registro
+              de cada institución.
             </p>
           </div>
         </Tarjeta>
@@ -219,10 +381,17 @@ export function PropuestasPendientes() {
 
 function TarjetaPropuesta({
   propuesta,
+  seleccionada,
+  alSeleccionar,
+  bloqueada,
   alResolver,
   alFallar,
 }: {
   propuesta: PropuestaPendiente;
+  seleccionada: boolean;
+  alSeleccionar: () => void;
+  /// Hay un lote en marcha: esta tarjeta puede estar dentro.
+  bloqueada: boolean;
   alResolver: (mensaje: string) => void;
   alFallar: (mensaje: string) => void;
 }) {
@@ -288,7 +457,18 @@ function TarjetaPropuesta({
       }`}
     >
       <header className="border-b border-borde bg-superficie px-7 pt-[26px] pb-[22px] flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
+        {/* La marca de la tarjeta entera, para el lote. Es distinta de
+            las de abajo, que eligen campos: esta dice «esta propuesta
+            va en el montón». */}
+        <input
+          type="checkbox"
+          checked={seleccionada}
+          onChange={alSeleccionar}
+          disabled={trabajando !== null || bloqueada}
+          aria-label={`Seleccionar la propuesta de ${nombre}`}
+          className="mt-1.5 h-4 w-4 shrink-0 accent-marca"
+        />
+        <div className="min-w-0 flex-1">
           <h2 className="text-lg font-semibold">
             <Link
               href={`/admin/instituciones/${propuesta.institucion.id}`}

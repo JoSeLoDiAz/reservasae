@@ -61,6 +61,13 @@ function armar() {
     { alInscribir: () => Promise.resolve('ENCOLADO') } as never,
   
     { avisar: () => Promise.resolve() } as never,
+    /// El catálogo de notas. Devuelve «sin clasificar», que es lo
+    /// que anota una pantalla que todavía no ofrece los
+    /// desplegables: ninguno de estos tests clasifica nada.
+    {
+      exigirClasificacion: () =>
+        Promise.resolve({ categoriaId: null, subcategoriaId: null }),
+    } as never,
   );
 
   return { s, creadas };

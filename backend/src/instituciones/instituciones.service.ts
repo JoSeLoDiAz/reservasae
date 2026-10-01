@@ -6,11 +6,12 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 
-import { Prisma } from '../../generated/prisma';
+import { Prisma, type FuenteDato } from '../../generated/prisma';
 import { ENTIDADES, AuditoriaService } from '../comun/auditoria.service';
 import { calcularDigitoVerificacion } from '../comun/nit';
 import { PrismaService } from '../prisma/prisma.service';
 import { AplicarPropuestaDto, EditarInstitucionDto } from './dto';
+import { filasDeDescarte, recordarDescartes } from './web/descartes';
 
 /// Lo obligatorio de una empresa. Si falta alguno, la ficha
 /// no se puede dar por aprobada y hay que ir a buscarlo.
@@ -99,17 +100,19 @@ export class InstitucionesService {
         this.prisma.institucion.count({ where }),
       ]);
 
+      const leads = await this.leadsPorInstitucion(filas);
+
       return {
-        instituciones: filas.map((f) => this.conFaltantes(f)),
+        instituciones: filas.map((f) => this.conFaltantes(f, leads)),
         total,
         pagina,
         porPagina: POR_PAGINA,
       };
     }
 
-    const todas = (await this.prisma.institucion.findMany(consulta)).map((f) =>
-      this.conFaltantes(f),
-    );
+    const crudas = await this.prisma.institucion.findMany(consulta);
+    const leads = await this.leadsPorInstitucion(crudas);
+    const todas = crudas.map((f) => this.conFaltantes(f, leads));
 
     const filtradas = todas.filter(
       (x) =>
@@ -403,9 +406,16 @@ export class InstitucionesService {
           e instanceof Prisma.PrismaClientKnownRequestError &&
           e.code === 'P2002'
         ) {
+          /// El mensaje hablaba de «ese NIT y esa razón social»,
+          /// que era la llave vieja. Hoy la llave es `[nit]` a
+          /// secas, así que el choque solo puede ser por NIT --y
+          /// el aviso mandaba a revisar nombres repetidos, que no
+          /// es donde está el problema: así la propuesta se
+          /// quedaba pendiente para siempre sin salida posible.
           throw new BadRequestException(
-            'Ya hay otra institución con ese NIT y esa razón social. ' +
-              'Revise si están repetidas antes de aceptar el nombre.',
+            'Ya hay otra institución registrada con ese NIT. Son la misma ' +
+              'organización dos veces: hay que fundirlas antes de poder aceptar ' +
+              'esta propuesta. Si no sirve, descártela.',
           );
         }
         throw e;
@@ -422,26 +432,174 @@ export class InstitucionesService {
       },
     });
 
-    /// Aceptar campos es un acto humano igual que guardar: si
-    /// con ellos la ficha queda completa, queda aprobada. Sin
-    /// esto habia que ir a reescribir cualquier campo a mano
-    /// solo para poder darle a Guardar.
+    /// LO QUE NO SE MARCÓ SE RECUERDA COMO RECHAZADO.
+    ///
+    /// Es el arreglo de fondo de la bandeja «Por revisar». Sin
+    /// esto, descartar un campo lo dejaba vacío en la ficha, y
+    /// vacío era justo la condición para que la siguiente
+    /// consulta del mismo NIT lo propusiera otra vez: 45
+    /// propuestas que no bajaban porque se rellenaban solas.
+    const rechazados: Record<string, unknown> = {};
+    for (const [campo, valor] of Object.entries(traidos)) {
+      if (!aceptados.includes(campo)) rechazados[campo] = valor;
+    }
+    await this.recordarDescartes(
+      propuesta.institucion.id,
+      rechazados,
+      propuesta.fuente,
+      adminId,
+    );
+
+    /// Solo si entró algo: descartar no cambia la ficha, y una
+    /// ficha ya completa no puede quedar aprobada porque alguien
+    /// haya tirado una propuesta a la basura.
     if (aceptados.length > 0) {
-      const puesta = await this.prisma.institucion.findUnique({
-        where: { id: propuesta.institucion.id },
-      });
-      if (puesta && this.conFaltantes(puesta).falta.length === 0) {
-        await this.prisma.institucion.update({
-          where: { id: propuesta.institucion.id },
-          data: { verificadaPorId: adminId, verificadaEn: new Date() },
-        });
-      }
+      await this.aprobarSiQuedoCompleta(propuesta.institucion.id, adminId);
     }
 
     return {
       aplicados: aceptados.length,
       descartados: Object.keys(traidos).length - aceptados.length,
     };
+  }
+
+  /**
+   * DESCARTAR VARIAS DE UNA.
+   *
+   * Resolver una propuesta cuesta entre dos y siete clics; con
+   * la bandeja en 45 eso son hasta 315. Esta puerta cierra una
+   * lista entera: ninguna escribe en la ficha --descartar es
+   * aplicar nada-- y todas dejan su memoria de rechazo.
+   *
+   * Las que ya estaban resueltas no son un error: se cuentan
+   * aparte. Dos personas pueden estar vaciando la misma bandeja.
+   */
+  async descartarVarias(ids: string[], adminId: string) {
+    const propuestas = await this.prisma.propuestaInstitucion.findMany({
+      where: { id: { in: ids }, estado: 'PENDIENTE' },
+      select: { id: true, campos: true, fuente: true, institucionId: true },
+    });
+
+    for (const p of propuestas) {
+      await this.recordarDescartes(
+        p.institucionId,
+        this.aObjeto(p.campos),
+        p.fuente,
+        adminId,
+      );
+    }
+
+    /// Nada se borra: la fila se marca DESCARTADA y se queda con
+    /// quién y cuándo, que es la traza de la decisión.
+    const { count } = await this.prisma.propuestaInstitucion.updateMany({
+      where: { id: { in: propuestas.map((p) => p.id) } },
+      data: {
+        estado: 'DESCARTADA',
+        camposAceptados: [],
+        resueltoPorId: adminId,
+        resueltoEn: new Date(),
+      },
+    });
+
+    return { descartadas: count, yaResueltas: ids.length - propuestas.length };
+  }
+
+  /**
+   * ACEPTAR VARIAS DE UNA, CON TODOS SUS CAMPOS.
+   *
+   * No hay forma de elegir campos en lote: entra TODO lo que
+   * traen esas propuestas. La pantalla lo dice con todas las
+   * letras antes de confirmar, porque es la diferencia entre
+   * esta puerta y la de una en una.
+   *
+   * Se reutiliza `aplicarPropuesta` por propuesta en vez de
+   * escribir un camino nuevo: así el registro de fuentes por
+   * campo, la memoria de descartes y la regla de verificación
+   * son los MISMOS. Una que falle --un NIT repetido, por
+   * ejemplo-- no tumba el lote: se devuelve su motivo y se
+   * queda pendiente.
+   */
+  async aceptarVarias(ids: string[], adminId: string) {
+    let aceptadas = 0;
+    let aplicados = 0;
+    const fallidas: Array<{ id: string; motivo: string }> = [];
+
+    for (const id of ids) {
+      const p = await this.prisma.propuestaInstitucion.findUnique({
+        where: { id },
+        select: { campos: true, estado: true },
+      });
+      if (!p || p.estado !== 'PENDIENTE') {
+        fallidas.push({ id, motivo: 'Esa propuesta ya se resolvió.' });
+        continue;
+      }
+      try {
+        const r = await this.aplicarPropuesta(
+          id,
+          { campos: Object.keys(this.aObjeto(p.campos)) },
+          adminId,
+        );
+        aceptadas += 1;
+        aplicados += r.aplicados;
+      } catch (e) {
+        fallidas.push({
+          id,
+          motivo: e instanceof Error ? e.message : 'No se pudo aplicar.',
+        });
+      }
+    }
+
+    return { aceptadas, aplicados, fallidas };
+  }
+
+  /// Guarda la memoria del rechazo. Centralizado aquí porque lo
+  /// usan los dos caminos --una a una y el lote-- y tienen que
+  /// recordar exactamente lo mismo.
+  private async recordarDescartes(
+    institucionId: string,
+    campos: Record<string, unknown>,
+    fuente: FuenteDato,
+    adminId: string,
+  ) {
+    await recordarDescartes(
+      this.prisma,
+      filasDeDescarte(institucionId, campos, fuente, adminId),
+    );
+  }
+
+  /**
+   * ACEPTAR CAMPOS PUEDE APROBAR LA FICHA, PERO NO CON DATOS DEL
+   * BUSCADOR.
+   *
+   * Aceptar es un acto humano igual que guardar, así que si con
+   * ello la ficha queda completa se aprueba sola: de otro modo
+   * había que reescribir un campo a mano solo para poder darle
+   * a Guardar.
+   *
+   * Lo que se quitó es el caso WEB. La pantalla promete que lo
+   * sugerido «no se reporta al SENA hasta que alguien lo
+   * compruebe», y aceptar no es comprobar: es dejarlo entrar.
+   * Con la regla vieja, un dato etiquetado «sugerido, sin
+   * verificar» acababa en una institución VERIFICADA y por tanto
+   * reportable --justo lo contrario de lo que dice el aviso--.
+   * Ahora, si queda algún campo de fuente WEB, la verificación
+   * la tiene que firmar una persona desde la ficha.
+   */
+  private async aprobarSiQuedoCompleta(institucionId: string, adminId: string) {
+    const puesta = await this.prisma.institucion.findUnique({
+      where: { id: institucionId },
+    });
+    if (!puesta) return;
+
+    const estado = this.conFaltantes(puesta);
+    if (estado.falta.length > 0) return;
+    /// `sinConfirmar` son justo los campos cuya fuente es WEB.
+    if (estado.sinConfirmar.length > 0) return;
+
+    await this.prisma.institucion.update({
+      where: { id: institucionId },
+      data: { verificadaPorId: adminId, verificadaEn: new Date() },
+    });
   }
 
   // ---------------------------------------------------------
@@ -462,11 +620,67 @@ export class InstitucionesService {
       : new Date(v);
   }
 
+  /**
+   * CUÁNTAS PERSONAS CUELGAN DE CADA ORGANIZACIÓN.
+   *
+   * «En esta parte colocar otra columna que diga leads asociados, así
+   * se sabe si se puede o no» (cliente, 30 sep 2026), hablando de
+   * quitar del listado una organización que quedó vacía. Tiene razón
+   * en que es mejor que un candado: con el número a la vista uno sabe
+   * ANTES de pulsar, en vez de que el sistema se niegue después.
+   *
+   * VA EN DOS SALTOS Y NO EN UN `_count`, porque la relación lo es:
+   * las personas cuelgan de `Empresa` y `Empresa` de `Institucion`.
+   * Prisma no cuenta a dos niveles, así que se agrupan las personas
+   * por empresa y se suman por la institución de cada una.
+   *
+   * SOLO DE LAS QUE SE VAN A PINTAR. Es una consulta por página, no
+   * por fila: con 175 organizaciones y 50 por página son dos
+   * consultas, no cincuenta.
+   */
+  private async leadsPorInstitucion(
+    filas: Array<{ id: string; nit: string }>,
+  ): Promise<Map<string, number>> {
+    const cuenta = new Map<string, number>();
+    if (filas.length === 0) return cuenta;
+
+    /// POR NIT Y NO POR `institucionId`, y esto lo cacé midiendo.
+    ///
+    /// Lo escribí primero por `institucionId`, que es el vínculo que
+    /// el esquema declara entre `Empresa` e `Institucion`. Al mirarlo
+    /// en la base: de 30 empresas, CERO lo tienen puesto. El vínculo
+    /// existe en el modelo y no en los datos, así que la columna
+    /// habría dicho «sin nadie» en todas las filas ---y esa columna la
+    /// pidió el cliente para decidir si puede quitar una organización.
+    /// Un cero falso ahí le haría borrar una con gente dentro.
+    ///
+    /// El NIT sí las une de verdad: es lo que identifica a una
+    /// organización en los dos sitios, y es lo que viaja al SENA.
+    const porNit = new Map(filas.map((f) => [f.nit, f.id]));
+
+    const empresas = await this.prisma.empresa.findMany({
+      where: { nit: { in: [...porNit.keys()] } },
+      select: { nit: true, _count: { select: { participantes: true } } },
+    });
+
+    for (const e of empresas) {
+      const id = porNit.get(e.nit);
+      if (!id) continue;
+      cuenta.set(id, (cuenta.get(id) ?? 0) + e._count.participantes);
+    }
+    return cuenta;
+  }
+
   private conFaltantes<
     T extends Record<string, unknown> & {
+      /// OPCIONAL: `resumen()` llama a esto con un select que no
+      /// trae el id ---solo cuenta cuántas caen en cada filtro, no
+      /// pinta filas--- y exigírselo le obligaría a traer una
+      /// columna que no usa.
+      id?: string;
       fuentePorCampo: Prisma.JsonValue | null;
     },
-  >(f: T) {
+  >(f: T, leads?: Map<string, number>) {
     const falta = CAMPOS_OBLIGATORIOS.filter((c) => {
       const v = f[c];
       return v === null || v === undefined || v === '';
@@ -484,6 +698,11 @@ export class InstitucionesService {
       ...f,
       falta,
       sinConfirmar,
+      /// CERO ES CERO Y NO «NO SE SABE». Cuando no se pidió la cuenta
+      /// ---hay sitios que llaman a esto sin ella--- va `null`, que
+      /// la pantalla pinta distinto: una organización con 0 personas
+      /// se puede quitar, una de la que no sabemos nada no.
+      leads: leads && f.id ? (leads.get(f.id) ?? 0) : null,
       reportable: falta.length === 0 && Boolean(f.verificadaEn),
     };
   }

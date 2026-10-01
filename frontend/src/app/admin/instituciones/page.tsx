@@ -294,6 +294,35 @@ function Banco() {
         filtro: "opciones",
       },
       {
+        /**
+         * CUÁNTAS PERSONAS CUELGAN DE ESTA ORGANIZACIÓN.
+         *
+         * «Colocar otra columna que diga leads asociados, así se sabe
+         * si se puede o no» (cliente, 30 sep 2026). Venía de preguntar
+         * si podía quitar del listado una organización que quedó vacía
+         * tras mover a su última persona, y su idea es mejor que un
+         * candado: con el número delante se sabe ANTES de pulsar, en
+         * vez de que el sistema se niegue después.
+         *
+         * CERO VA EN VERDE y con todas las letras: es la señal de que
+         * esa fila ya no le sirve a nadie. El resto va en gris, que es
+         * un dato y no una alarma.
+         */
+        clave: "leads",
+        titulo: "Leads asociados",
+        numerica: true,
+        valor: (f) => f.leads,
+        pinta: (f) =>
+          f.leads === null ? (
+            <span className="text-texto-suave">—</span>
+          ) : f.leads === 0 ? (
+            <span className="font-semibold text-exito">sin nadie</span>
+          ) : (
+            <span className="tabular-nums">{f.leads}</span>
+          ),
+        filtro: "numero",
+      },
+      {
         /// Y esta a «Sugerido, sin verificar»: campos que
         /// trajo el buscador web y nadie ha confirmado.
         clave: "sugerido",

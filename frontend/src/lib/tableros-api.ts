@@ -327,6 +327,33 @@ export type ContactoConsolidado = {
   codigos: string[];
 };
 
+/**
+ * Lo que la organización ha hecho con los leads que le llegaron.
+ *
+ * La mitad derecha del modelo que entregó el cliente (hoja
+ * «Reservas», 30 sep 2026): de los cupos que apartó, cuántas
+ * personas aparecieron y qué se hizo con ellas.
+ *
+ * Las dos últimas son FÓRMULAS en su hoja y vienen CALCULADAS del
+ * servidor: hechas aquí, la pantalla y la descarga dirían cosas
+ * distintas el día que alguien toque una de las dos.
+ *
+ * `descartados` y `noContactable` son PROVISIONALES: su fuente
+ * definitiva serán las categorías de nota que otro proceso está
+ * construyendo. El criterio de hoy vive en un solo sitio, en
+ * `backend/src/tableros/reservas-agrupadas.ts`.
+ */
+export type CifrasDeLeads = {
+  leadsRecibidos: number;
+  inscritos: number;
+  descartados: number;
+  noContactable: number;
+  /** `inscritos + descartados + noContactable`. */
+  totalLeadGestionados: number;
+  /** `cuposConfirmados − leadsRecibidos`, acotado a cero. */
+  cuposPendientes: number;
+};
+
 export type FilaAgrupada = {
   empresaId: string;
   nit: string;
@@ -345,9 +372,11 @@ export type FilaAgrupada = {
   cuposConfirmados: number;
   cuposEnEspera: number;
   cuposSolicitados: number;
-  /** «Cupos ocupados» y «Pendientes» de la pantalla. */
+  /** «Cupos ocupados» de la pantalla, y los cupos SIN PERSONA. */
   conNombre: number;
   sinNombre: number;
+  /** Lo que pasó con sus leads. Ver `CifrasDeLeads`. */
+  leads: CifrasDeLeads;
   porAccion: Record<string, CeldaReserva>;
 };
 

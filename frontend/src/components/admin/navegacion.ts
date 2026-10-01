@@ -257,6 +257,29 @@ export const MODULOS: Modulo[] = [
         exacto: true,
         area: 'inscritos',
       },
+      {
+        /// VA ÚLTIMA, Y EN ESTE MÓDULO PORQUE EL CLIENTE LO DIJO
+        /// (30 sep 2026): «se me ocurre dejarlo en el mismo módulo
+        /// (Inscripciones) como (Configuración notas)».
+        ///
+        /// Última y no primera por el mismo criterio que puso «Mis
+        /// notificaciones» delante: el orden de este módulo es el de
+        /// la FRECUENCIA DE USO, y el catálogo de notas se toca una
+        /// vez al mes. Lo que se trabaja todos los días va arriba.
+        ///
+        /// Con `configuracion` y nivel ESCRIBIR, que es lo que exige
+        /// el servidor en los `@Patch` y los `@Post` de
+        /// `configuracion-de-notas.controller.ts`. Con
+        /// `inscripciones` --el área del resto del módulo-- la
+        /// entrada le saldría al asesor, que al entrar recibiría un
+        /// 403 en cada botón: el menú tiene que prometer lo que el
+        /// servidor concede.
+        href: '/admin/configuracion-notas',
+        etiqueta: 'Configuración notas',
+        exacto: true,
+        area: 'configuracion',
+        nivel: 'ESCRIBIR',
+      },
     ],
   },
   {

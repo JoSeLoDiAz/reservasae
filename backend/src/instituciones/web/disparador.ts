@@ -23,6 +23,8 @@ import {
   TIPO_DOCUMENTO_POR_ID,
 } from '../../crm/catalogos-sep';
 import { PrismaService } from '../../prisma/prisma.service';
+import { cargarDescartes } from './descartes';
+import { quitarDescartados } from './ficha-a-propuesta';
 import { propuestaDeRut } from './rut';
 import { WebService } from './web.service';
 
@@ -193,7 +195,7 @@ export class DisparadorInscripcion {
       where: { empresaId: empresa.id },
     });
 
-    const campos = propuestaDeRut({
+    const crudos = propuestaDeRut({
       nombre: empresa.razonSocial,
       ciudadNombre: nombreDeMunicipio(empresa.municipioSepId),
       correo: empresa.contactoCorreo,
@@ -206,7 +208,16 @@ export class DisparadorInscripcion {
     // El departamento del SEP es el bueno: pisa al derivado de la ciudad,
     // cuya tabla solo cubre las capitales.
     const departamento = nombreDeDepartamento(empresa.departamentoSepId);
-    if (departamento) campos.departamentoNombre = departamento;
+    if (departamento) crudos.departamentoNombre = departamento;
+
+    /// Se criba por lo ya rechazado DESPUÉS de armarlo todo, y no
+    /// dentro de `propuestaDeRut`, porque esa función es pura y se
+    /// prueba sola. Este camino no pasa por `fichaAPropuesta`, así
+    /// que sin esta línea una inscripción tras otra del mismo RUT
+    /// devolvería a la bandeja lo que el asesor ya descartó: cada
+    /// inscripción encola una propuesta.
+    const descartados = await cargarDescartes(this.prisma, institucionId);
+    const campos = quitarDescartados(crudos, descartados);
 
     if (Object.keys(campos).length === 0) return;
 

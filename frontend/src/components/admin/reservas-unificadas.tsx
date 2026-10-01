@@ -9,15 +9,31 @@
  * tabla. Aquí la acción de formación deja de ser un VALOR de la fila
  * y pasa a ser una COLUMNA, y lo demás se consolida:
  *
- *   Fechas · Organización · Contacto · AF1…AFn · Entró por ·
- *   Total reservas · Estado
+ * EL JUEGO DE COLUMNAS ES EL MODELO QUE ENTREGÓ EL CLIENTE
+ * (`reservas_colegios.xlsx`, hoja «Reservas», 30 sep 2026), en su
+ * orden y con sus rótulos:
  *
- * «Cupos» desaparece como columna porque las AF ya lo dicen celda a
- * celda; lo que queda arriba es el recuento, «Total reservas».
+ *   Fechas · NIT · Organización · Contacto · Correo del contacto ·
+ *   Celular del contacto · Cargo del contacto · Estado ·
+ *   Cupos reservados · leads recibidos · Cuantos inscritos ·
+ *   Descartados · No contactable · Total lead gestionados ·
+ *   Cupos pendientes · AF1…AFn
+ *
+ * Las de antes que no están en su modelo --Total reservas, Cupos
+ * ocupados, Cupos sin persona, Cupos en espera, Reservas canceladas,
+ * Entró por, Red asociada-- NO SE BORRAN: se quedan apagadas en el
+ * panel de Columnas. Aquí nada se elimina, se oculta.
+ *
+ * OJO con «Cupos pendientes»: en su hoja es `cupos reservados −
+ * leads recibidos`, que NO es lo que decía esa columna hasta hoy
+ * --los cupos sin persona detrás--. Aquella se llama ahora «Cupos
+ * sin persona» y sigue ahí.
  *
  * Las columnas AF las manda el servidor, no esta pantalla: solo se
  * saben mirando todas las reservas del recorte, y la tabla de al
- * lado pagina de a 200.
+ * lado pagina de a 200. Salen SOLO de las acciones donde alguien
+ * reservó --en su modelo falta AF4 porque nadie reservó ahí-- y por
+ * eso no hay ninguna lista de códigos escrita a mano.
  */
 
 import { useCallback, useMemo, useState, type ReactNode } from "react";
@@ -32,6 +48,7 @@ import { ErrorApi } from "@/lib/api";
 import {
   tablerosApi,
   type CeldaReserva,
+  type CifrasDeLeads,
   type ColumnaAccion,
   type EstadoReserva,
   type FilaAgrupada,
@@ -47,6 +64,26 @@ const ETIQUETA_ESTADO: Record<EstadoReserva, { texto: string; clase: string }> =
 
 /// El orden en que se ofrecen al editar: de más a menos sitio.
 const ESTADOS: EstadoReserva[] = ["CONFIRMADA", "LISTA_ESPERA", "CANCELADA"];
+
+/**
+ * Lo que pasó con los leads de una fila, resista o no el servidor.
+ *
+ * NO ES PRUDENCIA DE MÁS: en esta casa la forma se despliega sin lo
+ * funcional --los commits de solo frontend se descartan-- así que
+ * esta pantalla tiene que poder ir por delante del servidor que la
+ * alimenta. Con un backend anterior a `CifrasDeLeads`, `fila.leads`
+ * llega sin definir y leerle un campo tumba la tabla entera: seis
+ * columnas en cero se entienden, una pantalla en blanco no.
+ */
+const leadsDe = (f: FilaAgrupada): CifrasDeLeads =>
+  f.leads ?? {
+    leadsRecibidos: 0,
+    inscritos: 0,
+    descartados: 0,
+    noContactable: 0,
+    totalLeadGestionados: 0,
+    cuposPendientes: 0,
+  };
 
 const fecha = (iso: string) =>
   new Date(iso).toLocaleDateString("es-CO", {
@@ -96,6 +133,45 @@ function diasDeLaFila(fila: FilaAgrupada): string[] {
  */
 const tituloDeAccion = (a: ColumnaAccion) =>
   a.ambiguo && a.convenioSigla ? `${a.codigo} · ${a.convenioSigla}` : a.codigo;
+
+/**
+ * Los datos de contacto de una fila, en un solo texto.
+ *
+ * LOS SEPARADORES SON LOS DEL CLIENTE, no los que escribe
+ * `join(", ")` por omisión: celulares y correos con « / », cargos con
+ * « ; » (hoja «Reservas», fila 6). No es capricho: un cargo puede
+ * llevar una barra dentro --«Directora Pedagógica y de
+ * Bilingüismo»-- y con barras no se vería dónde acaba uno.
+ *
+ * Los vacíos se caen: una empresa con dos contactos de los que uno
+ * no dejó celular enseñaba «3194173564 / », que se lee como un dato
+ * a medio escribir.
+ */
+function juntarValores(
+  valores: Array<string | null | undefined>,
+  separador = " / ",
+): string {
+  return valores.filter((v): v is string => !!v?.trim()).join(separador);
+}
+
+/**
+ * Lo mismo, pintado.
+ *
+ * Va aparte del valor plano --que es el que ordena, filtra y se
+ * busca-- para poder decir «—» cuando no hay ninguno: una celda en
+ * blanco no distingue «no lo dejó» de «la columna está rota».
+ */
+function ListaDeContacto({
+  valores,
+  separador = " / ",
+}: {
+  valores: Array<string | null | undefined>;
+  separador?: string;
+}) {
+  const texto = juntarValores(valores, separador);
+  if (!texto) return <span className="text-texto-suave">—</span>;
+  return <span>{texto}</span>;
+}
 
 /**
  * Lo que dice la celda de una AF.
@@ -172,12 +248,25 @@ function Celda({ celda }: { celda: CeldaReserva | undefined }) {
 }
 
 /**
- * La columna Estado: «AF1 Confirmada, AF2 Cancelada, AF3 Confirmada».
+ * La columna Estado: «Confirmada las 6», o la lista si hay mezcla.
  *
- * Con todas en el mismo estado se dice una vez y se cuenta -- «las 4
- * confirmadas» --: cuatro líneas iguales no informan de nada y hacen
- * la fila cuatro veces más alta. La lista sale cuando hay mezcla,
- * que es justo cuando hace falta distinguirlas.
+ * Con todas en el mismo estado se dice una vez y se cuenta: cuatro
+ * líneas iguales no informan de nada y hacen la fila cuatro veces
+ * más alta. La lista sale cuando hay mezcla, que es justo cuando
+ * hace falta distinguirlas.
+ *
+ * EL NÚMERO SON ACCIONES DE FORMACIÓN, no reservas, y ESO ESTÁ
+ * PENDIENTE DE QUE EL CLIENTE LO CONFIRME. Su hoja dice «Confirmada
+ * las 6», «Confirmada las 5», «Confirmada las 2» y «Confirmada» a
+ * secas, sin explicar el número; la lectura acordada aquí es «en
+ * cuántas acciones de formación tiene reserva esta organización», y
+ * «Confirmada» a secas es una sola. Se calcula --no se teclea--, así
+ * que si él lee otra cosa en ese número, se cambia esta cuenta y
+ * nada más.
+ *
+ * Con la otra lectura posible --RESERVAS en vez de acciones-- la
+ * cifra no es la misma: la misma acción en dos sedes son dos
+ * reservas y UNA acción, y hasta hoy esta columna contaba reservas.
  */
 function EstadoDeLaFila({
   fila,
@@ -198,15 +287,20 @@ function EstadoDeLaFila({
   /// aunque las demás coincidan.
   if (estados.size === 1 && !suyas.some((s) => s.celda.mixta)) {
     const estado = ETIQUETA_ESTADO[suyas[0].celda.estado];
-    /// Se cuentan RESERVAS y no columnas: con la misma acción en dos
-    /// sedes, dos columnas son tres reservas, y la fila decía «3» en
-    /// Total y «las 2» aquí al lado.
-    const cuantas = suyas.reduce((t, s) => t + s.celda.reservas.length, 0);
+    /// ACCIONES Y NO RESERVAS: es la lectura acordada del «las 6»
+    /// de su hoja, y por eso se cuentan las columnas con celda --una
+    /// por acción-- y no las reservas de dentro. La misma acción en
+    /// dos sedes son dos reservas y UNA acción.
+    const cuantas = suyas.length;
     return (
       <span className={"whitespace-nowrap text-[0.75rem] font-semibold " + estado.clase}>
         {estado.texto}
         {cuantas > 1 && (
-          <span className="font-normal text-texto-suave"> · las {cuantas}</span>
+          /* «Confirmada las 6», SIN EL PUNTO DEL MEDIO: es como lo
+             escribió el cliente en su hoja, y esta columna se coteja
+             contra ella. El punto separaba dos cosas distintas; aquí
+             no hay dos cosas, hay una frase. */
+          <span className="font-normal text-texto-suave"> las {cuantas}</span>
         )}
       </span>
     );
@@ -293,20 +387,24 @@ export function ReservasUnificadas({
       {
         clave: "fechas",
         titulo: "Fechas",
+        ancho: "190px",
         /// Ordena por la ÚLTIMA: es la que dice quién se movió hace
         /// poco. La primera va en el cajón.
         valor: (f) => f.ultimaReserva,
+        /// SEPARADAS POR « / » Y NO UNA POR RENGLÓN. Estuvieron en
+        /// renglones desde el 25 sep, y el modelo que entregó el
+        /// cliente las trae en una sola línea --«07 de sept de 26 /
+        /// 14 de sept de 26», su fila 8--. Con veintiuna columnas una
+        /// fila de tres renglones triplica el alto de la tabla, que
+        /// es justo lo que su modelo viene a arreglar.
         pinta: (f) => (
-          <span className="flex flex-col gap-0.5 whitespace-nowrap text-texto-suave">
-            {diasDeLaFila(f).map((d) => (
-              <span key={d}>{d}</span>
-            ))}
-          </span>
+          <span className="text-texto-suave">{diasDeLaFila(f).join(" / ")}</span>
         ),
       },
       {
         clave: "nit",
         titulo: "NIT",
+        ancho: "130px",
         valor: (f) => f.nit,
         pinta: (f) => (
           <span className="font-mono text-xs whitespace-nowrap text-texto-suave">
@@ -320,8 +418,9 @@ export function ReservasUnificadas({
         clave: "organizacion",
         titulo: "Organización",
         fija: true,
+        ancho: "280px",
         /// SIN EL NIT DEBAJO. Va en su propia columna, justo antes, y
-        /// repetido en las dos era la misma cifra dos veces en la
+        /// repetido en las dos era el mismo dato dos veces en la
         /// misma fila.
         valor: (f) => enMayusculas(f.razonSocial),
         pinta: (f) => <p className="font-medium">{enMayusculas(f.razonSocial)}</p>,
@@ -330,54 +429,89 @@ export function ReservasUnificadas({
       {
         clave: "contacto",
         titulo: "Contacto",
+        ancho: "200px",
         /// Se buscan TODOS aunque solo se pinte el primero: si no,
         /// buscar a la segunda persona de una empresa no encontraba
         /// su fila aunque estuviera ahí.
         valor: (f) => f.contactos.map((c) => c.nombre + " " + c.correo).join(" "),
+        /// SOLO EL NOMBRE: el correo tiene ahora su propia columna, y
+        /// repetirlo debajo era el mismo dato dos veces en la fila.
+        ///
+        /// El resto de personas se cuenta ENTRE PARÉNTESIS --«(+1)»--
+        /// porque así lo escribió el cliente en su hoja (filas 6, 8,
+        /// 14 y 15). Sin ellos, «Ana Jaramillo +1» se lee como parte
+        /// del nombre.
         pinta: (f) => {
           const primero = f.contactos[0];
           if (!primero) return <span className="text-texto-suave">—</span>;
           return (
-            <>
-              <p>
-                {primero.nombre}
-                {f.contactos.length > 1 && (
-                  <span
-                    className="text-texto-suave"
-                    title={f.contactos
-                      .slice(1)
-                      .map((c) => `${c.nombre} (${c.codigos.join(", ")})`)
-                      .join("\n")}
-                  >
-                    {" "}
-                    +{f.contactos.length - 1}
-                  </span>
-                )}
-              </p>
-              <p className="text-xs text-texto-suave">{primero.correo}</p>
-            </>
+            <p>
+              {primero.nombre}
+              {f.contactos.length > 1 && (
+                <span
+                  className="text-texto-suave"
+                  title={f.contactos
+                    .slice(1)
+                    .map((c) => `${c.nombre} (${c.codigos.join(", ")})`)
+                    .join("\n")}
+                >
+                  {" "}
+                  (+{f.contactos.length - 1})
+                </span>
+              )}
+            </p>
           );
         },
         filtro: "texto",
       },
       {
+        clave: "correo",
+        /// «DEL CONTACTO» EN EL RÓTULO, como sus dos vecinas: en el
+        /// panel de Columnas salen sueltas, y ahí «Correo» a secas no
+        /// dice de quién es.
+        titulo: "Correo del contacto",
+        ancho: "250px",
+        valor: (f) => juntarValores(f.contactos.map((c) => c.correo)),
+        pinta: (f) => <ListaDeContacto valores={f.contactos.map((c) => c.correo)} />,
+        filtro: "texto",
+      },
+      {
         clave: "celular",
-        /// «DEL CONTACTO» EN EL RÓTULO, aunque vaya pegada a
-        /// «Contacto»: en el panel de Columnas salen sueltas, y ahí
-        /// «Celular» a secas no dice de quién es.
         titulo: "Celular del contacto",
-        valor: (f) => f.contactos.map((c) => c.celular).filter(Boolean).join(", "),
+        ancho: "190px",
+        /// CON « / », como en su hoja (fila 6: «3194173564 /
+        /// 3177912435»). Iba con coma, que es lo que escribe
+        /// `join(", ")` por omisión y no lo que él entregó.
+        valor: (f) => juntarValores(f.contactos.map((c) => c.celular)),
+        pinta: (f) => (
+          <span className="font-mono text-xs tabular-nums">
+            <ListaDeContacto valores={f.contactos.map((c) => c.celular)} />
+          </span>
+        ),
         filtro: "texto",
       },
       {
         clave: "cargo",
         titulo: "Cargo del contacto",
-        valor: (f) => f.contactos.map((c) => c.cargo).filter(Boolean).join(", "),
+        ancho: "250px",
+        /// CON « ; » Y NO CON « / », y la diferencia es del cliente:
+        /// un cargo puede llevar una barra dentro --«Directora
+        /// Pedagógica y de Bilingüismo»-- y entonces no se sabría
+        /// dónde acaba uno. Su hoja separa los cargos con punto y
+        /// coma (fila 6) y los celulares con barra.
+        valor: (f) => juntarValores(f.contactos.map((c) => c.cargo), " ; "),
+        pinta: (f) => (
+          <ListaDeContacto
+            valores={f.contactos.map((c) => c.cargo)}
+            separador=" ; "
+          />
+        ),
         filtro: "texto",
       },
       {
         clave: "estado",
         titulo: "Estado",
+        ancho: "170px",
         /// El valor plano se filtra y se busca: lleva las palabras
         /// de todas, no solo las de la primera.
         valor: (f) =>
@@ -392,67 +526,147 @@ export function ReservasUnificadas({
         filtro: "opciones",
       },
       {
-        clave: "total",
-        titulo: "Total reservas",
-        numerica: true,
-        /// SOLO EL NÚMERO DE RESERVAS, sin los cupos detrás.
-        ///
-        /// Decía «2 · 30 cupos», y el cliente lo leyó como «2 de 30»:
-        /// dos cupos materializados de treinta (25 sep 2026). Un punto
-        /// entre dos cifras se lee como una razón, y aquí no lo es --2
-        /// son reservas y 30 son cupos, dos unidades distintas--.
-        ///
-        /// Los cupos los iba repitiendo de la columna de al lado, que
-        /// hasta el 25 sep nacía apagada: el recordatorio tenía
-        /// sentido cuando «Cupos apartados» podía no estar. Ahora está
-        /// siempre y pegada, así que era el mismo número dos veces, y
-        /// eso es justo lo que hacía leer una razón donde no la hay.
-        valor: (f) => f.totalReservas,
-        filtro: "numero",
-      },
-      /* ── LOS TRES DE «Control de Reservas», CON SUS MISMAS PALABRAS ──
-         «¿No es posible como en módulo tablero vista Control de
-         Reservas que se tiene en Cupos reservados / Cupos ocupados /
-         Pendientes?» (cliente, 25 sep 2026). Sí, y hay que hacerlo
-         así: son la misma pregunta --de lo que apartó, cuánto tiene
-         ya persona-- y hasta hoy esta pantalla solo sabía responder
-         la mitad.
-
-         LOS ROTULOS SE COPIAN LETRA POR LETRA del Seguimiento. Aquí
-         se llamaba «Cupos apartados» y allá «Cupos reservados»: dos
-         nombres para la misma cifra en dos pantallas que se miran
-         seguidas es lo que hace dudar de las dos. */
-      {
         clave: "cuposConfirmados",
+        /// EL RÓTULO SE COPIA LETRA POR LETRA del Seguimiento de
+        /// Control de Reservas: dos nombres para la misma cifra en
+        /// dos pantallas que se miran seguidas es lo que hace dudar
+        /// de las dos. Y es también el de su hoja.
         titulo: "Cupos reservados",
+        ancho: "150px",
         numerica: true,
         valor: (f) => f.cuposConfirmados,
+        filtro: "numero",
+      },
+      /* ── LA MITAD DERECHA DE SU MODELO ───────────────────────────
+         De los cupos que apartó, cuántas personas aparecieron y qué
+         se hizo con ellas. Las seis vienen CALCULADAS del servidor
+         --`fila.leads`--, incluidas las dos que en su hoja son
+         fórmulas: ver `CifrasDeLeads`.
+
+         «Descartados» y «No contactable» están PENDIENTES de su
+         fuente definitiva --las categorías de nota que otro proceso
+         está construyendo-- y el criterio de hoy vive en un solo
+         sitio del servidor. Aquí no se calcula nada: calculándolo,
+         habría que cambiarlo en dos. */
+      {
+        clave: "leadsRecibidos",
+        /// En minúscula, como en su hoja. La cabecera va en versalita
+        /// por CSS, así que en pantalla se lee igual que las demás, y
+        /// dejar su palabra tal cual es lo que permite cotejar esta
+        /// tabla con el fichero que entregó.
+        titulo: "leads recibidos",
+        ancho: "150px",
+        numerica: true,
+        valor: (f) => leadsDe(f).leadsRecibidos,
+        filtro: "numero",
+      },
+      {
+        clave: "inscritos",
+        /// «Cuantos inscritos», sin tilde: es como lo escribió él.
+        titulo: "Cuantos inscritos",
+        ancho: "165px",
+        numerica: true,
+        valor: (f) => leadsDe(f).inscritos,
+        /// En verde, como «Cupos ocupados» en el Seguimiento: es la
+        /// cifra buena de la fila y así se lee de un barrido.
+        pinta: (f) => (
+          <span
+            className={`tabular-nums ${
+              leadsDe(f).inscritos > 0 ? "font-semibold text-exito" : ""
+            }`}
+          >
+            {leadsDe(f).inscritos}
+          </span>
+        ),
+        filtro: "numero",
+      },
+      {
+        clave: "descartados",
+        titulo: "Descartados",
+        ancho: "135px",
+        numerica: true,
+        valor: (f) => leadsDe(f).descartados,
+        filtro: "numero",
+      },
+      {
+        clave: "noContactable",
+        titulo: "No contactable",
+        ancho: "155px",
+        numerica: true,
+        valor: (f) => leadsDe(f).noContactable,
+        filtro: "numero",
+      },
+      {
+        clave: "totalGestionados",
+        titulo: "Total lead gestionados",
+        ancho: "200px",
+        numerica: true,
+        /// `inscritos + descartados + noContactable`, sumado en el
+        /// servidor. En su hoja es `=K2+L2+M2`.
+        valor: (f) => leadsDe(f).totalLeadGestionados,
+        filtro: "numero",
+      },
+      {
+        clave: "cuposPendientes",
+        /// «Cupos pendientes» ES AHORA LA FÓRMULA DE SU HOJA
+        /// --`cupos reservados − leads recibidos`-- y no los cupos
+        /// sin persona, que es lo que decía hasta hoy. Aquella sigue
+        /// estando, rebautizada «Cupos sin persona» y guardada en el
+        /// panel de Columnas: son dos preguntas distintas y el nombre
+        /// solo puede ser de una.
+        titulo: "Cupos pendientes",
+        ancho: "155px",
+        numerica: true,
+        valor: (f) => leadsDe(f).cuposPendientes,
+        pinta: (f) => (
+          <span
+            className={`tabular-nums ${leadsDe(f).cuposPendientes > 0 ? "text-error" : ""}`}
+          >
+            {leadsDe(f).cuposPendientes}
+          </span>
+        ),
+        filtro: "numero",
+      },
+      ...deAcciones,
+      /* ── LAS QUE NO ESTÁN EN SU MODELO ──────────────────────────
+         Se quedan, apagadas, en el panel de Columnas. Ninguna se
+         borra: son cifras que alguien ya usaba --el Seguimiento se
+         lee contra ellas-- y aquí nada se elimina, se oculta. Quien
+         las quiera, las enciende. */
+      {
+        clave: "total",
+        titulo: "Total reservas",
+        aparte: true,
+        ancho: "155px",
+        numerica: true,
+        valor: (f) => f.totalReservas,
         filtro: "numero",
       },
       {
         clave: "cuposOcupados",
         titulo: "Cupos ocupados",
+        aparte: true,
+        ancho: "155px",
         numerica: true,
-        /// En verde y los pendientes en rojo, como en el Seguimiento:
-        /// las dos pantallas se leen seguidas y un mismo dato no
-        /// puede cambiar de color al cambiar de pestaña.
         valor: (f) => f.conNombre,
         pinta: (f) => (
-          <span className={`tabular-nums ${f.conNombre > 0 ? "font-semibold text-exito" : ""}`}>
+          <span
+            className={`tabular-nums ${f.conNombre > 0 ? "font-semibold text-exito" : ""}`}
+          >
             {f.conNombre}
           </span>
         ),
         filtro: "numero",
       },
       {
-        clave: "pendientes",
-        /// «CUPOS pendientes», no «Pendientes» a secas (cliente, 25 sep
-        /// 2026). Entre «Cupos reservados» y «Cupos ocupados», la
-        /// tercera sin la palabra obligaba a adivinar de qué eran:
-        /// ¿cupos, reservas, personas? Son cupos, como sus dos
-        /// vecinas, y de toda la fila --el desglose por acción está en
-        /// las columnas AF--.
-        titulo: "Cupos pendientes",
+        clave: "sinPersona",
+        /// SE LLAMABA «Cupos pendientes» y hubo que rebautizarla: el
+        /// cliente usa ese nombre para otra resta (ver arriba). Ésta
+        /// es la de siempre --cupos confirmados sin nadie detrás-- y
+        /// la que alimenta el semáforo del plazo del Seguimiento.
+        titulo: "Cupos sin persona",
+        aparte: true,
+        ancho: "175px",
         numerica: true,
         valor: (f) => f.sinNombre,
         pinta: (f) => (
@@ -465,6 +679,8 @@ export function ReservasUnificadas({
       {
         clave: "cuposEspera",
         titulo: "Cupos en espera",
+        aparte: true,
+        ancho: "165px",
         numerica: true,
         valor: (f) => f.cuposEnEspera,
         filtro: "numero",
@@ -473,18 +689,18 @@ export function ReservasUnificadas({
         clave: "canceladas",
         /// «RESERVAS» Y NO «CUPOS», y no es un detalle: esta cifra
         /// cuenta reservas canceladas, no los cupos que llevaban.
-        /// Al lado de «Cupos apartados» y «Cupos en espera», que sí
-        /// son cupos, llamarla «Canceladas» a secas hacía leer las
-        /// tres como la misma unidad.
         titulo: "Reservas canceladas",
+        aparte: true,
+        ancho: "200px",
         numerica: true,
         valor: (f) => f.reservasCanceladas,
         filtro: "numero",
       },
-      ...deAcciones,
       {
         clave: "entroPor",
         titulo: "Entró por",
+        aparte: true,
+        ancho: "190px",
         valor: (f) => f.formularios.map((x) => x.titulo).join(" "),
         pinta: (f) => {
           const primero = f.formularios[0];
@@ -513,6 +729,7 @@ export function ReservasUnificadas({
         /// sep 2026).
         titulo: "Red asociada",
         aparte: true,
+        ancho: "175px",
         valor: (f) =>
           f.redAsociada === "Otro" ? (f.redAsociadaOtra ?? "Otro") : (f.redAsociada ?? ""),
         filtro: "opciones",
@@ -693,10 +910,28 @@ function CajonDeLaOrganizacion({
       <dl className="grid gap-x-6 gap-y-4 sm:grid-cols-2">
         <Dato titulo="Cupos reservados" valor={String(fila.cuposConfirmados)} />
         <Dato titulo="Cupos ocupados" valor={String(fila.conNombre)} />
+        {/* EL MISMO NOMBRE QUE EN LA TABLA. «Cupos pendientes» es
+            ahora la resta de su hoja --cupos menos leads-- y esta es
+            la de siempre; con el nombre viejo, el cajón y la columna
+            dirían cifras distintas bajo el mismo rótulo. */}
         <Dato
-          titulo="Cupos pendientes"
+          titulo="Cupos sin persona"
           valor={String(fila.sinNombre)}
           pie={fila.sinNombre > 0 ? "cupos que siguen sin nombre" : undefined}
+        />
+        <Dato
+          titulo="Cupos pendientes"
+          valor={String(leadsDe(fila).cuposPendientes)}
+          pie="cupos reservados menos leads recibidos"
+        />
+        <Dato titulo="leads recibidos" valor={String(leadsDe(fila).leadsRecibidos)} />
+        <Dato
+          titulo="Total lead gestionados"
+          valor={String(leadsDe(fila).totalLeadGestionados)}
+          /// El desglose en el pie y no en tres datos más: es la
+          /// suma de los tres y leerla al lado es lo que explica de
+          /// dónde sale.
+          pie={`${leadsDe(fila).inscritos} inscritos · ${leadsDe(fila).descartados} descartados · ${leadsDe(fila).noContactable} no contactables`}
         />
         <Dato
           titulo="Cupos en espera"

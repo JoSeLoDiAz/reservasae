@@ -41,6 +41,10 @@
 import { useCallback, useMemo, useState } from "react";
 
 import { Cajon, Dato } from "@/components/admin/cajon";
+import {
+  ClasificacionDeLaNota,
+  useClasificacionDeNota,
+} from "@/components/admin/clasificacion-de-la-nota";
 import { Desplegable } from "@/components/admin/desplegable";
 import { colorEtapa } from "@/components/admin/etapa";
 import { Aviso, CLASE_CONTROL } from "@/components/admin/marco-admin";
@@ -121,6 +125,7 @@ export function CajonDelAula({
   const [texto, setTexto] = useState("");
   const [canales, setCanales] = useState<CanalContacto[]>([]);
   const [resultado, setResultado] = useState<ResultadoGestion>("CONTACTO");
+  const clasificacion = useClasificacionDeNota();
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -131,9 +136,16 @@ export function CajonDelAula({
     if (!limpio || guardando) return;
     setGuardando(true);
     try {
-      await crmApi.agregarNota(fila.id, limpio, canales, resultado);
+      await crmApi.agregarNota(
+        fila.id,
+        limpio,
+        canales,
+        resultado,
+        clasificacion.elegida,
+      );
       setTexto("");
       setCanales([]);
+      clasificacion.limpiar();
       setError(null);
       vivos.refrescar();
     } catch (e) {
@@ -312,6 +324,13 @@ export function CajonDelAula({
             placeholder="La llamé y dice que se le venció la clave del aula; le reenvié el acceso."
             className={`${CLASE_CONTROL} h-auto w-full resize-y py-2`}
           />
+          {/* EN SU PROPIA FILA y encima de los canales: en la fila
+              de abajo ya hay tres botones de canal, el desplegable
+              de «cómo le fue» y el de guardar. Dos controles más
+              allí la hacían dar la vuelta en una pantalla de
+              portátil. */}
+          <ClasificacionDeLaNota estado={clasificacion} alto={30} />
+
           <div className="flex flex-wrap items-center gap-3">
             <div className="flex flex-wrap gap-1.5">
               {CANALES.map((c) => {
@@ -387,6 +406,11 @@ export function CajonDelAula({
                 <p className="mt-1 text-[0.6875rem] text-texto-suave">
                   {nota.autorNombre} · {cuando(nota.creadoEn)}
                   {nota.resultado && ` · ${ETIQUETA_RESULTADO[nota.resultado]}`}
+                  {/* Las notas de antes del catálogo no traen nada y
+                      aquí no se pinta nada: es lo que significa que
+                      la categoría sea opcional. */}
+                  {nota.categoria && ` · ${nota.categoria.nombre}`}
+                  {nota.subcategoria && ` › ${nota.subcategoria.nombre}`}
                 </p>
               </article>
             ))

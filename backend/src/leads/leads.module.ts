@@ -4,6 +4,7 @@ import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 
 import { ColaRuiModule } from '../crm/rui/cola-rui';
+import { NotasModule } from '../notas/notas.module';
 import { PrismaModule } from '../prisma/prisma.module';
 
 import { CrmModule } from '../crm/crm.module';
@@ -30,6 +31,9 @@ import { MetaPruebasController } from './meta-pruebas.controller';
     /// La conversion crea la ficha con `crm.crear`, la misma
     /// puerta que usa el asesor desde el panel.
     CrmModule,
+    /// La nota del lead se clasifica igual que la de la ficha: es
+    /// la misma tabla y tiene que ser la misma comprobacion.
+    NotasModule,
     /// El banco de pruebas SÍ lleva sesión de admin, y el
     /// `AdminGuard` necesita el JwtService. El webhook en sí
     /// no: ese se autentica con una llave o con la firma de
