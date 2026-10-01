@@ -137,7 +137,7 @@ export function Bloque({
   if (plegable) {
     return (
       <details className="group bloque-entero rounded-lg border border-borde bg-superficie">
-        <summary className="sin-aro cabecera-de-bloque flex cursor-pointer list-none items-start justify-between gap-3 rounded-t-[7px] bg-marca-suave px-7 py-3 select-none group-open:border-b group-open:border-borde">
+        <summary className="sin-aro cabecera-de-bloque flex cursor-pointer list-none items-center justify-between gap-3 rounded-t-[7px] bg-marca-suave px-7 py-3 select-none group-open:border-b group-open:border-borde">
           <div className="min-w-0">
             {titulo && (
               <h2 className="text-[0.875rem] font-semibold text-titulo">{titulo}</h2>
