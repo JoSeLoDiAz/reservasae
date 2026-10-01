@@ -1611,37 +1611,39 @@ function CampoFiltro<T>({
   /// ---los rangos--- y no salen de los datos.
   if (columna.filtro === "fecha") {
     return (
-      <select
-        value={valor}
-        onChange={(e) => alCambiar(e.target.value)}
-        className={clases}
-        aria-label={"Filtrar por " + columna.titulo}
-      >
-        <option value="">Todas</option>
-        {RANGOS_DE_FECHA.map((r) => (
-          <option key={r} value={r}>
-            {r}
-          </option>
-        ))}
-      </select>
+      <Desplegable
+        enPortal
+        alto={26}
+        etiquetaAria={"Filtrar por " + columna.titulo}
+        marcador="Todas"
+        valor={valor}
+        opciones={[
+          { valor: "", etiqueta: "Todas" },
+          ...RANGOS_DE_FECHA.map((r) => ({ valor: r, etiqueta: r })),
+        ]}
+        alElegir={alCambiar}
+      />
     );
   }
 
   if (columna.filtro === "opciones") {
     return (
-      <select
-        value={valor}
-        onChange={(e) => alCambiar(e.target.value)}
-        className={clases}
-        aria-label={"Filtrar por " + columna.titulo}
-      >
-        <option value="">Todas</option>
-        {opciones.map((o) => (
-          <option key={o} value={o}>
-            {o}
-          </option>
-        ))}
-      </select>
+      <Desplegable
+        /// CON PORTAL: esta lista vive en la cabecera de la tabla, y la
+        /// tabla recorre a lo ancho con overflow. Sin salirse, la lista
+        /// se recortaba contra el borde de la tabla. El porqué largo
+        /// está en «desplegable.tsx».
+        enPortal
+        alto={26}
+        etiquetaAria={"Filtrar por " + columna.titulo}
+        marcador="Todas"
+        valor={valor}
+        opciones={[
+          { valor: "", etiqueta: "Todas" },
+          ...opciones.map((o) => ({ valor: o, etiqueta: o })),
+        ]}
+        alElegir={alCambiar}
+      />
     );
   }
 

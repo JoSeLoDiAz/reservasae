@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 export type OpcionDesplegable = {
   valor: string;
@@ -24,6 +25,7 @@ export type OpcionDesplegable = {
  * permite: modales, desplegables, cajón y toast.
  */
 export function Desplegable({
+  enPortal,
   rotulo,
   valor,
   opciones,
@@ -46,6 +48,26 @@ export function Desplegable({
    * rótulo cuesta sitio en la fila y grita; dentro dice lo mismo y
    * solo cuando se abre, que es cuando hace falta.
    */
+  /**
+   * QUE LA LISTA SE SALGA DEL RECORTE.
+   *
+   * La lista va `absolute` dentro del disparador, y eso basta en una
+   * página normal. Dentro de una TABLA no: `.caja-scroll` lleva
+   * `overflow: auto` para que la tabla recorra a lo ancho, y lo que
+   * sobresale de un contenedor con `overflow` se recorta. Una lista de
+   * quince opciones abierta en la cabecera de una columna quedaría
+   * cortada por el borde de la tabla.
+   *
+   * Con esto la lista se pinta en `document.body` y se coloca con
+   * `fixed` sobre las coordenadas medidas del disparador: ya no hay
+   * ancestro que la recorte. Se paga que haya que CERRARLA al recorrer
+   * ---un `fixed` no acompaña al scroll de dentro--- y de eso se
+   * encarga el efecto de más abajo, que escucha en captura.
+   *
+   * No se pone por omisión: donde no hay recorte, `absolute` acompaña
+   * al disparador sola y no hay nada que cerrar.
+   */
+  enPortal?: boolean;
   rotulo?: string;
   valor: string;
   opciones: OpcionDesplegable[];
@@ -80,11 +102,21 @@ export function Desplegable({
   /// mide más abajo.
   const [lado, setLado] = useState<"izq" | "der">("izq");
   const [arriba, setArriba] = useState(false);
+  /// Dónde cae el disparador en la ventana, para colocar la lista
+  /// cuando va por portal. Solo se usa con `enPortal`.
+  const [ancla, setAncla] = useState<DOMRect | null>(null);
   const tecleo = useRef({ texto: "", cuando: 0 });
   const propio = useId();
   const idLista = `${id ?? propio}-lista`;
 
   const elegida = opciones.find((o) => o.valor === valor) ?? null;
+
+  /// Al `body` o donde estaba. `document` no existe en el servidor, de
+  /// ahí la guarda: esta lista solo se pinta con el panel ya abierto.
+  const envolver = (nodo: React.ReactElement) =>
+    enPortal && typeof document !== "undefined"
+      ? createPortal(nodo, document.body)
+      : nodo;
 
   /// Al abrir, el foco de teclado arranca en la que ya está
   /// elegida y no en la primera: es donde el ojo la busca.
@@ -137,6 +169,12 @@ export function Desplegable({
     setArriba(noCabeAbajo && hayMasSitioArriba);
   }, [abierto, opciones]);
 
+  /// La posición del disparador, al abrir y al cambiar de tamaño.
+  useLayoutEffect(() => {
+    if (!abierto || !enPortal) return;
+    setAncla(caja.current?.getBoundingClientRect() ?? null);
+  }, [abierto, enPortal]);
+
   useEffect(() => {
     if (!abierto) return;
     function fuera(e: MouseEvent) {
@@ -149,9 +187,15 @@ export function Desplegable({
     }
     document.addEventListener("mousedown", fuera);
     window.addEventListener("resize", cerrar);
+    /// EN CAPTURA, y esto no sobra: el scroll de un contenedor de
+    /// dentro ---la tabla--- NO burbujea hasta `window`. Sin la fase de
+    /// captura, recorrer la tabla con la lista abierta la dejaba
+    /// flotando sobre la pantalla, quieta y lejos de su columna.
+    document.addEventListener("scroll", cerrar, true);
     return () => {
       document.removeEventListener("mousedown", fuera);
       window.removeEventListener("resize", cerrar);
+      document.removeEventListener("scroll", cerrar, true);
     };
   }, [abierto]);
 
@@ -282,7 +326,7 @@ export function Desplegable({
         </span>
       </button>
 
-      {abierto && (
+      {abierto && envolver(
         <ul
           ref={lista}
           id={idLista}
@@ -300,11 +344,27 @@ export function Desplegable({
             /// arranca en el borde izquierdo y crece lo que
             /// necesite, con tope para que no se vaya de la
             /// pantalla.
-            "caja-scroll absolute z-50 max-h-72 w-max min-w-full max-w-[24rem] overflow-auto " +
-            (arriba ? "bottom-[calc(100%+4px)] " : "top-[calc(100%+4px)] ") +
-            (lado === "der" ? "right-0 " : "left-0 ") +
+            "caja-scroll z-50 max-h-72 w-max max-w-[24rem] overflow-auto " +
+            (enPortal ? "fixed " : "absolute min-w-full ") +
+            (enPortal
+              ? ""
+              : (arriba ? "bottom-[calc(100%+4px)] " : "top-[calc(100%+4px)] ") +
+                (lado === "der" ? "right-0 " : "left-0 ")) +
             "rounded-lg border border-borde bg-superficie py-1 " +
             "shadow-[0_10px_30px_-10px_rgba(15,23,42,0.28)]"
+          }
+          style={
+            enPortal && ancla
+              ? {
+                  minWidth: ancla.width,
+                  ...(arriba
+                    ? { bottom: window.innerHeight - ancla.top + 4 }
+                    : { top: ancla.bottom + 4 }),
+                  ...(lado === "der"
+                    ? { right: window.innerWidth - ancla.right }
+                    : { left: ancla.left }),
+                }
+              : undefined
           }
         >
           {rotulo && (
@@ -360,7 +420,7 @@ export function Desplegable({
               </li>
             );
           })}
-        </ul>
+        </ul>,
       )}
     </div>
   );
