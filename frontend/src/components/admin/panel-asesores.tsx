@@ -22,7 +22,6 @@
  * pantalla y cualquier aviso futuro no puedan discrepar.
  */
 
-import Link from "next/link";
 import { useCallback, useMemo, useState } from "react";
 
 import {
@@ -86,6 +85,33 @@ type Subvista =
 /// SIN FRASE AL LADO (cliente, 23 sep 2026). Cada tabla ya dice contra
 /// qué fecha corre en su propia descripción y en su pie; repetirlo
 /// arriba costaba un renglón y no añadía nada.
+/**
+ * RESUMEN O CALENDARIO, en un desplegable.
+ *
+ * Dos botones ocupaban una banda entera de la pantalla para decir dos
+ * palabras. Aquí va al lado de «Descargar en Excel», en la barra que
+ * ya existe, y no cuesta ni un pixel de alto.
+ */
+function ElegirComoSeVe({
+  valor,
+  alCambiar,
+}: {
+  valor: "resumen" | "calendario";
+  alCambiar: (v: "resumen" | "calendario") => void;
+}) {
+  return (
+    <select
+      aria-label="Cómo se ve"
+      value={valor}
+      onChange={(e) => alCambiar(e.target.value as "resumen" | "calendario")}
+      className="h-[34px] rounded-lg border border-campo-borde bg-campo-fondo px-2 text-[0.78125rem] text-texto outline-none focus:border-campo-foco"
+    >
+      <option value="resumen">Resumen</option>
+      <option value="calendario">Calendario</option>
+    </select>
+  );
+}
+
 const SUBVISTAS: Array<{ clave: Subvista; etiqueta: string }> = [
   { clave: "inscripciones", etiqueta: "Asesores de inscripciones" },
   { clave: "academicos", etiqueta: "Asesores académicos" },
@@ -259,7 +285,7 @@ export function PanelAsesores() {
       {/* SIN FRASE DEBAJO DEL TÍTULO (cliente, 23 sep 2026). Cada
           bloque ya dice lo suyo, y una segunda explicación arriba
           costaba veinte píxeles de alto en todas las pantallas. */}
-      {/* LAS CUATRO SUBVISTAS, AL LADO DEL TÍTULO.
+      {/* LAS CUATRO SUBVISTAS, EN UN DESPLEGABLE AL LADO DEL TÍTULO.
 
           «No se puede organizado al frente del título: Seguimiento de
           asesores» (cliente, 30 sep 2026). Ocupaban una caja propia
@@ -269,75 +295,30 @@ export function PanelAsesores() {
           escribe en la barra del MENÚ, y al probarlo las cuatro se
           montaron encima de «Formularios» y «Configuración».
 
-          El periodo se queda abajo a propósito: manda sobre las cuatro
-          subvistas y sobre las cifras que se miran, así que vive
-          pegado a ellas. */}
+          Y EL PERIODO VA CON ELLAS, en la misma fila: «no sé si esto
+          como periodo para que ambos queden en la misma fila»
+          (cliente, 1 oct 2026). Solo él ocupaba una banda entera de
+          la pantalla, y en tres de las cuatro subvistas esa banda no
+          llevaba nada más. */}
       <Encabezado compacto titulo="Seguimiento de asesores">
-        <div className="flex flex-wrap gap-1">
+        {/* EN DESPLEGABLE, no en cuatro botones: «¿no entendiste que
+            esto en desplegable?» (cliente, 1 oct 2026). Las cuatro
+            etiquetas son largas y se comían la fila del título entera;
+            una sola casilla dice lo mismo y deja sitio al periodo. */}
+        <select
+          aria-label="Qué se mira"
+          value={subvista}
+          onChange={(e) => setSubvista(e.target.value as Subvista)}
+          className="h-[34px] rounded-lg border border-campo-borde bg-campo-fondo px-2 text-[0.8125rem] font-medium text-texto outline-none focus:border-campo-foco"
+        >
           {SUBVISTAS.map((s) => (
-            <button
-              key={s.clave}
-              type="button"
-              onClick={() => setSubvista(s.clave)}
-              className={
-                "shrink-0 rounded-lg px-3 py-1 text-[0.8125rem] font-medium transition " +
-                (subvista === s.clave
-                  ? "bg-marca text-marca-texto"
-                  : "text-texto-suave hover:bg-superficie-alterna hover:text-texto")
-              }
-            >
+            <option key={s.clave} value={s.clave}>
               {s.etiqueta}
-            </button>
+            </option>
           ))}
-        </div>
-      </Encabezado>
-
-      {/* LAS DOS SUBVISTAS, EN UNA SOLA FILA con su frase al lado.
-          Iba debajo, a todo el ancho, y eso partía la caja en dos
-          renglones para decir siete palabras: espacio vertical que se
-          gana sin perder nada. */}
-      {/* EL PERIODO, EN LA MISMA CAJA QUE LAS SUBVISTAS y no en una
-          tarjeta propia: es un solo control para las tres, y en su
-          propio bloque se leería como si fuera de la pestaña abierta.
-          Con `justify-between` el selector queda a la izquierda y el
-          periodo a la derecha; en pantalla estrecha el `wrap` lo baja
-          a su propio renglón. */}
-      {/* UNA SOLA BARRA: a la izquierda QUÉ se mira, a la derecha DE
-          CUÁNDO. Ver el porqué arriba, donde vive `comoSeVe`. */}
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        {subvista === "inscripciones" ? (
-          <div className="flex flex-wrap items-center gap-1">
-            {(
-              [
-                ["resumen", "Resumen"],
-                ["calendario", "Calendario"],
-              ] as const
-            ).map(([clave, etiqueta]) => (
-              <button
-                key={clave}
-                type="button"
-                aria-pressed={comoSeVe === clave}
-                onClick={() => setComoSeVe(clave)}
-                className={
-                  "rounded-lg border px-3.5 py-1 text-[0.78125rem] transition " +
-                  (comoSeVe === clave
-                    ? "border-marca font-semibold text-marca"
-                    : "border-borde text-texto-suave hover:text-texto")
-                }
-              >
-                {etiqueta}
-              </button>
-            ))}
-          </div>
-        ) : (
-          /// Las otras tres subvistas no eligen vista: el hueco se
-          /// queda para que el periodo no salte de sitio al cambiar
-          /// de pestaña.
-          <span />
-        )}
-
+        </select>
         <FiltroDePeriodo periodo={periodo} alCambiar={setPeriodo} />
-      </div>
+      </Encabezado>
 
       {/* LAS DOS VENTANAS BAJAN A LAS CUATRO. Se pasan los objetos ya
           resueltos y no el periodo: así la subvista no tiene que saber
@@ -349,6 +330,7 @@ export function PanelAsesores() {
           /// EL CUADRO DE DIANITA LLEVA A DONDE SALEN SUS CIFRAS.
           alIrALaProyeccion={() => setSubvista("proyeccion")}
           comoSeVe={comoSeVe}
+          alCambiarComoSeVe={setComoSeVe}
         />
       )}
       {subvista === "academicos" && (
@@ -429,10 +411,12 @@ function DeInscripciones({
   rotuloAnterior,
   alIrALaProyeccion,
   comoSeVe,
+  alCambiarComoSeVe,
 }: ConPeriodo & {
   alIrALaProyeccion?: () => void;
   /// Lo decide la barra de arriba, que es donde vive su interruptor.
   comoSeVe: "resumen" | "calendario";
+  alCambiarComoSeVe: (v: "resumen" | "calendario") => void;
 }) {
   /// La clave lleva el periodo dentro: sin eso, cambiarlo no vuelve
   /// a pedir y la tabla se queda enseñando el periodo de antes. Y
@@ -775,6 +759,8 @@ function DeInscripciones({
         así que montada igual se ve igual. */}
     {comoSeVe === "resumen" && (
     <Tabla
+      acciones={<ElegirComoSeVe valor={comoSeVe} alCambiar={alCambiarComoSeVe} />}
+      cuadricula
       /// EL NOMBRE CAMBIA PORQUE CAMBIÓ EL ORDEN DE LAS COLUMNAS.
       ///
       /// La tabla graba en el navegador qué columnas se ven Y EN QUÉ
@@ -852,6 +838,11 @@ function DeInscripciones({
 
         Se MUEVE, no se copia: dos cuadros iguales en dos pantallas
         acaban discrepando el día que uno se cambie y el otro no. */}
+    {comoSeVe === "calendario" && (
+    <div className="flex justify-end">
+      <ElegirComoSeVe valor={comoSeVe} alCambiar={alCambiarComoSeVe} />
+    </div>
+    )}
     {comoSeVe === "calendario" && (
     <RepartoDiario
       meta={reparto.meta}
@@ -988,13 +979,6 @@ function Academicos({ ventana, ventanaAntes, rotuloAnterior }: ConPeriodo) {
         <p className="font-semibold text-titulo">
           Ningún grupo tiene asesor académico asignado todavía.
         </p>
-        <p className="mt-1 text-texto-suave">
-          Por eso toda la gente sale en una sola fila. Se asigna en{" "}
-          <Link href="/admin/acciones/cronograma" className="font-medium underline">
-            Acciones de formación · Cronograma
-          </Link>
-          .
-        </p>
       </div>
     )}
 
@@ -1010,6 +994,7 @@ function Academicos({ ventana, ventanaAntes, rotuloAnterior }: ConPeriodo) {
         y la caja sobra, que es lo que la dejaba «metida feo» al lado
         de su hermana. Las filas y las columnas son las mismas. */}
     <Tabla
+      cuadricula
       id="asesores-academicos"
       columnas={columnas}
       filas={datos}
@@ -1382,41 +1367,9 @@ function Proyeccion({ ventana, ventanaAntes, rotuloAnterior }: ConPeriodo) {
           pantalla todos los días: «con clic despliegue y con clic
           oculte, ocupa mucho espacio» (cliente, 27 sep 2026). Cerrada
           es un renglón; se abre el día que hace falta. */}
-      <details className="group rounded-lg border border-borde bg-superficie text-[0.8125rem] text-texto-suave">
-        <summary className="sin-aro flex cursor-pointer list-none items-center gap-2 px-4 py-2 font-semibold text-titulo select-none">
-          <span className="text-texto-suave transition group-open:rotate-90">›</span>
-          Cómo se lee esta tabla
-        </summary>
-        <ul className="space-y-1 px-4 pt-1 pb-3">
-          <li>
-            <strong className="font-medium text-titulo">Meta diaria</strong> — cuántos
-            hay que inscribir cada día, de lunes a sábado, para cubrir lo que falta
-            antes de que cierre. Sube sola si un día no se cumple.
-          </li>
-          <li>
-            <strong className="font-medium text-titulo">Terminará con</strong> — con
-            cuántos inscritos acaba esta acción si sigue al ritmo de las dos últimas
-            semanas. Es una previsión, no una promesa: si el ritmo cambia, cambia.
-          </li>
-          <li>
-            <strong className="font-medium text-titulo">Conversión</strong> — de cada
-            cien personas interesadas, cuántas acaban inscritas. Cuando una acción
-            tiene pocos interesados se usa el promedio de todas, y la columna lo dice.
-          </li>
-          <li>
-            <strong className="font-medium text-titulo">Leads que faltan</strong> —
-            cuántos interesados NUEVOS hay que conseguir. Ya están descontados los que
-            hay sin atender, porque esos no hay que volver a buscarlos.
-          </li>
-          <li>
-            <strong className="font-medium text-titulo">¿Alcanza?</strong> — si con esa
-            previsión se llega a los cupos comprometidos. «Apretado» es que llega por
-            menos de un diez por ciento, que cualquier semana floja se come.
-          </li>
-        </ul>
-      </details>
 
       <Tabla
+        cuadricula
         id="proyeccion-metas"
         columnas={columnas}
         filas={datos}
@@ -1929,7 +1882,10 @@ const columnasDeProyeccion = (
     /// EL BOTÓN GUARDAR de la fila. Fija: no se puede quitar, porque
     /// sin él no hay cómo guardar lo que se edita.
     clave: "guardar",
-    titulo: "",
+    /// CON TÍTULO: «¿acá cuál es el título?» (cliente, 1 oct 2026).
+    /// Una columna sin rótulo deja el hueco de la cabecera en blanco
+    /// y parece que falta algo, sobre todo con la cuadrícula puesta.
+    titulo: "Guardar cambios",
     ancho: "128px",
     fija: true,
     valor: () => "",
@@ -2076,41 +2032,9 @@ function ProyeccionAcademica({ ventana, ventanaAntes, rotuloAnterior }: ConPerio
 
       {comparando && <ContraQue rotulo={rotuloAnterior} />}
 
-      <details className="group rounded-lg border border-borde bg-superficie text-[0.8125rem] text-texto-suave">
-        <summary className="sin-aro flex cursor-pointer list-none items-center gap-2 px-4 py-2 font-semibold text-titulo select-none">
-          <span className="text-texto-suave transition group-open:rotate-90">›</span>
-          Cómo se lee esta tabla
-        </summary>
-        <ul className="space-y-1 px-4 pt-1 pb-3">
-          <li>
-            <strong className="font-medium text-titulo">En el aula</strong> — cuánta
-            gente entró a formarse. Es contra esto que se mide todo lo demás: a
-            quien nunca entró no se le puede certificar.
-          </li>
-          <li>
-            <strong className="font-medium text-titulo">Ya no certifican</strong> —
-            los que no aprobaron, desertaron, abandonaron o se retiraron. No son
-            pendientes: no van a volver, y contarlos como tales pediría un
-            imposible.
-          </li>
-          <li>
-            <strong className="font-medium text-titulo">Meta diaria</strong> —
-            cuántos hay que certificar cada día, de lunes a sábado, para llegar
-            antes de que acabe el curso.
-          </li>
-          <li>
-            <strong className="font-medium text-titulo">Terminará con</strong> —
-            cuántos certificados habrá al final si se sigue al ritmo de las dos
-            últimas semanas.
-          </li>
-          <li>
-            <strong className="font-medium text-titulo">¿Alcanza?</strong> — si con
-            esa previsión se certifica a todos los que aún pueden.
-          </li>
-        </ul>
-      </details>
 
       <Tabla
+        cuadricula
         id="proyeccion-academica"
         columnas={columnas}
         filas={datos}
