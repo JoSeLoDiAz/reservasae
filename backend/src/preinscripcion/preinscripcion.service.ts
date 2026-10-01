@@ -46,6 +46,7 @@ import { calcularDigitoVerificacion } from '../comun/nit';
 import { DirectorioService } from '../crm/directorio.service';
 import { aQueOrganizacionSeAta } from './organizacion-de-la-ficha';
 import { entraAlDirectorio } from './entra-al-directorio';
+import { tamanoDeIndependiente } from '../crm/tamano-del-independiente';
 import { faltaDeLaEmpresa } from './empresa-incompleta';
 import { marcaDelEnlace } from './enlace-del-envio';
 import { ColaRui } from '../crm/rui/cola-rui';
@@ -1492,9 +1493,14 @@ export class PreinscripcionService {
             primerApellido: true,
             segundoApellido: true,
             // para el independiente: su casa y su celular son
-            // el domicilio y el telefono de su unidad economica
+            // el domicilio y el telefono de su unidad economica, y su
+            // departamento, municipio y correo completan lo que el F7
+            // pide de la organizacion cuando la organizacion es ella
             direccion: true,
             celular: true,
+            correo: true,
+            departamentoSepId: true,
+            municipioSepId: true,
           },
         },
       },
@@ -1740,9 +1746,45 @@ export class PreinscripcionService {
       ///
       /// Si el formulario trajo algo distinto, manda eso: se
       /// rellena el hueco, no se pisa lo que dijo.
+      /**
+       * LO QUE EL SEP PIDE DE LA ORGANIZACIÓN, Y AQUÍ YA SE SABE.
+       *
+       * «En teoría, si es el mismo documento, estaría completo, dado
+       * que es la misma información» (cliente, 1 oct 2026), sobre que
+       * un independiente salía en el listado con «Le faltan 9 datos».
+       *
+       * Tiene razón: de los nueve que el F7 exige de una empresa, seis
+       * son datos de LA PERSONA cuando la empresa es ella misma, y ya
+       * están escritos dos pantallas atrás. Pedírselos otra vez es
+       * pedirle que se copie a sí misma, y mientras no lo haga el
+       * archivo del SENA la da por incompleta.
+       *
+       *   sede, dirección y teléfono -> su domicilio y su celular.
+       *   contacto -> ella, con su correo.
+       *   tamaño -> microempresa; cuál de las tres, en
+       *             `tamano-del-independiente.ts`.
+       *   trabajadores -> UNO. Es una persona natural facturando con
+       *             su cédula; no es un supuesto, es la definición.
+       *
+       * El único que sigue haciendo falta es el SECTOR, y ese sí se le
+       * pregunta en el formulario. Sin él tampoco se puede calcular el
+       * tamaño, así que los dos se quedan vacíos juntos.
+       *
+       * NADA PISA LO QUE VINO ESCRITO: si el formulario trajo un valor
+       * distinto manda ese. Se rellena el hueco, no se corrige a nadie.
+       */
+      const sectorSuyo = datos.sectorEconomico ?? undefined;
       const suyos = {
         direccion: datos.direccion ?? p.persona.direccion ?? undefined,
         telefono: datos.telefono ?? p.persona.celular ?? undefined,
+        departamentoSepId:
+          datos.departamentoSepId ?? p.persona.departamentoSepId ?? undefined,
+        municipioSepId:
+          datos.municipioSepId ?? p.persona.municipioSepId ?? undefined,
+        contactoNombre: datos.contactoNombre ?? nombre ?? undefined,
+        contactoCorreo: datos.contactoCorreo ?? p.persona.correo ?? undefined,
+        numeroTrabajadores: datos.numeroTrabajadores ?? 1,
+        tamanoSepId: tamanoDeIndependiente(sectorSuyo) ?? undefined,
       };
 
       if (nit) {
