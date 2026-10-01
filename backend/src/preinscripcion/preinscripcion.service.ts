@@ -1750,6 +1750,20 @@ export class PreinscripcionService {
           where: { nit },
           create: {
             nit,
+            /// EL DÍGITO DE VERIFICACIÓN, TAMBIÉN AQUÍ.
+            ///
+            /// No se ponía, y por eso la ficha de un independiente
+            /// salía sin él: «no me está quedando dígito de
+            /// verificación cuando la persona selecciona que es
+            /// independiente» (cliente, 1 oct 2026). Medido en la base
+            /// de pruebas: 3 de 3 independientes sin dígito.
+            ///
+            /// La DIAN se lo asigna igual a una cédula que hace de RUT
+            /// que a un NIT de empresa, y con la misma cuenta: es el
+            /// mismo `calcularDigitoVerificacion` que usa el alta
+            /// manual desde la ficha, que sí lo ponía. Era solo esta
+            /// rama la que se quedaba sin él.
+            digitoVerificacion: calcularDigitoVerificacion(nit),
             razonSocial: nombre || `Independiente ${nit}`,
             tipoDocumentoSepId: p.persona.tipoDocumentoSepId,
             ...datos,
@@ -1767,6 +1781,31 @@ export class PreinscripcionService {
           where: { id: p.id },
           data: { empresaId: empresa.id },
         });
+
+        /// Y AL DIRECTORIO, como cualquier otra organización.
+        ///
+        /// Antes esta rama no lo hacía y la regla lo decía
+        /// explícitamente; el porqué del cambio está en
+        /// `entra-al-directorio.ts`. Mismo `try` que la rama de
+        /// empresa: que no llegue al directorio no puede tumbar una
+        /// inscripción.
+        const comoSeLlama = nombre || `Independiente ${nit}`;
+        if (
+          entraAlDirectorio({
+            nit,
+            razonSocial: comoSeLlama,
+            esRutPropio: true,
+          })
+        ) {
+          try {
+            await this.directorio.agregarManual(nit, comoSeLlama);
+          } catch (e) {
+            this.log.warn(
+              `No se pudo apuntar el RUT ${nit} en el directorio: ` +
+                (e instanceof Error ? e.message : String(e)),
+            );
+          }
+        }
       }
     }
 

@@ -22,13 +22,28 @@ export function entraAlDirectorio(caso: {
   /// Su cédula hace de RUT: la persona es su unidad económica.
   esRutPropio: boolean;
 }): boolean {
-  /// La cédula de alguien NO entra, y es lo que más importa.
-  ///
-  /// El directorio lo ven los dos gremios y lo recorre el
-  /// buscador web. Meter cédulas ahí es esparcir un dato
-  /// personal a un sitio que nadie consideró personal.
-  if (caso.esRutPropio) return false;
-
+  /**
+   * EL INDEPENDIENTE CON RUT SÍ ENTRA (cliente, 1 oct 2026).
+   *
+   * Hasta hoy NO entraba, y era a propósito: «meter cédulas ahí es
+   * esparcir un dato personal a un sitio que nadie consideró
+   * personal», porque el directorio lo ven los dos gremios y lo
+   * recorre el buscador web.
+   *
+   * El cliente revisó el caso y decidió al revés: «más allá de que no
+   * sea un NIT, es una empresa común y corriente, solo que cambia su
+   * naturaleza o composición». Tiene razón en lo operativo ---ante el
+   * SENA esa persona ES su unidad económica, y el F7 la reporta como
+   * tal---, así que dejarla fuera del maestro la volvía invisible
+   * justo donde se la busca.
+   *
+   * LO QUE SE PIERDE, dicho aquí para que quede: la cédula de una
+   * persona natural pasa a vivir en una tabla que ve el otro gremio y
+   * que recorre el buscador web. Si eso hay que acotarlo ---no
+   * mostrarla fuera de su gremio, o no dejar que el buscador la
+   * consulte--- es una regla aparte y va encima de esta, no en lugar
+   * de ella.
+   */
   if (!caso.nit.trim()) return false;
 
   /// Sin nombre no responde a lo que el directorio existe para
