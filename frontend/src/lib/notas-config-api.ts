@@ -62,13 +62,24 @@ export const notasConfigApi = {
   ofrecidas: () =>
     pedir<CategoriaDeNota[]>("/admin/configuracion-notas?visibles=1"),
 
-  /// `resultado` opcional: sin él la categoría no significa
-  /// ninguno. Se manda solo cuando se eligió --el DTO lo declara
-  /// `@IsOptional`-- para no confundir «no vino» con «ninguno».
-  crearCategoria: (nombre: string, resultado?: ResultadoGestion | null) =>
+  /// SOLO EL NOMBRE, y es la decisión del 30 sep 2026.
+  ///
+  /// Se mandaba también el `resultado`, porque la pantalla lo
+  /// preguntaba al crear la categoría. El cliente lo cortó en seco:
+  /// «¿Cómo así que QUÉ SIGNIFICA, coño? Para eso la categoría y
+  /// subcategoría, ¿qué pasa?». Tenía razón: le habíamos quitado esa
+  /// pregunta del formulario de la nota y se la habíamos puesto aquí.
+  ///
+  /// El DTO del servidor SIGUE aceptándolo --es `@IsOptional`-- y no
+  /// se le quita: el campo se corrige con `actualizarCategoria`
+  /// desde la propia categoría, y una ruta que deja de aceptar lo
+  /// que ya aceptaba rompe a quien la llame con el cuerpo de ayer.
+  /// Sin mandarlo, la categoría nace sin resultado, y la pantalla lo
+  /// dice en un renglón en vez de callárselo.
+  crearCategoria: (nombre: string) =>
     pedir<CategoriaDeNota>("/admin/configuracion-notas/categorias", {
       method: "POST",
-      body: JSON.stringify({ nombre, ...(resultado ? { resultado } : {}) }),
+      body: JSON.stringify({ nombre }),
     }),
 
   /// NO HAY `eliminar`, y es la decisión, no un olvido: en este CRM
