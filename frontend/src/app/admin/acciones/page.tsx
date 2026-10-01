@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
 import { Aviso, useAdmin } from "@/components/admin/marco-admin";
-import { Cifra, Esqueleto, Vacio } from "@/components/admin/piezas";
+import {
+  Encabezado, Cifra, Esqueleto, Vacio } from "@/components/admin/piezas";
 import { Desplegable } from "@/components/admin/desplegable";
 import { IconoFormacion } from "@/components/admin/iconos";
 import { CronogramaVista } from "@/components/admin/cronograma-vista";
@@ -142,22 +143,12 @@ function Catalogo() {
     /// `min-h-0 grow` solo sirve donde algo de DENTRO scrollea.
     /// Aquí manda el scroll de `<main>`, y poder bajar vale más que
     /// pegar la lista al pie.
-    <div className="flex flex-col gap-3 px-4 pt-4 pb-6">
-      <div className="no-imprimir">
-        {/* La pestaña es para VER el catálogo; publicar es una acción
-            que se hace desde aquí, no lo que la pestaña es. Antes la
-            bajada hablaba solo de publicar y dejaba sin explicar la
-            pantalla. */}
-        <p className="mt-0.5 text-[0.78125rem] text-texto-suave">
-          Todas las acciones de formación, por convenio, con su ocupación y su estado.
-          Las fechas de sus grupos están en la pestaña «Cronograma».
-        </p>
-        <p className="mt-1 text-[0.71875rem] text-texto-suave">
-          Ocultar solo la quita del sitio público: deja de poder reservarse y
-          preinscribirse desde fuera. Las reservas hechas siguen vivas y contando, y
-          desde el CRM se puede seguir inscribiendo con normalidad.
-        </p>
-      </div>
+    <div className="flex flex-col gap-3 px-4 pt-4 pb-6 [&>header]:mx-0 [&>header]:mb-0">
+      {/* CON TÍTULO Y SIN LA EXPLICACIÓN DE ARRIBA: «esto se elimina
+          [los tres párrafos] / títulos no se tiene» (cliente, 1 oct
+          2026). Eran dos pantallas que empezaban en una explicación
+          suelta sobre el fondo, sin decir en cuál está uno. */}
+      <Encabezado compacto titulo="Acciones de formación" />
 
       {error && <Aviso tipo="error">{error}</Aviso>}
       {!acciones ? (
