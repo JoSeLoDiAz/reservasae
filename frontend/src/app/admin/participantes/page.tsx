@@ -215,7 +215,14 @@ export default function PaginaParticipantes() {
   /// bandas vayan a sangre, y sin esto la barra de
   /// busqueda y la paginacion quedaban pegadas al canto.
   return (
-    <div className="flex min-h-0 grow flex-col gap-3 px-4 pt-3">
+    /// `pb-2`: LA LÍNEA DE RESPETO DE ABAJO. Estaba en cero y la barra
+    /// de desplazamiento horizontal de la tabla acababa tocando el pie
+    /// ---«la línea de respeto» (cliente, 1 oct 2026)---. Medido en las
+    /// nueve pantallas del panel: pasaba en Gestión de leads, Reservas,
+    /// Inscritos y Seguimiento del aula, que son justo las cuatro que
+    /// recorren en horizontal. Ocho píxeles despegan la barra sin que
+    /// vuelva a sobrar aire.
+    <div className="flex min-h-0 grow flex-col gap-3 px-4 pt-3 pb-2">
       {error && <Aviso tipo="error">{error}</Aviso>}
 
       {/* El embudo.

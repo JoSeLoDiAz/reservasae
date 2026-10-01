@@ -38,6 +38,7 @@ export function GruposDeLaAccion({
   grupos,
   personas,
   alElegirGrupo,
+  alElegirAccion,
   verInscritos,
   alAlternarTabla,
 }: {
@@ -52,6 +53,8 @@ export function GruposDeLaAccion({
   grupos: Grupo[];
   personas: FilaAcademica[];
   alElegirGrupo: (id: string) => void;
+  /// Para que la tarjeta macro pueda entrar en su acción.
+  alElegirAccion: (id: string) => void;
   verInscritos: boolean;
   alAlternarTabla: () => void;
 }) {
@@ -87,6 +90,28 @@ export function GruposDeLaAccion({
    * entra. Las tarjetas son para ELEGIR grupo; elegido ya, sobran.
    */
   const aPintar = grupoId ? [] : suyos;
+
+  /**
+   * SIN ACCIÓN ELEGIDA SE VEN LAS ACCIONES, NO LOS GRUPOS.
+   *
+   * «Se me ocurre lo siguiente: primero como las 3 tarjetas macro,
+   * no? Luego las de sus grupos, no?» (cliente, 1 oct 2026), con
+   * cuarenta tarjetas de grupo delante.
+   *
+   * Tiene razón y es la misma idea de siempre: de lo general a lo
+   * particular. Cuarenta tarjetas mezcladas de AF1, AF2 y AF3 no se
+   * comparan entre sí ---el «Grupo 4» de AF1 y el de AF2 son dos
+   * cosas--- y obligan a leer el código de arriba de cada una para
+   * saber de qué formación es. Agrupadas por acción son tres o cuatro
+   * tarjetas, se comparan de un vistazo, y se entra a la que interesa.
+   *
+   * Solo las acciones QUE TIENEN gente en el aula: `grupos` ya viene
+   * acotado a eso, así que se deducen de ahí y no del catálogo.
+   */
+  const conGrupos = acciones.filter((a) =>
+    grupos.some((x) => x.accionFormacionId === a.id),
+  );
+  const porAccion = !accionFormacionId && !grupoId && conGrupos.length > 1;
 
   return (
     <section className="flex flex-col gap-3">
@@ -134,6 +159,21 @@ export function GruposDeLaAccion({
             Aparecen en cuanto alguien de un grupo queda matriculado en una
             acción virtual, que son las únicas que el aula sigue.
           </p>
+        </div>
+      ) : porAccion ? (
+        <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
+          {conGrupos.map((a) => (
+            <TarjetaDeAccion
+              key={a.id}
+              accion={a}
+              grupos={grupos.filter((x) => x.accionFormacionId === a.id).length}
+              cupos={grupos
+                .filter((x) => x.accionFormacionId === a.id)
+                .reduce((t, x) => t + (x.cupos ?? 0), 0)}
+              suya={personas.filter((p) => p.accionFormacionId === a.id)}
+              alEntrar={() => alElegirAccion(a.id)}
+            />
+          ))}
         </div>
       ) : aPintar.length > 0 ? (
         <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
@@ -183,6 +223,118 @@ export function GruposDeLaAccion({
  * que el aula ya calcula por persona; si un grupo no tiene a nadie
  * en ese estado, la píldora NO se pinta en vez de decir 0 %.
  */
+/**
+ * UNA ACCIÓN DE FORMACIÓN ENTERA, para elegir en cuál entrar.
+ *
+ * Enseña lo mismo que la de grupo ---cuántos dentro, cuánto avance---
+ * porque es la misma pregunta una talla más arriba, y añade de cuántos
+ * grupos se compone, que es lo que dice si vale la pena entrar.
+ */
+function TarjetaDeAccion({
+  accion,
+  grupos,
+  cupos,
+  suya,
+  alEntrar,
+}: {
+  accion: { id: string; codigo: string; nombre: string };
+  grupos: number;
+  /// Los cupos de sus grupos sumados: el mismo «de cuántos» de la
+  /// tarjeta de grupo, una talla más arriba.
+  cupos: number;
+  suya: FilaAcademica[];
+  alEntrar: () => void;
+}) {
+  /// EL MISMO PROMEDIO QUE LA TARJETA DE GRUPO, y por lo mismo: solo
+  /// cuenta a quien tiene actividades cargadas. Ver el porqué allá.
+  const conActividades = suya.filter((p) => p.total > 0);
+  const avance =
+    conActividades.length > 0
+      ? Math.round(
+          conActividades.reduce((a, p) => a + p.porcentaje, 0) /
+            conActividades.length,
+        )
+      : null;
+  const certificados = suya.filter((p) => p.estado === "CERTIFICADO").length;
+  const atrasados = suya.filter((p) => p.estado === "ATRASADO").length;
+  const pct = (n: number) => (suya.length > 0 ? Math.round((n / suya.length) * 100) : 0);
+
+  return (
+    <div className="overflow-hidden rounded-xl border border-borde bg-superficie text-left">
+      <div className="p-3">
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <span className="block text-[0.625rem] font-semibold tracking-[0.08em] text-texto-suave uppercase">
+              Acción de formación
+            </span>
+            <span className="mt-0.5 block text-[1.375rem] leading-none font-bold text-titulo">
+              {accion.codigo}
+            </span>
+          </div>
+
+          {/* LAS MISMAS DOS PÍLDORAS QUE LA TARJETA DE GRUPO, y por lo
+              mismo: aquí un cero no es un vacío, es la respuesta. */}
+          <div className="flex shrink-0 flex-wrap justify-end gap-1">
+            <Pildora
+              tono="var(--exito)"
+              icono={<IconoCheckCirculo tamano={12} />}
+              titulo={`${certificados} de ${suya.length} ya certificados`}
+            >
+              {pct(certificados)} %
+            </Pildora>
+            <Pildora
+              tono="var(--aviso)"
+              icono={<IconoReloj tamano={12} />}
+              titulo={`${atrasados} de ${suya.length} atrasados frente a su calendario`}
+            >
+              {pct(atrasados)} %
+            </Pildora>
+          </div>
+        </div>
+
+        {/* EL NOMBRE, A DOS RENGLONES. Los de ADECOPRIA miden hasta
+            noventa caracteres y a renglón corrido una tarjeta medía el
+            doble que su vecina. */}
+        <p className="mt-1 line-clamp-2 text-[0.75rem] leading-snug text-texto-suave">
+          {accion.nombre}
+        </p>
+
+        <div className="mt-2">
+          <CifraConBarra
+            etiqueta="En el aula"
+            valor={cupos > 0 ? `${suya.length} de ${cupos}` : String(suya.length)}
+            porcentaje={cupos > 0 ? Math.min(100, (suya.length / cupos) * 100) : null}
+            tono="var(--marca)"
+            pie={null}
+          />
+        </div>
+
+        <div className="mt-2">
+          <CifraConBarra
+            etiqueta="Avance"
+            valor={avance === null ? "—" : `${avance} %`}
+            porcentaje={avance}
+            tono="var(--exito)"
+            pie={
+              conActividades.length > 0
+                ? `Promedio de ${conActividades.length} ${conActividades.length === 1 ? "persona" : "personas"} con actividades.`
+                : "Todavía nadie tiene actividades cargadas."
+            }
+          />
+        </div>
+
+        <button
+          type="button"
+          onClick={alEntrar}
+          className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg border border-borde px-3 py-1.5 text-[0.8125rem] font-medium text-marca transition hover:border-marca"
+        >
+          Ver sus {grupos === 1 ? "grupo" : `${grupos} grupos`}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function TarjetaDeGrupo({
   grupo,
   codigo,
