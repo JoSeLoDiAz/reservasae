@@ -11,7 +11,8 @@ import {
   CLASE_CONTROL,
   useAdmin,
 } from "@/components/admin/marco-admin";
-import { Bloque, Esqueleto } from "@/components/admin/piezas";
+import {
+  Encabezado, Bloque, Esqueleto } from "@/components/admin/piezas";
 import { conPermiso } from "@/components/admin/puerta-de-pantalla";
 import { adminApi } from "@/lib/admin-api";
 import { ErrorApi } from "@/lib/api";
@@ -42,18 +43,14 @@ function PaginaFormularios() {
   return (
     /// Sin `min-h-0 grow`: aquí no scrollea nada de dentro.
     /// La explicación larga está en `usuarios/page.tsx`.
-    <div className="flex flex-col gap-4 px-4 pt-4 pb-6">
+    <div className="flex flex-col gap-4 px-4 pt-4 pb-6 [&>header]:mx-0 [&>header]:mb-0">
+      {/* EN SU TARJETA, como el resto del panel: «este no tiene el
+          diseño del título» / «módulo Formularios no tiene diseño en
+          los títulos» (cliente, 1 oct 2026). Eran títulos sueltos sobre
+          el fondo mientras sus hermanas los llevan en recuadro. */}
       {/* El nombre entero va AQUI y no en el menu: en la barra
           salia cortado como «Formularios de reserva (...». */}
-      <header>
-        <h1 className="text-[1.3125rem] font-bold tracking-[-0.02em] text-titulo">
-          Formularios de reserva (empresas)
-        </h1>
-        <p className="mt-1 max-w-3xl text-texto-suave">
-          Lo que ve quien entra a reservar. Puede crear preguntas, agruparlas en
-          secciones y publicarlas sin tocar el código.
-        </p>
-      </header>
+      <Encabezado compacto titulo="Formularios de reserva (empresas)" />
 
       {error && <Aviso tipo="error">{error}</Aviso>}
 

@@ -16,7 +16,8 @@ import {
   LoQuePregunta,
   type Bloque as BloqueDePreguntas,
 } from "@/components/admin/formulario-publico";
-import { Bloque } from "@/components/admin/piezas";
+import {
+  Encabezado, Bloque } from "@/components/admin/piezas";
 import { useAdmin } from "@/components/admin/marco-admin";
 import { adminApi } from "@/lib/admin-api";
 
@@ -116,21 +117,20 @@ export default function FormulariosActivos() {
     /// Sin `min-h-0 grow`: aquí no scrollea nada de dentro, y con
     /// él el botón de imprimir el código quedaba pegado al pie.
     /// La explicación larga está en `usuarios/page.tsx`.
-    <div className="flex flex-col gap-4 px-4 pt-4 pb-6">
+    <div className="flex flex-col gap-4 px-4 pt-4 pb-6 [&>header]:mx-0 [&>header]:mb-0">
+      {/* EN SU TARJETA, como el resto del panel: «este no tiene el
+          diseño del título» / «módulo Formularios no tiene diseño en
+          los títulos» (cliente, 1 oct 2026). Eran títulos sueltos sobre
+          el fondo mientras sus hermanas los llevan en recuadro. */}
       {/* El nombre entero va AQUI. En el menu se llama
           «Formularios Personas», hermano de «Formularios
           Empresas»: los dos juntos se leen como los dos que
           son, y ninguno sale cortado en la barra. */}
-      <header>
-        <h1 className="text-[1.3125rem] font-bold tracking-[-0.02em] text-titulo">
-          Formularios activos
-        </h1>
-        <p className="mt-1 max-w-3xl text-texto-suave">
-          Los dos momentos de una misma recolección. El corto es público y trae
-          a la persona al embudo; el largo se le manda después, uno por uno, y
-          solo le pregunta lo que le falte.
-        </p>
-      </header>
+      <Encabezado
+        compacto
+        titulo="Formularios activos"
+        descripcion="Los dos momentos de una misma recolección. El corto es público y trae a la persona al embudo; el largo se le manda después, uno por uno, y solo le pregunta lo que le falte."
+      />
 
       {/* Pestañas y no dos páginas: la pregunta que uno trae
           aquí casi siempre es «¿esto en cuál se pide?», y esa
