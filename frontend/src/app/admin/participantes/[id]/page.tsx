@@ -2171,7 +2171,21 @@ function DatosDeLaEmpresa({
   /// más arriba.
   const CAMPOS: Array<[string, string | number | null]> = porSuCuenta
     ? [
-        ["RUT (su cédula)", e.nit],
+        /// CON SU DÍGITO, igual que el NIT de una empresa.
+        ///
+        /// Aquí se pintaba el número pelado mientras la rama de
+        /// empresa lo pintaba como «nit-dv»: «no me está quedando
+        /// dígito de verificación cuando la persona selecciona que es
+        /// independiente» (cliente, 1 oct 2026).
+        ///
+        /// La DIAN se lo asigna igual a una cédula que hace de RUT, y
+        /// es el que va al F7. Eran TRES cosas distintas, no una: el
+        /// formulario no lo calculaba, la ficha no lo pintaba, y el
+        /// independiente no entraba al directorio. Las tres están.
+        [
+          "RUT (su cédula)",
+          e.digitoVerificacion ? `${e.nit}-${e.digitoVerificacion}` : e.nit,
+        ],
         ["A nombre de", e.razonSocial],
         ["Dirección", e.direccion ?? lead.persona.direccion],
         ["Teléfono", e.telefono ?? lead.persona.celular],

@@ -42,27 +42,46 @@ describe('lo que se apunta en el directorio', () => {
   });
 });
 
-describe('la cédula de alguien NO entra, y es lo que más importa', () => {
-  it('el trabajador independiente que usa su cédula de RUT queda fuera', () => {
-    /// Ahí el «NIT» es la CÉDULA de una persona, y el
-    /// directorio es una tabla COMPARTIDA de organizaciones que
-    /// ven los dos gremios y que el buscador web recorre.
-    ///
-    /// Meter cédulas ahí es esparcir un dato personal a un
-    /// sitio que nadie consideró personal — el mismo error que
-    /// los .xlsx del SEP que hubo que sacar del historial.
+describe('el independiente con RUT entra, como cualquier otra', () => {
+  /**
+   * HASTA EL 1 OCT 2026 NO ENTRABA, Y ERA A PROPÓSITO.
+   *
+   * El argumento escrito era: ahí el «NIT» es la CÉDULA de una
+   * persona, y el directorio es una tabla COMPARTIDA que ven los dos
+   * gremios y que recorre el buscador web.
+   *
+   * El cliente revisó el caso y decidió al revés: «más allá de que no
+   * sea un NIT es una empresa común y corriente, solo que cambia su
+   * naturaleza o composición». Ante el SENA esa persona ES su unidad
+   * económica y el F7 la reporta como tal, así que dejarla fuera del
+   * maestro la volvía invisible justo donde se la busca: no salía en
+   * «Empresas registradas», que es lo que él encontró.
+   *
+   * Este spec fija la decisión NUEVA. Si algún día se quiere acotar
+   * ---no enseñarla fuera de su gremio, o que el buscador web no la
+   * consulte--- eso va ENCIMA de esta regla, no en lugar de ella.
+   */
+  it('el trabajador independiente que usa su cédula de RUT entra', () => {
     expect(
       entraAlDirectorio({
         nit: '1026300012',
         razonSocial: 'Mauricio Andrés Palma Mesa',
         esRutPropio: true,
       }),
-    ).toBe(false);
+    ).toBe(true);
   });
 
-  it('ni aunque venga con todo lo demás bien', () => {
+  it('y le siguen aplicando las dos condiciones de siempre', () => {
+    /// Ser independiente no lo exime: sin nombre o sin número no hay
+    /// qué apuntar, igual que para una empresa.
+    expect(
+      entraAlDirectorio({ nit: '52123456', razonSocial: '', esRutPropio: true }),
+    ).toBe(false);
+    expect(
+      entraAlDirectorio({ nit: '', razonSocial: 'Ana Gómez', esRutPropio: true }),
+    ).toBe(false);
     expect(
       entraAlDirectorio({ nit: '52123456', razonSocial: 'Ana Gómez', esRutPropio: true }),
-    ).toBe(false);
+    ).toBe(true);
   });
 });
