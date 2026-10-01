@@ -456,22 +456,13 @@ export function Filtros({ children }: { children: React.ReactNode }) {
   );
 }
 
-/// Un desplegable con la medida de la casa, para no repetirla
-/// en cada pantalla.
-export function SelectorDeFiltro({
-  children,
-  ...resto
-}: React.SelectHTMLAttributes<HTMLSelectElement>) {
-  return (
-    <select
-      {...resto}
-      className={`h-[34px] w-full min-w-0 rounded-lg border border-campo-borde bg-campo-fondo px-2 font-medium text-texto ${resto.className ?? ""}`}
-      style={{ fontSize: T.cuerpo, ...resto.style }}
-    >
-      {children}
-    </select>
-  );
-}
+/// Aqui vivia `SelectorDeFiltro`, un `<select>` nativo con la medida
+/// de la casa. Se va entero y no se traduce a `Desplegable`: no lo
+/// importaba ni una pantalla ---era lo ultimo que quedaba de los
+/// filtros viejos--- y dejarlo solo invitaba a volver a meter un
+/// desplegable cuadrado. Quien necesite uno usa `Desplegable`
+/// (`components/admin/desplegable.tsx`) o el `Filtro` de
+/// `piezas-modulo.tsx`, que ya lo envuelve con rotulo.
 
 /* ── 6. aviso ────────────────────────────────────────────── */
 

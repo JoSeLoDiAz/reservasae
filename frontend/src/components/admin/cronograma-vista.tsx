@@ -857,26 +857,46 @@ function Grupo({
               base y en la pantalla de seguimiento, pero nada la
               escribía, así que Seguimiento de asesores enseñaba una
               pestaña académica siempre vacía (José, 25 sep 2026). */}
-          <label className="mb-3 block">
+          {/* EL DESPLEGABLE DE LA CASA.
+
+              La lista de un `<select>` la dibuja Windows: cuadrada,
+              azul de sistema y sorda al CSS. «No debe haber
+              desplegables cuadrados, todos deben ser redondeados»
+              (cliente, 1 oct 2026).
+
+              SIN `enPortal`, Y ESTÁ MEDIDO. El acordeón de la acción
+              es un `<section>` con `overflow-hidden` ---y la banda de
+              convenios que lo envuelve, otro---, así que parecía el
+              caso de libro para el portal. Pero esos contenedores
+              crecen con su contenido, y las tres listas de aquí son
+              cortas: medidas las tres abiertas el 1 oct 2026, ninguna
+              toca el canto de su sección, y la del tipo de sesión se
+              voltea hacia arriba ella sola cuando no le cabe abajo.
+
+              Y el `<label>` pasa a `<div>`: la etiqueta se ata al
+              primer control atable de dentro y el disparador es un
+              `<button>`, de modo que el nombre va por `etiquetaAria`. */}
+
+          <div className="mb-3 block">
             <span className="mb-1 block text-xs font-medium">Asesor académico</span>
-            <select
-              value={asesor}
-              onChange={(e) => setAsesor(e.target.value)}
-              className={CLASE_CONTROL}
-            >
-              <option value="">Sin asignar</option>
-              {asesores.map((x) => (
-                <option key={x.id} value={x.id}>
-                  {x.nombre}
-                </option>
-              ))}
-            </select>
+            <Desplegable
+              alto={34}
+              etiquetaAria="Asesor académico"
+              valor={asesor}
+              opciones={[
+                { valor: "", etiqueta: "Sin asignar" },
+                ...asesores.map((x) => ({ valor: x.id, etiqueta: x.nombre })),
+              ]}
+              alElegir={setAsesor}
+            />
             <span className="mt-1 block text-xs text-texto-suave">
               {asesores.length === 0
+
                 ? "No hay ninguna cuenta de este gremio con permiso de escritura en «académico»: se le da en Usuarios."
                 : "Quien responde por el avance de este grupo. Es su nombre el que sale en Seguimiento de asesores."}
             </span>
-          </label>
+          </div>
+
 
           <div className="grid gap-3 sm:grid-cols-3">
             <label className="block">
@@ -944,25 +964,32 @@ function Grupo({
 
             {sesiones.map((x, i) => (
               <div key={i} className="mb-3 grid gap-3 sm:grid-cols-5">
-                <label className="block">
+                <div className="block">
                   <span className="mb-1 block text-xs font-medium">
                     Tipo
                     {LLEVA_DIA[x.tipo] &&
                       sesiones.filter((o) => LLEVA_DIA[o.tipo]).length > 1 &&
                       ` · día ${sesiones.filter((o) => LLEVA_DIA[o.tipo]).indexOf(x) + 1}`}
                   </span>
-                  <select
-                    value={x.tipo}
-                    onChange={(e) =>
-                      cambiar(i, { tipo: e.target.value as TipoDeSesion })
-                    }
-                    className={CLASE_CONTROL}
-                  >
-                    <option value="PRESENCIAL">Sesión presencial</option>
-                    <option value="SINCRONICA">Sesión sincrónica</option>
-                    <option value="PAT">Conexión PAT</option>
-                  </select>
-                </label>
+                  {/* La lista es MÁS ANCHA que su columna ---la rejilla
+                      es de cinco y «Sesión presencial» no cabe en un
+                      quinto---, y eso lo resuelve sola con `w-max`: no
+                      hace falta portal, porque lo que la rodea no la
+                      recorta. */}
+
+                  <Desplegable
+                    alto={34}
+                    etiquetaAria="Tipo de sesión"
+                    valor={x.tipo}
+                    opciones={[
+                      { valor: "PRESENCIAL", etiqueta: "Sesión presencial" },
+                      { valor: "SINCRONICA", etiqueta: "Sesión sincrónica" },
+                      { valor: "PAT", etiqueta: "Conexión PAT" },
+                    ]}
+                    alElegir={(valor) => cambiar(i, { tipo: valor as TipoDeSesion })}
+                  />
+                </div>
+
 
                 {/* El dia solo donde lo lleva. Pintarlo apagado
                     invitaria a llenarlo para nada. */}
@@ -987,21 +1014,23 @@ function Grupo({
                 {/* DONDE. Solo lo que cubre el grupo: un foro
                     hibrido se dicta en una sede aunque la accion
                     alcance seis departamentos. */}
-                <label className="block">
+                <div className="block">
                   <span className="mb-1 block text-xs font-medium">Dónde</span>
-                  <select
-                    value={x.ubicacionId}
-                    onChange={(e) => cambiar(i, { ubicacionId: e.target.value })}
-                    className={CLASE_CONTROL}
-                  >
-                    <option value="">Sin definir</option>
-                    {grupo.ubicaciones.map((u) => (
-                      <option key={u.ubicacionId} value={u.ubicacionId}>
-                        {bonito(u.nombre)}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                  <Desplegable
+                    alto={34}
+                    etiquetaAria="Dónde se dicta la sesión"
+                    valor={x.ubicacionId}
+                    opciones={[
+                      { valor: "", etiqueta: "Sin definir" },
+                      ...grupo.ubicaciones.map((u) => ({
+                        valor: u.ubicacionId,
+                        etiqueta: bonito(u.nombre),
+                      })),
+                    ]}
+                    alElegir={(valor) => cambiar(i, { ubicacionId: valor })}
+                  />
+                </div>
+
 
                 <label className="block">
                   <span className="mb-1 block text-xs font-medium">

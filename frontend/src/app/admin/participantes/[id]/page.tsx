@@ -9,6 +9,7 @@ import {
   useClasificacionDeNota,
 } from "@/components/admin/clasificacion-de-la-nota";
 import { ConfirmarBorrado } from "@/components/admin/confirmar-borrado";
+import { Desplegable } from "@/components/admin/desplegable";
 import {
   IconoBrecha,
   IconoCheck,
@@ -165,6 +166,34 @@ function Control({
         {etiqueta}
       </p>
       <div className="mt-1.5">{children}</div>
+    </div>
+  );
+}
+
+/**
+ * `Campo`, pero en `<div>`: el que lleva un desplegable dentro.
+ *
+ * `Campo` de `marco-admin` es un `<label>`, y una etiqueta se
+ * ata al primer control ATABLE que lleva dentro. El disparador
+ * del `Desplegable` es un `<button>`, que no lo es: el `label`
+ * se quedaria apuntando al vacio --un nombre que no nombra
+ * nada-- y el clic en el rotulo no haria nada, que es peor que
+ * no tener rotulo. El nombre se da entonces por `etiquetaAria`.
+ *
+ * No se toca `Campo`: con un `input` dentro el `<label>` SI
+ * sirve, y lo usan veinte pantallas.
+ */
+function CampoLista({
+  etiqueta,
+  children,
+}: {
+  etiqueta: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="block">
+      <span className="mb-1.5 block text-[12.5px] font-medium">{etiqueta}</span>
+      {children}
     </div>
   );
 }
@@ -1495,27 +1524,42 @@ function MoverDeEtapa({
     /// que descuadraba la barra. Va en `title`: quien lo
     /// necesite lo encuentra, y quien no, ve una barra limpia.
     <Control etiqueta="Mover de etapa" ancho="xl:col-span-2">
-        <select
-          className={CLASE_CONTROL}
+        {/* EL DESPLEGABLE DE LA CASA, no un `<select>`.
+            «No debe haber desplegables cuadrados, todos deben ser
+            redondeados» (cliente, 1 oct 2026): la lista de un
+            `<select>` la dibuja Windows, cuadrada y con su azul, y
+            ninguna regla de CSS llega ahi.
+
+            El `title` se muda a una envoltura: el `Desplegable` no
+            lo pasa al disparador, y ese texto --el porque de una
+            etapa que no se puede volver a elegir-- es justo lo que
+            aqui se consulta al pasar por encima. */}
+        <span
           title={
             !ETAPAS_A_MANO.includes(lead.etapa)
               ? `«${ETIQUETA_ETAPA[lead.etapa]}» la pone el sistema: se puede salir de ella, pero no volver.`
               : undefined
           }
-          value={lead.etapa}
-          onChange={(e) => mover(e.target.value as Etapa)}
+          className="block"
         >
-          {aMano.map((e) => (
-            <option
-              key={e}
-              value={e}
-              disabled={!ETAPAS_A_MANO.includes(e)}
-            >
-              {ETIQUETA_ETAPA[e]}
-              {ETAPAS_SALIDA.includes(e) ? " · salida" : ""}
-            </option>
-          ))}
-        </select>
+          <Desplegable
+            enPortal
+            etiquetaAria="Mover de etapa"
+            valor={lead.etapa}
+            alElegir={(x) => mover(x as Etapa)}
+            /// Sin marcador: la etapa SIEMPRE tiene valor --`aMano`
+            /// se encarga de que la de ahora este en la lista--, asi
+            /// que nunca se enseña el hueco.
+            opciones={aMano.map((e) => ({
+              valor: e,
+              etiqueta:
+                ETIQUETA_ETAPA[e] + (ETAPAS_SALIDA.includes(e) ? " · salida" : ""),
+              /// Las que pone el sistema se ven y no se eligen: se
+              /// puede salir de «Certificado», no volver a ella.
+              desactivada: !ETAPAS_A_MANO.includes(e),
+            }))}
+          />
+        </span>
     </Control>
   );
 }
@@ -1567,19 +1611,24 @@ function Revocar({
           punto de corte de ventana no sabe nada del hueco real, y
           este bloque solo se abre dentro del raíl estrecho. */}
       <div className="grid grid-cols-1 gap-3">
-        <Campo etiqueta="Por dónde lo pidió">
-          <select
-            className={CLASE_CONTROL}
-            value={canal}
-            onChange={(e) => setCanal(e.target.value as Canal)}
-          >
-            {Object.entries(ETIQUETA_CANAL).map(([valor, etiqueta]) => (
-              <option key={valor} value={valor}>
-                {etiqueta}
-              </option>
-            ))}
-          </select>
-        </Campo>
+        {/* `enPortal`: este bloque vive en el raíl de Acciones, y
+            ese panel lleva `overflow: hidden` para que su radio de
+            16 px recorte las bandas de dentro. Lo que sobresale de
+            un contenedor con `overflow` se recorta, así que sin
+            portal la lista de canales quedaba cortada contra el
+            canto del panel. */}
+        <CampoLista etiqueta="Por dónde lo pidió">
+          <Desplegable
+            enPortal
+            etiquetaAria="Por dónde lo pidió"
+            valor={canal}
+            alElegir={(x) => setCanal(x as Canal)}
+            opciones={Object.entries(ETIQUETA_CANAL).map(([valor, etiqueta]) => ({
+              valor,
+              etiqueta,
+            }))}
+          />
+        </CampoLista>
 
         <Campo etiqueta="Qué dijo" ayuda="Queda en el historial de el lead.">
           <input
@@ -1648,19 +1697,20 @@ function RegistrarAutorizacion({
           cada campo se quedaba en 170 y el desplegable cortaba
           su propio texto: «Lo autorizó de viva». */}
       <div className="space-y-3">
-        <Campo etiqueta="Cómo lo autorizó">
-          <select
-            className={CLASE_CONTROL}
-            value={canal}
-            onChange={(e) => setCanal(e.target.value as Canal)}
-          >
-            {Object.entries(ETIQUETA_CANAL).map(([valor, etiqueta]) => (
-              <option key={valor} value={valor}>
-                {etiqueta}
-              </option>
-            ))}
-          </select>
-        </Campo>
+        {/* Con `enPortal` por lo mismo que el de revocar: el panel
+            de Acciones es `overflow: hidden`. */}
+        <CampoLista etiqueta="Cómo lo autorizó">
+          <Desplegable
+            enPortal
+            etiquetaAria="Cómo lo autorizó"
+            valor={canal}
+            alElegir={(x) => setCanal(x as Canal)}
+            opciones={Object.entries(ETIQUETA_CANAL).map(([valor, etiqueta]) => ({
+              valor,
+              etiqueta,
+            }))}
+          />
+        </CampoLista>
 
         <Campo etiqueta="Dónde quedó la prueba" ayuda="Acta, correo, archivo, grabación…">
           <input
@@ -2063,18 +2113,27 @@ function Asesor({
       {/* `min-w-0` en el desplegable: sin el, un nombre largo
           empuja al boton fuera de la columna. */}
       <div className="flex items-center gap-2">
-        <select
-          className={`${CLASE_CONTROL} min-w-0 grow`}
-          value={asesorId}
-          onChange={(e) => setAsesorId(e.target.value)}
-        >
-          <option value="">Sin asignar</option>
-          {opciones.asesores.map((a) => (
-            <option key={a.id} value={a.id}>
-              {a.nombre}
-            </option>
-          ))}
-        </select>
+        {/* El `min-w-0 grow` pasa a una envoltura: el `Desplegable`
+            ya es `w-full` dentro de lo que se le dé. */}
+        <div className="min-w-0 grow">
+          <Desplegable
+            enPortal
+            etiquetaAria="Asesor"
+            marcador="Sin asignar"
+            valor={asesorId}
+            alElegir={setAsesorId}
+            opciones={[
+              /// «Sin asignar» es un valor y no un marcador vacío:
+              /// quitarle el asesor a un lead es una acción, y hay
+              /// que poder volver a ella.
+              { valor: "", etiqueta: "Sin asignar" },
+              ...opciones.asesores.map((a) => ({
+                valor: a.id,
+                etiqueta: a.nombre,
+              })),
+            ]}
+          />
+        </div>
 
         <Boton
           type="button"
