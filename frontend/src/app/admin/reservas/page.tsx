@@ -420,7 +420,7 @@ export default function PaginaReservas() {
           título» (cliente, 1 oct 2026). */}
       <Encabezado compacto titulo="Gestión y seguimiento de reservas">
         <ElegirConRotulo
-          rotulo="Cómo se mira"
+          rotulo="Seleccione la vista"
           valor={vista}
           opciones={[
             { valor: "organizacion", etiqueta: "Por organización" },
