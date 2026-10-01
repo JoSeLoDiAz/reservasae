@@ -2,7 +2,9 @@
 
 import { useState } from "react";
 
+import { Desplegable } from "@/components/admin/desplegable";
 import { Boton, Campo, CLASE_CONTROL } from "@/components/admin/marco-admin";
+
 import {
   ES_TEXTO,
   formulariosApi,
@@ -221,33 +223,48 @@ function Detalle({
                   : undefined
             }
           >
-            <select
-              value={datos.tipo}
-              disabled={esNucleo || conRespuestas}
-              onChange={(e) => cambiar("tipo", e.target.value as TipoPregunta)}
-              className={`${CLASE_CONTROL} disabled:opacity-60`}
-            >
-              {TIPOS.map((t) => (
-                <option key={t.valor} value={t.valor}>
-                  {t.etiqueta}
-                </option>
-              ))}
-            </select>
+            {/* El desplegable de la casa y no el `<select>` nativo.
+
+                La lista del nativo la dibuja el sistema operativo
+                ---cuadrada, en azul de Windows y sin que le llegue una
+                sola regla de CSS---, y «no debe haber desplegables
+                cuadrados, todos deben ser redondeados» (cliente, 1 oct
+                2026). La única forma de redondear la lista abierta es
+                no usar la del sistema.
+
+                El nombre va por `etiquetaAria`: `Campo` pinta su
+                etiqueta en un `<span>` dentro de un `<label>`, y aquí
+                dentro ya no hay un `<select>` del que colgarla.
+
+                `alto={34}` para medir lo mismo que los `input` de la
+                rejilla, que es lo que da `CLASE_CONTROL`. */}
+            <Desplegable
+              alto={34}
+              etiquetaAria="Tipo de respuesta"
+              valor={datos.tipo}
+              desactivado={esNucleo || conRespuestas}
+              opciones={TIPOS.map((t) => ({ valor: t.valor, etiqueta: t.etiqueta }))}
+              alElegir={(v) => cambiar("tipo", v as TipoPregunta)}
+            />
+
           </Campo>
 
           <Campo etiqueta="Sección">
-            <select
-              value={datos.seccionId}
-              onChange={(e) => cambiar("seccionId", e.target.value)}
-              className={CLASE_CONTROL}
-            >
-              <option value="">Sin sección</option>
-              {formulario.secciones.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.titulo}
-                </option>
-              ))}
-            </select>
+            {/* «Sin sección» sigue siendo UNA OPCIÓN de la lista y no el
+                `marcador`: no es un «elija algo», es el valor con el
+                que la pregunta se va al final del formulario, y hay que
+                poder volver a él después de haber elegido otra. */}
+            <Desplegable
+              alto={34}
+              etiquetaAria="Sección"
+              valor={datos.seccionId}
+              opciones={[
+                { valor: "", etiqueta: "Sin sección" },
+                ...formulario.secciones.map((s) => ({ valor: s.id, etiqueta: s.titulo })),
+              ]}
+              alElegir={(v) => cambiar("seccionId", v)}
+            />
+
           </Campo>
         </div>
 
@@ -320,37 +337,38 @@ function Detalle({
             permite el clásico «Otro → ¿cuál?».
           </p>
           <div className="mt-3 grid gap-3 sm:grid-cols-2">
-            <select
-              value={datos.dependeDePreguntaId}
-              onChange={(e) => {
-                cambiar("dependeDePreguntaId", e.target.value);
+            {/* «Mostrar siempre» es el valor de APAGADO de la condición,
+                no un marcador: tiene que poder elegirse para deshacer
+                una dependencia ya puesta. */}
+            <Desplegable
+              alto={34}
+              etiquetaAria="Pregunta de la que depende"
+              valor={datos.dependeDePreguntaId}
+              opciones={[
+                { valor: "", etiqueta: "Mostrar siempre" },
+                ...madres.map((p) => ({ valor: p.id, etiqueta: p.etiqueta.slice(0, 60) })),
+              ]}
+              alElegir={(v) => {
+                cambiar("dependeDePreguntaId", v);
                 cambiar("dependeDeValor", "");
               }}
-              className={CLASE_CONTROL}
-            >
-              <option value="">Mostrar siempre</option>
-              {madres.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.etiqueta.slice(0, 60)}
-                </option>
-              ))}
-            </select>
+            />
 
-            <select
-              value={datos.dependeDeValor}
-              disabled={!madre}
-              onChange={(e) => cambiar("dependeDeValor", e.target.value)}
-              className={`${CLASE_CONTROL} disabled:opacity-60`}
-            >
-              <option value="">…responde</option>
-              {madre?.opciones
-                .filter((o) => !o.archivada)
-                .map((o) => (
-                  <option key={o.id} value={o.valor}>
-                    {o.etiqueta}
-                  </option>
-                ))}
-            </select>
+
+            <Desplegable
+              alto={34}
+              etiquetaAria="Valor que activa la pregunta"
+              valor={datos.dependeDeValor}
+              desactivado={!madre}
+              opciones={[
+                { valor: "", etiqueta: "…responde" },
+                ...(madre?.opciones ?? [])
+                  .filter((o) => !o.archivada)
+                  .map((o) => ({ valor: o.valor, etiqueta: o.etiqueta })),
+              ]}
+              alElegir={(v) => cambiar("dependeDeValor", v)}
+            />
+
           </div>
           {madres.length === 0 && (
             <p className="mt-2 text-xs text-texto-suave">

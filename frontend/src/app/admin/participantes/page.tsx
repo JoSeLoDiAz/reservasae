@@ -4,8 +4,10 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import {
-  Aviso, CLASE_CONTROL, Tarjeta, useAdmin } from "@/components/admin/marco-admin";
-import { Cargando, MenuDeAcciones } from "@/components/admin/piezas";
+  Aviso, Tarjeta, useAdmin } from "@/components/admin/marco-admin";
+import { Desplegable } from "@/components/admin/desplegable";
+import {
+  Encabezado, Cargando, MenuDeAcciones } from "@/components/admin/piezas";
 import { CajonLead } from "@/components/admin/cajon-lead";
 import { ConfirmarBorrado } from "@/components/admin/confirmar-borrado";
 import { IconoCerrar } from "@/components/admin/iconos";
@@ -215,7 +217,19 @@ export default function PaginaParticipantes() {
   /// bandas vayan a sangre, y sin esto la barra de
   /// busqueda y la paginacion quedaban pegadas al canto.
   return (
-    <div className="flex min-h-0 grow flex-col gap-3 px-4 pt-3">
+    /// `pb-2`: LA LÍNEA DE RESPETO DE ABAJO. Estaba en cero y la barra
+    /// de desplazamiento horizontal de la tabla acababa tocando el pie
+    /// ---«la línea de respeto» (cliente, 1 oct 2026)---. Medido en las
+    /// nueve pantallas del panel: pasaba en Gestión de leads, Reservas,
+    /// Inscritos y Seguimiento del aula, que son justo las cuatro que
+    /// recorren en horizontal. Ocho píxeles despegan la barra sin que
+    /// vuelva a sobrar aire.
+    <div className="flex min-h-0 grow flex-col gap-3 px-4 pt-3 pb-2 [&>header]:mx-0 [&>header]:mb-0">
+      {/* CON TÍTULO, como el resto del panel. Era la pantalla más usada
+          del CRM y la única sin cabecera: lo que se estaba mirando solo
+          lo decía el menú de arriba, que se cierra al soltarlo. */}
+      <Encabezado compacto titulo="Gestión de leads" />
+
       {error && <Aviso tipo="error">{error}</Aviso>}
 
       {/* El embudo.
@@ -594,27 +608,42 @@ function AsignarLote({
   }
 
   return (
-    <label className="flex items-center gap-3 text-sm">
+    /* UN `<div>` y no un `<label>`: el disparador del `Desplegable`
+       es un `<button>`, y una etiqueta no se ata a un boton ---se
+       quedaria apuntando al vacio---. El nombre lo da `etiquetaAria`. */
+    <div className="flex items-center gap-3 text-sm">
       <span className="whitespace-nowrap">Asignar a</span>
-      <select
-        disabled={trabajando}
-        defaultValue=""
-        onChange={(e) => {
-          const v = e.target.value;
-          e.currentTarget.value = "";
-          if (v === "") return;
-          void asignar(v === "NADIE" ? null : v);
-        }}
-        className={`${CLASE_CONTROL} max-w-[13rem] py-1.5 text-sm`}
-      >
-        <option value="">Elija un asesor…</option>
-        {asesores.map((a) => (
-          <option key={a.id} value={a.id}>
-            {a.nombre}
-          </option>
-        ))}
-        <option value="NADIE">— Quitarles el asesor —</option>
-      </select>
-    </label>
+      <div className="max-w-[13rem] min-w-[11rem]">
+        {/* ESTO ES UNA ACCION, no un campo con valor: se elige un
+            asesor, se asigna el lote y el control vuelve a quedar en
+            blanco. De ahi el `valor=""` fijo ---nunca se queda
+            «puesto»--- y el marcador siempre a la vista.
+
+            SIN `enPortal`, y medido: esta barra NO vive dentro de la
+            `.caja-scroll` de la tabla ---va encima de ella---, asi que
+            el primer ancestro con `overflow` es el `<main>`, y la
+            lista cabe de sobra ahi. Con portal, ademas, hoy no se
+            puede elegir con el raton: el oyente de «clic fuera» del
+            `Desplegable` mira si el clic cae dentro de su propio
+            `div`, y la lista por portal vive en el `<body>`, asi que
+            el `mousedown` sobre una opcion cierra la lista antes de
+            que llegue el `click`. Con `absolute` la opcion si esta
+            dentro y se elige bien. */}
+        <Desplegable
+          valor=""
+          desactivado={trabajando}
+          etiquetaAria="Asignar los seleccionados a un asesor"
+          marcador="Elija un asesor…"
+          alElegir={(v) => {
+            if (v === "") return;
+            void asignar(v === "NADIE" ? null : v);
+          }}
+          opciones={[
+            ...asesores.map((a) => ({ valor: a.id, etiqueta: a.nombre })),
+            { valor: "NADIE", etiqueta: "— Quitarles el asesor —" },
+          ]}
+        />
+      </div>
+    </div>
   );
 }

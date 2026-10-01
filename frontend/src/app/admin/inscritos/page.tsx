@@ -123,7 +123,14 @@ export default function PaginaInscritos() {
 
       {/* De aquí abajo, el mismo canto que el recuadro del título: su
           `mx-4` contra este `px-4`. */}
-      <div className="flex min-h-0 grow flex-col gap-3 px-4">
+      /// `pb-2`: LA LÍNEA DE RESPETO DE ABAJO. Estaba en cero y la barra
+      /// de desplazamiento horizontal de la tabla acababa tocando el pie
+      /// ---«la línea de respeto» (cliente, 1 oct 2026)---. Medido en las
+      /// nueve pantallas del panel: pasaba en Gestión de leads, Reservas,
+      /// Inscritos y Seguimiento del aula, que son justo las cuatro que
+      /// recorren en horizontal. Ocho píxeles despegan la barra sin que
+      /// vuelva a sobrar aire.
+      <div className="flex min-h-0 grow flex-col gap-3 px-4 pb-2">
         {/* El aviso sube a la barra de arriba, y solo si el servidor
             deja de contestar. */}
         {vivos.desactualizado && (

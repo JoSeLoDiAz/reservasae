@@ -207,6 +207,51 @@ export function ventanaAnterior(
  * el enlace, en vez de enseñarlo muerto. Un control que no hace nada
  * al pulsarlo es peor que no tenerlo.
  */
+/**
+ * UN DESPLEGABLE CON SU RÓTULO, igual que «PERIODO».
+ *
+ * «Esto vacío sin título ni nada, de verdad?» y «esto igual
+ * desplegable al lado de Periodo, pero con título» (cliente, 1 oct
+ * 2026). Los interruptores de vista eran tiras de botones que se
+ * comían una fila entera; pasados a desplegable se quedaban sin
+ * nombre, y una casilla suelta que pone «Asesores de inscripciones»
+ * no dice si eso es lo que se mira o lo que se filtra.
+ *
+ * Reusa el `Desplegable` de la casa y el mismo rótulo de 10 px en
+ * versalitas del periodo, para que los dos se lean como la misma
+ * clase de control y no como dos inventos.
+ */
+export function ElegirConRotulo({
+  rotulo,
+  valor,
+  opciones,
+  alElegir,
+  ancho = "11.5rem",
+}: {
+  rotulo: string;
+  valor: string;
+  opciones: { valor: string; etiqueta: string }[];
+  alElegir: (v: string) => void;
+  ancho?: string;
+}) {
+  /// EL RÓTULO VA DENTRO, en la primera línea de la lista. Fuera
+  /// costaba sitio en la fila y gritaba; ver el porqué en `Desplegable`.
+  return (
+    <div style={{ minWidth: ancho }}>
+      {/* 44 px y no 30: el control lleva dos renglones ---el rótulo y
+          el valor---. Sigue entrando en la cabecera de 56. */}
+      <Desplegable
+        alto={44}
+        rotulo={rotulo}
+        etiquetaAria={rotulo}
+        valor={valor}
+        opciones={opciones}
+        alElegir={alElegir}
+      />
+    </div>
+  );
+}
+
 export function FiltroDePeriodo({
   periodo,
   alCambiar,
@@ -223,13 +268,13 @@ export function FiltroDePeriodo({
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <p className="text-[0.625rem] font-bold tracking-[0.08em] uppercase text-texto-suave">
-        Periodo
-      </p>
-
+      {/* SU RÓTULO VA DENTRO, como los demás: fuera eran dos alturas
+          distintas en la misma fila ---44 px el de la vista y 30 este---
+          y la cabecera se leía torcida. */}
       <div className="min-w-[11.5rem]">
         <Desplegable
-          alto={30}
+          alto={44}
+          rotulo="Periodo"
           etiquetaAria="Periodo"
           valor={periodo.rango}
           opciones={RANGOS_DEL_PANEL.map((r) => ({

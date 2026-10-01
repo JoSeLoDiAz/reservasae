@@ -47,11 +47,12 @@ import {
   type PorcionDonut,
 } from "@/components/admin/graficos";
 import {
+  ElegirConRotulo,
   FiltroDePeriodo,
   PERIODO_INICIAL,
   type Periodo as PeriodoElegido,
 } from "@/components/admin/filtro-de-periodo";
-import { Aviso } from "@/components/admin/marco-admin";
+import { Aviso, FiltrosDelInforme } from "@/components/admin/marco-admin";
 import { Bloque, Cargando, Vacio } from "@/components/admin/piezas";
 import { ErrorApi } from "@/lib/api";
 import {
@@ -994,7 +995,6 @@ function ComoLeer({ hayHistorico }: { hayHistorico: boolean }) {
   return (
     <Bloque
       titulo="Cómo leer estas cifras"
-      descripcion="Es un mínimo, no el total: saldrá menos que en Meta."
       plegable
     >
       <dl className="grid gap-x-8 gap-y-3 sm:grid-cols-2 xl:grid-cols-3">
@@ -1355,7 +1355,10 @@ export function TablaDeCortes({ datos, periodo }: { datos: EmbudoPublico; period
           1.100 px en blanco que el ojo tenía que cruzar para unir
           el nombre con su número. A 760 px el rótulo más largo cabe
           y las cifras quedan a su lado. */}
-      <table className="hidden w-full max-w-[760px] border-collapse sm:table print:table">
+      {/* CON CUADRÍCULA, como Control de inscritos: es la misma regla
+          de `globals.css` que usan `tabla-por-accion` y
+          `tabla-por-grupo`, no una copia. */}
+      <table className="tabla-cuadricula hidden w-full max-w-[760px] border-collapse sm:table print:table">
         <caption className="sr-only">Dispositivo, dirección y campaña</caption>
         <thead>
           <tr className="border-b border-borde">
@@ -1557,29 +1560,59 @@ function ComparadorDeFechas({
   nota?: React.ReactNode;
   alCambiarPeriodo: (p: PeriodoElegido) => void;
 }) {
-  const [abierto, setAbierto] = useState(false);
+  /**
+   * CONTRA QUÉ SE COMPARA, en un desplegable como el periodo.
+   *
+   * «Me encanta, pero ¿y esto? ¿Cómo haces para comparar dos fechas?»
+   * (cliente, 1 oct 2026), con el periodo ya en desplegable y al lado
+   * un botón y dos enlaces subrayados sueltos. Son tres formas de
+   * contestar UNA pregunta ---contra qué se compara---, así que van
+   * donde van las respuestas a una pregunta: en una lista.
+   *
+   * Es además lo que ya hace Control de inscritos, que lleva «PERIODO»
+   * y «COMPARAR CON» uno al lado del otro.
+   *
+   * `fechas` es el único que despliega algo: los otros dos ponen las
+   * cuatro fechas ellos solos y no hay nada que preguntar.
+   */
+  const [modo, setModo] = useState<"no" | "ayer" | "semana" | "fechas">("no");
+  const abierto = modo === "fechas";
 
   function limpiar() {
     alCambiarA({ desde: "", hasta: "" });
     alCambiarB({ desde: "", hasta: "" });
   }
 
-  function hoyContraAyer() {
-    alCambiarA({ desde: hoyISO(0), hasta: hoyISO(0) });
-    alCambiarB({ desde: hoyISO(1), hasta: hoyISO(1) });
-    setAbierto(true);
+  function elegirModo(v: string) {
+    setModo(v as typeof modo);
+    if (v === "no") limpiar();
+    else if (v === "ayer") {
+      alCambiarA({ desde: hoyISO(0), hasta: hoyISO(0) });
+      alCambiarB({ desde: hoyISO(1), hasta: hoyISO(1) });
+    } else if (v === "semana") {
+      alCambiarA({ desde: hoyISO(6), hasta: hoyISO(0) });
+      alCambiarB({ desde: hoyISO(13), hasta: hoyISO(7) });
+    } else {
+      /// `fechas`: se despliegan los dos calendarios vacíos y las pone
+      /// él. Vaciar lo que hubiera es a propósito: si no, al entrar se
+      /// verían las fechas del modo anterior como si las hubiera
+      /// elegido alguien.
+      limpiar();
+    }
   }
 
-  function semanaContraSemana() {
-    alCambiarA({ desde: hoyISO(6), hasta: hoyISO(0) });
-    alCambiarB({ desde: hoyISO(13), hasta: hoyISO(7) });
-    setAbierto(true);
-  }
+  /// LO QUE SE DESPLIEGA, que no cabe en una cabecera de 56 px: las
+  /// dos fechas del calendario. Solo entonces hay tarjeta: la nota
+  /// sola no la necesita ---«sin rebordes y sin que ocupe mucho
+  /// espacio la visual» (cliente, 1 oct 2026)---, que era un recuadro
+  /// entero para un renglón de letra chica.
+  const hayCaja = abierto;
 
   return (
-    <div className="rounded-2xl border border-borde bg-superficie p-4">
+    <>
+      <FiltrosDelInforme>
       <div className="flex flex-wrap items-center gap-2">
-        <div className="mr-1">
+        <div>
           {/* SIN `alComparar`: comparar aquí es lo de las dos fechas
               del calendario, que está al lado y es lo que pidió el
               cliente («hoy contra ayer, un día contra otro en
@@ -1597,41 +1630,35 @@ function ComparadorDeFechas({
             }}
           />
         </div>
-        <span className="mx-1 hidden h-5 w-px bg-borde sm:block" aria-hidden />
-        <button
-          type="button"
-          onClick={() => setAbierto((v) => !v)}
-          className="rounded-lg border border-campo-borde px-3 py-1.5 text-sm text-texto transition hover:bg-superficie-alterna"
-        >
-          {abierto ? "Ocultar la comparación" : "Comparar dos fechas"}
-        </button>
-        <button
-          type="button"
-          onClick={hoyContraAyer}
-          className="rounded-lg px-3 py-1.5 text-sm text-marca underline underline-offset-2"
-        >
-          Hoy contra ayer
-        </button>
-        <button
-          type="button"
-          onClick={semanaContraSemana}
-          className="rounded-lg px-3 py-1.5 text-sm text-marca underline underline-offset-2"
-        >
-          Últimos 7 días contra los 7 anteriores
-        </button>
-        {comparando && (
-          <button
-            type="button"
-            onClick={limpiar}
-            className="ml-auto rounded-lg px-3 py-1.5 text-sm text-texto-suave underline underline-offset-2"
-          >
-            Quitar la comparación
-          </button>
-        )}
+        {/* LA RAYA, A LA MEDIDA DEL CONTROL. «¿Mas larga, no, para que
+            quede como a medida?» (cliente, 1 oct 2026): media 20 px al
+            lado de dos desplegables de 44 y quedaba como una marca
+            suelta en medio de la fila. */}
+        <span className="mx-1 hidden h-11 w-px bg-borde sm:block" aria-hidden />
+        <ElegirConRotulo
+          rotulo="Comparar con"
+          valor={modo}
+          opciones={[
+            { valor: "no", etiqueta: "Sin comparar" },
+            { valor: "ayer", etiqueta: "Hoy contra ayer" },
+            { valor: "semana", etiqueta: "Últimos 7 días contra los 7 anteriores" },
+            { valor: "fechas", etiqueta: "Dos fechas que yo elija" },
+          ]}
+          alElegir={elegirModo}
+          ancho="14rem"
+        />
       </div>
+      </FiltrosDelInforme>
 
+      {hayCaja && (
+      /// SIN RELLENO CUANDO SOLO HAY NOTA: la nota trae el suyo. Con
+      /// el de la caja quedaba una banda vacia encima de una sola
+      /// linea de texto ---«¿esto que putas?» (cliente, 1 oct 2026)---,
+      /// que es lo que separaba la nota de la fila del periodo cuando
+      /// la fila vivia aqui. Ahora vive en la cabecera.
+      <div className={"rounded-2xl border border-borde bg-superficie" + (abierto ? " p-4" : "")}>
       {abierto && (
-        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-4 sm:grid-cols-2">
           <Periodo titulo="Periodo A" valor={a} alCambiar={alCambiarA} />
           <Periodo titulo="Contra el periodo B" valor={b} alCambiar={alCambiarB} />
         </div>
@@ -1647,12 +1674,19 @@ function ComparadorDeFechas({
       {/* La nota, a sangre dentro de la caja y bajo una raya: los
           márgenes negativos compensan el relleno de la caja para que la
           raya cruce de canto a canto. */}
-      {nota && (
+      {nota && abierto && (
         <div className="-mx-4 -mb-4 mt-4 border-t border-hairline px-4 py-3 text-[0.8125rem] leading-relaxed text-texto-suave">
           {nota}
         </div>
       )}
-    </div>
+      </div>
+      )}
+
+      {/* LA NOTA SOLA: sin recuadro y en una línea. */}
+      {nota && !abierto && (
+        <p className="px-1 text-[0.78125rem] leading-snug text-texto-suave">{nota}</p>
+      )}
+    </>
   );
 }
 

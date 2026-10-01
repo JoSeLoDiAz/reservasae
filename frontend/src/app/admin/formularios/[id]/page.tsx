@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { use, useCallback, useEffect, useState } from "react";
 
+import { Desplegable } from "@/components/admin/desplegable";
 import { EditorPregunta } from "@/components/admin/editor-pregunta";
 import {
   Aviso,
@@ -542,33 +543,40 @@ function NuevaPregunta({
       }}
       className="mt-4 space-y-4 rounded-lg border border-borde bg-fondo p-4"
     >
+      {/* El desplegable de la casa, no el nativo: la lista del
+          `<select>` la dibuja el sistema operativo ---cuadrada y con
+          su azul--- y no hay CSS que llegue ahi. */}
       <Campo
+        comoDiv
         etiqueta="¿Es un campo que el sistema necesita?"
         ayuda={
           definicion?.descripcion ??
           "Los campos del sistema alimentan la reserva (NIT, cupos, curso...). El resto son preguntas libres."
         }
       >
-        <select
-          value={campoNucleo}
-          onChange={(e) => {
-            setCampoNucleo(e.target.value);
-            const d = disponibles.find((c) => c.campo === e.target.value);
+        <Desplegable
+          valor={campoNucleo}
+          etiquetaAria="¿Es un campo que el sistema necesita?"
+          /// «No, es una pregunta libre» va como OPCION de verdad y no
+          /// como marcador: el valor vacio significa algo aqui
+          /// ---pregunta libre--- y tiene que poder volverse a elegir.
+          alElegir={(v) => {
+            setCampoNucleo(v);
+            const d = disponibles.find((c) => c.campo === v);
             if (d) {
               setTipo(d.tipo);
               if (!etiqueta) setEtiqueta(d.etiquetaSugerida);
             }
           }}
-          className={CLASE_CONTROL}
-        >
-          <option value="">No, es una pregunta libre</option>
-          {disponibles.map((c) => (
-            <option key={c.campo} value={c.campo}>
-              {c.etiquetaSugerida}
-              {c.obligatorioParaPublicar ? " (obligatorio)" : ""}
-            </option>
-          ))}
-        </select>
+          opciones={[
+            { valor: "", etiqueta: "No, es una pregunta libre" },
+            ...disponibles.map((c) => ({
+              valor: c.campo,
+              etiqueta:
+                c.etiquetaSugerida + (c.obligatorioParaPublicar ? " (obligatorio)" : ""),
+            })),
+          ]}
+        />
       </Campo>
 
       <Campo etiqueta="Pregunta">
@@ -581,6 +589,7 @@ function NuevaPregunta({
       </Campo>
 
       <Campo
+        comoDiv
         etiqueta="Tipo de respuesta"
         ayuda={
           definicion
@@ -588,18 +597,21 @@ function NuevaPregunta({
             : TIPOS.find((t) => t.valor === tipo)?.ayuda
         }
       >
-        <select
-          value={tipo}
-          disabled={Boolean(definicion)}
-          onChange={(e) => setTipo(e.target.value as TipoPregunta)}
-          className={`${CLASE_CONTROL} disabled:opacity-60`}
-        >
-          {TIPOS.map((t) => (
-            <option key={t.valor} value={t.valor}>
-              {t.etiqueta}
-            </option>
-          ))}
-        </select>
+        {/* La ayuda de cada tipo va como segunda linea de su opcion:
+            antes solo se leia la del tipo YA elegido, debajo del
+            campo, asi que habia que elegir a ciegas para saber que
+            hacia cada uno. */}
+        <Desplegable
+          valor={tipo}
+          desactivado={Boolean(definicion)}
+          etiquetaAria="Tipo de respuesta"
+          alElegir={(v) => setTipo(v as TipoPregunta)}
+          opciones={TIPOS.map((t) => ({
+            valor: t.valor,
+            etiqueta: t.etiqueta,
+            detalle: t.ayuda,
+          }))}
+        />
       </Campo>
 
       <div className="flex gap-3">

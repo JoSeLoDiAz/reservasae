@@ -22,7 +22,6 @@
  * pantalla y cualquier aviso futuro no puedan discrepar.
  */
 
-import Link from "next/link";
 import { useCallback, useMemo, useState } from "react";
 
 import {
@@ -43,6 +42,7 @@ import { useAdmin } from "./marco-admin";
 import { useToast } from "./toast";
 import {
   etiquetaDelAnterior,
+  ElegirConRotulo,
   FiltroDePeriodo,
   PERIODO_INICIAL,
   ventanaAnterior,
@@ -53,6 +53,7 @@ import { n } from "./graficos";
 import { Aviso } from "./marco-admin";
 import { SelectorBuscable } from "./selector-buscable";
 import { CifraCompacta, Encabezado, Esqueleto, Vacio } from "./piezas";
+import { RepartoDiario, type AsesorDelReparto } from "./reparto-diario";
 import { type Columna, Tabla } from "./tabla";
 
 /**
@@ -85,6 +86,34 @@ type Subvista =
 /// SIN FRASE AL LADO (cliente, 23 sep 2026). Cada tabla ya dice contra
 /// qué fecha corre en su propia descripción y en su pie; repetirlo
 /// arriba costaba un renglón y no añadía nada.
+/**
+ * RESUMEN O CALENDARIO, en un desplegable.
+ *
+ * Dos botones ocupaban una banda entera de la pantalla para decir dos
+ * palabras. Aquí va al lado de «Descargar en Excel», en la barra que
+ * ya existe, y no cuesta ni un pixel de alto.
+ */
+function ElegirComoSeVe({
+  valor,
+  alCambiar,
+}: {
+  valor: "resumen" | "calendario";
+  alCambiar: (v: "resumen" | "calendario") => void;
+}) {
+  return (
+    <ElegirConRotulo
+      rotulo="Seleccione la vista"
+      valor={valor}
+      opciones={[
+        { valor: "resumen", etiqueta: "Resumen" },
+        { valor: "calendario", etiqueta: "Calendario" },
+      ]}
+      alElegir={(v) => alCambiar(v as "resumen" | "calendario")}
+      ancho="8.5rem"
+    />
+  );
+}
+
 const SUBVISTAS: Array<{ clave: Subvista; etiqueta: string }> = [
   { clave: "inscripciones", etiqueta: "Asesores de inscripciones" },
   { clave: "academicos", etiqueta: "Asesores académicos" },
@@ -210,6 +239,14 @@ type ConPeriodo = {
 export function PanelAsesores() {
   const [subvista, setSubvista] = useState<Subvista>("inscripciones");
 
+  /**
+   * QUÉ SE MIRA EN «Asesores de inscripciones»: el resumen o el
+   * calendario. Vive AQUÍ y no dentro de la subvista porque su
+   * interruptor comparte barra con el periodo, y la barra es de esta
+   * pantalla.
+   */
+  const [comoSeVe, setComoSeVe] = useState<"resumen" | "calendario">("resumen");
+
   /// EL PERIODO VIVE AQUÍ, NO DENTRO DE CADA SUBVISTA: «en todos los
   /// tableros debo tener filtros» (cliente, 27 sep 2026), y un filtro
   /// que se reinicia al cambiar de pestaña obliga a elegirlo tres
@@ -250,46 +287,59 @@ export function PanelAsesores() {
       {/* SIN FRASE DEBAJO DEL TÍTULO (cliente, 23 sep 2026). Cada
           bloque ya dice lo suyo, y una segunda explicación arriba
           costaba veinte píxeles de alto en todas las pantallas. */}
-      <Encabezado compacto titulo="Seguimiento de asesores" />
+      {/* LAS CUATRO SUBVISTAS, EN UN DESPLEGABLE AL LADO DEL TÍTULO.
 
-      {/* LAS DOS SUBVISTAS, EN UNA SOLA FILA con su frase al lado.
-          Iba debajo, a todo el ancho, y eso partía la caja en dos
-          renglones para decir siete palabras: espacio vertical que se
-          gana sin perder nada. */}
-      {/* EL PERIODO, EN LA MISMA CAJA QUE LAS SUBVISTAS y no en una
-          tarjeta propia: es un solo control para las tres, y en su
-          propio bloque se leería como si fuera de la pestaña abierta.
-          Con `justify-between` el selector queda a la izquierda y el
-          periodo a la derecha; en pantalla estrecha el `wrap` lo baja
-          a su propio renglón. */}
-      <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-borde bg-superficie px-2 py-1.5">
-        <div className="flex flex-wrap gap-1">
-          {SUBVISTAS.map((s) => (
-            <button
-              key={s.clave}
-              type="button"
-              onClick={() => setSubvista(s.clave)}
-              className={
-                "rounded-lg px-3 py-1 text-[0.8125rem] font-medium transition " +
-                (subvista === s.clave
-                  ? "bg-marca text-marca-texto"
-                  : "text-texto-suave hover:bg-superficie-alterna hover:text-texto")
-              }
-            >
-              {s.etiqueta}
-            </button>
-          ))}
-        </div>
+          «No se puede organizado al frente del título: Seguimiento de
+          asesores» (cliente, 30 sep 2026). Ocupaban una caja propia
+          debajo, con su borde, para decir cuatro palabras.
 
+          Van en el encabezado y NO por `AccionesDePagina`: ese portal
+          escribe en la barra del MENÚ, y al probarlo las cuatro se
+          montaron encima de «Formularios» y «Configuración».
+
+          Y EL PERIODO VA CON ELLAS, en la misma fila: «no sé si esto
+          como periodo para que ambos queden en la misma fila»
+          (cliente, 1 oct 2026). Solo él ocupaba una banda entera de
+          la pantalla, y en tres de las cuatro subvistas esa banda no
+          llevaba nada más. */}
+      <Encabezado compacto titulo="Seguimiento de asesores">
+        {/* EN DESPLEGABLE, no en cuatro botones: «¿no entendiste que
+            esto en desplegable?» (cliente, 1 oct 2026). Las cuatro
+            etiquetas son largas y se comían la fila del título entera;
+            una sola casilla dice lo mismo y deja sitio al periodo. */}
+        <ElegirConRotulo
+          rotulo="Seleccione el informe"
+          valor={subvista}
+          opciones={SUBVISTAS.map((s) => ({ valor: s.clave, etiqueta: s.etiqueta }))}
+          alElegir={(v) => setSubvista(v as Subvista)}
+          ancho="13.5rem"
+        />
+        {/* RESUMEN O CALENDARIO, EN LA FILA DEL TÍTULO: «déjalo sobre
+            la fila de: Seguimiento de asesores» (cliente, 1 oct 2026).
+            Estaba en la barra de la tabla, al lado de «Descargar en
+            Excel», y ahí se leía como una opción de la tabla cuando lo
+            que hace es cambiar la pantalla entera ---con el calendario
+            no hay tabla ninguna---.
+
+            Solo en la primera subvista: las otras tres no eligen
+            vista. */}
+        {subvista === "inscripciones" && (
+          <ElegirComoSeVe valor={comoSeVe} alCambiar={setComoSeVe} />
+        )}
         <FiltroDePeriodo periodo={periodo} alCambiar={setPeriodo} />
-      </div>
+      </Encabezado>
 
       {/* LAS DOS VENTANAS BAJAN A LAS CUATRO. Se pasan los objetos ya
           resueltos y no el periodo: así la subvista no tiene que saber
           qué es «el mes pasado» ni cuál es su anterior, solo pedir lo
           que le digan. */}
       {subvista === "inscripciones" && (
-        <DeInscripciones {...{ ventana, ventanaAntes, rotuloAnterior }} />
+        <DeInscripciones
+          {...{ ventana, ventanaAntes, rotuloAnterior }}
+          /// EL CUADRO DE DIANITA LLEVA A DONDE SALEN SUS CIFRAS.
+          alIrALaProyeccion={() => setSubvista("proyeccion")}
+          comoSeVe={comoSeVe}
+        />
       )}
       {subvista === "academicos" && (
         <Academicos {...{ ventana, ventanaAntes, rotuloAnterior }} />
@@ -363,7 +413,17 @@ function vistoDe(f: FilaDeAsesor, accion: string): Vista["visto"] | null {
 /// de «Sin asesor asignado», y dos nulos no se encuentran en un `Map`.
 const llaveDeAsesor = (f: { asesorId: string | null }) => f.asesorId ?? "sin-asesor";
 
-function DeInscripciones({ ventana, ventanaAntes, rotuloAnterior }: ConPeriodo) {
+function DeInscripciones({
+  ventana,
+  ventanaAntes,
+  rotuloAnterior,
+  alIrALaProyeccion,
+  comoSeVe,
+}: ConPeriodo & {
+  alIrALaProyeccion?: () => void;
+  /// Lo decide la barra de arriba, que es donde vive su interruptor.
+  comoSeVe: "resumen" | "calendario";
+}) {
   /// La clave lleva el periodo dentro: sin eso, cambiarlo no vuelve
   /// a pedir y la tabla se queda enseñando el periodo de antes. Y
   /// lleva TAMBIÉN el tramo con el que se compara, que es otro dato
@@ -376,18 +436,33 @@ function DeInscripciones({ ventana, ventanaAntes, rotuloAnterior }: ConPeriodo) 
   /// instante la tabla enseñaría el periodo nuevo contra el anterior
   /// viejo: dos cifras que no son comparables con cara de serlo.
   const cargar = useCallback(
-    async (): Promise<{ ahora: FilaDeAsesor[]; antes: FilaDeAsesor[] | null }> => {
-      const [ahora, antes] = await Promise.all([
+    async (): Promise<{
+      ahora: FilaDeAsesor[];
+      antes: FilaDeAsesor[] | null;
+      proyeccion: FilaDeProyeccion[];
+    }> => {
+      const [ahora, antes, proyeccion] = await Promise.all([
         crmApi.asesoresDeInscripciones(ventana),
         ventanaAntes ? crmApi.asesoresDeInscripciones(ventanaAntes) : null,
+        crmApi.proyeccionDeInscripciones(ventana),
       ]);
-      return { ahora, antes };
+      return { ahora, antes, proyeccion };
     },
     [ventana, ventanaAntes],
   );
-  const vivos = useDatosVivos<{ ahora: FilaDeAsesor[]; antes: FilaDeAsesor[] | null }>(
-    cargar,
-    { clave: `asesores-inscripciones-${clave}-${claveAntes}` },
+  const vivos = useDatosVivos<{
+    ahora: FilaDeAsesor[];
+    antes: FilaDeAsesor[] | null;
+    proyeccion: FilaDeProyeccion[];
+  }>(cargar, { clave: `asesores-inscripciones-${clave}-${claveAntes}` });
+
+  /// LO QUE ALIMENTA EL CUADRO DE DIANITA: lo que falta por cubrir,
+  /// hasta cuándo, y los asesores con nombre. Sale de la proyección
+  /// que viaja en la misma consulta, así que las dos mitades de esta
+  /// pantalla no pueden decir cosas distintas.
+  const reparto = repartoDeLaProyeccion(
+    vivos.datos?.proyeccion ?? [],
+    vivos.datos?.ahora ?? [],
   );
 
   /// EL FILTRO POR ACCIÓN, SIN TOCAR EL SERVIDOR (cliente, 23 sep
@@ -688,7 +763,9 @@ function DeInscripciones({ ventana, ventanaAntes, rotuloAnterior }: ConPeriodo) 
         Es la misma `Tabla` de Gestión de leads --con su buscador, sus
         filtros por columna, el selector de columnas y la descarga--,
         así que montada igual se ve igual. */}
+    {comoSeVe === "resumen" && (
     <Tabla
+      cuadricula
       /// EL NOMBRE CAMBIA PORQUE CAMBIÓ EL ORDEN DE LAS COLUMNAS.
       ///
       /// La tabla graba en el navegador qué columnas se ven Y EN QUÉ
@@ -748,8 +825,34 @@ function DeInscripciones({ ventana, ventanaAntes, rotuloAnterior }: ConPeriodo) 
       }
     />
 
-    {desglosado && (
+    )}
+
+    {comoSeVe === "resumen" && desglosado && (
       <DesgloseDelAsesor fila={desglosado} alCerrar={() => setDesglosado(null)} />
+    )}
+
+    {/* EL CUADRO DE DIANITA, AQUÍ Y NO EN LA OTRA SUBVISTA.
+
+        Lo puse primero colgado de «Proyección Inscripciones», que es
+        de donde salen sus cifras, y el cliente lo pidió AQUÍ (30 sep
+        2026). Tiene razón de sobra: esta es la pantalla del equipo, y
+        las dos mitades contestan la misma pregunta por los dos lados
+        ---arriba lo que cada quien lleva hecho, abajo lo que le toca
+        por día para llegar---. Separadas hay que acordarse de mirar
+        las dos.
+
+        Se MUEVE, no se copia: dos cuadros iguales en dos pantallas
+        acaban discrepando el día que uno se cambie y el otro no. */}
+    {comoSeVe === "calendario" && (
+    <RepartoDiario
+      meta={reparto.meta}
+      queEs="cupos por cubrir"
+      asesores={reparto.asesores}
+      cierre={reparto.cierre}
+      alIrALaProyeccion={alIrALaProyeccion}
+      vencidas={reparto.vencidas}
+      faltaEnVencidas={reparto.faltaEnVencidas}
+    />
     )}
     </>
   );
@@ -876,15 +979,6 @@ function Academicos({ ventana, ventanaAntes, rotuloAnterior }: ConPeriodo) {
         <p className="font-semibold text-titulo">
           Ningún grupo tiene asesor académico asignado todavía.
         </p>
-        <p className="mt-1 text-texto-suave">
-          Por eso toda la gente sale en una sola fila. Se asigna en{" "}
-          <Link href="/admin/acciones/cronograma" className="font-medium underline">
-            Acciones de formación · Cronograma
-          </Link>
-          : se abre la acción, se entra a «Editar grupo» y ahí está «Asesor
-          académico». En cuanto un grupo tenga el suyo, aparece aquí con su
-          carga.
-        </p>
       </div>
     )}
 
@@ -900,6 +994,7 @@ function Academicos({ ventana, ventanaAntes, rotuloAnterior }: ConPeriodo) {
         y la caja sobra, que es lo que la dejaba «metida feo» al lado
         de su hermana. Las filas y las columnas son las mismas. */}
     <Tabla
+      cuadricula
       id="asesores-academicos"
       columnas={columnas}
       filas={datos}
@@ -1089,18 +1184,25 @@ function Proyeccion({ ventana, ventanaAntes, rotuloAnterior }: ConPeriodo) {
     async (): Promise<{
       ahora: FilaDeProyeccion[];
       antes: FilaDeProyeccion[] | null;
+      equipo: FilaDeAsesor[];
     }> => {
-      const [ahora, antes] = await Promise.all([
+      /// EL EQUIPO VIENE EN LA MISMA CONSULTA. El cuadro de Dianita va
+      /// por NOMBRE ---Julieth, Kathe---, no por un número: una meta
+      /// con nombre se le pide a alguien, y una meta «entre dos
+      /// asesores» no se le pide a nadie.
+      const [ahora, antes, equipo] = await Promise.all([
         crmApi.proyeccionDeInscripciones(ventana),
         ventanaAntes ? crmApi.proyeccionDeInscripciones(ventanaAntes) : null,
+        crmApi.asesoresDeInscripciones(ventana),
       ]);
-      return { ahora, antes };
+      return { ahora, antes, equipo };
     },
     [ventana, ventanaAntes],
   );
   const vivos = useDatosVivos<{
     ahora: FilaDeProyeccion[];
     antes: FilaDeProyeccion[] | null;
+    equipo: FilaDeAsesor[];
   }>(cargar, {
     clave: `proyeccion-${JSON.stringify(ventana)}-${JSON.stringify(ventanaAntes)}`,
   });
@@ -1265,41 +1367,9 @@ function Proyeccion({ ventana, ventanaAntes, rotuloAnterior }: ConPeriodo) {
           pantalla todos los días: «con clic despliegue y con clic
           oculte, ocupa mucho espacio» (cliente, 27 sep 2026). Cerrada
           es un renglón; se abre el día que hace falta. */}
-      <details className="group rounded-lg border border-borde bg-superficie text-[0.8125rem] text-texto-suave">
-        <summary className="sin-aro flex cursor-pointer list-none items-center gap-2 px-4 py-2 font-semibold text-titulo select-none">
-          <span className="text-texto-suave transition group-open:rotate-90">›</span>
-          Cómo se lee esta tabla
-        </summary>
-        <ul className="space-y-1 px-4 pt-1 pb-3">
-          <li>
-            <strong className="font-medium text-titulo">Meta diaria</strong> — cuántos
-            hay que inscribir cada día, de lunes a sábado, para cubrir lo que falta
-            antes de que cierre. Sube sola si un día no se cumple.
-          </li>
-          <li>
-            <strong className="font-medium text-titulo">Terminará con</strong> — con
-            cuántos inscritos acaba esta acción si sigue al ritmo de las dos últimas
-            semanas. Es una previsión, no una promesa: si el ritmo cambia, cambia.
-          </li>
-          <li>
-            <strong className="font-medium text-titulo">Conversión</strong> — de cada
-            cien personas interesadas, cuántas acaban inscritas. Cuando una acción
-            tiene pocos interesados se usa el promedio de todas, y la columna lo dice.
-          </li>
-          <li>
-            <strong className="font-medium text-titulo">Leads que faltan</strong> —
-            cuántos interesados NUEVOS hay que conseguir. Ya están descontados los que
-            hay sin atender, porque esos no hay que volver a buscarlos.
-          </li>
-          <li>
-            <strong className="font-medium text-titulo">¿Alcanza?</strong> — si con esa
-            previsión se llega a los cupos comprometidos. «Apretado» es que llega por
-            menos de un diez por ciento, que cualquier semana floja se come.
-          </li>
-        </ul>
-      </details>
 
       <Tabla
+        cuadricula
         id="proyeccion-metas"
         columnas={columnas}
         filas={datos}
@@ -1307,8 +1377,118 @@ function Proyeccion({ ventana, ventanaAntes, rotuloAnterior }: ConPeriodo) {
         porPagina={25}
         vacio="Aquí aparece cada acción de formación en cuanto tenga gente detrás."
       />
+
+      {/* EL CUADRO DE DIANITA YA NO ESTÁ AQUÍ: bajó a «Asesores de
+          inscripciones» (cliente, 30 sep 2026). Nació colgado de esta
+          tabla ---es de donde salen sus cifras--- pero la pantalla del
+          equipo es la otra, y allí las dos mitades contestan la misma
+          pregunta por los dos lados. Se movió, no se copió. */}
     </>
   );
+}
+
+/**
+ * LO QUE ALIMENTA EL CUADRO DE DIANITA.
+ *
+ * Sale de las MISMAS filas que pinta la tabla de arriba ---no de otra
+ * consulta--- y por eso las dos no pueden decir cosas distintas.
+ *
+ *   - LA META: todo lo que falta por cubrir, sumando las acciones.
+ *   - EL CIERRE: el MÁS PRÓXIMO de todas, porque es el primero que
+ *     obliga. Repartir hasta el más lejano daría una cifra diaria
+ *     cómoda y falsa.
+ *   - LOS ASESORES: los de verdad, con nombre.
+ *
+ * LAS ACCIONES CERRADAS O YA CUBIERTAS NO ENTRAN: ni suman lo que les
+ * falta ---no les falta nada que se pueda hacer--- ni adelantan el
+ * cierre. Sin esta regla, una acción vencida la semana pasada tiraría
+ * el cierre hacia atrás y el cuadro no tendría ni un día donde
+ * repartir.
+ *
+ * Y LA FILA «SIN ASESOR ASIGNADO» NO ES UNA PERSONA: no se le puede
+ * pedir una meta. Contarla repartiría el trabajo entre un asesor de
+ * más y dejaría a los de verdad por debajo de lo que les toca.
+ */
+function repartoDeLaProyeccion(
+  filas: FilaDeProyeccion[],
+  equipo: FilaDeAsesor[],
+): {
+  meta: number;
+  cierre: Date | null;
+  asesores: AsesorDelReparto[];
+  /// Cuántas acciones entran en el reparto y cuántas se quedan
+  /// fuera por tener el cierre vencido. Hacen falta para poder
+  /// explicar en pantalla por qué esta cifra no es la de arriba.
+  vigentes: number;
+  vencidas: number;
+  faltaEnVencidas: number;
+} {
+  /**
+   * LA FECHA QUE FIJA EL ADMINISTRADOR MANDA SOBRE LA DEL CRONOGRAMA.
+   *
+   * Es la que él teclea en esta misma tabla, y existe justo para
+   * cuando el cronograma se quedó viejo.
+   */
+  const cierreDe = (f: FilaDeProyeccion): Date | null => {
+    const cuando = f.cierreProyeccion ?? f.cierre;
+    if (!cuando) return null;
+    const d = new Date(`${cuando}T00:00:00.000Z`);
+    return Number.isNaN(d.getTime()) ? null : d;
+  };
+
+  /**
+   * QUÉ ACCIÓN ENTRA EN EL REPARTO, y por qué no se mira el veredicto.
+   *
+   * Mirarlo era lo primero que hice y estaba mal: el veredicto lo
+   * calcula el servidor con la fecha del CRONOGRAMA, así que una
+   * acción cuyo cronograma venció en julio sale «CERRADO» aunque el
+   * administrador le haya puesto a mano un cierre en octubre. Con el
+   * filtro por veredicto, esa acción se caía ANTES de que nadie
+   * mirara su fecha nueva, y el cuadro decía «no hay fecha de cierre»
+   * teniéndola a dos columnas de distancia. Lo vi en pruebas.
+   *
+   * Así que se juzga con la MISMA fecha con la que se va a repartir:
+   * entra la que tenga algo que cubrir y un cierre que no haya
+   * pasado.
+   */
+  const hoy = new Date();
+  const vivas = filas.filter((f) => {
+    if (f.faltan <= 0) return false;
+    const d = cierreDe(f);
+    return d !== null && d.getTime() >= hoy.getTime();
+  });
+
+  const meta = vivas.reduce((a, f) => a + f.faltan, 0);
+
+  let cierre: Date | null = null;
+  for (const f of vivas) {
+    const d = cierreDe(f);
+    if (d && (!cierre || d < cierre)) cierre = d;
+  }
+
+  const asesores = equipo
+    .filter((a) => a.asesorId !== null)
+    .map((a) => ({ id: a.asesorId as string, nombre: a.nombre }));
+
+  /// LO QUE SE QUEDA FUERA, contado para decirlo.
+  ///
+  /// «Pilas, porque debe estar amarrado a esto» (cliente, 30 sep
+  /// 2026). Lo está ---la meta sale de las mismas filas que pinta
+  /// Proyección--- pero el cuadro dice 1.332 donde la tabla de
+  /// arriba suma 3.965, y sin explicación eso parece un error. No lo
+  /// es: trece de las quince acciones tienen el cierre vencido y no
+  /// se pueden repartir entre días que ya pasaron. Repartirlas sería
+  /// inventar un plazo.
+  const fueraDePlazo = filas.filter((f) => f.faltan > 0 && !vivas.includes(f));
+
+  return {
+    meta,
+    cierre,
+    asesores,
+    vigentes: vivas.length,
+    vencidas: fueraDePlazo.length,
+    faltaEnVencidas: fueraDePlazo.reduce((a, f) => a + f.faltan, 0),
+  };
 }
 
 /**
@@ -1702,7 +1882,10 @@ const columnasDeProyeccion = (
     /// EL BOTÓN GUARDAR de la fila. Fija: no se puede quitar, porque
     /// sin él no hay cómo guardar lo que se edita.
     clave: "guardar",
-    titulo: "",
+    /// CON TÍTULO: «¿acá cuál es el título?» (cliente, 1 oct 2026).
+    /// Una columna sin rótulo deja el hueco de la cabecera en blanco
+    /// y parece que falta algo, sobre todo con la cuadrícula puesta.
+    titulo: "Guardar cambios",
     ancho: "128px",
     fija: true,
     valor: () => "",
@@ -1849,41 +2032,9 @@ function ProyeccionAcademica({ ventana, ventanaAntes, rotuloAnterior }: ConPerio
 
       {comparando && <ContraQue rotulo={rotuloAnterior} />}
 
-      <details className="group rounded-lg border border-borde bg-superficie text-[0.8125rem] text-texto-suave">
-        <summary className="sin-aro flex cursor-pointer list-none items-center gap-2 px-4 py-2 font-semibold text-titulo select-none">
-          <span className="text-texto-suave transition group-open:rotate-90">›</span>
-          Cómo se lee esta tabla
-        </summary>
-        <ul className="space-y-1 px-4 pt-1 pb-3">
-          <li>
-            <strong className="font-medium text-titulo">En el aula</strong> — cuánta
-            gente entró a formarse. Es contra esto que se mide todo lo demás: a
-            quien nunca entró no se le puede certificar.
-          </li>
-          <li>
-            <strong className="font-medium text-titulo">Ya no certifican</strong> —
-            los que no aprobaron, desertaron, abandonaron o se retiraron. No son
-            pendientes: no van a volver, y contarlos como tales pediría un
-            imposible.
-          </li>
-          <li>
-            <strong className="font-medium text-titulo">Meta diaria</strong> —
-            cuántos hay que certificar cada día, de lunes a sábado, para llegar
-            antes de que acabe el curso.
-          </li>
-          <li>
-            <strong className="font-medium text-titulo">Terminará con</strong> —
-            cuántos certificados habrá al final si se sigue al ritmo de las dos
-            últimas semanas.
-          </li>
-          <li>
-            <strong className="font-medium text-titulo">¿Alcanza?</strong> — si con
-            esa previsión se certifica a todos los que aún pueden.
-          </li>
-        </ul>
-      </details>
 
       <Tabla
+        cuadricula
         id="proyeccion-academica"
         columnas={columnas}
         filas={datos}

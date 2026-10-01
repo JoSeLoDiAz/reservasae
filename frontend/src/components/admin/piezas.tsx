@@ -137,7 +137,7 @@ export function Bloque({
   if (plegable) {
     return (
       <details className="group bloque-entero rounded-lg border border-borde bg-superficie">
-        <summary className="sin-aro cabecera-de-bloque flex cursor-pointer list-none items-start justify-between gap-3 rounded-t-[7px] bg-marca-suave px-7 py-3 select-none group-open:border-b group-open:border-borde">
+        <summary className="sin-aro cabecera-de-bloque flex cursor-pointer list-none items-center justify-between gap-3 rounded-t-[7px] bg-marca-suave px-7 py-3 select-none group-open:border-b group-open:border-borde">
           <div className="min-w-0">
             {titulo && (
               <h2 className="text-[0.875rem] font-semibold text-titulo">{titulo}</h2>
@@ -389,8 +389,17 @@ export function Encabezado({
     /// que separarse del canto: de ahí el `mx-3`.
     <header
       className={
-        "mx-4 mb-2 flex flex-wrap items-start justify-between gap-4 rounded-2xl border border-borde bg-superficie px-7 " +
-        (compacto ? "pt-[13px] pb-[11px]" : "pt-[26px] pb-[22px]")
+/// `items-center` Y NO `items-start`: «títulos centrados, o sea se
+        /// ve como muy arriba» (cliente, 1 oct 2026). Desde que los
+        /// desplegables llevan el rótulo dentro miden 44 px, y con el
+        /// título alineado arriba quedaba pegado al borde de la tarjeta
+        /// mientras los controles ocupaban el resto.
+        ///
+        /// Y menos relleno ---«redúcelo un poquito, no?»---: de 13/11 a
+        /// 10 arriba y abajo. Con el control de 44 la tarjeta pasa de 70
+        /// a 64 px, y donde solo hay título, de 52 a 48.
+        "mx-4 mb-2 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-borde bg-superficie px-7 " +
+        (compacto ? "py-2.5" : "pt-[26px] pb-[22px]")
       }
     >
       <div className="min-w-0">
@@ -648,22 +657,28 @@ export function CifraCompacta({
       >
         {etiqueta}
       </div>
-      <div className="mt-1 flex items-baseline gap-1.5 leading-none">
+      <div className="mt-1 leading-none">
         <span
           className="font-bold tabular-nums"
           style={{ fontSize: "1.0625rem", color }}
         >
           {valor}
         </span>
-        {detalle && (
-          <span className="truncate text-[0.6875rem] text-texto-suave" title={detalle}>
-            {detalle}
-          </span>
-        )}
       </div>
-      {pie && (
-        <div className="mt-1 truncate text-[0.6875rem] leading-none text-texto-suave" title={pie}>
-          {pie}
+      {/* EL PORCENTAJE VA DEBAJO, no al lado del número: «si usas
+          porcentaje abajo del número, ejemplo como está: 6 necesitan
+          refuerzo» (cliente, 1 oct 2026). Al lado competía con la
+          cifra ---dos números pegados y en la misma línea--- y además
+          dejaba la tarjeta de «Asesores» con el pie abajo y la de
+          «Leads gestionados» con el suyo al lado, cada una distinta.
+          Debajo, las cinco se leen igual: rótulo, cifra, y la letra
+          chica. */}
+      {(detalle || pie) && (
+        <div
+          className="mt-1 truncate text-[0.6875rem] leading-none text-texto-suave"
+          title={[detalle, pie].filter(Boolean).join(" · ")}
+        >
+          {[detalle, pie].filter(Boolean).join(" · ")}
         </div>
       )}
     </div>

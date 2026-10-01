@@ -3,8 +3,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { Cajon, Dato } from "@/components/admin/cajon";
+import { Encabezado } from "@/components/admin/piezas";
 import { ConfirmarBorrado } from "@/components/admin/confirmar-borrado";
 import {
+  ElegirConRotulo,
   FiltroDePeriodo,
   PERIODO_INICIAL,
   type Periodo,
@@ -401,18 +403,40 @@ export default function PaginaReservas() {
   );
 
   return (
-    <div className="flex min-h-0 grow flex-col gap-3 px-4 pt-3">
-      <ElegirVista vista={vista} alElegir={elegirVista} />
+    /// `[&>header]:mx-0`: `Encabezado` trae `mx-4` suyo ---nacio para
+    /// paginas que lo ponen FUERA de su contenedor con relleno--- y aqui
+    /// va DENTRO del `px-4`, asi que los dos se sumaban: la cabecera
+    /// empezaba en 32 px y las tarjetas de debajo en 16. «Los bordes del
+    /// titulo deben ir al margen de las tarjetas» (cliente, 1 oct 2026),
+    /// medido. Es el mismo arreglo que ya lleva Seguimiento de asesores.
+    <div className="flex min-h-0 grow flex-col gap-3 px-4 pt-3 pb-2 [&>header]:mx-0 [&>header]:mb-0">
+      {/* LAS DOS VISTAS Y EL PERIODO, EN LA MISMA FILA.
 
-      {/* EL PERIODO, junto a las dos vistas, que es donde están los
-          filtros de pantalla.
+          «En reservas esto debe ir al lado derecho, para quitar esa
+          fila y ganar espacio» (cliente, 30 sep 2026). El periodo se
+          comía un renglón entero él solo, debajo de las dos vistas, y
+          las dos cosas contestan lo mismo: qué se mira. */}
+      {/* CON TÍTULO: «¿y no veo el título de reservas? Como Gestión y
+          Seguimiento de reservas» (cliente, 1 oct 2026). Era la única
+          pantalla del panel que empezaba directamente en los
+          controles, y sin cabecera no se sabía qué se está mirando.
 
-          Aquí vivía un aviso diciendo que esta vista no se recortaba
-          por periodo. Era verdad y por eso estaba: el control se
-          pintaba y el servidor lo ignoraba en silencio. Ya no: `Reserva`
-          se recorta por `creadoEn`, en la lista Y en el agrupado, así
-          que el aviso sobra. */}
-      <FiltroDePeriodo periodo={periodo} alCambiar={setPeriodo} />
+          Las dos vistas, EN DESPLEGABLE y con rótulo, al lado del
+          periodo: «esto igual desplegable al lado de Periodo, pero con
+          título» (cliente, 1 oct 2026). */}
+      <Encabezado compacto titulo="Gestión y seguimiento de reservas">
+        <ElegirConRotulo
+          rotulo="Seleccione la vista"
+          valor={vista}
+          opciones={[
+            { valor: "organizacion", etiqueta: "Por organización" },
+            { valor: "reserva", etiqueta: "Por reserva" },
+          ]}
+          alElegir={(v) => elegirVista(v as Vista)}
+          ancho="10.5rem"
+        />
+        <FiltroDePeriodo periodo={periodo} alCambiar={setPeriodo} />
+      </Encabezado>
 
       {/* Sin título ni conteo: lo dice la miga, y la cifra
           va en el pie de la tabla. El aviso solo aparece si

@@ -241,7 +241,6 @@ export default function PaginaMesa() {
       <Encabezado
         titulo="Mesa de entrada"
         descripcionAncha
-        descripcion="Lo que llega por los webhooks: la pauta de Meta y el orquestador de correos. Todavía no están en Gestión de leads — alguien los revisa y los convierte, y ahí entran como Interesados."
       />
 
       {/* `px-4` y no `px-7`: el mismo canto que el recuadro del título

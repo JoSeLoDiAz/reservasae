@@ -112,7 +112,13 @@ function PaginaCampanas() {
     /// así que el relleno de abajo se pinta a mitad de la pantalla y
     /// los botones quedan pegados al pie. Pasó en ocho pantallas más;
     /// la explicación larga está en `usuarios/page.tsx`.
-    <div className="flex flex-col gap-4 px-4 pt-4 pb-3 [&>header]:mx-0 [&>header]:mb-0">
+    /// SIN `px-4` Y SIN NEUTRALIZAR EL `mx-4` DE LA CABECERA: aquí el
+    /// contenido son `Bloque`s, y `Bloque` ---como `Encabezado`--- trae
+    /// su propio `mx-4`. Con el `px-4` de la página encima, los bloques
+    /// empezaban en 32 px y la cabecera en 16: «tamaños» (cliente, 1 oct
+    /// 2026), medido. Manda el margen de los componentes, y así los dos
+    /// caen en el mismo canto.
+    <div className="flex flex-col gap-4 pt-4 pb-3">
       {/* CON TÍTULO, como el resto del panel: «Mailing no tiene
           títulos» / «Sistemas igual, no tiene título» (cliente, 1 oct
           2026). Estas pantallas empezaban directamente en su contenido

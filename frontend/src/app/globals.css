@@ -853,6 +853,35 @@ html:has(.marco-panel) body {
   }
 }
 
+/*
+ * LA BARRA FINA, EN TODO LO QUE SCROLLEA Y NO SOLO EN LA PÁGINA.
+ *
+ * «Nunca una barra así de ancha, o sea ¿qué es esa asquerosidad?»
+ * (cliente, 30 sep 2026), con una barra gris de sistema, con sus
+ * flechitas, al lado de una interfaz de trazos de un píxel.
+ *
+ * LA CAUSA ESTÁ EN UN CAMBIO DEL NAVEGADOR, no en un descuido de
+ * aquí. Chrome ya entiende `scrollbar-width`, y en cuanto lo
+ * entiende DEJA DE HACER CASO a `::-webkit-scrollbar`. Esta casa
+ * tenía los dos: la propiedad en `html`, `.caja-scroll` y
+ * `.barra-visible`, y el pseudo-elemento para el resto. Mientras
+ * Chrome ignoraba la propiedad, el pseudo-elemento vestía TODAS las
+ * barras; desde que la entiende, viste solo esas tres y las demás
+ * vuelven a la del sistema.
+ *
+ * Y `scrollbar-width` NO SE HEREDA: ponerla en `html` no alcanza a
+ * un cajón que scrollea dentro. Por eso va en el universal, que es
+ * el único sitio donde cubre lo que haya hoy y lo que se escriba
+ * mañana sin tener que acordarse de una clase.
+ */
+*,
+*::before,
+*::after {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in oklab, var(--texto-suave) 40%, transparent)
+    transparent;
+}
+
 html {
   scrollbar-width: thin;
   scrollbar-color: color-mix(in oklab, var(--texto-suave) 40%, transparent) transparent;
@@ -1002,6 +1031,19 @@ select[size]:not([size='1']) {
 /* la fila entera reacciona, no solo el enlace */
 .tabla-datos tbody tr {
   transition: background-color 120ms ease;
+  /* LA FILA LLEVA SU PROPIO FONDO, y es lo que permite que la celda
+     pegada al borde lo HEREDE.
+
+     Al pegar la primera columna hubo que darle fondo propio ---si no,
+     las de debajo se le ven a través al desplazarse--- y ese fondo
+     fijo tapaba el resaltado de la fila: el cliente vio una fila
+     coloreada con un hueco blanco justo en el nombre. «¿Por qué no se
+     colorea toda la fila?» (30 sep 2026).
+
+     Con el fondo declarado aquí, la celda pegada usa `bg-inherit` y
+     sigue a su fila: blanca en reposo, resaltada al pasar por encima,
+     sin saber nada de colores. */
+  background: var(--superficie);
 }
 
 /* que un ancla no aterrice pegada al borde */
@@ -1676,7 +1718,19 @@ select[size]:not([size='1']) {
   vertical-align: middle;
   white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis;
+  /* LOS PUNTOS SUSPENSIVOS LOS PONE EL BOTÓN DEL TÍTULO, NO LA CELDA.
+
+     Estaban aquí, y la celda de la casilla de «seleccionar todas»
+     ---que no lleva título, solo una casilla de 13 px en un hueco de
+     40 con 28 de relleno--- salía como «☐…». Lo vio el cliente: «¿ven
+     que moviste, que dañaste?» (30 sep 2026), y era mío, del arreglo
+     de la cabecera de hace un rato.
+
+     La celda sigue recortando lo que se sale ---`overflow: hidden`---
+     pero sin dibujar los tres puntos; los dibuja el botón, que es el
+     único que lleva texto. Una celda sin texto ya no tiene nada que
+     insinuar que ha cortado. */
+  text-overflow: clip;
 }
 
 /* El botón ES quien lleva el texto del título, así que el recorte
@@ -1725,6 +1779,18 @@ select[size]:not([size='1']) {
      son rayas que no separan nada que no separara ya el
      espacio, y ensucian el dato. */
   border-right: 1px solid var(--hairline);
+}
+
+/* LA FRONTERA ENTRE GRUPOS DE COLUMNAS.
+ *
+ * Más marcada que el carril de `con-carriles` ---que separa todas
+ * las columnas por igual--- y del color del borde, no del pelo: tiene
+ * que verse de un vistazo sin leer los títulos, que es para lo que
+ * está. Dos píxeles y el color del borde la hacen leerse como el
+ * canto de un bloque, no como una raya más de la rejilla.
+ */
+.tabla-datos .frontera-de-grupo {
+  border-left: 2px solid var(--borde);
 }
 
 /* Lo que no cabe se queda dentro.

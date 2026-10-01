@@ -6,7 +6,11 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { BotonPdf } from "@/components/admin/boton-pdf";
 import { n } from "@/components/admin/graficos";
 import { IndicadorActualizacion } from "@/components/admin/indicador-actualizacion";
-import { Aviso, CLASE_CONTROL } from "@/components/admin/marco-admin";
+import {
+  Aviso,
+  CLASE_CONTROL,
+  RANURA_FILTROS_INFORME,
+} from "@/components/admin/marco-admin";
 import { ComiteMarketing } from "@/components/admin/comite-marketing";
 import { Desplegable } from "@/components/admin/desplegable";
 import { PanelProceso } from "@/components/admin/panel-proceso";
@@ -488,7 +492,10 @@ export function PantallaDeInformes({ vista }: { vista?: Pestana }) {
 
             El indicador va con ellos, y solo en «Proceso»: en la
             otra pestaña diría una hora que no le corresponde. */}
-        <div className="flex flex-wrap items-center gap-4">
+        <div
+          id={RANURA_FILTROS_INFORME}
+          className="flex flex-wrap items-center gap-4"
+        >
           {/* «Qué mirar» estaba suelto en su propio renglón debajo
               del título; va con el periodo, que es la otra decisión
               que enmarca la pantalla entera (cliente, 20 sep
@@ -523,9 +530,6 @@ export function PantallaDeInformes({ vista }: { vista?: Pestana }) {
                   veinticinco píxeles más alta que sus tres hermanas.
                   Al lado dice lo mismo y la cabecera mide lo que las
                   demás. */}
-              <p className="text-[0.625rem] font-bold tracking-[0.08em] uppercase text-texto-suave">
-                Periodo
-              </p>
               {/* Anchos de verdad: son dos frases --«Desde el
                   principio», «vs. el mes pasado»--, no dos
                   palabras, y apretados se leen cortados. */}
@@ -574,12 +578,10 @@ export function PantallaDeInformes({ vista }: { vista?: Pestana }) {
                 dos bloques rotulados se leen solos. */}
             {sePuedeComparar && !sinComparar && (
               <div className="flex flex-wrap items-center gap-2">
-                <p className="text-[0.625rem] font-bold tracking-[0.08em] uppercase text-texto-suave">
-                  Comparar con
-                </p>
                 <div className="min-w-[11.5rem]">
                   <Desplegable
-                    alto={30}
+                    alto={44}
+                    rotulo="Comparar con"
                     etiquetaAria="Contra qué periodo"
                     valor={contra === "AUTO" ? "AUTO" : "PERSONALIZADO"}
                     opciones={[
@@ -844,8 +846,11 @@ function ControlesDePeriodo({
           y su azul, y al lado de los cinco filtros --que sí se
           abren con los colores del panel-- se veía de otra
           aplicación. */}
+      {/* EL RÓTULO VA DENTRO DEL CONTROL, como en las demás pantallas:
+          «en todo por favor» (cliente, 1 oct 2026). */}
       <Desplegable
-        alto={30}
+        alto={44}
+        rotulo="Periodo"
         etiquetaAria="Periodo"
         valor={rango}
         opciones={RANGOS.map((r) => ({ valor: r, etiqueta: ETIQUETA_RANGO[r] }))}
