@@ -10,6 +10,7 @@ import {
   useRef,
   useState,
 } from "react";
+import type { ReactNode } from "react";
 import { createPortal } from "react-dom";
 
 import { ConmutadorTema, useMarca } from "@/components/marca-publica";
@@ -1410,6 +1411,34 @@ function CajonMovil({
 /// El hueco de la barra superior donde cada pantalla pone sus
 /// acciones, con `AccionesDePagina`.
 export const RANURA_ACCIONES = "acciones-de-pagina";
+
+/// El hueco de la cabecera del informe, a la derecha del título,
+/// donde cada pestaña pone sus filtros.
+export const RANURA_FILTROS_INFORME = "filtros-del-informe";
+
+/**
+ * Manda unos filtros a la derecha del título del informe.
+ *
+ * «¿Esto no se puede a la parte derecha del título? Y por qué los
+ * filtros de Tráfico Formulario no fueron ajustados como Control de
+ * inscritos» (cliente, 1 oct 2026). En Control de inscritos el
+ * periodo va en la cabecera y en Tráfico ocupaba una tarjeta propia
+ * debajo, así que dos pestañas del mismo informe colocaban la misma
+ * decisión en dos sitios.
+ *
+ * Por portal y no por props, como `AccionesDePagina`: la cabecera no
+ * tiene por qué saber qué filtros lleva cada pestaña.
+ */
+export function FiltrosDelInforme({ children }: { children: ReactNode }) {
+  const [ranura, setRanura] = useState<HTMLElement | null>(null);
+
+  useEffect(() => {
+    setRanura(document.getElementById(RANURA_FILTROS_INFORME));
+  }, []);
+
+  if (!ranura) return null;
+  return createPortal(children, ranura);
+}
 
 /**
  * Manda unos botones a la barra superior.

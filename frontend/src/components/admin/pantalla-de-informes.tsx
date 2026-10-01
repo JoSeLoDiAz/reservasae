@@ -6,7 +6,11 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { BotonPdf } from "@/components/admin/boton-pdf";
 import { n } from "@/components/admin/graficos";
 import { IndicadorActualizacion } from "@/components/admin/indicador-actualizacion";
-import { Aviso, CLASE_CONTROL } from "@/components/admin/marco-admin";
+import {
+  Aviso,
+  CLASE_CONTROL,
+  RANURA_FILTROS_INFORME,
+} from "@/components/admin/marco-admin";
 import { ComiteMarketing } from "@/components/admin/comite-marketing";
 import { Desplegable } from "@/components/admin/desplegable";
 import { PanelProceso } from "@/components/admin/panel-proceso";
@@ -488,7 +492,10 @@ export function PantallaDeInformes({ vista }: { vista?: Pestana }) {
 
             El indicador va con ellos, y solo en «Proceso»: en la
             otra pestaña diría una hora que no le corresponde. */}
-        <div className="flex flex-wrap items-center gap-4">
+        <div
+          id={RANURA_FILTROS_INFORME}
+          className="flex flex-wrap items-center gap-4"
+        >
           {/* «Qué mirar» estaba suelto en su propio renglón debajo
               del título; va con el periodo, que es la otra decisión
               que enmarca la pantalla entera (cliente, 20 sep

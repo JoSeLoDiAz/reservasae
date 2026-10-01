@@ -42,6 +42,7 @@ import { useAdmin } from "./marco-admin";
 import { useToast } from "./toast";
 import {
   etiquetaDelAnterior,
+  ElegirConRotulo,
   FiltroDePeriodo,
   PERIODO_INICIAL,
   ventanaAnterior,
@@ -100,15 +101,16 @@ function ElegirComoSeVe({
   alCambiar: (v: "resumen" | "calendario") => void;
 }) {
   return (
-    <select
-      aria-label="Cómo se ve"
-      value={valor}
-      onChange={(e) => alCambiar(e.target.value as "resumen" | "calendario")}
-      className="h-[34px] rounded-lg border border-campo-borde bg-campo-fondo px-2 text-[0.78125rem] text-texto outline-none focus:border-campo-foco"
-    >
-      <option value="resumen">Resumen</option>
-      <option value="calendario">Calendario</option>
-    </select>
+    <ElegirConRotulo
+      rotulo="Cómo se ve"
+      valor={valor}
+      opciones={[
+        { valor: "resumen", etiqueta: "Resumen" },
+        { valor: "calendario", etiqueta: "Calendario" },
+      ]}
+      alElegir={(v) => alCambiar(v as "resumen" | "calendario")}
+      ancho="8.5rem"
+    />
   );
 }
 
@@ -305,18 +307,13 @@ export function PanelAsesores() {
             esto en desplegable?» (cliente, 1 oct 2026). Las cuatro
             etiquetas son largas y se comían la fila del título entera;
             una sola casilla dice lo mismo y deja sitio al periodo. */}
-        <select
-          aria-label="Qué se mira"
-          value={subvista}
-          onChange={(e) => setSubvista(e.target.value as Subvista)}
-          className="h-[34px] rounded-lg border border-campo-borde bg-campo-fondo px-2 text-[0.8125rem] font-medium text-texto outline-none focus:border-campo-foco"
-        >
-          {SUBVISTAS.map((s) => (
-            <option key={s.clave} value={s.clave}>
-              {s.etiqueta}
-            </option>
-          ))}
-        </select>
+        <ElegirConRotulo
+          rotulo="Qué se mira"
+          valor={subvista}
+          opciones={SUBVISTAS.map((s) => ({ valor: s.clave, etiqueta: s.etiqueta }))}
+          alElegir={(v) => setSubvista(v as Subvista)}
+          ancho="13.5rem"
+        />
         <FiltroDePeriodo periodo={periodo} alCambiar={setPeriodo} />
       </Encabezado>
 

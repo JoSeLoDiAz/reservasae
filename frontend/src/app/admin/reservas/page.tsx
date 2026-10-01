@@ -3,8 +3,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { Cajon, Dato } from "@/components/admin/cajon";
+import { Encabezado } from "@/components/admin/piezas";
 import { ConfirmarBorrado } from "@/components/admin/confirmar-borrado";
 import {
+  ElegirConRotulo,
   FiltroDePeriodo,
   PERIODO_INICIAL,
   type Periodo,
@@ -408,10 +410,27 @@ export default function PaginaReservas() {
           fila y ganar espacio» (cliente, 30 sep 2026). El periodo se
           comía un renglón entero él solo, debajo de las dos vistas, y
           las dos cosas contestan lo mismo: qué se mira. */}
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <ElegirVista vista={vista} alElegir={elegirVista} />
+      {/* CON TÍTULO: «¿y no veo el título de reservas? Como Gestión y
+          Seguimiento de reservas» (cliente, 1 oct 2026). Era la única
+          pantalla del panel que empezaba directamente en los
+          controles, y sin cabecera no se sabía qué se está mirando.
+
+          Las dos vistas, EN DESPLEGABLE y con rótulo, al lado del
+          periodo: «esto igual desplegable al lado de Periodo, pero con
+          título» (cliente, 1 oct 2026). */}
+      <Encabezado compacto titulo="Gestión y seguimiento de reservas">
+        <ElegirConRotulo
+          rotulo="Cómo se mira"
+          valor={vista}
+          opciones={[
+            { valor: "organizacion", etiqueta: "Por organización" },
+            { valor: "reserva", etiqueta: "Por reserva" },
+          ]}
+          alElegir={(v) => elegirVista(v as Vista)}
+          ancho="10.5rem"
+        />
         <FiltroDePeriodo periodo={periodo} alCambiar={setPeriodo} />
-      </div>
+      </Encabezado>
 
       {/* Sin título ni conteo: lo dice la miga, y la cifra
           va en el pie de la tabla. El aviso solo aparece si

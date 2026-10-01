@@ -207,6 +207,51 @@ export function ventanaAnterior(
  * el enlace, en vez de enseñarlo muerto. Un control que no hace nada
  * al pulsarlo es peor que no tenerlo.
  */
+/**
+ * UN DESPLEGABLE CON SU RÓTULO, igual que «PERIODO».
+ *
+ * «Esto vacío sin título ni nada, de verdad?» y «esto igual
+ * desplegable al lado de Periodo, pero con título» (cliente, 1 oct
+ * 2026). Los interruptores de vista eran tiras de botones que se
+ * comían una fila entera; pasados a desplegable se quedaban sin
+ * nombre, y una casilla suelta que pone «Asesores de inscripciones»
+ * no dice si eso es lo que se mira o lo que se filtra.
+ *
+ * Reusa el `Desplegable` de la casa y el mismo rótulo de 10 px en
+ * versalitas del periodo, para que los dos se lean como la misma
+ * clase de control y no como dos inventos.
+ */
+export function ElegirConRotulo({
+  rotulo,
+  valor,
+  opciones,
+  alElegir,
+  ancho = "11.5rem",
+}: {
+  rotulo: string;
+  valor: string;
+  opciones: { valor: string; etiqueta: string }[];
+  alElegir: (v: string) => void;
+  ancho?: string;
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <p className="text-[0.625rem] font-bold tracking-[0.08em] uppercase text-texto-suave">
+        {rotulo}
+      </p>
+      <div style={{ minWidth: ancho }}>
+        <Desplegable
+          alto={30}
+          etiquetaAria={rotulo}
+          valor={valor}
+          opciones={opciones}
+          alElegir={alElegir}
+        />
+      </div>
+    </div>
+  );
+}
+
 export function FiltroDePeriodo({
   periodo,
   alCambiar,
