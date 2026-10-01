@@ -525,6 +525,7 @@ export function ReservasUnificadas({
       },
       {
         clave: "cuposConfirmados",
+        separaAntes: true,
         /// EL RÓTULO SE COPIA LETRA POR LETRA del Seguimiento de
         /// Control de Reservas: dos nombres para la misma cifra en
         /// dos pantallas que se miran seguidas es lo que hace dudar
@@ -548,6 +549,7 @@ export function ReservasUnificadas({
          habría que cambiarlo en dos. */
       {
         clave: "leadsRecibidos",
+        separaAntes: true,
         /// En minúscula, como en su hoja. La cabecera va en versalita
         /// por CSS, así que en pantalla se lee igual que las demás, y
         /// dejar su palabra tal cual es lo que permite cotejar esta
@@ -606,6 +608,7 @@ export function ReservasUnificadas({
       },
       {
         clave: "cuposPendientes",
+        separaAntes: true,
         /// «Cupos pendientes» ES AHORA LA FÓRMULA DE SU HOJA
         /// --`cupos reservados − leads recibidos`-- y no los cupos
         /// sin persona, que es lo que decía hasta hoy. Aquella sigue

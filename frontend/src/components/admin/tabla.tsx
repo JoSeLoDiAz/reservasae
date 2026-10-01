@@ -148,6 +148,20 @@ export type Columna<T> = {
   ancho?: string;
   /** no se puede quitar: identifica la fila */
   fija?: boolean;
+  /**
+   * ABRE UN GRUPO: una raya vertical más marcada a su izquierda.
+   *
+   * «Separadores como Control de inscritos: una línea para cupos
+   * reservados, otra de leads recibidos hasta total leads
+   * gestionados, y otra en cupos pendientes» (cliente, 30 sep 2026).
+   *
+   * Los carriles de `con-carriles` separan TODAS las columnas por
+   * igual y con eso no dicen nada: con veintiocho, todo separado es
+   * como nada separado. Esto marca las fronteras que importan ---de
+   * quién es la fila, qué prometió, cómo va la gestión, qué falta---
+   * para que el ojo las encuentre sin leer los títulos.
+   */
+  separaAntes?: boolean;
   /** existe pero no sale hasta que la pidan */
   aparte?: boolean;
   /**
@@ -1030,7 +1044,15 @@ export function Tabla<T>({
           en 4 px --no en cero-- para que el marco de la tarjeta no
           quede pegado a la raya del pie, que es una banda con su
           propio borde. */}
-      <div className="mb-1 flex min-h-0 flex-initial flex-col overflow-hidden rounded-xl border border-borde bg-superficie">
+      {/* LA TARJETA MIDE LO QUE LA TABLA, no la ventana entera.
+          Con ocho columnas la tabla pide 1.206 px y la tarjeta tenía
+          1.866: la banda gris de la cabecera cortaba a media tarjeta y
+          el resto era un vacío blanco con borde, que se lee como una
+          tabla truncada. `w-fit` la hace terminar donde termina la
+          tabla; `max-w-full` la devuelve al ancho de la ventana en
+          cuanto la tabla desborda ---Gestión de leads, Reservas--- y
+          entonces esto no hace nada. */}
+      <div className="mb-1 flex min-h-0 w-fit max-w-full flex-initial flex-col overflow-hidden rounded-xl border border-borde bg-superficie">
         {/* Se estira con su contenedor en vez de llevar un tope
             fijo: con `max-h` quedaba media pantalla en blanco
             debajo cuando la ventana era alta. */}
@@ -1082,6 +1104,22 @@ export function Tabla<T>({
                 /// la tarjeta, gana `w-full` y sigue
                 /// llenándola como hasta ahora.
                 minWidth: anchoMinimoTabla,
+                /// Y EL TECHO, que es el mismo numero.
+                ///
+                /// `w-full` sola dice «ocupa la tarjeta entera», y con
+                /// ocho columnas eso es repartir el sobrante entre las
+                /// ocho. Medido en Seguimiento de asesores: las
+                /// columnas piden 1.206 px y la tabla se pintaba en
+                /// 1.866, asi que entre el dato de una columna y el de
+                /// la siguiente ---en la MISMA fila--- habia doscientos
+                /// pixeles de nada y el ojo tenia que viajar para leer
+                /// un renglon. Con el techo cada columna se queda en lo
+                /// que declara y la fila se lee de una pasada.
+                ///
+                /// Donde las columnas piden MAS que la tarjeta ---Gestion
+                /// de leads, Reservas--- el minimo gana al maximo (es lo
+                /// que manda CSS) y todo sigue igual: desborda y recorre.
+                maxWidth: anchoMinimoTabla,
                 ...(Object.keys(anchos).length > 0
                   ? { tableLayout: "fixed" as const }
                   : null),
@@ -1125,9 +1163,9 @@ export function Tabla<T>({
                     style={
                       anchos[c.clave]
                         ? { width: anchos[c.clave] }
-                        : c.ancho
-                          ? { width: c.ancho }
-                          : undefined
+                          : c.ancho
+                            ? { width: c.ancho, minWidth: c.ancho }
+                            : undefined
                     }
                     /// Arrastrable para reordenar.
                     ///
@@ -1158,6 +1196,7 @@ export function Tabla<T>({
                     }}
                     className={
                       "relative select-none" +
+                      (c.separaAntes ? " frontera-de-grupo" : "") +
                       (c.clave === primeraFija
                         ? " sticky left-0 z-40 bg-tabla-cabecera-fondo"
                         : "") +
@@ -1298,6 +1337,7 @@ export function Tabla<T>({
                       key={c.clave}
                       className={
                         (c.numerica ? "text-right tabular-nums" : "") +
+                        (c.separaAntes ? " frontera-de-grupo" : "") +
                         (c.clave === primeraFija
                           ? " sticky left-0 z-20 bg-inherit"
                           : "") || undefined
