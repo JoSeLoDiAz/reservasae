@@ -30,7 +30,7 @@ export class CrearCategoriaDto {
   @Transform(recortar)
   @IsString()
   @IsNotEmpty()
-  @MinLength(3)
+  @MinLength(3, { message: 'El nombre debe tener al menos 3 letras.' })
   @MaxLength(80)
   nombre!: string;
 
@@ -67,7 +67,7 @@ export class ActualizarCategoriaDto {
   @Transform(recortar)
   @IsString()
   @IsNotEmpty()
-  @MinLength(3)
+  @MinLength(3, { message: 'El nombre debe tener al menos 3 letras.' })
   @MaxLength(80)
   nombre?: string;
 
@@ -108,7 +108,7 @@ export class CrearSubcategoriaDto {
   @Transform(recortar)
   @IsString()
   @IsNotEmpty()
-  @MinLength(2)
+  @MinLength(2, { message: 'El nombre debe tener al menos 2 letras.' })
   @MaxLength(80)
   nombre!: string;
 
@@ -124,7 +124,7 @@ export class ActualizarSubcategoriaDto {
   @Transform(recortar)
   @IsString()
   @IsNotEmpty()
-  @MinLength(2)
+  @MinLength(2, { message: 'El nombre debe tener al menos 2 letras.' })
   @MaxLength(80)
   nombre?: string;
 

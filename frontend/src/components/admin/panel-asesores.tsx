@@ -723,7 +723,23 @@ function DeInscripciones({ ventana, ventanaAntes, rotuloAnterior }: ConPeriodo) 
         filtros por columna, el selector de columnas y la descarga--,
         así que montada igual se ve igual. */}
     <Tabla
-      id="asesores-inscripciones"
+      /// EL NOMBRE CAMBIA PORQUE CAMBIÓ EL ORDEN DE LAS COLUMNAS.
+      ///
+      /// La tabla graba en el navegador qué columnas se ven Y EN QUÉ
+      /// ORDEN, y lo graba en la PRIMERA visita sin que nadie toque
+      /// nada. Así que quien hubiera abierto esta pantalla antes de
+      /// hoy seguía viendo el orden viejo ---gestionados delante de
+      /// inscritos--- por mucho que el código diga otro. El cliente
+      /// pidió el orden nuevo el 30 sep 2026 y no le llegaba.
+      ///
+      /// Es el mismo caso que la tabla de reservas, y la misma cura:
+      /// con nombre nuevo todos arrancan del orden declarado. Lo que
+      /// cada quien hubiera acomodado se queda bajo el nombre viejo,
+      /// sin estorbar.
+      ///
+      /// REGLA QUE SALE DE AQUÍ: reordenar columnas obliga a renombrar
+      /// la tabla. Si no, el cambio solo lo ven los que nunca entraron.
+      id="asesores-inscripciones-v2"
       columnas={columnas}
       filas={filas}
       clave={(f) => f.asesorId ?? "sin-asesor"}

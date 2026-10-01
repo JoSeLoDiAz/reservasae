@@ -708,15 +708,21 @@ export default function PaginaFicha() {
                           {n.canales?.length
                             ? `${n.canales.map((c) => ETIQUETA_CANAL_CONTACTO[c]).join(" + ")} · `
                             : ""}
-                          {n.resultado && (
+                          {/* EL RESULTADO SOLO SI NO HAY CATEGORÍA.
+
+                              Desde que el servidor DERIVA el resultado de
+                              la categoría, pintar los dos dice lo mismo dos
+                              veces: «El dato no sirve · El dato no sirve ›
+                              El correo rebota». Con categoría manda la
+                              categoría, que es más precisa; sin ella ---las
+                              notas de antes del catálogo--- se pinta el
+                              resultado, que es lo único que tienen. */}
+                          {!n.categoria && n.resultado && (
                             <span className={`font-medium ${TONO_RESULTADO[n.resultado]}`}>
                               {ETIQUETA_RESULTADO[n.resultado]}
                             </span>
                           )}
-                          {n.resultado ? " · " : ""}
-                          {/* Las notas de antes del catálogo no traen
-                              clasificación y aquí no se pinta nada:
-                              es lo que significa que sea opcional. */}
+                          {!n.categoria && n.resultado ? " · " : ""}
                           {n.categoria && `${n.categoria.nombre}`}
                           {n.subcategoria && ` › ${n.subcategoria.nombre}`}
                           {n.categoria ? " · " : ""}
