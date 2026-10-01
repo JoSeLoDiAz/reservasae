@@ -116,41 +116,48 @@ export function GruposDeLaAccion({
   return (
     <section className="flex flex-col gap-3">
       {/* LOS DESPLEGABLES, ARRIBA DEL TODO. Mandan sobre las
-          tarjetas y sobre la tabla: los dos van al servidor. */}
-      <div className="flex flex-wrap items-end gap-2">{controles}</div>
+          tarjetas y sobre la tabla: los dos van al servidor.
 
-      {/* VOLVER A LOS GRUPOS Y CERRAR LA TABLA, en la misma fila y
-          como ENLACES, no como botones: la navegación hacia atrás es
-          un enlace y los botones son acciones --regla del handoff--.
-          Aquí estaba el segundo «Ver inscritos» y se fue: dos cosas
-          con el mismo nombre en la misma pantalla es lo primero que
-          confunde (lo señalaron el 27 sep 2026). Ahora la única
-          puerta a la tabla es el botón de cada tarjeta, y de ahí se
-          sale por «Ver todos los grupos», que la deja abierta con
-          todo el mundo dentro. */}
-      {(grupoId || verInscritos) && (
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[0.8125rem]">
-          {grupoId && (
-            <button
-              type="button"
-              onClick={() => alElegirGrupo("")}
-              className="font-medium text-marca underline hover:no-underline"
-            >
-              ← Ver todos los grupos
-            </button>
-          )}
-          {verInscritos && (
-            <button
-              type="button"
-              onClick={alAlternarTabla}
-              aria-expanded
-              className="text-texto-suave underline hover:text-texto"
-            >
-              Ocultar la tabla
-            </button>
-          )}
-        </div>
-      )}
+          Y LAS DOS PUERTAS ---volver a los grupos, cerrar la tabla---
+          EN ESTA MISMA FILA: «cómo se acomoda esto, porque mucha cosa
+          arriba y prácticamente la tabla se va a perder» (cliente, 1
+          oct 2026). Con un grupo puesto había seis bandas antes de la
+          tabla; dos de ellas llevaban un enlace cada una. */}
+      <div className="flex flex-wrap items-end gap-x-4 gap-y-2">
+        <div className="flex min-w-0 flex-1 flex-wrap items-end gap-2">{controles}</div>
+        {/* VOLVER A LOS GRUPOS Y CERRAR LA TABLA, en la misma fila y
+            como ENLACES, no como botones: la navegación hacia atrás es
+            un enlace y los botones son acciones --regla del handoff--.
+            Aquí estaba el segundo «Ver inscritos» y se fue: dos cosas
+            con el mismo nombre en la misma pantalla es lo primero que
+            confunde (lo señalaron el 27 sep 2026). Ahora la única
+            puerta a la tabla es el botón de cada tarjeta, y de ahí se
+            sale por «Ver todos los grupos», que la deja abierta con
+            todo el mundo dentro. */}
+        {(grupoId || verInscritos) && (
+          <div className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-1 pb-1.5 text-[0.8125rem]">
+            {grupoId && (
+              <button
+                type="button"
+                onClick={() => alElegirGrupo("")}
+                className="font-medium text-marca underline hover:no-underline"
+              >
+                ← Ver todos los grupos
+              </button>
+            )}
+            {verInscritos && (
+              <button
+                type="button"
+                onClick={alAlternarTabla}
+                aria-expanded
+                className="text-texto-suave underline hover:text-texto"
+              >
+                Ocultar la tabla
+              </button>
+            )}
+          </div>
+        )}
+      </div>
 
       {!grupoId && aPintar.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-borde px-6 py-8 text-center">
@@ -161,7 +168,15 @@ export function GruposDeLaAccion({
           </p>
         </div>
       ) : porAccion ? (
-        <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
+        /// DE LADO A LADO Y NO EN REJILLA FIJA: «no sé cómo hacer para
+        /// que queden de lado a lado, es que se ve raro» (cliente, 1
+        /// oct 2026). Con cuatro columnas clavadas y solo dos acciones
+        /// con gente en el aula, las dos tarjetas quedaban a la
+        /// izquierda y media fila en blanco. Repartidas, dos ocupan
+        /// media pantalla cada una, tres un tercio, y de cinco en
+        /// adelante bajan solas al pasar de los 18 rem ---el mismo
+        /// reparto de las tarjetas de cifras de arriba---.
+        <div className="flex flex-wrap items-stretch gap-2.5 [&>*]:min-w-[18rem] [&>*]:flex-1">
           {conGrupos.map((a) => (
             <TarjetaDeAccion
               key={a.id}

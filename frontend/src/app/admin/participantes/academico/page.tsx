@@ -234,17 +234,6 @@ function Seguimiento() {
   /// Un filtro que no se ve es un filtro que parece un fallo. Esto
   /// lo pone en el sitio donde estaba el ojo, y con la salida al
   /// lado.
-  const puesto: string[] = [];
-  if (accionFormacionId) {
-    const a = datos.acciones.find((x) => x.id === accionFormacionId);
-    if (a) puesto.push(`${a.codigo} · ${a.nombre}`);
-  }
-  if (grupoId) {
-    const g = datos.grupos.find((x) => x.id === grupoId);
-    if (g) puesto.push(`Grupo ${g.numero}`);
-  }
-
-
   function quitarFiltros() {
     setAccion("");
     setGrupo("");
@@ -418,49 +407,13 @@ function Seguimiento() {
       )}
 
 
-      {/* LO QUE ESTÁ PUESTO, ENCIMA DE LAS TARJETAS y no debajo:
-          es lo que explica sus números. Sin esto, con una acción
-          elegida las seis tarjetas suman cinco y la pantalla no dice
-          por qué ---parece que se hubieran perdido treinta personas---. */}
-      {puesto.length > 0 && (
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg bg-marca-suave px-3 py-2 text-[0.78125rem]">
-          <span className="font-semibold text-marca">Viendo solo:</span>
-          {puesto.map((q) => (
-            <span
-              key={q}
-              title={q}
-              /// Truncada y no desbordada: el nombre de una accion son
-              /// noventa letras y a 390 px sacaba la pildora de la
-              /// pantalla. El `title` devuelve el texto entero con el
-              /// puntero; en el telefono esta a un toque en el propio
-              /// desplegable.
-              className="min-w-0 max-w-full truncate rounded-full bg-superficie px-2.5 py-0.5 text-texto"
-            >
-              {q}
-            </span>
-          ))}
-          {/* LO QUE HAY EN PANTALLA, no el total del servidor.
-              Estuvo con `resumen.analizadas` y se contradecía con
-              las tarjetas: con «Atrasado» pulsado el aviso decía «6
-              personas» y la tarjeta de Atrasado decía 0. Es que
-              `analizadas` lo cuenta el SERVIDOR, que sabe de la
-              acción y del grupo pero no de la tarjeta ---esa filtra
-              aquí---. Dos cifras de lo mismo en la misma franja y
-              distintas. */}
-          <span className="text-texto-suave">
-            {visibles.length.toLocaleString("es-CO")}{" "}
-            {visibles.length === 1 ? "persona" : "personas"}
-          </span>
-          <button
-            type="button"
-            onClick={quitarFiltros}
-            className="ml-auto font-semibold text-marca underline hover:no-underline"
-          >
-            Ver a todos
-          </button>
-        </div>
-      )}
-
+      {/* SIN LA BANDA «Viendo solo»: «mucha cosa arriba y
+          prácticamente la tabla se va a perder» (cliente, 1 oct 2026).
+          Nació porque los desplegables vivían DEBAJO de las tarjetas y
+          un filtro que no se ve parece un fallo; ahora están arriba,
+          con lo elegido escrito dentro de cada uno, así que la banda
+          repetía palabra por palabra lo que ya decían ellos y costaba
+          una fila entera. */}
       {/* LAS SEIS, FUERA DE LA TARJETA DE FILTROS (cliente, 24 sep
           2026: «las tarjetas viven afuera»). Estuvieron dentro y
           separadas por una raya, con el argumento de que pulsar un
