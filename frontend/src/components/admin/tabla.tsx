@@ -1040,7 +1040,21 @@ export function Tabla<T>({
             uno terminaba de bajar las filas y de un tirón se iba
             toda la pantalla, dejando media ventana en blanco y los
             filtros arriba fuera de alcance. */}
-        <div className="caja-scroll min-h-0 flex-1 overflow-auto overscroll-contain">
+        {/* `isolate`: LA TABLA NO COMPITE CON EL RESTO DE LA PÁGINA.
+
+            Para que la cabecera tape a la columna fija al bajar hubo
+            que subirla a z-30, y la esquina a z-40. Pero la barra del
+            menú es z-30 y sus desplegables z-40: a igual nivel gana lo
+            que va DESPUÉS en el documento ---la tabla---, así que la
+            cabecera se pintaba ENCIMA del menú abierto y se comía
+            «Seguimiento de asesores». Lo vio el cliente: «¿qué putas
+            dañaste?» (30 sep 2026).
+
+            `isolation: isolate` abre un contexto propio: los niveles de
+            dentro se ordenan ENTRE ELLOS y la tabla entera se queda en
+            el nivel que le toca a la página. Así la cabecera sigue
+            tapando sus celdas y nada sale a pelear con el menú. */}
+        <div className="caja-scroll isolate min-h-0 flex-1 overflow-auto overscroll-contain">
             <table
               ref={tablaRef}
               /// Los carriles verticales solo cuando hay muchas
@@ -1283,7 +1297,7 @@ export function Tabla<T>({
                       className={
                         (c.numerica ? "text-right tabular-nums" : "") +
                         (c.clave === primeraFija
-                          ? " sticky left-0 z-10 bg-superficie"
+                          ? " sticky left-0 z-20 bg-inherit"
                           : "") || undefined
                       }
                     >
