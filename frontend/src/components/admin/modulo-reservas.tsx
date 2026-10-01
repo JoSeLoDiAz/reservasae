@@ -374,6 +374,9 @@ export function ModuloReservas() {
             <VerDetalle a="/admin/control?pantalla=reservas">
               Ver el detalle: institución por institución y persona por persona
             </VerDetalle>
+            <VerDetalle a="/admin/ocupacion">
+              Ver la ocupación contra la meta
+            </VerDetalle>
           </div>
         </>
       )}

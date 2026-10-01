@@ -340,16 +340,35 @@ export const MODULOS: Modulo[] = [
     etiqueta: 'Sistemas',
     descripcion: 'Los datos que sostienen el reporte al SENA.',
     enlaces: [
-      /// SIN «OCUPACIÓN CONTRA LA META», Y LA PANTALLA TAMPOCO.
-      ///
-      /// Primero se quitó del menú (30 sep 2026) y ese mismo día el
-      /// cliente cerró la puerta: «se elimina totalmente esta vista,
-      /// no se necesita nada». Así que se fue entera ---la página, el
-      /// veredicto y el ritmo, que no los usaba nadie más--- y con
-      /// ella el enlace que llevaba desde Reservas.
-      ///
-      /// Lo que SÍ sigue: el mapa de Colombia, que también lo usa el
-      /// panel de proceso, y el análisis del servidor, que no estorba.
+      {
+        /// «OCUPACIÓN CONTRA LA META» SE QUEDA, Y ESTO ES UNA MARCHA
+        /// ATRÁS.
+        ///
+        /// El 30 sep 2026 se quitó del menú y ese mismo día se borró
+        /// entera, citando al cliente: «se elimina totalmente esta
+        /// vista, no se necesita nada». La cita es cierta y el borrado
+        /// estaba mal hecho de todos modos, por dos razones:
+        ///
+        /// UNA · la regla de la casa es que una petición del cliente NO
+        /// es autorización: pasa por José primero. Esta pantalla la
+        /// conservó él por escrito el 22 sep, y volvió a decirlo al
+        /// revisar la entrega del 1 oct: «borrar /admin/ocupacion: no
+        /// se borra».
+        ///
+        /// DOS · aquí nada se borra. Se oculta, se cancela o se cierra,
+        /// pero la fila se queda. Un borrado de 1.473 líneas no se
+        /// deshace leyendo la pantalla.
+        ///
+        /// Lo que decía el comentario original sigue valiendo: aquí
+        /// bajaron los once bloques del Resumen viejo ---el veredicto,
+        /// el termómetro, el ritmo, el mapa y la concentración--- y sin
+        /// entrada de menú una pantalla a la que solo se llega por un
+        /// enlace de otra se pierde igual.
+        href: '/admin/ocupacion',
+        etiqueta: 'Ocupación contra la meta',
+        exacto: true,
+        area: 'reserva',
+      },
       /// SIN «RESERVAS» AQUÍ (cliente, 25 sep 2026: «quitemos la
       /// vista en Sistemas, porque mira que es como lo que nos
       /// pasaba con Tráfico del formulario; no me había fijado»).
