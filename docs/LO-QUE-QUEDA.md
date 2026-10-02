@@ -28,6 +28,44 @@ recuentos anteriores, que estaban desfasados.
 
 ## Los 14 de minutos
 
+> ### ⚠ REVISADOS CONTRA EL CÓDIGO EL 2 DE OCTUBRE DE 2026
+>
+> **De los catorce quedan dos, y uno de ellos NO hay que hacerlo.** El resto estaba
+> arreglado y nadie lo había apuntado, que es la razón por la que esta revisión se hizo:
+> una lista que da por abierto lo que ya está cerrado hace perder una tarde a quien la usa
+> de guía.
+>
+> **Cerrados la noche del 1 al 2 oct** (rama `jose/dv-tecleado`, con sus pruebas):
+> `B-01` · `A-08` · `B-03` · `B-14` · `LOTE-02`
+>
+> **Ya estaban arreglados y no constaba:**
+> `MESA-02` (la mesa tiene sus botones de página) · `B-09` (`celularValido` en las cinco
+> puertas) · `B-15` (`taparDocumento` puesto) · `AJUSTE-01` (`AJUSTE_ADMIN` lo emite
+> `tableros.service.ts`)
+>
+> **`A-05` NO SE HACE, y conviene que quede escrito por qué.** Pide «añadir el documento y
+> el interés a la propuesta del cruce». Las dos partes están mal:
+>
+> - `interes` **no existe** en la persona ni en el participante: vive en el lead, se lee
+>   desde ahí y no se pierde. Proponerlo sería crear una propuesta sobre un campo que no
+>   existe.
+> - Y el **documento** habría deshecho el candado del día anterior: desde el 1 oct solo un
+>   administrador corrige el documento de una persona, pero aceptar una propuesta hacía
+>   `persona.update` **sin mirar quién es**. Añadirlo ahí habría dejado a cualquier gestor
+>   cambiando el número que viaja al SENA, y sin una prueba en rojo.
+>
+>   Lo que sí se hizo fue cerrar eso: `resolverPropuesta` exige administrador para los dos
+>   campos del documento. La cerradura va donde se escribe, no solo en la puerta por la
+>   que se entró.
+>
+> **Sin revisar todavía:** `MESA-05`, `CONVERTIR-UNO` y `TOQUE-CAMPAÑA` ---no se
+> encontraron sus anclas con una búsqueda rápida, así que o cambiaron de nombre o ya no
+> están---, y `A-01`, que estaba rechazado por decisión y sigue rechazado.
+>
+> **Y lo de abajo ---«los 40 de horas» y «los 6 de días»--- NO se ha revisado.** Si de
+> catorce puntos ocho estaban resueltos, hay que contar con que ahí pase lo mismo.
+> **Comprobar contra el código antes de empezar cualquiera.**
+
 Lo más rentable que hay. Ordenados por lo que pesan:
 
 | Id | Qué | Arreglo |
