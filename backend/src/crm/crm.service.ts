@@ -555,6 +555,9 @@ export class CrmService {
             select: {
               id: true,
               cuposSolicitados: true,
+              /// DE QUÉ FORMULARIO SALIÓ. Solo la reserva lo guarda:
+              /// ni la ficha ni el lead tienen ese campo.
+              formulario: { select: { titulo: true } },
               empresa: {
                 select: {
                   razonSocial: true,
@@ -6933,6 +6936,7 @@ export class CrmService {
     reserva: {
       id: string;
       cuposSolicitados: number;
+      formulario: { titulo: string } | null;
       empresa: {
         razonSocial: string;
         nit: string;
@@ -7120,6 +7124,32 @@ export class CrmService {
           : suEmpresa.nit
         : null,
       empresaNombre: suEmpresa?.razonSocial ?? null,
+      /**
+       * POR QUÉ FORMULARIO ENTRÓ ESTA PERSONA.
+       *
+       * «necesitaba saber de qué formulario llegaba, no lo tengo»
+       * (cliente, 2 oct 2026).
+       *
+       * SOLO LA RESERVA GUARDA EL FORMULARIO. Ni `Participante` ni
+       * `LeadEntrante` tienen ese campo, así que de las 1.480 fichas
+       * de la base de pruebas solo 79 ---las que entraron porque una
+       * institución apartó cupos--- pueden decir su nombre.
+       *
+       * Dejar las otras 1.401 en blanco sería una columna que no
+       * sirve. Así que para esas se dice POR DÓNDE entraron, que es
+       * la pregunta de fondo: quien se inscribió solo vino por la
+       * preinscripción pública, que es un formulario fijo y no uno de
+       * los configurables.
+       *
+       * NO ES LO MISMO QUE «Fuente formulario», que ya existe y dice
+       * el CANAL ---Pauta, Mailing, Orgánico---. Una persona puede
+       * llegar por Instagram a la preinscripción pública: el canal es
+       * Pauta y el formulario es la preinscripción. Son dos columnas
+       * porque son dos preguntas.
+       */
+      formularioDeEntrada:
+        p.reserva?.formulario?.titulo ??
+        (p.origen === 'AUTOGESTION' ? 'Preinscripción pública' : null),
       /// La carga entera y no solo su id: la tabla enseña el archivo y
       /// el recuento de esa importacion, y pedirlos aparte por cada
       /// fila serian cincuenta consultas por pagina.

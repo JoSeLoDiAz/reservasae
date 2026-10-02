@@ -437,6 +437,17 @@ export type FilaParticipante = {
    * enseña un guion y no rompe nada.
    */
   empresaNit?: string | null;
+  /**
+   * Por qué formulario entró, cuando se sabe.
+   *
+   * El título del formulario si vino por una reserva ---es el único
+   * sitio donde se guarda--- y «Preinscripción pública» si se
+   * inscribió sola. Nulo para el resto.
+   *
+   * Distinta de `fuenteFormulario`, que dice el CANAL: una persona
+   * puede llegar por Instagram a la preinscripción pública.
+   */
+  formularioDeEntrada?: string | null;
   empresaNombre?: string | null;
   antiguedadDias: number;
 

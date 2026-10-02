@@ -414,6 +414,23 @@ export function columnasDeParticipante(): Columna<FilaParticipante>[] {
       filtro: "opciones",
     },
     {
+      /// POR QUÉ FORMULARIO ENTRÓ, que no es lo mismo que por qué
+      /// canal. Va pegada a «Fuente formulario» porque se leen
+      /// juntas: el canal dice cómo llegó y esta, a qué llegó.
+      clave: "formularioDeEntrada",
+      nueva: true,
+      ancho: "190px",
+      titulo: "Formulario",
+      valor: (f) => f.formularioDeEntrada ?? "",
+      pinta: (f) =>
+        f.formularioDeEntrada ? (
+          <span className="block truncate">{f.formularioDeEntrada}</span>
+        ) : (
+          <span className="text-texto-suave">—</span>
+        ),
+      filtro: "opciones",
+    },
+    {
       /// El filtro va por la fuente y no por la campaña: con
       /// cada mailing un nombre nuevo, filtrar por nombre daria
       /// una opcion por envio y ninguna por «Mailing».
