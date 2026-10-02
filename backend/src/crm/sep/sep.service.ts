@@ -490,6 +490,11 @@ export class SepService {
         tieneAutorizacion: autorizados.has(p.personaId),
         grupoConFechas: Boolean(p.cobertura?.grupo.fechaInicio),
         grupoSepId: p.cobertura?.grupo.sepGrupoId ?? null,
+        /// LA MISMA FECHA CON LA QUE EL ARCHIVO CONGELA LA EDAD.
+        /// Sin esto la puerta juzgaba a hoy y el archivo al arranque
+        /// del grupo, y entre las dos se colaba un menor. Ver
+        /// `ParaRevisar.fechaDeCorte`.
+        fechaDeCorte: p.fechaMatricula ?? null,
         accionSepId: p.accionFormacion?.sepAfId ?? null,
         persona: p.persona,
       });

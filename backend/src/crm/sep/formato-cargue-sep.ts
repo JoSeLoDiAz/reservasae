@@ -14,6 +14,7 @@ import {
   TIPO_DOCUMENTO_POR_ID,
 } from '../catalogos-sep';
 import type { FilaSep } from './datos';
+import { identificadorParaExcel } from './numero-para-excel';
 
 export const COLUMNAS: Array<{
   titulo: string;
@@ -83,8 +84,9 @@ export const COLUMNAS: Array<{
 
 const digitos = (v: string | null) => (v ?? '').replace(/\D/g, '');
 
-const documentoParaExcel = (numero: string): string | number =>
-  /^\d{1,15}$/.test(numero) && !numero.startsWith('0') ? Number(numero) : numero;
+/// La regla se mudó a `numero-para-excel.ts` para que el NIT la use
+/// también: iba con un `Number()` a secas y perdía sus ceros.
+const documentoParaExcel = identificadorParaExcel;
 
 export function fila(p: FilaSep, indice: number, ano: number): Record<string, unknown> {
   const municipio = p.persona.municipioSepId
@@ -146,7 +148,10 @@ export function fila(p: FilaSep, indice: number, ano: number): Record<string, un
     perfil: 'NO APLICA',
     perfilId: 4,
     empresaId: '',
-    nitEmpresa: p.empresa ? Number(p.empresa.nit) : '',
+    /// CON LA MISMA PROTECCIÓN QUE EL DOCUMENTO DE LA PERSONA. Iba
+    /// con `Number()` a secas, así que un NIT que empiece por cero
+    /// llegaba al SENA sin él: otra organización, o ninguna.
+    nitEmpresa: p.empresa ? identificadorParaExcel(p.empresa.nit) : '',
     dv: p.empresa?.digitoVerificacion ? Number(p.empresa.digitoVerificacion) : '',
     empresa: p.empresa?.razonSocial ?? '',
     tamano: p.empresa?.tamanoSepId

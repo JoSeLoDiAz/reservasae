@@ -11,6 +11,7 @@ import {
   TIPO_DOCUMENTO_POR_ID,
 } from '../catalogos-sep';
 import type { FilaSep } from './datos';
+import { identificadorParaExcel } from './numero-para-excel';
 
 /// El titulo es el contrato: va literal, con su tilde y
 /// con el espacio final de "Estrato socio-economico ".
@@ -87,7 +88,9 @@ export function fila(p: FilaSep): Record<string, unknown> {
     barrio: p.persona.barrio ?? '',
     direccion: p.persona.direccion ?? '',
     beneficiarioPrevio: p.participante.beneficiarioPrevio ? 'si' : 'no',
-    nit: p.empresa ? Number(p.empresa.nit) : '',
+    /// Ver `identificadorParaExcel`: con `Number()` se perdían los
+    /// ceros de la izquierda.
+    nit: p.empresa ? identificadorParaExcel(p.empresa.nit) : '',
     dv: p.empresa?.digitoVerificacion ? Number(p.empresa.digitoVerificacion) : '',
     empresa: p.empresa?.razonSocial ?? '',
     tamanoEmpresa: p.empresa?.tamanoSepId

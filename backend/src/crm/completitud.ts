@@ -22,6 +22,28 @@ export type ParaRevisar = {
   tieneAutorizacion: boolean;
   grupoConFechas: boolean;
   grupoSepId: number | null;
+  /**
+   * CONTRA QUÉ FECHA SE JUZGA LA EDAD.
+   *
+   * El cargue congela la edad contra `fechaMatricula` para que la
+   * misma persona no cambie de rango entre dos cargues por haber
+   * cumplido años. Pero esta comprobación la miraba a HOY, y las dos
+   * fechas no son la misma: `fechaMatricula` la pone el cron a la
+   * `fechaInicio` del grupo, que puede ser de hace meses.
+   *
+   * O sea que alguien nacido en mayo de 2008, con el grupo arrancado
+   * en enero, PASABA esta puerta con 18 y salía en el archivo con
+   * 17 y rango 1. Reportar un menor en un programa que no admite
+   * menores, y el rango 1 es justo el que el catálogo dice que «no
+   * se debe usar nunca».
+   *
+   * Nula = se juzga a hoy, que es lo que vale para una ficha que
+   * todavía no se ha matriculado.
+   */
+  /// OPCIONAL: sin ella se juzga a hoy, que es lo correcto para el
+  /// panel y para una ficha que todavia no se ha matriculado. Quien
+  /// SI tiene que pasarla es el cargue al SENA, y una prueba lo fija.
+  fechaDeCorte?: Date | null;
   accionSepId: number | null;
   persona: {
     correo: string | null;
@@ -246,7 +268,13 @@ export function revisar(p: ParaRevisar): Revision {
     );
   }
   if (!persona.fechaNacimiento) reporte.push('falta la fecha de nacimiento');
-  else if (edadCumplida(persona.fechaNacimiento) < EDAD_MINIMA) {
+  else if (
+    /// CON EL MISMO CORTE QUE EL ARCHIVO. Ver `fechaDeCorte`: con la
+    /// edad de hoy, esta puerta dejaba pasar a quien el cargue
+    /// reporta con 17.
+    edadCumplida(persona.fechaNacimiento, p.fechaDeCorte ?? undefined) <
+    EDAD_MINIMA
+  ) {
     reporte.push(`es menor de ${EDAD_MINIMA} años`);
   }
   if (persona.generoSepId === null) reporte.push('falta el género');

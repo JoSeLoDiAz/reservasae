@@ -2,6 +2,7 @@
 
 import type { FormatoColumna } from '../../tableros/exportar';
 import { TAMANO_EMPRESA_POR_ID } from '../catalogos-sep';
+import { identificadorParaExcel } from './numero-para-excel';
 
 /**
  * A diferencia de los otros dos, este NO va por persona:
@@ -86,7 +87,11 @@ export type CeldasF7 = {
   numero: number;
   accion: string;
   empresa: string;
-  nit: number;
+  /// NUMERO O TEXTO: texto cuando el NIT empieza por cero, porque
+  /// Excel se lo comeria. Ver `identificadorParaExcel`. El tipo se
+  /// declara a proposito ---el comentario de arriba explica por que---
+  /// asi que tiene que admitir los dos.
+  nit: string | number;
   dv: string;
   departamento: string;
   municipio: string;
@@ -111,7 +116,11 @@ export function fila(f: FilaF7, indice: number): CeldasF7 {
     empresa: e.razonSocial,
     // como numero para que Excel no lo parta ni lo alinee
     // a la izquierda; el DV va aparte y es texto
-    nit: Number(e.nit),
+    /// Ver `identificadorParaExcel`: con `Number()` se perdían los
+    /// ceros de la izquierda, y el F7 se arma concatenando celdas,
+    /// así que el error no se ve: sale un cargue contra el NIT
+    /// equivocado.
+    nit: identificadorParaExcel(e.nit),
     dv: e.digitoVerificacion ?? '',
     departamento: e.departamento ?? '',
     municipio: e.municipio ?? '',
