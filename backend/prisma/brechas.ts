@@ -28,9 +28,28 @@ import { join } from 'node:path';
 
 const RAIZ = join(__dirname, '..');
 
+/**
+ * El fichero, SIEMPRE CON FINALES DE LÍNEA DE UNIX.
+ *
+ * Sin el `replace`, este informe MENTÍA en Windows, y de la peor
+ * manera: dando una brecha por abierta aunque estuviera arreglada.
+ *
+ * Los ficheros del repositorio están en CRLF. Un detector que busca
+ * una aguja con `\n` dentro ---B-01 busca `@Patch(':id')\n`--- no la
+ * encuentra nunca, `desde` devuelve cadena vacía, y «¿contiene el
+ * arreglo?» sale que no. Para siempre, y sin forma de notarlo:
+ * arreglar la brecha no apaga el aviso.
+ *
+ * Falla hacia el lado seguro ---avisa de más, no de menos--- pero un
+ * aviso que no se apaga cuando el trabajo ya se hizo deja de leerse,
+ * y entonces no avisa de nada el día que importe.
+ *
+ * Se normaliza AL LEER y no en cada detector, porque la próxima aguja
+ * con un salto de línea la escribirá alguien que no sepa esto.
+ */
 const leer = (ruta: string): string => {
   try {
-    return readFileSync(join(RAIZ, ruta), 'utf8');
+    return readFileSync(join(RAIZ, ruta), 'utf8').split('\r\n').join('\n');
   } catch {
     return '';
   }
@@ -84,9 +103,30 @@ const BRECHAS: Brecha[] = [
       'con el mismo mensaje que ya da el reparto por lotes.',
     donde: 'backend/src/crm/crm.controller.ts',
     abierta: () => {
-      const t = leer('src/crm/crm.controller.ts');
+      /// MIRA EL SERVICIO, NO EL CONTROLADOR.
+      ///
+      /// Josse la cerró el 2 oct 2026 y la cerró MEJOR de lo que decía
+      /// este arreglo: en vez de exigir que reparta, distingue el caso
+      /// que faltaba ---un asesor puede COGER un lead libre para sí
+      /// mismo, que es trabajo normal y no repartir---. Eso vive en
+      /// `coger-un-lead.ts` y se llama desde `actualizar()`.
+      ///
+      /// El detector seguía mirando si el CONTROLADOR pasaba
+      /// `conveniosQueReparten`, que era como lo habría hecho yo. Daba
+      /// la brecha por abierta sobre un arreglo que ya estaba puesto, y
+      /// eso es lo que hace que un informe deje de leerse.
+      ///
+      /// Dentro de `actualizar()` y no en todo el fichero: el servicio
+      /// tiene miles de líneas y buscar suelto daría verde aunque la
+      /// comprobación viviera en otro método.
+      const t = leer('src/crm/crm.service.ts');
       if (!t) return false;
-      return !desde(t, "@Patch(':id')\n", 20).includes('conveniosQueReparten');
+      /// VENTANA DE 300: `actualizar()` es largo y la comprobación
+      /// queda sobre el renglón 260. La ventana mide distancia, no
+      /// importancia.
+      return !desde(t, 'async actualizar(', 300).includes(
+        'motivoParaNoTocarElAsesor',
+      );
     },
   },
   {
