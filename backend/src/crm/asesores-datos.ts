@@ -19,7 +19,7 @@ import {
   type Ritmo,
 } from './seguimiento-de-asesores';
 import {
-  cierreDeInscripciones,
+  cierreDelGrupo,
   diasDeTrabajoEntre,
   hoyEnColombia,
   type ModalidadDeCierre,
@@ -145,19 +145,68 @@ export type CargaEnUnaAccion = {
 /// sus grupos. El más próximo y no el más lejano: en cuanto uno cierra
 /// ya hay gente a la que no se puede meter ahí, y el asesor tiene que
 /// enterarse entonces, no cuando cierre el último.
+/**
+ * Lo que hace falta saber de un grupo para fechar su cierre.
+ *
+ * `cierreInscripciones` OPCIONAL: los que todavía no lo seleccionan
+ * siguen derivando, sin cambiar de comportamiento.
+ */
+export type GrupoConCierre = {
+  accionFormacionId: string;
+  fechaInicio: Date | null;
+  modalidad: Modalidad;
+  cierreInscripciones?: Date | null;
+};
+
 export function cierrePorAccion(
-  grupos: Array<{ accionFormacionId: string; fechaInicio: Date | null; modalidad: Modalidad }>,
+  grupos: GrupoConCierre[],
 ): Map<string, Date> {
   const por = new Map<string, Date>();
   for (const g of grupos) {
-    if (!g.fechaInicio) continue;
-    const cierre = cierreDeInscripciones(
-      g.fechaInicio,
-      g.modalidad as unknown as ModalidadDeCierre,
-    );
+    const cierre = cierreDelGrupo({
+      fechaInicio: g.fechaInicio,
+      modalidad: g.modalidad as unknown as ModalidadDeCierre,
+      cierreInscripciones: g.cierreInscripciones,
+    });
+    if (!cierre) continue;
     const actual = por.get(g.accionFormacionId);
     if (!actual || cierre < actual) por.set(g.accionFormacionId, cierre);
   }
+  return por;
+}
+
+/**
+ * TODAS las fechas en que cierra una acción, en orden.
+ *
+ * UNA ACCIÓN NO CIERRA ENTERA: «las AF no cierran como tal una
+ * completa sino por partes» (cliente, 2 oct 2026). En el cronograma
+ * de ADECOPRIA seis de las siete cierran en dos o más fechas, y AF3
+ * tiene una por cada uno de sus cinco grupos.
+ *
+ * `cierrePorAccion` se queda con la más próxima ---y hace bien, es
+ * la primera puerta que se cierra--- pero enseñar SOLO esa deja al
+ * asesor de los grupos que cierran después con unos días y una meta
+ * diaria que no son los suyos. Esto devuelve la lista entera para
+ * poder decirlo.
+ */
+export function cierresPorAccion(
+  grupos: GrupoConCierre[],
+): Map<string, Date[]> {
+  const por = new Map<string, Date[]>();
+  for (const g of grupos) {
+    const cierre = cierreDelGrupo({
+      fechaInicio: g.fechaInicio,
+      modalidad: g.modalidad as unknown as ModalidadDeCierre,
+      cierreInscripciones: g.cierreInscripciones,
+    });
+    if (!cierre) continue;
+    const ya = por.get(g.accionFormacionId) ?? [];
+    /// Por valor y no por identidad: dos grupos que cierran el
+    /// mismo día son UNA fecha de cierre, no dos.
+    if (!ya.some((d) => d.getTime() === cierre.getTime())) ya.push(cierre);
+    por.set(g.accionFormacionId, ya);
+  }
+  for (const fechas of por.values()) fechas.sort((a, b) => a.getTime() - b.getTime());
   return por;
 }
 

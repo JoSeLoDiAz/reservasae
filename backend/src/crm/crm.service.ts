@@ -829,7 +829,13 @@ export class CrmService {
       }),
       this.prisma.grupo.findMany({
         where: { accionFormacion: { convenioId: { in: ambito.convenios } } },
-        select: { accionFormacionId: true, fechaInicio: true, modalidad: true },
+        select: {
+          accionFormacionId: true,
+          fechaInicio: true,
+          modalidad: true,
+          /// El cierre fijado del grupo, que manda sobre el derivado.
+          cierreInscripciones: true,
+        },
       }),
     ]);
 
@@ -882,7 +888,13 @@ export class CrmService {
       }),
       this.prisma.grupo.findMany({
         where: { accionFormacion: { convenioId: { in: ambito.convenios } } },
-        select: { accionFormacionId: true, fechaInicio: true, modalidad: true },
+        select: {
+          accionFormacionId: true,
+          fechaInicio: true,
+          modalidad: true,
+          /// El cierre fijado del grupo, que manda sobre el derivado.
+          cierreInscripciones: true,
+        },
       }),
       /// LA META DE INSCRITOS es el TOPE, con el 30% de sobrecupo, no
       /// la base. «Los cupos de AF1 y AF2 son 520, no 400; todos van

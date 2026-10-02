@@ -185,6 +185,25 @@ model Grupo {
   fechaInicio DateTime?
   fechaFin    DateTime?
 
+  /// Cuando se dejan de recibir inscripciones PARA ESTE GRUPO.
+  ///
+  /// UNA ACCION NO CIERRA ENTERA: «las AF no cierran como tal una
+  /// completa sino por partes» (cliente, 2 oct 2026). En el
+  /// cronograma de ADECOPRIA, seis de las siete acciones cierran en
+  /// dos o mas fechas ---AF3 tiene una distinta por cada uno de sus
+  /// cinco grupos--- y hasta hoy no habia donde guardarlo: la
+  /// pantalla enseñaba una sola fecha por accion, la del grupo que
+  /// cerraba primero, y de ahi salian «dias para el cierre» y la
+  /// META DIARIA de los asesores. Para la mitad de los grupos de AF1
+  /// y AF2 esa cuenta estaba mal.
+  ///
+  /// NULA = la de siempre, derivada de `fechaInicio` por
+  /// `cierreDeInscripciones()`. Puesta, MANDA sobre la derivada: la
+  /// regla fija ---14 dias antes si es virtual, 5 habiles si es
+  /// presencial--- no reproduce el cronograma, donde las distancias
+  /// reales van de 5 a 11 dias porque se marcan a mano.
+  cierreInscripciones DateTime?
+
   /// los dias, tal como se leen: "lunes a sabado"
   dias String?
 
