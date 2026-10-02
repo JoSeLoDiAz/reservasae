@@ -209,7 +209,18 @@ async function main() {
       create: {
         nit: e.nit,
         razonSocial: nombre,
-        digitoDeclarado: calcularDigitoVerificacion(e.nit),
+        /// VA NULO, Y NO EL CALCULADO. El schema dice de este campo
+        /// «el declarado en la fuente; el que vale se calcula», y
+        /// aquí no hay fuente que declare nada: el número sale de
+        /// una cédula que nadie tecleó como dígito.
+        ///
+        /// Escribir el calculado no es solo impreciso, APAGA UN
+        /// CONTROL: `directorio.service.ts` detecta el NIT mal
+        /// tecleado comparando `digitoDeclarado !== digitoVerificacion`,
+        /// y si son el mismo por construcción esa comparación no
+        /// puede saltar nunca. Nulo es lo honesto y deja el control
+        /// vivo para cuando alguien sí declare uno.
+        digitoDeclarado: null,
         /// La escribió una persona en el formulario, no una fuente
         /// oficial. Esa marca es la que permite que el RUES la
         /// corrija después.

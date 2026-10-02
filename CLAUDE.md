@@ -386,7 +386,66 @@ bajaba la plantilla equivocada; con el arreglo no bajaba ninguna.
 > pinta como «No se pudo completar la operación»** — parecen fallos de la
 > aplicación y no lo son. Un segundo entre peticiones.
 
-## Estado actual (22 sep 2026 · v0.9.0-JD)
+## Estado actual (1 oct 2026 · v0.16.0-JD)
+
+> **v0.16.0-JD está en PRODUCCIÓN** (1 oct 2026, commit `829b698`, etiqueta
+> `v0.16.0`). Es la **mitad funcional** de la entrega de Andrés del 1 de octubre
+> —`jose/funcional`, 18 commits— más tres versiones propias de esa semana. Copia
+> previa en `~/reservasae-antes-de-v0.16.0-20261001-2349.sql.gz`; migraciones 77 →
+> 80 y las filas idénticas antes y después: 129 organizaciones, 289 fichas, 296
+> personas, 38 reservas.
+>
+> **Las tres de esa semana, por si hace falta volver atrás:**
+>
+> | | |
+> |---|---|
+> | `v0.14.0` (30 sep) | el asesor da de alta la organización por su NIT; el NIT deja de tragarse el dígito pegado; el modal de datos de empresa |
+> | `v0.15.0` (1 oct) | la cédula de la persona se corrige, y **solo la corrige el administrador** |
+> | `v0.16.0` (1 oct) | la mitad funcional de Andrés: leads por organización, clasificación de notas, «Por revisar», unir fichas, mover una persona de organización |
+>
+> - **LA MITAD DE FORMA NO ENTRÓ**, y es la primera vez que la regla del 24 sep se
+>   aplica a una entrega entera con el número medido: de 51 commits, **26 y 2.531
+>   líneas eran forma pura** (cero backend), citando al cliente textual. Quedan en
+>   `jose/forma`, que Andrés partió a su vez en `forma-arregla` (12 commits, y ahí
+>   sí hay defectos: filtros de columna inalcanzables en tablas de 21 columnas, la
+>   cabecera comiéndose «Seguimiento de asesores») y `forma-apariencia` (1 commit,
+>   puro aspecto). **Ninguna está en `origin`**: esperan fecha de Josse.
+> - **Y el bloque de forma no era inofensivo**, que es lo que zanja la discusión:
+>   `cf9a638` —puramente estético— dejó el cartel «Todavía no hay grupos con gente
+>   en el aula» **encima de una tabla con 167 personas**. Midió el vacío sobre un
+>   array que ese mismo commit acababa de vaciar a propósito.
+> - **`24bc2b4` ES UN COMMIT ENVENENADO para el próximo corte**: lleva el borrado
+>   de `/admin/ocupacion` (1.473 líneas) **pegado** al filtro de fecha por columna,
+>   que sí se queda. La marcha atrás está 34 commits después. Quien se lleve ese
+>   commit entero vuelve a borrar la pantalla, y nada lo caza.
+> - **`db:independientes --aplicar` corrió una vez** contra producción: 35 con
+>   dígito nuevo, 41 añadidas al directorio, 40 independientes completados. Hace
+>   falta `PERMITIR_PRODUCCION=si` delante (el guardia es de PUERTO y la base real
+>   publica en el 5433) y se corre **desde el clon de pruebas**, que es el que
+>   tiene `ts-node`, apuntando por `PG_BIND` — `100.101.40.99:5433`, no
+>   `127.0.0.1`.
+> - **Ese guion escribió `digitoDeclarado` con el dígito CALCULADO en 41 filas**, y
+>   el schema dice de ese campo «el declarado en la fuente; el que vale se
+>   calcula». No es solo impreciso: `directorio.service.ts` detecta el NIT mal
+>   tecleado comparando `digitoDeclarado !== digitoVerificacion`, así que en esas
+>   41 **ese control no puede saltar nunca**. El guion ya está arreglado (va
+>   `null`); **las 41 filas siguen pendientes de corregir**:
+>   `UPDATE instituciones SET "digitoDeclarado" = NULL WHERE "creadoEn" >= '2026-10-01 23:50' AND fuente = 'HUMANO';`
+> - **41 cédulas de personas naturales entraron al directorio maestro**, que los
+>   dos gremios comparten. Revierte una decisión de privacidad que estaba escrita
+>   —«la cédula de alguien NO entra… el directorio lo recorre el buscador web»— y
+>   **la autorizó Josse el 1 oct**, con una condición que **sigue abierta**: cerrar
+>   el botón «validar web» para que una cédula no salga a internet.
+> - **Lo que hay que quitar en la siguiente**: `resultado` volvió al `CrearNotaDto`
+>   solo por la ventana del despliegue (con `forbidNonWhitelisted`, quitarlo deja
+>   un 400 a quien tenga el panel abierto con el bundle viejo).
+> - **El catálogo de categorías de nota es GLOBAL y su permiso es POR CONVENIO**:
+>   quien lleva sistemas en un gremio puede renombrar u ocultar una categoría que
+>   gobierna las notas del otro. Pendiente de decidir.
+> - **El PC Dell lleva el día inalcanzable.** Bogotá y El Socorro al día, en la
+>   misma línea y el mismo LSN.
+
+## De antes (22 sep 2026 · v0.9.0-JD)
 
 > **v0.9.0-JD esta en PRODUCCION** (22 sep 2026, commit `d109bf5`, etiqueta
 > `v0.9.0`). Es la entrega del 21 sep de Andres (`arq/crm-hardening`,

@@ -96,3 +96,22 @@ del despliegue, tal como lo dejaste escrito. Queda apuntado aquí para que no se
 
 **Y una cosa por si acaso:** la rama vieja `jose/dev-26sep` sigue en `origin`. Como dices,
 es la mezclada — no se usó.
+
+## Un aviso para cuando partas `forma`
+
+**`24bc2b4` es un commit envenenado.** Lleva el borrado de `/admin/ocupacion` --las
+1.473 lineas, los tres ficheros y la entrada de menu-- **pegado en el mismo commit** al
+filtro de fecha por columna y al refactor de filtros-en-la-url, que es justo lo que se
+queda. La marcha atras esta 34 commits despues, en `7cbda0b`, el ultimo de la rama.
+
+O sea que quien se lleve `24bc2b4` entero a `forma-arregla` **vuelve a borrar la
+pantalla**, y no lo caza nada: compila, pasa las pruebas y no deja enlace muerto. Hay que
+partirlo en dos antes de repartir.
+
+Y una frase que caduco sola, por si alguien la usa de criterio dentro de tres meses: «el
+arbol queda identico, `git diff` no devuelve nada» esta en el cuerpo de `925c834` y de
+`ba3e4d1`, y **era cierta cuando la escribiste** --a `forma~1` el unico diff contra la
+mezclada era `docs/PARA-ANDRES.md`, que es de Jose y no tuyo--. La invalido tu propio
+commit siguiente, `7cbda0b`, media hora despues, al restaurar la pantalla. Hoy ese diff
+devuelve 6 ficheros y los 6 son esa restauracion. No es un descuido: es una frase que
+caduco y no se volvio a tocar.
