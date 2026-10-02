@@ -217,6 +217,59 @@ async function independientesAMedias(): Promise<Hallazgo> {
   };
 }
 
+/**
+ * CIUDADES SIN SU DEPARTAMENTO, QUE ES EL PARCHE DE AF6 SIN EFECTO.
+ *
+ * Desde el 30 sep 2026 una ubicación de tipo CIUDAD cubre su
+ * departamento entero: «los de AF6, que es en Medellín, así la persona
+ * sea de Rionegro debe permitir inscribirla» (cliente). La regla vive
+ * en `cobertura.ts` y su última línea es:
+ *
+ *     return igual(donde.departamento, vive.departamento);
+ *
+ * O SEA QUE EL PARCHE SOLO FUNCIONA SI LA FILA TIENE EL DEPARTAMENTO
+ * GUARDADO. Con el campo vacío, la ciudad no abre nada y la regla se
+ * comporta como la vieja: solo entra quien viva en esa misma ciudad.
+ * El de Rionegro sigue bloqueado, y nada avisa.
+ *
+ * Y NO FALLA RUIDOSAMENTE, que es lo peor: el panel dice «falta la
+ * sede: se sabe qué curso quiere, pero no dónde lo va a tomar», que es
+ * el mismo mensaje que sale cuando el departamento de verdad no tiene
+ * ese curso. Los dos casos se leen igual y solo uno es un error.
+ *
+ * SOLO LAS QUE ESTÁN EN USO. Una ciudad sin ofertas no bloquea a
+ * nadie, y meterla en el aviso sería llenarlo de ruido ---la regla de
+ * esta casa: un aviso que trae casos que no son problema deja de
+ * leerse---.
+ */
+async function ciudadesSinDepartamento(): Promise<Hallazgo> {
+  const sueltas = await prisma.ubicacion.findMany({
+    where: { tipo: 'CIUDAD', departamento: null },
+    select: {
+      nombre: true,
+      _count: { select: { ofertas: true, coberturas: true } },
+    },
+    orderBy: { nombre: 'asc' },
+  });
+
+  const enUso = sueltas.filter(
+    (u) => u._count.ofertas > 0 || u._count.coberturas > 0,
+  );
+
+  return {
+    titulo: 'Ciudades sin departamento: la cobertura de AF6 no abre',
+    cuantos: enUso.length,
+    ejemplos: enUso
+      .slice(0, EJEMPLOS)
+      .map(
+        (u) =>
+          `${u.nombre.padEnd(24)} ${u._count.ofertas} ofertas, ${u._count.coberturas} grupos -> solo entra quien viva en ${u.nombre}`,
+      ),
+    comoSeArregla:
+      'Poniéndole el departamento a esa ubicación en Configuración. Mientras esté vacío, a esa ciudad solo entra quien viva exactamente en ella, y a los del resto del departamento el panel les dice «falta la sede» como si el curso no existiera allí.',
+  };
+}
+
 async function main() {
   console.log('\n═══ SONDEO DE LOS DATOS ═══\n');
 
@@ -225,12 +278,13 @@ async function main() {
     await nitPartidoPorElDigito(),
     await nitQueNoEsNumero(),
     await independientesAMedias(),
+    await ciudadesSinDepartamento(),
   ];
 
   const conCasos = hallazgos.filter((h) => h.cuantos > 0);
 
   if (conCasos.length === 0) {
-    console.log('  Nada que reportar: los cuatro controles salen en cero.\n');
+    console.log('  Nada que reportar: los cinco controles salen en cero.\n');
     return;
   }
 
