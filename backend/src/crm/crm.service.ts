@@ -4628,6 +4628,40 @@ export class CrmService {
     });
     if (!p) throw new NotFoundException('Ese participante no existe.');
 
+    /**
+     * EL DOCUMENTO NO SE CAMBIA POR AQUÍ, TAMPOCO.
+     *
+     * `actualizar()` lo exige desde el 1 oct 2026 ---«que solo lo pueda
+     * cambiar el administrador» (cliente)--- porque el documento es la
+     * identidad de la persona y el número que viaja al SENA y al RUI.
+     *
+     * PERO LA CERRADURA ESTABA EN UNA SOLA PUERTA, y esta también
+     * escribe en `persona`: hace `persona.update` con los campos que el
+     * asesor acepte, sin mirar quién es. Hoy no hay agujero porque
+     * ninguna de las dos cosas que crean propuestas ---el cruce de
+     * leads y la preinscripción--- mete el documento. Pero eso es una
+     * casualidad de lo que hoy proponen, no una regla: el día que
+     * alguien añada el documento a una propuesta, un gestor lo estaría
+     * cambiando al aceptarla, y nada lo pararía.
+     *
+     * De hecho estuvo a punto de pasar: la lista de pendientes propone
+     * «añadir el documento a la propuesta del cruce» como un arreglo de
+     * minutos (A-05), y hacerlo tal cual habría deshecho el candado del
+     * día anterior sin que nada fallara.
+     *
+     * La cerradura va DONDE SE ESCRIBE y no solo en la puerta por la
+     * que se entró. Es la misma lección de `exigirQuienCargaPlano`.
+     */
+    const DOCUMENTO = ['numeroDocumento', 'tipoDocumentoSepId'];
+    if (
+      aceptados.some((c) => DOCUMENTO.includes(c)) &&
+      admin.rol !== RolAdmin.SUPERADMIN
+    ) {
+      throw new ForbiddenException(
+        'El documento de la persona solo lo puede corregir un administrador.',
+      );
+    }
+
     if (aceptados.length > 0) {
       const data: Record<string, unknown> = {};
       for (const campo of aceptados) {

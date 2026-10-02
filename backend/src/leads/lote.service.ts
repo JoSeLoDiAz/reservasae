@@ -10,7 +10,7 @@
  * lead de un anuncio no trae.
  */
 
-import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import { HttpException, BadRequestException, Injectable, Logger } from '@nestjs/common';
 
 import type { Admin } from '../../generated/prisma';
 import { PrismaService } from '../prisma/prisma.service';
@@ -166,11 +166,40 @@ export class LoteDeLeads {
           conAutorizacion: r.conAutorizacion,
         });
       } catch (e) {
+        /**
+         * EL TEXTO CRUDO NO SALE AL CLIENTE.
+         *
+         * LOTE-02. Aquí se devolvía `e.message` fuera lo que fuera.
+         * Para los errores que ESTE sistema lanza a propósito eso es
+         * lo que se quiere: «esta persona ya está en otra acción de
+         * formación» es la explicación que la asesora necesita leer
+         * al lado del nombre.
+         *
+         * Pero un error que no es nuestro ---una restricción de la
+         * base, un campo nulo, un fallo de red--- trae dentro nombres
+         * de tablas y de columnas, y a veces el valor que los rompió.
+         * Eso acaba en la pantalla de quien hizo el lote, y de ahí en
+         * un pantallazo por WhatsApp.
+         *
+         * `HttpException` es justo la línea: la lanza este código
+         * cuando sabe qué decir. Lo demás se registra entero ---con
+         * su rastro, que es donde sirve--- y al cliente le llega que
+         * falló y que quedó anotado.
+         */
+        const nuestro = e instanceof HttpException;
+        if (!nuestro) {
+          this.log.error(
+            `Lead ${lead.id} del lote: ` +
+              (e instanceof Error ? (e.stack ?? e.message) : String(e)),
+          );
+        }
         filas.push({
           leadId: lead.id,
           ok: false,
           nombre,
-          porque: e instanceof Error ? e.message : String(e),
+          porque: nuestro
+            ? e.message
+            : 'No se pudo convertir por un fallo del sistema. Quedó registrado; vuelva a intentarlo con esta sola.',
         });
       }
     }
