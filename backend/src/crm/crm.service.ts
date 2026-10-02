@@ -535,6 +535,10 @@ export class CrmService {
               razonSocial: true,
               // los cuatro del jefe: los pide `faltaDeLaEmpresa`
               nit: true,
+              /// Para enseñar el NIT como se escribe, con su dígito:
+              /// «890982209-4». Sin él, la columna dice un número que
+              /// no se puede pegar en ningún sitio oficial.
+              digitoVerificacion: true,
               direccion: true,
               telefono: true,
               sectorEconomico: true,
@@ -6885,6 +6889,8 @@ export class CrmService {
     empresa: {
       razonSocial: string;
       nit: string;
+      /// Para enseñar el NIT como se escribe: «890982209-4».
+      digitoVerificacion: string | null;
       direccion: string | null;
       telefono: string | null;
       sectorEconomico: string | null;
@@ -7016,6 +7022,29 @@ export class CrmService {
       /// guardar la ficha tambien deja movimiento.
       cambios: p.ediciones,
       datosEmpresa: this.estadoDeEmpresa(p.empresa),
+      /**
+       * EL NIT Y EL NOMBRE DE LA ORGANIZACIÓN, en la propia fila.
+       *
+       * «necesito otra columna para saber el NIT, nombre de empresa,
+       * no lo tengo» (cliente, 2 oct 2026).
+       *
+       * Había una columna «Datos de empresa», pero solo dice SI están
+       * completos ---SIN, PARCIAL, COMPLETA---, no de QUÉ organización
+       * se trata. Para saberlo había que abrir la ficha, una por una.
+       *
+       * El dato ya se consultaba arriba para calcular lo que falta:
+       * solo no llegaba a la fila.
+       *
+       * CON SU DÍGITO cuando lo tiene: un NIT sin él no se pega en
+       * ningún sitio oficial, y es como se busca en «Empresas
+       * registradas».
+       */
+      empresaNit: p.empresa
+        ? p.empresa.digitoVerificacion
+          ? `${p.empresa.nit}-${p.empresa.digitoVerificacion}`
+          : p.empresa.nit
+        : null,
+      empresaNombre: p.empresa?.razonSocial ?? null,
       /// La carga entera y no solo su id: la tabla enseña el archivo y
       /// el recuento de esa importacion, y pedirlos aparte por cada
       /// fila serian cincuenta consultas por pagina.

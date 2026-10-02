@@ -513,6 +513,46 @@ export function columnasDeParticipante(): Columna<FilaParticipante>[] {
       filtro: "numero",
     },
     {
+      /**
+       * EL NIT DE LA ORGANIZACIÓN.
+       *
+       * Va ANTES que el nombre y que «Datos de empresa» porque es la
+       * llave: es lo que se busca, lo que se pega en el reporte y lo
+       * que distingue a dos colegios que se llaman parecido.
+       */
+      clave: "empresaNit",
+      nueva: true,
+      ancho: "140px",
+      titulo: "NIT empresa",
+      valor: (f) => f.empresaNit ?? "",
+      pinta: (f) =>
+        f.empresaNit ? (
+          <span className="whitespace-nowrap font-mono text-xs">
+            {f.empresaNit}
+          </span>
+        ) : (
+          <span className="text-texto-suave">—</span>
+        ),
+      filtro: "texto",
+    },
+    {
+      /// El nombre, al lado de su NIT. Separados y no en una sola
+      /// celda: se filtran por cosas distintas ---el NIT exacto, el
+      /// nombre por un trozo--- y juntos no se puede.
+      clave: "empresaNombre",
+      nueva: true,
+      ancho: "230px",
+      titulo: "Empresa",
+      valor: (f) => f.empresaNombre ?? "",
+      pinta: (f) =>
+        f.empresaNombre ? (
+          <span className="block truncate">{f.empresaNombre}</span>
+        ) : (
+          <span className="text-texto-suave">—</span>
+        ),
+      filtro: "texto",
+    },
+    {
       clave: "datosEmpresa",
       ancho: "164px",
       titulo: "Datos de empresa",

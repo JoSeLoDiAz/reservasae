@@ -427,6 +427,17 @@ export type FilaParticipante = {
   /** Cuántas veces se le movió la etapa. */
   cambios: number;
   datosEmpresa: "SIN" | "PARCIAL" | "COMPLETA";
+  /**
+   * De QUÉ organización es esta persona, no solo si está completa.
+   *
+   * El NIT viene con su dígito cuando lo tiene ---«890982209-4»---,
+   * que es como se escribe y como se busca en Empresas registradas.
+   *
+   * Opcionales porque un backend viejo no los manda: la columna
+   * enseña un guion y no rompe nada.
+   */
+  empresaNit?: string | null;
+  empresaNombre?: string | null;
   antiguedadDias: number;
 
   /**
