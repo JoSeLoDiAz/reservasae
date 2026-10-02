@@ -517,8 +517,23 @@ export type Listado = {
 export type Resumen = {
   etapas: Array<{ etapa: Etapa; total: number }>;
   total: number;
-  /** Para los filtros: salen de la base, no de la página. */
+  /**
+   * PARA EL FILTRO: los que YA tienen fichas.
+   *
+   * Salen de la base y no de la página. Filtrar por alguien con cero
+   * filas no devuelve nada, así que aquí esa lista es la correcta.
+   */
   asesores: Array<{ id: string; nombre: string; total: number }>;
+  /**
+   * PARA ASIGNAR: los que PUEDEN llevar fichas, tengan o no.
+   *
+   * Es otra pregunta y por eso es otra lista. Las dos salían de la
+   * de arriba, y eso dejaba un círculo sin salida: para aparecer en
+   * el desplegable de «Asignar a» había que tener ya un lead, y para
+   * tener el primero había que aparecer en el desplegable. Una cuenta
+   * recién creada no podía recibir ninguno.
+   */
+  asesoresAsignables: Array<{ id: string; nombre: string }>;
   acciones: Array<{ id: string; codigo: string; nombre: string; total: number }>;
   /// Para el filtro de grupo. `accion` es el codigo de su acción
   /// de formación: «Grupo 1» existe en las quince y sin él no se

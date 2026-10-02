@@ -322,7 +322,11 @@ export default function PaginaParticipantes() {
           <ListaParticipantes
             filas={filas}
             total={total}
+            /// Los del FILTRO ---con fichas--- y los ASIGNABLES ---con
+            /// permiso---. Son dos preguntas distintas; el porqué está
+            /// en `Resumen`.
             asesores={resumen.asesores}
+            asesoresAsignables={resumen.asesoresAsignables}
             resumen={
               hayAlguien ? (
                 <div>
@@ -364,13 +368,19 @@ function ListaParticipantes({
   filas,
   total,
   asesores,
+  asesoresAsignables,
   resumen,
   alCambiar,
   alCargarTodo,
 }: {
   filas: FilaParticipante[];
   total: number;
+  /// Para el FILTRO de la columna: los que ya tienen fichas.
   asesores: Array<{ id: string; nombre: string }>;
+  /// Para ASIGNAR: los que pueden llevarlas, tengan o no. Si se
+  /// usara la de arriba, una cuenta nueva nunca recibiría la
+  /// primera: no saldría en el desplegable hasta tener una.
+  asesoresAsignables: Array<{ id: string; nombre: string }>;
   /// El embudo, ya montado. Viene hecho de la pantalla y no se
   /// arma aqui porque los datos que necesita -- el reparto por
   /// etapa, cuantos van sin asesor -- los tiene ella.
@@ -478,7 +488,7 @@ function ListaParticipantes({
             {reparte ? (
               <AsignarLote
                 ids={ids}
-                asesores={asesores}
+                asesores={asesoresAsignables}
                 alTerminar={async (n) => {
                   setFalla(null);
                   limpiar();

@@ -23,8 +23,28 @@ import { RolConvenio } from '../../generated/prisma';
 export const PUEDEN_LLEVAR_FICHAS: RolConvenio[] = [
   RolConvenio.GESTOR_INSCRIPCION,
   RolConvenio.LIDER_INSCRIPCION,
-  RolConvenio.LIDER_SISTEMAS,
 ];
+
+/**
+ * EL LÍDER DE SISTEMAS SALIÓ DE LA LISTA (cliente, 2 oct 2026:
+ * «solo debe salir Gestor de Inscripciones y Líder de Inscripciones»).
+ *
+ * Tenía `inscripciones · ESCRIBIR` en la matriz y por eso estaba, pero
+ * una cosa es PODER escribir en las fichas y otra que la gente le
+ * reparta leads: ese rol administra el sistema, no atiende la
+ * captación. En un desplegable de «¿a quién se la paso?», cada nombre
+ * que no va a trabajar ese lead es una forma de perderlo.
+ *
+ * NO ROMPE LO YA ASIGNADO. Esta lista decide a quién se OFRECE, no
+ * quién puede tener: `exigirAsesorDelConvenio` sigue aceptando a
+ * cualquiera con concesión en el convenio, así que las fichas que ya
+ * lleva un líder de sistemas se quedan donde están y se le pueden
+ * quitar. Lo que no se puede es darle más desde el desplegable.
+ *
+ * Y VA EN ESTA LISTA Y NO EN CADA PANTALLA, que es el motivo de que
+ * este fichero exista: dos listas de quién puede ser asesor acaban
+ * discrepando.
+ */
 
 /**
  * El `where` de «quién puede llevar fichas aquí».

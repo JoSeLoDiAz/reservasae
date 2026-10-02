@@ -1300,12 +1300,40 @@ export class CrmService {
       .map((f) => f.convenioId)
       .filter((id): id is string => !!id);
 
-    const [asesores, acciones, convenios] = await Promise.all([
+    /**
+     * DOS LISTAS DE ASESORES, Y SON DOS PREGUNTAS DISTINTAS.
+     *
+     * `asesores` ---los que YA tienen fichas--- es para el FILTRO de
+     * la columna: filtrar por alguien con cero filas no devuelve nada
+     * y solo estorba.
+     *
+     * `asesoresAsignables` ---los que PUEDEN llevarlas--- es para el
+     * desplegable de «Asignar a». Las dos salían de la primera, y eso
+     * dejaba un círculo del que no se sale: para aparecer en el
+     * desplegable había que tener ya un lead, y para tener el primero
+     * había que aparecer en el desplegable. Una cuenta recién creada
+     * no podía recibir ni uno (cliente, 2 oct 2026).
+     *
+     * La segunda usa la MISMA fuente que el selector de la ficha
+     * individual ---`llevanFichasEn`--- justo para que las dos
+     * pantallas no ofrezcan gente distinta.
+     */
+    const [asesores, asesoresAsignables, acciones, convenios] =
+      await Promise.all([
       this.prisma.admin.findMany({
         where: { id: { in: idsAsesor } },
         select: { id: true, nombre: true },
         orderBy: { nombre: 'asc' },
       }),
+      /// Sin ámbito no se pregunta: `llevanFichasEn([])` no casa con
+      /// nadie, pero pedirlo igual es una consulta que se sabe vacía.
+      !filtros.ambito || filtros.ambito.length === 0
+        ? Promise.resolve([])
+        : this.prisma.admin.findMany({
+            where: llevanFichasEn(filtros.ambito),
+            select: { id: true, nombre: true },
+            orderBy: { nombre: 'asc' },
+          }),
       this.prisma.accionFormacion.findMany({
         where: { id: { in: idsAccion } },
         select: { id: true, codigo: true, nombre: true },
@@ -1431,6 +1459,9 @@ export class CrmService {
         ...a,
         total: totalAsesor.get(a.id) ?? 0,
       })),
+      /// A quién se le puede asignar, tenga fichas o no. Ver el
+      /// porqué donde se consulta.
+      asesoresAsignables,
       acciones: acciones.map((a) => ({
         ...a,
         total: totalAccion.get(a.id) ?? 0,
