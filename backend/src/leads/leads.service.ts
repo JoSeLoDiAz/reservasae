@@ -186,47 +186,92 @@ export class LeadsService {
       return { ...this.vista(ya), repetido: true };
     }
 
-    const lead = await this.prisma.leadEntrante.create({
-      data: {
-        convenioId: convenio.id,
-        origenSistema,
-        externoId,
-        origen: dto.origen ?? 'OTRO',
-        nombreCompleto: datos.nombreCompleto,
-        /// Tal como llegaron, si llegaron separadas.
-        primerNombre: datos.piezasDelNombre?.primerNombre ?? null,
-        segundoNombre: datos.piezasDelNombre?.segundoNombre ?? null,
-        primerApellido: datos.piezasDelNombre?.primerApellido ?? null,
-        segundoApellido: datos.piezasDelNombre?.segundoApellido ?? null,
-        correo: datos.correo,
-        celular: datos.celular,
-        tipoDocumentoSepId: datos.tipoDocumentoSepId,
-        numeroDocumento: datos.numeroDocumento,
-        interes: dto.interes ?? null,
-        /// Resuelta AL ENTRAR, como el celular. Nula si no
-        /// nombra ninguna o si nombra una que este gremio no
-        /// tiene: las dos cosas quedan igual y el asesor
-        /// pregunta, que es mejor que meterlo en otro curso.
-        accionFormacionId: pedida?.id ?? null,
-        /// Donde vive, ya resuelto contra el catalogo del SEP.
-        ///
-        /// Se resuelve AL ENTRAR y no al convertir, por lo mismo
-        /// que el celular: guardarlo como vino y limpiarlo
-        /// despues deja el mismo sitio escrito de dos formas y
-        /// nadie las relaciona.
-        departamentoSepId: donde.departamentoSepId,
-        municipioSepId: donde.municipioSepId,
-        generoSepId: generoQueDijo(dto.genero),
-        aceptaHabeasData: dto.aceptaHabeasData ?? null,
-        /// Tal como la escribio: se resuelve al convertir, contra
-        /// las sedes del curso que tenga entonces.
-        sedePedida: dto.sede ?? null,
-        // el cuerpo entero, para poder depurar y reprocesar
-        carga: (dto.carga ?? dto) as Prisma.InputJsonValue,
-        motivo: falta.length ? `Falta: ${falta.join(', ')}.` : null,
-      },
-      select: { id: true, estado: true, participanteId: true, motivo: true },
-    });
+    /**
+     * LA CARRERA, QUE ES LO QUE HACEN LOS REINTENTOS DE META.
+     *
+     * La comprobación de arriba ---el `findUnique` por
+     * `origenSistema_externoId`--- NO BASTA, y no es un descuido suyo:
+     * entre ese SELECT y este INSERT caben los dos. Dos reintentos del
+     * mismo webhook llegan a la vez, los dos leen que no existe, y los
+     * dos crean.
+     *
+     * La base lo para ---hay un único sobre esa pareja--- pero paraba
+     * MAL: el segundo reventaba con un 500, y quien manda el webhook
+     * lee un 500 como «no llegó» y REINTENTA otra vez. La misma
+     * persona entrando dos veces y dos asesoras llamándola.
+     *
+     * Que el único exista es lo que hace que esto se pueda arreglar
+     * aquí: la carrera la decide la base, no el código. El que pierde
+     * no inventa nada, relee lo que escribió el que ganó y contesta lo
+     * MISMO que la rama de arriba ---`repetido: true`---, que es la
+     * verdad: ese lead ya estaba.
+     */
+    let lead;
+    try {
+      lead = await this.prisma.leadEntrante.create({
+        data: {
+          convenioId: convenio.id,
+          origenSistema,
+          externoId,
+          origen: dto.origen ?? 'OTRO',
+          nombreCompleto: datos.nombreCompleto,
+          /// Tal como llegaron, si llegaron separadas.
+          primerNombre: datos.piezasDelNombre?.primerNombre ?? null,
+          segundoNombre: datos.piezasDelNombre?.segundoNombre ?? null,
+          primerApellido: datos.piezasDelNombre?.primerApellido ?? null,
+          segundoApellido: datos.piezasDelNombre?.segundoApellido ?? null,
+          correo: datos.correo,
+          celular: datos.celular,
+          tipoDocumentoSepId: datos.tipoDocumentoSepId,
+          numeroDocumento: datos.numeroDocumento,
+          interes: dto.interes ?? null,
+          /// Resuelta AL ENTRAR, como el celular. Nula si no
+          /// nombra ninguna o si nombra una que este gremio no
+          /// tiene: las dos cosas quedan igual y el asesor
+          /// pregunta, que es mejor que meterlo en otro curso.
+          accionFormacionId: pedida?.id ?? null,
+          /// Donde vive, ya resuelto contra el catalogo del SEP.
+          ///
+          /// Se resuelve AL ENTRAR y no al convertir, por lo mismo
+          /// que el celular: guardarlo como vino y limpiarlo
+          /// despues deja el mismo sitio escrito de dos formas y
+          /// nadie las relaciona.
+          departamentoSepId: donde.departamentoSepId,
+          municipioSepId: donde.municipioSepId,
+          generoSepId: generoQueDijo(dto.genero),
+          aceptaHabeasData: dto.aceptaHabeasData ?? null,
+          /// Tal como la escribio: se resuelve al convertir, contra
+          /// las sedes del curso que tenga entonces.
+          sedePedida: dto.sede ?? null,
+          // el cuerpo entero, para poder depurar y reprocesar
+          carga: (dto.carga ?? dto) as Prisma.InputJsonValue,
+          motivo: falta.length ? `Falta: ${falta.join(', ')}.` : null,
+        },
+        select: { id: true, estado: true, participanteId: true, motivo: true },
+      });
+    } catch (e) {
+      /// P2002 es «ya hay una fila con esa llave». Cualquier otro
+      /// error sube tal cual: tragárselos todos convertiría un fallo
+      /// de base en un lead silenciosamente perdido.
+      if (
+        !(e instanceof Prisma.PrismaClientKnownRequestError) ||
+        e.code !== 'P2002'
+      ) {
+        throw e;
+      }
+
+      const gano = await this.prisma.leadEntrante.findUnique({
+        where: { origenSistema_externoId: { origenSistema, externoId } },
+        select: { id: true, estado: true, participanteId: true, motivo: true },
+      });
+      /// Si no está, el P2002 era de OTRO único y no de esta carrera.
+      /// Devolver «repetido» ahí sería mentir sobre un lead que no
+      /// entró.
+      if (!gano) throw e;
+
+      this.log.log(`Lead ${externoId}: reintento simultáneo, ya estaba.`);
+      return { ...this.vista(gano), repetido: true };
+    }
 
     /// EL CRUCE contra Gestión de leads. Es la mitad que
     /// faltaba: sin esto el lead se quedaba en su buzón y
