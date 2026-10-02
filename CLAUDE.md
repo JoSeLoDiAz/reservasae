@@ -386,9 +386,46 @@ bajaba la plantilla equivocada; con el arreglo no bajaba ninguna.
 > pinta como «No se pudo completar la operación»** — parecen fallos de la
 > aplicación y no lo son. Un segundo entre peticiones.
 
-## Estado actual (1 oct 2026 · v0.16.0-JD)
+## Estado actual (2 oct 2026 · v0.17.0-JD)
 
-> **v0.16.0-JD está en PRODUCCIÓN** (1 oct 2026, commit `829b698`, etiqueta
+> **v0.17.0-JD está en PRODUCCIÓN** (2 oct 2026, commit `0ba5ad8`, etiqueta
+> `v0.17.0`). Sin migraciones, sin schema y sin variables nuevas. Copia previa en
+> `~/reservasae-antes-de-v0.17.0-20261002-1408.sql.gz`, y las filas idénticas
+> antes y después: 131 organizaciones, 299 fichas, 308 personas, 38 reservas y
+> **297 fichas con asesor**.
+>
+> ### UN ASESOR COGE UN LEAD LIBRE, Y NADA MÁS (2 oct 2026)
+>
+> El equipo reportó que «no deja asignar leads a asesores». **No era un fallo de
+> v0.16.0**: ni `permisos.ts` ni la ruta del lote cambiaron. Era la regla del 22
+> sep —repartir es de un líder— y en producción los **cinco gestores de
+> ADECOPRIA** son justo quienes trabajan los leads, así que no podían ni quedarse
+> con uno que no era de nadie.
+>
+> Josse abrió **exactamente** esa rendija: coger uno libre, para sí, y nada más.
+> Las tres condiciones son la regla entera y ninguna sobra —el lead sin dueño, se
+> lo queda quien lo pide, y quien lo pide lleva fichas—, porque lo que la regla
+> vieja protege, con sus palabras, es que «cualquiera podía pasarle sus fichas a
+> otro —o quitárselas». **Soltar tampoco es coger**, y sigue siendo de un líder.
+> Vive en `coger-un-lead.ts`.
+>
+> - **Y buscándolo salió un agujero que venía de antes**: `PATCH lote/asesor` sí
+>   exigía repartir y **`PATCH :id` —la ficha— NO EXIGÍA NADA**. Comprobado en
+>   caliente: con sesión de gestora, una ficha pasó de un asesor a otro con un
+>   **200**. El candado vivía solo en la pantalla — el «control en pie y vacío de
+>   efecto» de siempre. Lo encontró buscar el motivo de una queja, no una revisión.
+> - **`rolesPorConvenio` va OBLIGATORIO en `actualizar`**, y por eso: quién puede
+>   tocar el asesor depende del convenio de ESA ficha, que no se sabe hasta
+>   haberla leído. Obligándolo, el compilador caza la llamada que se olvide —cazó
+>   las dos que había, incluida la de deshacer un cambio, que pasa por la misma
+>   puerta.
+> - `/admin/yo` manda ahora `puede.llevarFichas`, que **no es** `repartirFichas`:
+>   un gestor lleva fichas y no las reparte; un líder académico las reparte y no
+>   le toca ninguna.
+
+## De antes (1 oct 2026 · v0.16.0-JD)
+
+> **v0.16.0-JD estuvo en PRODUCCIÓN** (1 oct 2026, commit `829b698`, etiqueta
 > `v0.16.0`). Es la **mitad funcional** de la entrega de Andrés del 1 de octubre
 > —`jose/funcional`, 18 commits— más tres versiones propias de esa semana. Copia
 > previa en `~/reservasae-antes-de-v0.16.0-20261001-2349.sql.gz`; migraciones 77 →
