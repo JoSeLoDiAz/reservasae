@@ -11,7 +11,8 @@ import {
   Tarjeta,
   useAdmin,
 } from "@/components/admin/marco-admin";
-import { Cifra, Esqueleto, Pildora, Vacio } from "@/components/admin/piezas";
+import {
+  Encabezado, Cifra, Esqueleto, Pildora, Vacio } from "@/components/admin/piezas";
 import { Desplegable } from "@/components/admin/desplegable";
 import {
   alcanza,
@@ -272,15 +273,12 @@ export function CronogramaVista() {
           esto no es una tabla con scroll propio, es una lista de
           acordeones que se abren. Que scrollee la página es lo
           correcto cuando el contenido crece al abrirlo. */}
-      <div className="flex flex-col gap-3 px-4 pt-4 pb-6">
-        <div className="no-imprimir">
-          <p className="mt-0.5 text-[0.78125rem] text-texto-suave">
-            Aquí se ponen las fechas de cada grupo —cuándo empieza y cuándo
-            termina— y sus sesiones: la presencial, la sincrónica o la conexión
-            PAT. Sin fechas no se puede saber si sus participantes van al día.
-            Matricular sí se puede: las fechas avisan, no bloquean.
-          </p>
-        </div>
+      <div className="flex flex-col gap-3 px-4 pt-4 pb-6 [&>header]:mx-0 [&>header]:mb-0">
+        {/* CON TÍTULO Y SIN LA EXPLICACIÓN DE ARRIBA: «esto se elimina
+            [los tres párrafos] / títulos no se tiene» (cliente, 1 oct
+            2026). Eran dos pantallas que empezaban en una explicación
+            suelta sobre el fondo, sin decir en cuál está uno. */}
+        <Encabezado compacto titulo="Cronograma de grupos" />
 
       {error && <Aviso tipo="error">{error}</Aviso>}
 

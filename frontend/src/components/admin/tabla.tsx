@@ -21,6 +21,7 @@ import {
   IconoPapelera,
   IconoVista,
 } from "./iconos";
+import { Desplegable } from "./desplegable";
 
 /**
  * La tabla de datos del panel: columnas que se eligen,
@@ -38,7 +39,96 @@ import {
  * a quien no debía.
  */
 
-export type TipoFiltro = "texto" | "opciones" | "numero";
+export type TipoFiltro = "texto" | "opciones" | "numero" | "fecha";
+
+/**
+ * LAS COLUMNAS DE FECHA TAMBIÉN SE FILTRAN, EN SU MISMA FILA.
+ *
+ * «Es tener filtro como correo, de acuerdo a la captura» (cliente, 30
+ * sep 2026), señalando la celda VACÍA que quedaba debajo de «Fecha de
+ * creación» mientras «Correo» tenía la suya.
+ *
+ * Antes le puse un selector de periodo aparte, encima de la tabla. No
+ * era eso: un control suelto arriba no es el filtro de esa columna, y
+ * dejaba el hueco igual de vacío.
+ *
+ * VA COMO DESPLEGABLE y no como dos cajas de fecha, por dos razones:
+ * cabe en el ancho de la columna, y se lee igual que los «Todas» de
+ * al lado. Y por rangos con NOMBRE ---«Hoy», «Esta semana»--- y no
+ * por fechas sueltas, que es lo que se pregunta de verdad al llegar.
+ */
+export const RANGOS_DE_FECHA = [
+  "Hoy",
+  "Ayer",
+  "Esta semana",
+  "Este mes",
+  "Mes pasado",
+  "Este trimestre",
+  "Este año",
+] as const;
+
+/// Colombia va cinco horas detrás de UTC y no mueve el reloj en todo
+/// el año. Es la misma cuenta que hace el servidor, y sin ella «Hoy»
+/// empieza a las siete de la tarde de ayer y trae los de anoche.
+const HORAS_BOGOTA = 5;
+
+function diaBogota(cuando: Date): string {
+  return new Date(cuando.getTime() - HORAS_BOGOTA * 3600_000)
+    .toISOString()
+    .slice(0, 10);
+}
+
+/**
+ * ¿Cae esta fecha dentro del rango elegido?
+ *
+ * Trabaja con el DÍA DE BOGOTÁ de los dos lados ---el de la fila y el
+ * de hoy--- y compara cadenas `aaaa-mm-dd`, que se ordenan solas. Así
+ * no hay que construir instantes ni preocuparse por la hora.
+ */
+export function caeEnElRango(valor: unknown, rango: string, ahora = new Date()): boolean {
+  if (!rango) return true;
+  if (valor === null || valor === undefined || valor === "") return false;
+
+  const f = valor instanceof Date ? valor : new Date(String(valor));
+  if (Number.isNaN(f.getTime())) return false;
+
+  const dia = diaBogota(f);
+  const hoy = diaBogota(ahora);
+
+  const sumar = (d: string, n: number) => {
+    const x = new Date(`${d}T00:00:00.000Z`);
+    x.setUTCDate(x.getUTCDate() + n);
+    return x.toISOString().slice(0, 10);
+  };
+
+  switch (rango) {
+    case "Hoy":
+      return dia === hoy;
+    case "Ayer":
+      return dia === sumar(hoy, -1);
+    /// «Esta semana» son los últimos siete días contando hoy, no de
+    /// lunes a domingo: quien lo pulsa un martes quiere ver la semana
+    /// que lleva trabajada, no dos días.
+    case "Esta semana":
+      return dia > sumar(hoy, -7) && dia <= hoy;
+    case "Este mes":
+      return dia.slice(0, 7) === hoy.slice(0, 7);
+    case "Mes pasado": {
+      const p = new Date(`${hoy.slice(0, 7)}-01T00:00:00.000Z`);
+      p.setUTCMonth(p.getUTCMonth() - 1);
+      return dia.slice(0, 7) === p.toISOString().slice(0, 7);
+    }
+    case "Este trimestre": {
+      const mes = Number(hoy.slice(5, 7));
+      const arranque = String(mes - ((mes - 1) % 3)).padStart(2, "0");
+      return dia >= `${hoy.slice(0, 4)}-${arranque}-01` && dia <= hoy;
+    }
+    case "Este año":
+      return dia.slice(0, 4) === hoy.slice(0, 4);
+    default:
+      return true;
+  }
+}
 
 /// Los tamaños de página que se ofrecen. Sin 200 ni 500: a
 /// partir de ahí la tabla pesa más de lo que ayuda, y para
@@ -439,7 +529,17 @@ export function Tabla<T>({
         Object.fromEntries(
           Object.entries(g.anchos)
             .filter(([c]) => columnas.some((x) => x.clave === c))
-            .map(([c, px]) => [c, Math.max(ANCHO_MINIMO, Math.round(px))]),
+            .map(([c, px]) => {
+              /// El ancho que la tabla declara hoy para esa columna.
+              /// Si lo guardado se quedó por debajo, sube; si está por
+              /// encima, se respeta: eso lo ensanchó una persona.
+              const dec = columnas.find((x) => x.clave === c)?.ancho;
+              const suelo = dec ? parseInt(String(dec), 10) || 0 : 0;
+              return [
+                c,
+                Math.max(ANCHO_MINIMO, suelo, Math.round(px)),
+              ];
+            }),
         ),
       );
     }
@@ -576,6 +676,11 @@ export function Tabla<T>({
         const celda = texto(v[col]);
         if (def?.filtro === "opciones") {
           if (celda !== valor) return false;
+        } else if (def?.filtro === "fecha") {
+          /// Sobre el valor CRUDO de la columna y no sobre lo pintado:
+          /// la celda enseña «24/08/26, 8:25 a. m.», y comparar ese
+          /// texto no dice nada de en qué día cae.
+          if (!caeEnElRango(v[col], valor)) return false;
         } else if (def?.filtro === "numero") {
           /// VACÍO NO ES CERO, y esto devolvía justo lo contrario de
           /// lo que se pedía.
@@ -935,7 +1040,21 @@ export function Tabla<T>({
             uno terminaba de bajar las filas y de un tirón se iba
             toda la pantalla, dejando media ventana en blanco y los
             filtros arriba fuera de alcance. */}
-        <div className="caja-scroll min-h-0 flex-1 overflow-auto overscroll-contain">
+        {/* `isolate`: LA TABLA NO COMPITE CON EL RESTO DE LA PÁGINA.
+
+            Para que la cabecera tape a la columna fija al bajar hubo
+            que subirla a z-30, y la esquina a z-40. Pero la barra del
+            menú es z-30 y sus desplegables z-40: a igual nivel gana lo
+            que va DESPUÉS en el documento ---la tabla---, así que la
+            cabecera se pintaba ENCIMA del menú abierto y se comía
+            «Seguimiento de asesores». Lo vio el cliente: «¿qué putas
+            dañaste?» (30 sep 2026).
+
+            `isolation: isolate` abre un contexto propio: los niveles de
+            dentro se ordenan ENTRE ELLOS y la tabla entera se queda en
+            el nivel que le toca a la página. Así la cabecera sigue
+            tapando sus celdas y nada sale a pelear con el menú. */}
+        <div className="caja-scroll isolate min-h-0 flex-1 overflow-auto overscroll-contain">
             <table
               ref={tablaRef}
               /// Los carriles verticales solo cuando hay muchas
@@ -1178,7 +1297,7 @@ export function Tabla<T>({
                       className={
                         (c.numerica ? "text-right tabular-nums" : "") +
                         (c.clave === primeraFija
-                          ? " sticky left-0 z-10 bg-superficie"
+                          ? " sticky left-0 z-20 bg-inherit"
                           : "") || undefined
                       }
                     >
@@ -1424,24 +1543,50 @@ function CampoFiltro<T>({
   opciones: string[];
   alCambiar: (v: string) => void;
 }) {
+  /// `min-w-0` Y NO `min-w-[6rem]`: 96 px fijos dentro de una columna
+  /// que se arrastra. Ver el comentario de arriba.
   const clases =
-    "w-full min-w-[6rem] rounded-lg border border-campo-borde bg-campo-fondo px-2 py-1 text-xs font-normal text-texto outline-none focus:border-campo-foco";
+    "w-full min-w-0 rounded-lg border border-campo-borde bg-campo-fondo px-2 py-1 text-xs font-normal text-texto outline-none focus:border-campo-foco";
+
+  /// EL DE FECHA VA PRIMERO porque también es un desplegable, y así
+  /// se lee al lado del de opciones, que es su hermano. La única
+  /// diferencia es de dónde salen las opciones: las suyas son fijas
+  /// ---los rangos--- y no salen de los datos.
+  if (columna.filtro === "fecha") {
+    return (
+      <Desplegable
+        enPortal
+        alto={26}
+        etiquetaAria={"Filtrar por " + columna.titulo}
+        marcador="Todas"
+        valor={valor}
+        opciones={[
+          { valor: "", etiqueta: "Todas" },
+          ...RANGOS_DE_FECHA.map((r) => ({ valor: r, etiqueta: r })),
+        ]}
+        alElegir={alCambiar}
+      />
+    );
+  }
 
   if (columna.filtro === "opciones") {
     return (
-      <select
-        value={valor}
-        onChange={(e) => alCambiar(e.target.value)}
-        className={clases}
-        aria-label={"Filtrar por " + columna.titulo}
-      >
-        <option value="">Todas</option>
-        {opciones.map((o) => (
-          <option key={o} value={o}>
-            {o}
-          </option>
-        ))}
-      </select>
+      <Desplegable
+        /// CON PORTAL: esta lista vive en la cabecera de la tabla, y la
+        /// tabla recorre a lo ancho con overflow. Sin salirse, la lista
+        /// se recortaba contra el borde de la tabla. El porqué largo
+        /// está en «desplegable.tsx».
+        enPortal
+        alto={26}
+        etiquetaAria={"Filtrar por " + columna.titulo}
+        marcador="Todas"
+        valor={valor}
+        opciones={[
+          { valor: "", etiqueta: "Todas" },
+          ...opciones.map((o) => ({ valor: o, etiqueta: o })),
+        ]}
+        alElegir={alCambiar}
+      />
     );
   }
 

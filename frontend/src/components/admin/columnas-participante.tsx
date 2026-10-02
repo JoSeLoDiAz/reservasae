@@ -164,6 +164,11 @@ export function columnasDeParticipante(): Columna<FilaParticipante>[] {
       ancho: "148px",
       titulo: "Fecha de creación",
       valor: (f) => f.creadoEn,
+      /// SU CELDA DE FILTRO ESTABA VACÍA, y era lo único de la fila
+      /// que lo estaba (cliente, 30 sep 2026: «es tener filtro como
+      /// correo, de acuerdo a la captura»). Un hueco en medio de la
+      /// fila se lee como que algo se rompió.
+      filtro: "fecha",
       pinta: (f) => (
         <span className="whitespace-nowrap font-mono text-xs">
           {fechaHora(f.creadoEn)}
@@ -252,7 +257,13 @@ export function columnasDeParticipante(): Columna<FilaParticipante>[] {
       /// solo tiene sentido sabiendo de qué acción es, y así se
       /// leen las dos de una pasada.
       clave: "grupo",
-      ancho: "78px",
+      /// 124 Y NO 78: UNA COLUMNA TIENE QUE DAR PARA SU PROPIO FILTRO.
+      ///
+      /// Con el título ya en una línea la cabecera quedó pareja, pero
+      /// esta seguía tan estrecha que su desplegable salía como «T…» y
+      /// «Sin grupo» partía en dos renglones dentro de la celda. Un
+      /// filtro que está pero no se puede leer no sirve de nada.
+      ancho: "124px",
       titulo: "Grupo",
       valor: (f) => f.grupo,
       pinta: (f) =>
@@ -405,6 +416,7 @@ export function columnasDeParticipante(): Columna<FilaParticipante>[] {
       ancho: "140px",
       titulo: "Última actividad",
       valor: (f) => f.ultimaActividad,
+      filtro: "fecha",
       pinta: (f) => (
         <span className="whitespace-nowrap font-mono text-xs">
           {fechaHora(f.ultimaActividad)}
@@ -452,7 +464,9 @@ export function columnasDeParticipante(): Columna<FilaParticipante>[] {
     },
     {
       clave: "notas",
-      ancho: "72px",
+      /// Lo mismo que «Grupo»: su filtro es una caja de número y a 72
+      /// px el texto de ayuda ---«>10, 3-8…»--- salía cortado.
+      ancho: "112px",
       titulo: "Notas",
       numerica: true,
       valor: (f) => f.notas,
@@ -466,6 +480,9 @@ export function columnasDeParticipante(): Columna<FilaParticipante>[] {
       ancho: "140px",
       titulo: "Último contacto",
       valor: (f) => f.ultimoContacto ?? "",
+      /// Las tres de fecha llevan el mismo filtro: dejar una sola con
+      /// él sería volver a dejar huecos en la fila.
+      filtro: "fecha",
       pinta: (f) =>
         f.ultimoContacto ? (
           <span className="whitespace-nowrap font-mono text-xs">

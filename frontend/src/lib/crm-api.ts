@@ -201,19 +201,38 @@ export const ETAPAS_A_MANO: Etapa[] = [
 /** Por dónde se contactó. Varios a la vez. */
 export type CanalContacto = "CORREO" | "WHATSAPP" | "TEXTO" | "LLAMADA";
 
-export const CANALES: CanalContacto[] = [
-  "CORREO",
-  "WHATSAPP",
-  "TEXTO",
-  "LLAMADA",
-];
+/**
+ * LOS QUE SE OFRECEN AL ANOTAR UNA GESTIÓN.
+ *
+ * «TEXTO» NO ESTÁ, Y SE OCULTA, NO SE BORRA (cliente, 30 sep 2026:
+ * «quita esta opción por el momento u ocúltala, y que quede no texto
+ * sino mensaje de texto, pero quedará oculto»).
+ *
+ * El CRM no manda SMS y no tiene con qué; ese botón solo registraba
+ * que el asesor escribió desde su propio teléfono, y al lado de
+ * «Correo» ---que el sistema sí manda--- se leía como un envío.
+ *
+ * NO SE QUITA DEL TIPO NI DE LA BASE, y ahí está la diferencia entre
+ * ocultar y borrar: las notas que YA tienen «TEXTO» anotado siguen
+ * existiendo, y al leerlas hay que saber cómo se llama ese canal. Por
+ * eso `ETIQUETA_CANAL_CONTACTO` lo conserva con su nombre nuevo,
+ * «Mensaje de texto». Lo único que desaparece es la posibilidad de
+ * anotarlo de aquí en adelante.
+ *
+ * Para devolverlo: se añade "TEXTO" a esta lista y ya está.
+ */
+export const CANALES: CanalContacto[] = ["CORREO", "WHATSAPP", "LLAMADA"];
 
 /// Nombre distinto a ETIQUETA_CANAL a propósito: ese es el
 /// de la autorización de datos, y son dos cosas distintas.
 export const ETIQUETA_CANAL_CONTACTO: Record<CanalContacto, string> = {
   CORREO: "Correo",
   WHATSAPP: "WhatsApp",
-  TEXTO: "Texto",
+  /// «Mensaje de texto» y no «Texto» a secas: al lado de «Correo»
+  /// ---que el CRM sí manda--- «Texto» se leía como un SMS que el
+  /// sistema enviaba. No envía ninguno: esto es el registro de lo que
+  /// hizo el asesor desde su propio teléfono.
+  TEXTO: "Mensaje de texto",
   LLAMADA: "Llamada",
 };
 

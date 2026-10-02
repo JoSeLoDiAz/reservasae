@@ -341,16 +341,29 @@ export const MODULOS: Modulo[] = [
     descripcion: 'Los datos que sostienen el reporte al SENA.',
     enlaces: [
       {
-        /// Lo que era el Resumen hasta el 22 sep 2026.
+        /// «OCUPACIÓN CONTRA LA META» SE QUEDA, Y ESTO ES UNA MARCHA
+        /// ATRÁS.
         ///
-        /// El cliente rehizo la portada con sus cinco módulos y de
-        /// los once bloques que había dijo «bajan todos, sin
-        /// excepción». Bajaron AQUÍ, enteros: el veredicto, el
-        /// termómetro de la meta dentro del tope, el ritmo, el mapa
-        /// y la concentración. Borrarlos habría sido perder trabajo
-        /// que alguien decidió; y sin entrada de menú, una pantalla
-        /// a la que solo se llega por un enlace de otra se pierde
-        /// igual.
+        /// El 30 sep 2026 se quitó del menú y ese mismo día se borró
+        /// entera, citando al cliente: «se elimina totalmente esta
+        /// vista, no se necesita nada». La cita es cierta y el borrado
+        /// estaba mal hecho de todos modos, por dos razones:
+        ///
+        /// UNA · la regla de la casa es que una petición del cliente NO
+        /// es autorización: pasa por José primero. Esta pantalla la
+        /// conservó él por escrito el 22 sep, y volvió a decirlo al
+        /// revisar la entrega del 1 oct: «borrar /admin/ocupacion: no
+        /// se borra».
+        ///
+        /// DOS · aquí nada se borra. Se oculta, se cancela o se cierra,
+        /// pero la fila se queda. Un borrado de 1.473 líneas no se
+        /// deshace leyendo la pantalla.
+        ///
+        /// Lo que decía el comentario original sigue valiendo: aquí
+        /// bajaron los once bloques del Resumen viejo ---el veredicto,
+        /// el termómetro, el ritmo, el mapa y la concentración--- y sin
+        /// entrada de menú una pantalla a la que solo se llega por un
+        /// enlace de otra se pierde igual.
         href: '/admin/ocupacion',
         etiqueta: 'Ocupación contra la meta',
         exacto: true,

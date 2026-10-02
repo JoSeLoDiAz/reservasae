@@ -353,7 +353,7 @@ function FilaDeCategoria({
                   )
                 }
               >
-                Ocultar
+                Ocultar la subcategoría
               </button>
             </div>
           ))}
