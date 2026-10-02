@@ -303,7 +303,10 @@ export class PreinscripcionService {
       select: {
         id: true,
         accionFormacionId: true,
-        accionFormacion: { select: { evento: true } },
+        /// El codigo, ademas del evento: lo pide la anotacion de la
+        /// bitacora cuando la ficha nace por aqui. Una fila que dice
+        /// «se inscribio» sin decir en que no responde nada.
+        accionFormacion: { select: { evento: true, codigo: true } },
       },
     });
     if (!oferta) {
@@ -522,6 +525,11 @@ export class PreinscripcionService {
       if (motivo) throw new BadRequestException(motivo);
     }
 
+    /// ANTES DE CREARLA, porque después ya no se sabe: `yaEsta` se
+    /// pisa con la ficha nueva y las dos ramas quedan iguales. Esto
+    /// decide si la bitácora dice «nació» o no dice nada.
+    const esNueva = !yaEsta;
+
     const participante =
       yaEsta ??
       (await this.prisma.participante.create({
@@ -541,6 +549,44 @@ export class PreinscripcionService {
         },
         select: { id: true },
       }));
+
+    /**
+     * LA HUELLA DE QUE ESTA FICHA NACIÓ, Y POR QUÉ PUERTA.
+     *
+     * B-14. De los dos sitios del backend que crean un participante,
+     * solo `crm.crear()` dejaba rastro. El agujero estaba justo en la
+     * puerta que MÁS fichas crea ---la gente que se inscribe sola---,
+     * así que «¿de dónde salió esta ficha?» no siempre tenía respuesta.
+     *
+     * Quedaba el `MovimientoParticipante`, que dice la etapa pero no
+     * quién ni desde dónde. Sirve para seguir el embudo, no para
+     * responder de una ficha.
+     *
+     * SOLO SI DE VERDAD NACIÓ. Cuando la persona ya estaba inscrita en
+     * esa oferta no se crea nada, y anotar «creada» ahí llenaría la
+     * bitácora de nacimientos que no ocurrieron: cada vez que alguien
+     * reenvía el formulario saldría una fila nueva.
+     *
+     * EL ACTOR ES LA PERSONA, con el mismo nombre que usan las otras
+     * anotaciones de este servicio. No hay administrador detrás y
+     * poner «Sistema» lo escondería: lo que se quiere saber es
+     * precisamente que entró sola por el formulario.
+     *
+     * FUERA DE TRANSACCIÓN y sin `try`, igual que en `crm.crear()`:
+     * `registrar()` ya se traga sus propios errores a propósito,
+     * porque auditar no puede tumbar la ficha que audita.
+     */
+    if (esNueva) {
+      await this.auditoria.registrar({
+        actor: { nombre: 'La persona, desde el formulario público' },
+        accion: 'PARTICIPANTE_CREADO',
+        entidad: ENTIDADES.PARTICIPANTE,
+        entidadId: participante.id,
+        convenioId: convenio.id,
+        resumen: `Se inscribió por su cuenta en ${oferta.accionFormacion.codigo}.`,
+        ip: ip ?? null,
+      });
+    }
 
     /// Los leads que esta persona tenía esperando en la mesa.
     ///
