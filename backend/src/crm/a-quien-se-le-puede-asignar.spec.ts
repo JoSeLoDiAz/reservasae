@@ -117,24 +117,80 @@ describe('las dos listas de la pantalla de leads', () => {
 });
 
 /**
- * LO QUE ESTO NO CAMBIA, y conviene dejarlo fijado.
+ * Y QUE LA REGLA NO SE QUEDE EN LA PANTALLA.
  *
- * Esta lista decide a quién se OFRECE, no quién puede tener. Las fichas
- * que ya lleva un líder de sistemas se quedan donde están y se le
- * pueden quitar; lo que no se puede es darle más desde el desplegable.
+ * Esto lo corrigió José el 2 oct 2026, y era el fallo de fondo: al
+ * quitar a `LIDER_SISTEMAS` de `PUEDEN_LLEVAR_FICHAS` se dio por hecho
+ * que la regla quedaba puesta. No lo estaba: esa lista SOLO la miraban
+ * dos LISTADOS ---el de la ficha y el de la mesa---, y ningún camino de
+ * asignación la validaba. Por la API se le seguía pudiendo asignar.
+ *
+ * O sea que era un candado de pantalla, que es justo lo que se acababa
+ * de quitar en otro sitio.
+ *
+ * SE CIERRA EN `exigirAsesorDelConvenio` porque los DOS caminos pasan
+ * por ahí: `actualizar()` para una ficha y `asignarAsesorEnLote()` para
+ * varias. Ponerlo en cada uno habría sido la tercera copia de la misma
+ * decisión, y la tercera copia es la que se queda atrás.
  */
-describe('lo ya asignado no se toca', () => {
-  it('exigirAsesorDelConvenio sigue aceptando a cualquiera con concesión', () => {
+describe('la regla se aplica tambien por la API', () => {
+  const cuerpoDeExigir = () => {
     const t = require('fs').readFileSync(
       require('path').join(__dirname, 'crm.service.ts'),
       'utf8',
     ) as string;
     const i = t.indexOf('async exigirAsesorDelConvenio(');
     expect(i).toBeGreaterThan(-1);
+    return t.slice(i, t.indexOf('\n  async ', i + 20));
+  };
+
+  it('exigirAsesorDelConvenio mira el rol, no solo la concesión', () => {
+    const cuerpo = cuerpoDeExigir();
+    expect(cuerpo).toContain('PUEDEN_LLEVAR_FICHAS.includes(c.rol)');
+  });
+
+  /**
+   * DOS MENSAJES DISTINTOS, porque son dos arreglos distintos: «no
+   * trabaja aquí» se resuelve con una concesión nueva y «su rol no lleva
+   * leads» cambiándole el rol o eligiendo a otra persona.
+   */
+  it('y distingue «no trabaja aquí» de «su rol no lleva leads»', () => {
+    const cuerpo = cuerpoDeExigir();
+    expect(cuerpo).toContain('no trabaja en este convenio');
+    expect(cuerpo).toContain('su rol no se queda');
+  });
+
+  /**
+   * Y QUE EL LOTE SIGA PASANDO POR AHÍ. Si algún día asigna por su
+   * cuenta, la regla se queda a medias sin que nada falle: es
+   * exactamente la forma del fallo que esto arregla.
+   */
+  it('el lote pasa por la misma puerta', () => {
+    const t = require('fs').readFileSync(
+      require('path').join(__dirname, 'crm.service.ts'),
+      'utf8',
+    ) as string;
+    const i = t.indexOf('async asignarAsesorEnLote(');
+    expect(i).toBeGreaterThan(-1);
     const cuerpo = t.slice(i, t.indexOf('\n  async ', i + 20));
-    /// Mira que tenga concesión en el convenio, no que su rol esté en
-    /// la lista de ofrecibles.
-    expect(cuerpo).toContain('adminConvenio.findFirst');
-    expect(cuerpo).not.toContain('PUEDEN_LLEVAR_FICHAS');
+    expect(cuerpo).toContain('this.exigirAsesorDelConvenio(');
+  });
+
+  /**
+   * LA ASIMETRÍA QUE QUEDA, dicha para que nadie la descubra de golpe:
+   * el superadministrador sale ANTES de esta comprobación, así que la
+   * API se lo acepta aunque el desplegable no lo ofrezca ---
+   * `llevanFichasEn` no le hace excepción---.
+   *
+   * Es el lado seguro de los dos: se ofrece MENOS de lo que se acepta,
+   * así que nadie recibe un 403 por algo que la pantalla le ofreció. Si
+   * se quiere simétrico, se cambia en los dos sitios a la vez.
+   */
+  it('el superadministrador sigue saliendo antes, y queda escrito', () => {
+    const cuerpo = cuerpoDeExigir();
+    const sale = cuerpo.indexOf("if (asesor.rol === 'SUPERADMIN') return asesor;");
+    const mira = cuerpo.indexOf('PUEDEN_LLEVAR_FICHAS.includes(c.rol)');
+    expect(sale).toBeGreaterThan(-1);
+    expect(sale).toBeLessThan(mira);
   });
 });

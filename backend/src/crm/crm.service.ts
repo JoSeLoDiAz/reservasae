@@ -38,6 +38,7 @@ import { borrarParticipaciones } from './borrar-participaciones';
 import { conveniosQueReparten } from '../admin/permisos';
 import { motivoParaNoTocarElAsesor } from './coger-un-lead';
 import {
+  PUEDEN_LLEVAR_FICHAS,
   conveniosQueLlevanFichas,
   llevanFichasEn,
 } from './quien-lleva-fichas';
@@ -3449,16 +3450,53 @@ export class CrmService {
     /// El superadmin entra a todo, igual que en el guard.
     if (asesor.rol === 'SUPERADMIN') return asesor;
 
-    const concesion = await this.prisma.adminConvenio.findFirst({
+    const concesiones = await this.prisma.adminConvenio.findMany({
       where: { adminId: asesorId, convenioId },
-      select: { id: true },
+      select: { rol: true },
     });
-    if (!concesion) {
+    if (concesiones.length === 0) {
       throw new BadRequestException(
         `${asesor.nombre} no trabaja en este convenio, así que no vería este lead. ` +
           'Déle acceso primero, o elija a otra persona.',
       );
     }
+
+    /**
+     * Y QUE SU ROL SE QUEDE CON LEADS, QUE ES OTRA COSA.
+     *
+     * «Solo debe salir Gestor de Inscripciones y Líder de Inscripciones»
+     * (cliente, 2 oct 2026). Eso se puso en `PUEDEN_LLEVAR_FICHAS`, pero
+     * esa lista SOLO la miraban dos LISTADOS ---el de la ficha y el de
+     * la mesa---. Ningún camino de asignación la validaba, así que la
+     * regla quedaba en la pantalla y por la API se seguía pudiendo
+     * asignar a cualquiera con concesión. Lo vio José el 2 oct, y tiene
+     * razón: un candado de pantalla es el que acabábamos de quitar.
+     *
+     * AQUÍ CIERRA LOS DOS CAMINOS porque los dos pasan por esta
+     * función: `actualizar()` para una ficha y `asignarAsesorEnLote()`
+     * para varias. Ponerlo en cada una habría sido la tercera copia de
+     * la misma decisión.
+     *
+     * MENSAJE DISTINTO AL DE ARRIBA, a propósito: «no trabaja aquí» y
+     * «su rol no lleva leads» se arreglan de formas distintas ---una con
+     * una concesión nueva, la otra cambiándole el rol o eligiendo a
+     * otra persona---.
+     *
+     * EL SUPERADMINISTRADOR NO PASA POR AQUÍ, y queda dicho porque es
+     * una asimetría: sale antes, arriba. O sea que a un
+     * superadministrador la API se lo acepta aunque el desplegable no lo
+     * ofrezca ---`llevanFichasEn` no le hace excepción---. Es el lado
+     * seguro de los dos ---se ofrece menos de lo que se acepta, así que
+     * nadie recibe un 403 por algo que la pantalla le ofreció--- pero si
+     * se quiere simétrico, se cambia en los dos sitios a la vez.
+     */
+    if (!concesiones.some((c) => PUEDEN_LLEVAR_FICHAS.includes(c.rol))) {
+      throw new BadRequestException(
+        `${asesor.nombre} trabaja en este convenio, pero su rol no se queda ` +
+          'con leads. Los llevan el gestor y el líder de inscripciones.',
+      );
+    }
+
     return asesor;
   }
 
