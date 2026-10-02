@@ -16,6 +16,7 @@ import {
   normalizarNit,
   type NitNormalizado,
 } from '../comun/nit';
+import { ocupadasDeLaOferta } from '../comun/plazas-de-la-oferta';
 import { FormulariosService } from '../formularios/formularios.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CrearReservaDto } from './dto/crear-reserva.dto';
@@ -97,7 +98,26 @@ export class ReservasService {
           });
         }
 
-        const disponibles = bloqueada.cuposMaximos - bloqueada.cuposOcupados;
+        /**
+         * LO QUE QUEDA DE VERDAD, no lo que queda de las reservas.
+         *
+         * `cuposOcupados` son solo las plazas que apartan las empresas.
+         * Con esta cuenta, una oferta de 520 con 98 apartadas y 120
+         * personas ya inscritas daba 422 libres: se le CONFIRMABAN a
+         * una empresa 422 cupos y en el aula había 542 personas para
+         * 520 sillas. Y nadie entraba en lista de espera, porque el
+         * cálculo creía que había sitio.
+         *
+         * El sitio público ya contaba bien desde el 2 oct 2026; esto es
+         * el camino que ESCRIBE, que seguía con la cuenta vieja. O sea
+         * que el número era honesto y la escritura no.
+         *
+         * VA DENTRO DE LA TRANSACCIÓN y después del bloqueo de la
+         * oferta: contar fuera deja la misma carrera que el bloqueo
+         * existe para cerrar.
+         */
+        const ocupadas = await ocupadasDeLaOferta(tx, bloqueada);
+        const disponibles = bloqueada.cuposMaximos - ocupadas;
         const confirmados = Math.min(dto.cuposSolicitados, Math.max(disponibles, 0));
         const enEspera = dto.cuposSolicitados - confirmados;
 
@@ -187,8 +207,12 @@ export class ReservasService {
           );
         }
 
-        // su techo: libre + lo que ocupaba
-        const techo = oferta.cuposMaximos - oferta.cuposOcupados + reserva.cuposConfirmados;
+        /// Su techo: lo libre DE VERDAD más lo que ya ocupaba. Mismo
+        /// motivo que en `crear`: con `cuposOcupados` a secas se le
+        /// dejaba subir a una empresa por encima de lo que hay.
+        const ocupadasAhora = await ocupadasDeLaOferta(tx, oferta);
+        const techo =
+          oferta.cuposMaximos - ocupadasAhora + reserva.cuposConfirmados;
         const confirmados = Math.min(cantidad, Math.max(techo, 0));
         const enEspera = cantidad - confirmados;
         const delta = confirmados - reserva.cuposConfirmados;
@@ -402,7 +426,11 @@ export class ReservasService {
     contexto: Contexto,
   ): Promise<void> {
     const oferta = await tx.oferta.findUniqueOrThrow({ where: { id: ofertaId } });
-    let libres = oferta.cuposMaximos - oferta.cuposOcupados;
+    /// Y aquí lo mismo, que es donde más duele: promover de la lista
+    /// de espera a sillas que ya ocupa gente inscrita es prometerle a
+    /// una empresa un cupo que no existe, y hacerlo automáticamente.
+    const ocupadas = await ocupadasDeLaOferta(tx, oferta);
+    let libres = oferta.cuposMaximos - ocupadas;
     if (libres <= 0) return;
 
     const esperando = await tx.reserva.findMany({

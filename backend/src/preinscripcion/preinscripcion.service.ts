@@ -43,6 +43,10 @@ import { pasarSiNoLeFaltaNada } from '../crm/datos-completos';
 import { NotificacionesService } from '../notificaciones/notificaciones.service';
 import { documentoValido, normalizarDocumento } from '../comun/documento';
 import { calcularDigitoVerificacion, normalizarNit } from '../comun/nit';
+import {
+  inscritosPorSuCuenta,
+  plazasOcupadas,
+} from '../comun/plazas-de-la-oferta';
 import { DirectorioService } from '../crm/directorio.service';
 import { aQueOrganizacionSeAta } from './organizacion-de-la-ficha';
 import { entraAlDirectorio } from './entra-al-directorio';
@@ -135,6 +139,29 @@ export class PreinscripcionService {
       },
     });
 
+    /**
+     * LAS CIFRAS DE ESTE FORMULARIO ESTABAN MAL.
+     *
+     * Decía `cuposMaximos - cuposOcupados`, y `cuposOcupados` son solo
+     * las plazas que una empresa aparta: ignoraba a todo el que se
+     * inscribe directo, que es la mayoría. Y lo pintaba en rojo como
+     * una promesa: «Disponibilidad: N cupos».
+     *
+     * Es el MISMO fallo que se arregló en el catálogo el 2 oct 2026, y
+     * dejarlo aquí tenía un daño propio: las DOS pantallas públicas se
+     * contradecían entre sí ---la misma oferta salía COMPLETO en
+     * `/adecopria` y «422 cupos» en `/adecopria/preinscripcion`---.
+     *
+     * Ahora las dos llaman al mismo sitio. De esta cuenta había siete
+     * copias en el backend, y por eso la decisión se mudó a
+     * `comun/plazas-de-la-oferta.ts`: arreglarla en una dejaba a la de
+     * al lado diciendo otra cosa.
+     */
+    const sueltos = await inscritosPorSuCuenta(
+      this.prisma,
+      acciones.flatMap((a) => a.ofertas.map((o) => o.id)),
+    );
+
     /// El texto completo del habeas data. Va en el catalogo
     /// porque la pantalla lo muestra entero antes de que
     /// nadie marque nada: un enlace que casi nadie abre no
@@ -195,7 +222,11 @@ export class PreinscripcionService {
             tipo: o.ubicacion.tipo,
             departamento: o.ubicacion.departamento,
             modalidad: o.modalidad,
-            libres: Math.max(0, o.cuposMaximos - o.cuposOcupados),
+            libres: Math.max(
+              0,
+              o.cuposMaximos -
+                plazasOcupadas(o.cuposOcupados, sueltos.get(o.id) ?? 0),
+            ),
           })),
         })),
       /// Donde se puede elegir domicilio: solo lo que tiene
