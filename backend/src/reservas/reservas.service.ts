@@ -160,12 +160,18 @@ export class ReservasService {
 
   // editar cantidad
 
-  async editar(reservaId: string, nitCrudo: string, cantidad: number, contexto: Contexto) {
+  async editar(
+    reservaId: string,
+    nitCrudo: string,
+    correo: string,
+    cantidad: number,
+    contexto: Contexto,
+  ) {
     const nit = this.exigirNit(nitCrudo);
 
     return this.prisma.$transaction(
       async (tx) => {
-        const reserva = await this.reservaDeLaEmpresa(tx, reservaId, nit.nit);
+        const reserva = await this.reservaDeLaEmpresa(tx, reservaId, nit.nit, correo);
 
         if (reserva.estado === EstadoReserva.CANCELADA) {
           throw new ConflictException(
@@ -225,12 +231,17 @@ export class ReservasService {
 
   // cancelar
 
-  async cancelar(reservaId: string, nitCrudo: string, contexto: Contexto) {
+  async cancelar(
+    reservaId: string,
+    nitCrudo: string,
+    correo: string,
+    contexto: Contexto,
+  ) {
     const nit = this.exigirNit(nitCrudo);
 
     return this.prisma.$transaction(
       async (tx) => {
-        const reserva = await this.reservaDeLaEmpresa(tx, reservaId, nit.nit);
+        const reserva = await this.reservaDeLaEmpresa(tx, reservaId, nit.nit, correo);
         if (reserva.estado === EstadoReserva.CANCELADA) {
           return this.vista(tx, reserva.id);
         }
@@ -442,19 +453,48 @@ export class ReservasService {
     }
   }
 
+  /**
+   * LA RESERVA, SI QUIEN LA PIDE ES QUIEN LA HIZO.
+   *
+   * EL NIT NO ES UNA CREDENCIAL. Está en el RUES y en cualquier
+   * factura, y hasta el 2 oct 2026 era lo único que se exigía aquí.
+   * Como por esta función pasan `editar` y `cancelar`, con un dato
+   * público se le podían liberar a otra empresa todos sus cupos: la
+   * lista de espera los repartía en el acto y nadie avisaba.
+   *
+   * Ahora se exige también el correo con el que se reservó, que es
+   * privado y le llegó a quien reservó en el acuse.
+   *
+   * MISMO ERROR PARA LOS TRES CASOS ---no existe, otro NIT, otro
+   * correo--- y a propósito: distinguirlos convierte esto en un
+   * oráculo para saber qué empresa reservó dónde.
+   *
+   * Se compara recortado y en minúsculas: quien reservó con
+   * «Compras@Colegio.com» teclea «compras@colegio.com» y es la misma
+   * persona. Postgres compara con mayúsculas, así que la igualdad
+   * cruda dejaría fuera a gente legítima.
+   */
   private async reservaDeLaEmpresa(
     tx: Prisma.TransactionClient,
     reservaId: string,
     nit: string,
+    correo: string,
   ) {
     const reserva = await tx.reserva.findUnique({
       where: { id: reservaId },
       include: { empresa: true },
     });
 
-    // mismo error que "no existe"
-    if (!reserva || reserva.empresa.nit !== nit) {
-      throw new NotFoundException('No se encontró una reserva con ese identificador y NIT.');
+    const comoSeEscribe = (v: string) => v.trim().toLowerCase();
+    const suyo =
+      reserva !== null &&
+      reserva.empresa.nit === nit &&
+      comoSeEscribe(reserva.contactoCorreo) === comoSeEscribe(correo);
+
+    if (!suyo) {
+      throw new NotFoundException(
+        'No se encontró una reserva con ese identificador, NIT y correo.',
+      );
     }
     return reserva;
   }
