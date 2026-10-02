@@ -99,6 +99,31 @@ export type EmpresaDeLaFicha = {
  * cuenta el enlace le pedía el correo de un jefe que su propia
  * ficha ya daba por no aplicable. Aquí van las dos mitades buenas.
  */
+/**
+ * DE QUÉ ORGANIZACIÓN ES ESTA FICHA. Una sola respuesta.
+ *
+ * Una persona puede tener empresa propia ---se la registró un
+ * asesor--- o venir nominada por la reserva de una empresa. Las dos
+ * cuentan, y la segunda es la mayoría: así entra la gente que una
+ * institución apunta a un curso.
+ *
+ * ESTABA CONTESTADO EN TRES SITIOS Y DE DOS FORMAS, y por eso se
+ * escribe aquí. La lista de leads miraba `empresa ?? reserva.empresa`
+ * y la ficha abierta solo `empresa`: en 79 fichas de la base de
+ * pruebas las dos pantallas decían cosas distintas de la misma
+ * persona. El asesor leía «Faltan 4» en la lista, abría la ficha a
+ * ver cuáles, y la ficha le decía «Todavía no tiene organización».
+ *
+ * Lo encontró una auditoría del 2 oct 2026, buscando por qué el
+ * cliente veía fichas completas marcadas como que les falta algo.
+ */
+export function empresaDeLaFicha<T>(p: {
+  empresa: T | null;
+  reserva?: { empresa: T } | null;
+}): T | null {
+  return p.empresa ?? p.reserva?.empresa ?? null;
+}
+
 export function faltaDeLaEmpresa(
   e: EmpresaDeLaFicha,
   /// Para saber si la «empresa» es la persona misma.

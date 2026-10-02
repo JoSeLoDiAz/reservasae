@@ -92,6 +92,7 @@ import {
   faltaDeLaFicha,
   faltaDeLaPersona,
   revisar,
+  empresaDeLaFicha,
 } from './completitud';
 import {
   motivoDeSegundaImposible,
@@ -558,6 +559,15 @@ export class CrmService {
                 select: {
                   razonSocial: true,
                   nit: true,
+                  /// Igual que la empresa propia: la fila enseña el NIT
+                  /// con su dígito, venga de donde venga.
+                  digitoVerificacion: true,
+                  /// Los cuatro que mira `estadoDeEmpresa`: la columna
+                  /// «Datos de empresa» tiene que poder juzgar también a
+                  /// la organización que nominó, no solo a la propia.
+                  direccion: true,
+                  telefono: true,
+                  clasificacion: true,
                   sectorEconomico: true,
                   contactoNombre: true,
                   contactoCargo: true,
@@ -1573,7 +1583,13 @@ export class CrmService {
         reserva: {
           select: {
             id: true,
-            empresa: { select: { nit: true, razonSocial: true } },
+            /// LOS MISMOS CAMPOS QUE LA EMPRESA PROPIA.
+            ///
+            /// Desde que la ficha mira también la empresa de la reserva
+            /// ---antes solo la propia, y por eso decía «no tiene
+            /// organización» sobre fichas que sí la tenían--- hay que
+            /// traerle lo que `faltaDeLaEmpresa` necesita juzgar.
+            empresa: { select: CAMPOS_DE_EMPRESA },
           },
         },
         // la suya, no la que lo nomino: es la que el
@@ -1635,8 +1651,11 @@ export class CrmService {
       /// Lo que el enlace le va a pedir, en el orden en que se
       /// lo va a pedir: primero su empresa y despues lo suyo.
       /// Sin esto el asesor manda un enlace sin saber que trae.
+      /// `empresaDeLaFicha` y no `p.empresa`: la lista contaba
+      /// también la de la reserva y esta no, así que las dos
+      /// pantallas se contradecían en 79 fichas. Ver el porqué allí.
       faltaDeLaEmpresa: faltaDeLaEmpresa(
-        p.empresa,
+        empresaDeLaFicha(p),
         p.persona.numeroDocumento,
       ),
       /// Su cédula es su RUT: no tiene empresa, es él mismo.
@@ -6880,6 +6899,10 @@ export class CrmService {
       empresa: {
         razonSocial: string;
         nit: string;
+        digitoVerificacion: string | null;
+        direccion: string | null;
+        telefono: string | null;
+        clasificacion: string | null;
         sectorEconomico: string | null;
         contactoNombre: string | null;
         contactoCargo: string | null;
@@ -6933,7 +6956,9 @@ export class CrmService {
     /// de quién; mandando solo la de la persona --que es lo que
     /// había-- la columna imprimía «Faltan 0» en ámbar el día que
     /// lo único pendiente fuera de la empresa.
-    const suEmpresa = p.empresa ?? p.reserva?.empresa ?? null;
+    /// La misma que usan la ficha y la columna de estado. Ver el
+    /// porqué en `empresaDeLaFicha`.
+    const suEmpresa = empresaDeLaFicha(p);
     const falta = faltaDeLaPersona({
       persona: p.persona,
       nivelOcupacionalSepId: p.nivelOcupacionalSepId,
@@ -7021,7 +7046,20 @@ export class CrmService {
       /// aqui contaba dos veces la misma edicion, porque
       /// guardar la ficha tambien deja movimiento.
       cambios: p.ediciones,
-      datosEmpresa: this.estadoDeEmpresa(p.empresa),
+      /// LA MISMA EMPRESA QUE LAS DEMÁS.
+      ///
+      /// Recibía `p.empresa` pelado, así que en las fichas nominadas
+      /// por una reserva decía «Sin datos» mientras la columna de al
+      /// lado contaba lo que le falta a una empresa que esa fila SÍ
+      /// tiene. Dos columnas vecinas, un dato, dos respuestas.
+      ///
+      /// Sigue midiendo SUS cuatro campos ---dirección, teléfono,
+      /// sector y clasificación, los que pide el F7--- que son otros
+      /// que los de «Datos pendientes». Eso es a propósito y no se
+      /// toca aquí: son dos preguntas distintas sobre la misma
+      /// organización, no dos respuestas a la misma.
+      datosEmpresa: this.estadoDeEmpresa(suEmpresa),
+
       /**
        * EL NIT Y EL NOMBRE DE LA ORGANIZACIÓN, en la propia fila.
        *
@@ -7039,12 +7077,12 @@ export class CrmService {
        * ningún sitio oficial, y es como se busca en «Empresas
        * registradas».
        */
-      empresaNit: p.empresa
-        ? p.empresa.digitoVerificacion
-          ? `${p.empresa.nit}-${p.empresa.digitoVerificacion}`
-          : p.empresa.nit
+      empresaNit: suEmpresa
+        ? suEmpresa.digitoVerificacion
+          ? `${suEmpresa.nit}-${suEmpresa.digitoVerificacion}`
+          : suEmpresa.nit
         : null,
-      empresaNombre: p.empresa?.razonSocial ?? null,
+      empresaNombre: suEmpresa?.razonSocial ?? null,
       /// La carga entera y no solo su id: la tabla enseña el archivo y
       /// el recuento de esa importacion, y pedirlos aparte por cada
       /// fila serian cincuenta consultas por pagina.
