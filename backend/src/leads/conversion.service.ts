@@ -296,8 +296,31 @@ export class ConversionDeLeads {
           ip,
         });
 
-    await this.prisma.leadEntrante.update({
-      where: { id: lead.id },
+    /**
+     * SE ATA SOLO SI NADIE SE ADELANTÓ.
+     *
+     * El guardia de la entrada lee `lead.participanteId` y aquí se
+     * escribe, pero entre las dos cosas pasa todo el alta: dos
+     * conversiones del mismo lead ---doble clic, o el reintento del
+     * móvil al cambiar de red--- leen las dos que está libre y las dos
+     * llegan hasta aquí. Con un `update` a secas la segunda PISABA el
+     * `participanteId` de la primera, y la ficha de la primera quedaba
+     * huérfana: contando en el embudo, en el cupo y en el alistamiento
+     * al SEP, con dos asesoras llamando a la misma persona y ningún
+     * rastro de por qué.
+     *
+     * Con `updateMany` y `participanteId: null` en el `where`, la
+     * segunda no escribe nada y se entera.
+     *
+     * LO QUE ESTO NO ARREGLA, y conviene decirlo: la ficha de la
+     * segunda YA SE CREÓ. No se borra ---aquí nada se borra--- y
+     * tampoco se puede evitar sin reservar el lead ANTES del alta, que
+     * pide una columna nueva. Lo que se gana es que deje de pasar en
+     * silencio: el error nombra las dos fichas para que alguien las una
+     * con la herramienta que ya existe.
+     */
+    const atado = await this.prisma.leadEntrante.updateMany({
+      where: { id: lead.id, participanteId: null },
       data: {
         participanteId,
         estado: 'CONVERTIDO',
@@ -308,6 +331,22 @@ export class ConversionDeLeads {
           : `Convertido por ${quien}. Autorizó por ${dto.canal}.`,
       },
     });
+
+    if (atado.count === 0) {
+      const gano = await this.prisma.leadEntrante.findUnique({
+        where: { id: lead.id },
+        select: { participanteId: true },
+      });
+      this.log.warn(
+        `Lead ${lead.id}: dos conversiones a la vez. Gano la ficha ` +
+          `${gano?.participanteId ?? '?'} y quedo suelta ${participanteId}.`,
+      );
+      throw new ConflictException(
+        'Este lead se convirtió dos veces a la vez. Quedó atado a la ficha ' +
+          `${gano?.participanteId ?? 'anterior'}, y la ficha ${participanteId} ` +
+          'quedó suelta: únalas con «Unir fichas repetidas».',
+      );
+    }
 
     /// Las llamadas que costo conseguir la cedula pasan a la ficha.
     ///

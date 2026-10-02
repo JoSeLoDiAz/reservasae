@@ -2177,6 +2177,43 @@ export class CrmService {
           ),
         );
         if (motivo) throw new ConflictException(motivo);
+      } else {
+        /**
+         * Y SIN CURSO ELEGIDO, TAMPOCO DOS.
+         *
+         * El comentario de arriba ya dice que con la acción en NULL
+         * Postgres trata cada nulo como distinto, así que el único de la
+         * base no para nada. Lo que no decía es que las DOS
+         * comprobaciones viven dentro del `if (accionId)`: cuando no hay
+         * curso no se corre ninguna, y se pueden crear fichas sin límite
+         * de la misma persona en el mismo gremio.
+         *
+         * Y no es un camino raro: dar de alta a alguien desde el panel
+         * sin elegirle curso todavía es lo normal cuando llega un
+         * interesado que aún no sabe cuál quiere.
+         *
+         * Hoy no hay ninguna así en la base ---lo midió la auditoría del
+         * 2 oct 2026--- o sea que la puerta está abierta y nadie ha
+         * entrado. Se cierra antes de que entre alguien, no después.
+         *
+         * POR CONVENIO, igual que la regla de al lado: la misma persona
+         * puede estar en ADECOPRIA y en BRITCHAM, y eso no es un
+         * duplicado sino dos gremios distintos.
+         */
+        const yaSinCurso = await tx.participante.findFirst({
+          where: {
+            personaId: persona.id,
+            convenioId: dto.convenioId,
+            accionFormacionId: null,
+          },
+          select: { id: true },
+        });
+        if (yaSinCurso) {
+          throw new ConflictException(
+            'Esta persona ya tiene una ficha sin curso en este convenio. ' +
+              'Elíjale el curso a esa en vez de crear otra.',
+          );
+        }
       }
 
       const participante = await tx.participante.create({

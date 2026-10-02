@@ -53,6 +53,29 @@ function armar(o: Opciones = {}) {
         hecho.push('lead.update');
         return Promise.resolve({ id: 'l1' });
       },
+      /**
+       * LA ATADURA, QUE AHORA ES CONDICIONAL.
+       *
+       * El lead se ata con `updateMany … where { participanteId: null }`
+       * para que dos conversiones a la vez no se pisen: la segunda no
+       * escribe y se entera. Este doble devuelve `count: 1` ---nadie se
+       * adelantó--- que es el camino normal.
+       *
+       * APLICA EL FILTRO DE VERDAD y no devuelve 1 a ciegas: si el
+       * `where` no trae `participanteId: null`, la condición se perdió
+       * y el doble lo dice fallando. Un doble que contesta que sí a
+       * todo deja pasar justo el fallo que esto evita.
+       */
+      updateMany: ({ where }: { where: Record<string, unknown> }) => {
+        hecho.push('lead.update');
+        if (!('participanteId' in where) || where.participanteId !== null) {
+          throw new Error(
+            'la atadura del lead perdió su condición: sin ' +
+              '`participanteId: null` dos conversiones se pisan',
+          );
+        }
+        return Promise.resolve({ count: 1 });
+      },
     },
     /// Las notas del lead que pasan a la ficha.
     ///
