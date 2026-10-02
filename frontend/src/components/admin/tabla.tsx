@@ -143,6 +143,25 @@ export type Columna<T> = {
   /** cómo se pinta; si falta, se pinta el valor */
   pinta?: (f: T) => ReactNode;
   filtro?: TipoFiltro;
+  /**
+   * CÓMO SALE ESTA CELDA EN EL ARCHIVO, si tiene que salir distinta.
+   *
+   * Por defecto el archivo lleva `valor`, que es lo que estaba. El
+   * problema es que `valor` hace TRES trabajos a la vez ---filtrar,
+   * ordenar y exportar--- y hay un caso en que no pueden ser el
+   * mismo texto: las fechas.
+   *
+   * El filtro las necesita CRUDAS, con su zona, porque
+   * `caeEnElRango` hace `new Date(valor)` y de ahí saca el día de
+   * Bogotá. El archivo las necesita YA TRADUCIDAS, porque Excel no
+   * sabe de zonas y quien lo abre lee lo que diga.
+   *
+   * Se intentó con un solo valor ---traducido--- y arregló el
+   * archivo rompiendo el filtro: `new Date('2026-09-24 19:48')` se
+   * interpreta en la zona DEL NAVEGADOR, así que el rango volvía a
+   * depender de dónde esté sentado quien mira.
+   */
+  exporta?: (fila: T) => string;
   /** si faltan, las opciones salen de los datos */
   opciones?: string[];
   numerica?: boolean;
@@ -1557,8 +1576,12 @@ function bajarCsv<T>(
   /// Los valores ya calculados: la tabla los tiene desde que
   /// filtra y ordena, y volver a llamar a `valor()` por cada
   /// celda repetiría ese trabajo para nada.
-  filas: Array<{ v: Record<string, string | number | null> }>,
+  filas: Array<{ f: T; v: Record<string, string | number | null> }>,
 ) {
+  /// Lo que va en cada celda: `exporta` si la columna lo trae, y si
+  /// no el valor de siempre. Ver el porqué en `Columna.exporta`.
+  const celda = (c: Columna<T>, f: { f: T; v: Record<string, string | number | null> }) =>
+    c.exporta ? c.exporta(f.f) : f.v[c.clave];
   const escapar = (v: string | number | null) => {
     const t = v === null || v === undefined ? "" : String(v);
     // comilla doble dentro se duplica, que es como lo lee Excel
@@ -1567,7 +1590,7 @@ function bajarCsv<T>(
 
   const lineas = [
     columnas.map((c) => escapar(c.titulo)).join(";"),
-    ...filas.map((f) => columnas.map((c) => escapar(f.v[c.clave])).join(";")),
+    ...filas.map((f) => columnas.map((c) => escapar(celda(c, f))).join(";")),
   ];
 
   // El BOM (U+FEFF) va delante: sin el, Excel abre el

@@ -14,12 +14,69 @@ import type { Columna } from "./tabla";
 /// Fecha y hora, no solo fecha: dos leads del mismo dia se
 /// ordenan mal si la hora no viaja, y saber a que hora entro
 /// es lo que deja medir en cuanto se reacciono.
+/// EN HORA DE BOGOTÁ, Y NO EN LA DEL NAVEGADOR.
+///
+/// Antes no decía `timeZone`, así que cada quien veía la fecha en
+/// la zona de su equipo. Con todo el mundo en Colombia eso no se
+/// nota, y por eso duró; basta un portátil con la zona cambiada
+/// ---o un día de viaje--- para que dos personas lean horas
+/// distintas de la misma ficha y una de las dos decida mal.
+///
+/// El negocio es colombiano y el reporte al SENA también, así que
+/// la hora de la casa es la de Bogotá, dicha y no supuesta.
 function fechaHora(valor: string | null): string {
   if (!valor) return "—";
   return new Date(valor).toLocaleString("es-CO", {
+    timeZone: "America/Bogota",
     dateStyle: "short",
     timeStyle: "short",
   });
+}
+
+/**
+ * LA MISMA FECHA, PERO PARA ORDENAR Y PARA EL EXCEL.
+ *
+ * EL FALLO QUE ARREGLA, que lo encontró el cliente el 25 sep 2026
+ * creyendo que fallaba el filtro «Hoy»: el archivo se arma con
+ * `valor` y la pantalla con `pinta`, y solo `pinta` traducía la
+ * hora. `valor` devolvía la fecha CRUDA, que viene en UTC.
+ *
+ * Son CINCO HORAS de desfase. Todo lead que entre entre las 7 de
+ * la noche y medianoche salía en el Excel con la fecha del DÍA
+ * SIGUIENTE, mientras la pantalla lo enseñaba bien. Cualquier
+ * conteo por día, corte de mes o informe armado desde ese archivo
+ * traía esas filas corridas un día, y quien lo comparaba con la
+ * pantalla creía que una de las dos mentía.
+ *
+ * «2026-09-24 19:48» y no el formato de la pantalla, porque este
+ * valor TAMBIÉN ES EL QUE ORDENA la columna. De año a minuto se
+ * ordena solo como texto; «24/09/26, 7:48 p. m.» pondría todos los
+ * días 1 juntos.
+ */
+function fechaOrdenable(valor: string | null): string {
+  if (!valor) return "";
+  const d = new Date(valor);
+  if (Number.isNaN(d.getTime())) return "";
+
+  /// Por partes y no con `toLocaleString`: ningún `locale` da
+  /// «AAAA-MM-DD HH:mm» de una pieza, y armarlo a mano es lo que
+  /// garantiza que el orden sea el de siempre.
+  const p = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Bogota",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  })
+    .formatToParts(d)
+    .reduce<Record<string, string>>((a, x) => {
+      a[x.type] = x.value;
+      return a;
+    }, {});
+
+  return `${p.year}-${p.month}-${p.day} ${p.hour}:${p.minute}`;
 }
 
 /// El color va en la LETRA. Sin fondo, sin borde, sin
@@ -163,12 +220,18 @@ export function columnasDeParticipante(): Columna<FilaParticipante>[] {
       clave: "creadoEn",
       ancho: "148px",
       titulo: "Fecha de creación",
+      /// CRUDA, que es lo que necesitan el filtro y el orden: el
+      /// filtro hace `new Date(valor)` y de ahí saca el día de
+      /// Bogotá. Lo que va al archivo es `exporta`, abajo.
       valor: (f) => f.creadoEn,
       /// SU CELDA DE FILTRO ESTABA VACÍA, y era lo único de la fila
       /// que lo estaba (cliente, 30 sep 2026: «es tener filtro como
       /// correo, de acuerdo a la captura»). Un hueco en medio de la
       /// fila se lee como que algo se rompió.
       filtro: "fecha",
+      /// Y EN EL ARCHIVO, YA EN HORA DE BOGOTÁ. El porqué largo está
+      /// en `fechaOrdenable`: el Excel salía cinco horas corrido.
+      exporta: (f) => fechaOrdenable(f.creadoEn),
       pinta: (f) => (
         <span className="whitespace-nowrap font-mono text-xs">
           {fechaHora(f.creadoEn)}
@@ -417,6 +480,7 @@ export function columnasDeParticipante(): Columna<FilaParticipante>[] {
       titulo: "Última actividad",
       valor: (f) => f.ultimaActividad,
       filtro: "fecha",
+      exporta: (f) => fechaOrdenable(f.ultimaActividad),
       pinta: (f) => (
         <span className="whitespace-nowrap font-mono text-xs">
           {fechaHora(f.ultimaActividad)}
@@ -483,6 +547,7 @@ export function columnasDeParticipante(): Columna<FilaParticipante>[] {
       /// Las tres de fecha llevan el mismo filtro: dejar una sola con
       /// él sería volver a dejar huecos en la fila.
       filtro: "fecha",
+      exporta: (f) => fechaOrdenable(f.ultimoContacto),
       pinta: (f) =>
         f.ultimoContacto ? (
           <span className="whitespace-nowrap font-mono text-xs">
