@@ -123,24 +123,42 @@ async function enDosAcciones(): Promise<Hallazgo> {
  */
 async function nitPartidoPorElDigito(): Promise<Hallazgo> {
   const empresas = await prisma.empresa.findMany({
-    select: { nit: true, razonSocial: true },
+    select: {
+      nit: true,
+      razonSocial: true,
+      _count: { select: { participantes: true, reservas: true } },
+    },
   });
   const nueves = new Set(
     empresas.filter((e) => /^\d{9}$/.test(e.nit)).map((e) => e.nit),
   );
 
+  /// CON GENTE TODAVÍA EN LA PEGADA, y no solo emparejadas.
+  ///
+  /// El guión que las une NO borra la pegada ---aquí nada se
+  /// borra---, así que después de unirlas el par sigue estando y
+  /// este aviso salía igual, para siempre. Un aviso que no se apaga
+  /// cuando el trabajo ya se hizo deja de leerse, y entonces no
+  /// avisa de nada el día que importe.
+  ///
+  /// Lo que queda pendiente es la gente repartida, que es lo que
+  /// parte la organización ante el SENA. Una pegada ya vacía es una
+  /// fila muerta, no un problema.
   const partidas = empresas.filter(
-    (e) => /^[89]\d{9}$/.test(e.nit) && nueves.has(e.nit.slice(0, 9)),
+    (e) =>
+      /^[89]\d{9}$/.test(e.nit) &&
+      nueves.has(e.nit.slice(0, 9)) &&
+      (e._count.participantes > 0 || e._count.reservas > 0),
   );
 
   return {
-    titulo: 'Organizaciones partidas en dos: el NIT con su dígito pegado',
+    titulo: 'Organizaciones partidas en dos por el dígito pegado, con gente todavía repartida',
     cuantos: partidas.length,
     ejemplos: partidas
       .slice(0, EJEMPLOS)
       .map((e) => `${e.nit}  ${e.razonSocial}  ->  es ${e.nit.slice(0, 9)}`),
     comoSeArregla:
-      'Se mueve su gente a la organización buena desde la ficha del lead y se oculta la partida. La entrada ya está cerrada desde el 30 sep 2026.',
+      'Con pnpm db:nit-pegado: mira primero, y con --aplicar mueve la gente y las reservas a la organización buena, rellena solo los huecos y NO borra la fila partida. La entrada ya está cerrada desde el 30 sep 2026.',
   };
 }
 

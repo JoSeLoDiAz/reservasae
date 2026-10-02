@@ -48,7 +48,8 @@
     "db:borrar-reservas": "ts-node prisma/borrar-reservas.ts",
     "db:guardia": "ts-node prisma/guardia-de-base-cli.ts",
     "db:brechas": "ts-node prisma/brechas.ts",
-    "db:integridad": "ts-node prisma/integridad.ts"
+    "db:integridad": "ts-node prisma/integridad.ts",
+    "db:nit-pegado": "tsx prisma/unir-nit-pegado.ts"
   },
   "prisma": {
     "seed": "ts-node prisma/seed/index.ts"
