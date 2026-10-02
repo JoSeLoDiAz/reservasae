@@ -39,6 +39,40 @@ la regla, y una copia miente en silencio cuando alguien afloja el original.
 
 ---
 
+## 1 bis · Lo de esta mañana: el desplegable de asignar asesor
+
+**Lo encontró el cliente el 2 oct.** Creó tres cuentas de Gestor de inscripciones y no le
+salían para asignarles leads.
+
+El desplegable «Asignar a» de la tabla y el **filtro** de la columna «Asesor» salían de la
+misma consulta, y esa consulta agrupaba las fichas por asesor: **los que ya tienen leads**.
+Un círculo sin salida — para salir en el desplegable había que tener un lead, y para tener
+el primero había que salir en el desplegable. Una cuenta nueva no podía recibir ninguno
+nunca desde esa pantalla.
+
+Ahora son dos listas porque son dos preguntas. El filtro se queda igual ---filtrar por
+alguien con cero filas no devuelve nada--- y la de asignar usa `llevanFichasEn`, la misma
+fuente que el selector de la ficha individual, para que las dos pantallas no ofrezcan
+gente distinta.
+
+### Y un cambio de comportamiento que conviene que sepas
+
+**El líder de sistemas sale de la lista de asesores ofrecibles**, por decisión del cliente:
+«solo debe salir Gestor de Inscripciones y Líder de Inscripciones». Estaba porque tiene
+`inscripciones · ESCRIBIR`, pero una cosa es poder escribir en las fichas y otra que la
+gente le reparta leads.
+
+- **No rompe lo ya asignado**, y hay una prueba que lo fija: esta lista decide a quién se
+  OFRECE, no quién puede tener. `exigirAsesorDelConvenio` sigue aceptando a cualquiera con
+  concesión, así que las fichas que ya lleva un líder de sistemas se quedan y se le pueden
+  quitar.
+- **Afecta al propio cliente**, que es `LIDER_SISTEMAS` en los dos convenios: va a dejar de
+  aparecer en ese desplegable. Está avisado y es lo que pidió.
+- El cambio va en `quien-lleva-fichas.ts` y no en cada pantalla, así que la mesa de entrada
+  y el selector de la ficha lo heredan solos.
+
+---
+
 ## 2 · El informe de brechas me mintió tres veces, y eso te toca a ti más que a mí
 
 Tú te apoyas en `db:brechas` para saber qué queda. Anoche me dio **tres falsos «sigue
