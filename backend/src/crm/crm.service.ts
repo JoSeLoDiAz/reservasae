@@ -146,7 +146,7 @@ import { motivoParaNoInscribir } from './una-sola-accion';
 import { enPalabras, moverLaGestion } from './unir-participaciones';
 /// `ETAPAS_DEL_AULA` NO se importa: este fichero tiene la suya propia
 /// unas líneas más abajo, y traerla además la duplicaba.
-import { OCUPAN_SILLA, RETIENEN_ASIENTO } from './etapas';
+import { HISTORIA_CERRADA, OCUPAN_SILLA, RETIENEN_ASIENTO } from './etapas';
 import { fraseDeHorario } from '../comun/horario-de-grupo';
 import { PrismaService } from '../prisma/prisma.service';
 import {
@@ -6157,6 +6157,39 @@ export class CrmService {
       },
     });
     if (!p) throw new NotFoundException('Ese participante no existe.');
+
+    /**
+     * A QUIEN YA CURSÓ NO SE LE CAMBIA LA ACCIÓN.
+     *
+     * B-03. Se podía mover de acción de formación a alguien YA
+     * CERTIFICADO, y entonces su certificado deja de corresponder con
+     * lo que cursó. No es un defecto de pantalla: es lo que se le
+     * reporta al SENA, y certificar es lo que el SENA paga.
+     *
+     * Las cuatro salidas entran por lo mismo: todas dicen «estuvo en
+     * ESTE curso y salió así», y cambiarles la acción cambia de qué
+     * curso salieron. `PERDIDO` queda fuera a propósito ---nunca entró
+     * a un curso, volver a captarlo es trabajo normal---; el porqué
+     * largo está en `HISTORIA_CERRADA`.
+     *
+     * ANTES DE MIRAR LA OFERTA, para que el mensaje hable de la
+     * persona y no de un cupo: lo que lo impide no es que la oferta
+     * esté llena ni cerrada, es quién es ella.
+     *
+     * SIN EXCEPCIÓN, tampoco para el superadministrador. Si hace falta
+     * corregir un error de asignación sobre alguien así, que sea otra
+     * puerta con su permiso y su rastro; abrirle un hueco a esta ---que
+     * la usa cualquiera que pueda escribir en la ficha--- es volver a
+     * dejarla abierta para todos.
+     */
+    if (HISTORIA_CERRADA.includes(p.etapa)) {
+      throw new BadRequestException(
+        'Esta persona ya cursó o salió de su acción de formación, así que ' +
+          'su paso por ese curso ya está contado ante el SENA y no se le ' +
+          'puede cambiar. Si fue un error de asignación, hay que corregirlo ' +
+          'por donde quede rastro.',
+      );
+    }
 
     const oferta = await this.prisma.oferta.findUnique({
       where: { id: dto.ofertaId },

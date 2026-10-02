@@ -112,6 +112,37 @@ export const RETIENEN_ASIENTO: EtapaParticipante[] = [
   'CERTIFICADO',
 ];
 
+/**
+ * A QUIÉN YA NO SE LE CAMBIA LA ACCIÓN DE FORMACIÓN.
+ *
+ * Su paso por un curso YA ESTÁ CONTADO. Moverlos de acción no
+ * corrige un dato: reescribe lo que se le reportó al SENA, y en el
+ * caso del certificado deja un certificado que no corresponde con lo
+ * que la persona cursó.
+ *
+ * CERTIFICADO es el que duele y el que faltaba: certificar es lo que
+ * el SENA paga. Las cuatro salidas entran por lo mismo ---retirado,
+ * no aprobó, desertó, abandonó---: todas dicen «estuvo en ESTE curso
+ * y salió así», y cambiarles la acción cambia de qué curso salieron.
+ *
+ * PERDIDO NO ESTÁ, Y ES LA DIFERENCIA CON `NO_RECIBEN_GRUPO`. A un
+ * perdido no se le reportó nada porque nunca entró a un curso: es un
+ * lead que no cuajó, y volver a captarlo para otra acción es trabajo
+ * normal de la mesa, no una corrección de historia. Meterlo aquí
+ * cerraría una puerta que se usa todos los días.
+ *
+ * Si hace falta corregir un error de asignación sobre alguien de esta
+ * lista, que sea otra puerta con su permiso y su rastro. No esta, que
+ * la usa cualquiera que pueda escribir en la ficha.
+ */
+export const HISTORIA_CERRADA: EtapaParticipante[] = [
+  'CERTIFICADO',
+  'RETIRADO',
+  'NO_APROBO',
+  'DESERTO',
+  'ABANDONO',
+];
+
 /// Las que ya no reciben grupo: salieron o nunca entraron.
 export const NO_RECIBEN_GRUPO: EtapaParticipante[] = [
   'PERDIDO',
