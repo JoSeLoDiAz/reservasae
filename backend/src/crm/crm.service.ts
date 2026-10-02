@@ -6223,38 +6223,6 @@ export class CrmService {
     });
     if (!p) throw new NotFoundException('Ese participante no existe.');
 
-    /**
-     * A QUIEN YA CURSÓ NO SE LE CAMBIA LA ACCIÓN.
-     *
-     * B-03. Se podía mover de acción de formación a alguien YA
-     * CERTIFICADO, y entonces su certificado deja de corresponder con
-     * lo que cursó. No es un defecto de pantalla: es lo que se le
-     * reporta al SENA, y certificar es lo que el SENA paga.
-     *
-     * Las cuatro salidas entran por lo mismo: todas dicen «estuvo en
-     * ESTE curso y salió así», y cambiarles la acción cambia de qué
-     * curso salieron. `PERDIDO` queda fuera a propósito ---nunca entró
-     * a un curso, volver a captarlo es trabajo normal---; el porqué
-     * largo está en `HISTORIA_CERRADA`.
-     *
-     * ANTES DE MIRAR LA OFERTA, para que el mensaje hable de la
-     * persona y no de un cupo: lo que lo impide no es que la oferta
-     * esté llena ni cerrada, es quién es ella.
-     *
-     * SIN EXCEPCIÓN, tampoco para el superadministrador. Si hace falta
-     * corregir un error de asignación sobre alguien así, que sea otra
-     * puerta con su permiso y su rastro; abrirle un hueco a esta ---que
-     * la usa cualquiera que pueda escribir en la ficha--- es volver a
-     * dejarla abierta para todos.
-     */
-    if (HISTORIA_CERRADA.includes(p.etapa)) {
-      throw new BadRequestException(
-        'Esta persona ya cursó o salió de su acción de formación, así que ' +
-          'su paso por ese curso ya está contado ante el SENA y no se le ' +
-          'puede cambiar. Si fue un error de asignación, hay que corregirlo ' +
-          'por donde quede rastro.',
-      );
-    }
 
     const oferta = await this.prisma.oferta.findUnique({
       where: { id: dto.ofertaId },
@@ -6272,6 +6240,52 @@ export class CrmService {
       },
     });
     if (!oferta) throw new NotFoundException('Esa oferta no existe.');
+
+    /**
+     * A QUIEN YA CURSÓ NO SE LE CAMBIA LA ACCIÓN ---PERO SÍ SE LE PONE
+     * LA SUYA POR PRIMERA VEZ---.
+     *
+     * B-03. Se podía mover de acción de formación a alguien YA
+     * CERTIFICADO, y entonces su certificado deja de corresponder con
+     * lo que cursó. Eso es lo que se le reporta al SENA, y certificar
+     * es lo que el SENA paga.
+     *
+     * MI PRIMERA VERSIÓN NO DISTINGUÍA CAMBIAR DE PONER, y lo vio José
+     * el 2 oct 2026: bloqueaba a cualquiera de esta lista aunque NO
+     * tuviera acción. Un certificado sin oferta no podía recibir la
+     * suya ---y sin ella no entra al reporte del SENA---, o sea que el
+     * arreglo causaba el mismo daño que venía a evitar. Y el mensaje
+     * decía algo que no era.
+     *
+     * Ahora mira si CAMBIA DE VERDAD. Eso conserva entero el motivo:
+     * lo que no se puede es llevarse a alguien de un curso que ya
+     * cursó a otro distinto.
+     *
+     * POR ESO VA DESPUÉS DE CARGAR LA OFERTA y no antes, que es donde
+     * la tenía: sin saber a qué acción pertenece la oferta pedida no
+     * se puede saber si hay cambio. Sigue yendo ANTES de lo cerrada y
+     * del cupo, para que el mensaje hable de la persona y no de una
+     * plaza.
+     *
+     * `PERDIDO` queda fuera a propósito ---nunca entró a un curso---;
+     * el porqué largo está en `HISTORIA_CERRADA`.
+     *
+     * SIN EXCEPCIÓN, tampoco para el superadministrador: si hace falta
+     * corregir un error de asignación sobre alguien así, que sea otra
+     * puerta con su permiso y su rastro.
+     */
+    const cambiaDeAccion =
+      p.accionFormacionId !== null &&
+      p.accionFormacionId !== oferta.accionFormacionId;
+
+    if (cambiaDeAccion && HISTORIA_CERRADA.includes(p.etapa)) {
+      throw new BadRequestException(
+        'Esta persona ya cursó o salió de su acción de formación, así que ' +
+          'su paso por ese curso ya está contado ante el SENA y no se le ' +
+          'puede cambiar a otra. Si fue un error de asignación, hay que ' +
+          'corregirlo por donde quede rastro.',
+      );
+    }
 
     /**
      * Una oferta cerrada está cerrada también para el asesor.

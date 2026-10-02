@@ -533,7 +533,21 @@ export type Resumen = {
    * tener el primero había que aparecer en el desplegable. Una cuenta
    * recién creada no podía recibir ninguno.
    */
-  asesoresAsignables: Array<{ id: string; nombre: string }>;
+  /**
+   * OPCIONAL, Y POR LA VENTANA DEL DESPLIEGUE.
+   *
+   * Iba obligatorio y se recorría sin guarda. Durante un despliegue
+   * ---frontend nuevo contra backend viejo, o un backend
+   * reiniciando--- llega `undefined`, y `undefined.map` deja Gestión
+   * de leads EN BLANCO para quien reparte. Lo vio José el 2 oct
+   * 2026; es el mismo caso que `porAsesor.pendientes`, que ya está
+   * documentado como opcional justo por esto.
+   *
+   * Una lista vacía deja el desplegable sin nombres, que se arregla
+   * recargando. Una pantalla en blanco no se entiende ni se
+   * recupera.
+   */
+  asesoresAsignables?: Array<{ id: string; nombre: string }>;
   acciones: Array<{ id: string; codigo: string; nombre: string; total: number }>;
   /// Para el filtro de grupo. `accion` es el codigo de su acción
   /// de formación: «Grupo 1» existe en las quince y sin él no se

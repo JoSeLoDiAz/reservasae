@@ -326,7 +326,9 @@ export default function PaginaParticipantes() {
             /// permiso---. Son dos preguntas distintas; el porqué está
             /// en `Resumen`.
             asesores={resumen.asesores}
-            asesoresAsignables={resumen.asesoresAsignables}
+            /// `?? []` por la ventana del despliegue: ver el porqué en
+            /// `Resumen.asesoresAsignables`.
+            asesoresAsignables={resumen.asesoresAsignables ?? []}
             resumen={
               hayAlguien ? (
                 <div>

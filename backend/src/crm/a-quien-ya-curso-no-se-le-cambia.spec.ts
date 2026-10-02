@@ -74,34 +74,56 @@ describe('la comprobación está puesta donde se asigna', () => {
       'utf8',
     ) as string;
 
-  it('asignar() la aplica', () => {
+  const cuerpoDeAsignar = () => {
     const t = fuente();
     const i = t.indexOf('async asignar(');
     expect(i).toBeGreaterThan(-1);
+    return t.slice(i, t.indexOf('\n  async ', i + 20));
+  };
 
-    /// Dentro de su cuerpo, no en cualquier parte del fichero: el
-    /// servicio tiene miles de líneas y buscar suelto daría verde
-    /// aunque la comprobación viviera en otro método.
-    const cuerpo = t.slice(i, t.indexOf('\n  async ', i + 20));
-    expect(cuerpo).toContain('HISTORIA_CERRADA.includes(p.etapa)');
+  it('asignar() la aplica', () => {
+    expect(cuerpoDeAsignar()).toContain('HISTORIA_CERRADA.includes(p.etapa)');
   });
 
   /**
-   * ANTES DE MIRAR LA OFERTA.
+   * SOLO CUANDO CAMBIA DE VERDAD, que es la mitad del arreglo.
    *
-   * Si fuera después, a una persona certificada se le contestaría
-   * «esa oferta está cerrada» o «no hay cupo» ---sobre un cupo que no
-   * es el problema--- y alguien abriría la oferta para nada.
+   * La primera versión no distinguía CAMBIAR de PONER POR PRIMERA VEZ,
+   * y lo vio José el 2 oct 2026: un certificado SIN acción no podía
+   * recibir la suya ---y sin ella no entra al reporte del SENA---. O
+   * sea que el arreglo causaba el mismo daño que venía a evitar.
    */
-  it('y antes de la comprobación de la oferta', () => {
-    const t = fuente();
-    const i = t.indexOf('async asignar(');
-    const cuerpo = t.slice(i, t.indexOf('\n  async ', i + 20));
+  it('solo cuando la acción cambia de verdad', () => {
+    const cuerpo = cuerpoDeAsignar();
+    expect(cuerpo).toContain('const cambiaDeAccion =');
+    expect(cuerpo).toContain('p.accionFormacionId !== null &&');
+    expect(cuerpo).toContain(
+      'p.accionFormacionId !== oferta.accionFormacionId',
+    );
+    expect(cuerpo).toContain('cambiaDeAccion && HISTORIA_CERRADA');
+  });
 
-    const etapa = cuerpo.indexOf('HISTORIA_CERRADA.includes(p.etapa)');
-    const oferta = cuerpo.indexOf('if (!oferta)');
+  /**
+   * DESPUÉS DE CARGAR LA OFERTA ---hace falta su acción para saber si
+   * hay cambio--- Y ANTES DE LO CERRADA Y DEL CUPO.
+   *
+   * Esto estaba al revés: la comprobación iba antes de la oferta, y
+   * así no podía saber si cambiaba. El orden de hoy conserva lo que
+   * se quería de aquel ---que el mensaje hable de la PERSONA y no de
+   * una plaza--- sin pagar el precio de bloquear la primera
+   * asignación.
+   */
+  it('después de la oferta, y antes de lo cerrada', () => {
+    const cuerpo = cuerpoDeAsignar();
+    const cargaOferta = cuerpo.indexOf("if (!oferta) throw");
+    const etapa = cuerpo.indexOf('cambiaDeAccion && HISTORIA_CERRADA');
+    const cerrada = cuerpo.indexOf('if (!oferta.abierta)');
+
+    expect(cargaOferta).toBeGreaterThan(-1);
     expect(etapa).toBeGreaterThan(-1);
-    expect(oferta).toBeGreaterThan(-1);
-    expect(etapa).toBeLessThan(oferta);
+    expect(cerrada).toBeGreaterThan(-1);
+
+    expect(cargaOferta).toBeLessThan(etapa);
+    expect(etapa).toBeLessThan(cerrada);
   });
 });
