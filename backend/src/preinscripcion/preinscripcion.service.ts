@@ -41,7 +41,7 @@ import {
 import { faltaDeLaPersona } from '../crm/completitud';
 import { pasarSiNoLeFaltaNada } from '../crm/datos-completos';
 import { NotificacionesService } from '../notificaciones/notificaciones.service';
-import { normalizarDocumento } from '../comun/documento';
+import { documentoValido, normalizarDocumento } from '../comun/documento';
 import { calcularDigitoVerificacion } from '../comun/nit';
 import { DirectorioService } from '../crm/directorio.service';
 import { aQueOrganizacionSeAta } from './organizacion-de-la-ficha';
@@ -352,6 +352,34 @@ export class PreinscripcionService {
     if (!documento) {
       throw new BadRequestException(
         'Ese número de documento no tiene forma de documento.',
+      );
+    }
+
+    /**
+     * Y QUE CUADRE CON EL TIPO. Esta era la única puerta sin ello.
+     *
+     * B-08. `normalizarDocumento` limpia y deja algo; comprobar que ese
+     * algo PUEDA ser ese documento es otra cosa, y las otras siete
+     * puertas del backend ya la hacían ---la carga masiva, el panel, la
+     * búsqueda, la conversión de leads, el webhook---. Esta no, y es la
+     * puerta por la que entra MÁS gente.
+     *
+     * Una cédula con letras entraba por aquí y de aquí salía al cargue
+     * del SENA, que es donde se descubre, tarde y en bloque.
+     *
+     * MIRA EL TIPO Y NO INVENTA UNA REGLA: a los numéricos les exige
+     * dígitos, y a los que no lo son ---el pasaporte--- les deja sus
+     * letras. Una regla «solo dígitos» a secas habría dejado fuera a
+     * quien se inscribe con pasaporte, que es gente real.
+     *
+     * NO AÑADE NINGUNA PREGUNTA NI NINGÚN PASO al formulario: es el
+     * mismo campo de siempre, rechazado cuando no puede ser cierto. Y
+     * con el MISMO texto que las otras siete, porque dos mensajes
+     * distintos para el mismo error hacen pensar que son dos errores.
+     */
+    if (!documentoValido(dto.tipoDocumentoSepId, documento)) {
+      throw new BadRequestException(
+        'El número de documento no tiene un formato válido para ese tipo.',
       );
     }
 
