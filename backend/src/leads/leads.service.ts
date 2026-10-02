@@ -598,6 +598,25 @@ export class LeadsService {
               /// creó una nueva porque ya existía, que es justo
               /// lo que este cruce evita.
               estado: 'CONVERTIDO',
+              /// Y LA FECHA, QUE FALTABA SOLO AQUÍ.
+              ///
+              /// A-15. Las otras tres ramas que dejan un lead en
+              /// CONVERTIDO la ponen ---la conversión manual, el lote
+              /// y los que esperaban---; esta no, y es la MÁS
+              /// recorrida de las cuatro: es por donde pasa todo el
+              /// que ya estaba en el CRM.
+              ///
+              /// Sin ella, cualquier cosa que pregunte «¿qué queda por
+              /// procesar?» ---una cola, un reintento, un informe de
+              /// pendientes--- ve esos leads como pendientes PARA
+              /// SIEMPRE, aunque su estado diga que ya se procesaron.
+              /// Dos campos que se contradicen, y el que se mira de
+              /// primeras para «qué falta» es este.
+              ///
+              /// En la rama de abajo NO va, y eso es correcto: ahí el
+              /// lead queda PENDIENTE a propósito, esperando a que un
+              /// asesor confirme. Todavía no se ha procesado nada.
+              procesadoEn: new Date(),
               motivo: porDondeSeEncontro(coincide),
             }
           : {

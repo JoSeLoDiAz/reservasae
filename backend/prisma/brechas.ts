@@ -36,10 +36,28 @@ const leer = (ruta: string): string => {
   }
 };
 
-/** El cuerpo de una función o decorador, desde donde aparece. */
+/// Las agujas que salieron más de una vez. Se avisan al final: un
+/// detector que mira el sitio equivocado no falla, miente.
+const AGUJAS_AMBIGUAS: string[] = [];
+
+/**
+ * El cuerpo de una función o decorador, desde donde aparece.
+ *
+ * AVISA SI LA AGUJA NO ES ÚNICA, y eso se añadió después de que
+ * pasara dos veces en el mismo día: `coincide.firme` sale seis veces
+ * en su fichero y la primera es un mensaje de registro, así que ese
+ * detector miraba un sitio donde el arreglo nunca iba a estar.
+ *
+ * No cambia la respuesta ---se sigue usando la primera, que es lo que
+ * hacía--- porque cambiarla en silencio podría poner en verde una
+ * brecha de verdad. Solo lo dice, para que alguien apunte la aguja.
+ */
 const desde = (texto: string, aguja: string, renglones: number): string => {
   const i = texto.indexOf(aguja);
   if (i < 0) return '';
+  if (texto.indexOf(aguja, i + aguja.length) >= 0) {
+    AGUJAS_AMBIGUAS.push(aguja.replace(/\n/g, '\\n'));
+  }
   return texto.slice(i).split('\n').slice(0, renglones).join('\n');
 };
 
@@ -133,7 +151,19 @@ const BRECHAS: Brecha[] = [
     abierta: () => {
       const t = leer('src/leads/leads.service.ts');
       if (!t) return false;
-      return !desde(t, 'coincide.firme', 14).includes('procesadoEn');
+      /// `data: coincide.firme` Y NO `coincide.firme` A SECAS.
+      ///
+      /// A secas sale SEIS veces en este fichero, y la primera es un
+      /// mensaje de registro cincuenta líneas antes del `update`. O
+      /// sea que este detector miraba un sitio donde el arreglo nunca
+      /// iba a estar: daba la brecha por abierta hiciera uno lo que
+      /// hiciera, y habría dado verde si alguien escribía
+      /// `procesadoEn` cerca de aquel log.
+      /// VENTANA DE 40 Y NO DE 20: el arreglo lleva encima un
+      /// comentario largo que explica por qué faltaba solo ahí, y con
+      /// 20 renglones la línea se quedaba fuera. La ventana mide
+      /// distancia, no importancia.
+      return !desde(t, 'data: coincide.firme', 40).includes('procesadoEn');
     },
   },
   {
@@ -267,6 +297,32 @@ function main() {
       `  ${NEGRITA}docs/BRECHAS-PARA-JOSE.md${APAGA}`,
   );
   console.log(`${ROJO}${NEGRITA}${RAYA}${APAGA}\n`);
+
+  /**
+   * LAS AGUJAS QUE MIRAN A DOS SITIOS.
+   *
+   * Un detector cuya aguja sale varias veces no mira lo que cree:
+   * `desde` usa la PRIMERA. Pasó con `coincide.firme`, que sale seis
+   * veces en su fichero y la primera es un mensaje de registro
+   * cincuenta líneas antes del sitio de verdad; ese detector daba la
+   * brecha por abierta hiciera uno lo que hiciera.
+   *
+   * Esto no lo arregla ---no se puede adivinar cuál de las apariciones
+   * es la buena--- pero lo dice, que es lo que faltó para encontrarlo:
+   * se encontró a mano, y por casualidad.
+   */
+  if (AGUJAS_AMBIGUAS.length > 0) {
+    const unicas = [...new Set(AGUJAS_AMBIGUAS)];
+    console.log(
+      `${AMARILLO}  Ojo: ${unicas.length} de estas comprobaciones busca un texto que ` +
+        `sale VARIAS veces en su fichero, y se queda con la primera.${APAGA}`,
+    );
+    for (const a of unicas) console.log(`${AMARILLO}    «${a}»${APAGA}`);
+    console.log(
+      `${AMARILLO}  Mientras siga asi, esa comprobacion puede estar mirando ` +
+        `donde no es.${APAGA}\n`,
+    );
+  }
 
   /// SALE CON 0 A PROPÓSITO: un despliegue que falla por un aviso se
   /// desactiva el mismo día, y entonces el aviso no sirve de nada.
