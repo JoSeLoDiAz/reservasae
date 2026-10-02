@@ -42,7 +42,7 @@ import { faltaDeLaPersona } from '../crm/completitud';
 import { pasarSiNoLeFaltaNada } from '../crm/datos-completos';
 import { NotificacionesService } from '../notificaciones/notificaciones.service';
 import { documentoValido, normalizarDocumento } from '../comun/documento';
-import { calcularDigitoVerificacion } from '../comun/nit';
+import { calcularDigitoVerificacion, normalizarNit } from '../comun/nit';
 import { DirectorioService } from '../crm/directorio.service';
 import { aQueOrganizacionSeAta } from './organizacion-de-la-ficha';
 import { entraAlDirectorio } from './entra-al-directorio';
@@ -1661,7 +1661,16 @@ export class PreinscripcionService {
     /// fila imposible: el NIT y el nombre de la primera con la
     /// persona de contacto de la segunda. Visto en producción,
     /// y la organización nueva no llegaba a crearse.
-    const nitPedido = dto.nit ? dto.nit.replace(/\D/g, '') : null;
+    /// CON LA MISMA REGLA QUE SE GUARDA, o la comparación miente.
+    ///
+    /// Esto se compara con el NIT de la organización que la ficha ya
+    /// tiene para decidir si se la cambia. Normalizándolo distinto,
+    /// «890.982.209-4» daba «8909822094» y no casaba con el guardado
+    /// «890982209»: la ficha parecía cambiar de organización sin que
+    /// nadie la hubiera cambiado, y de ahí salía el `upsert` que creaba
+    /// la segunda fila.
+    const leidoPedido = dto.nit ? normalizarNit(dto.nit) : null;
+    const nitPedido = leidoPedido?.nit ?? null;
 
     const laDeAhora = p.empresaId
       ? await this.prisma.empresa.findUnique({
@@ -1733,9 +1742,38 @@ export class PreinscripcionService {
         data: { empresaId: suya },
       });
     } else if (dto.nit) {
-      const nit = dto.nit.replace(/\D/g, '');
-      if (!nit)
-        throw new BadRequestException('Ese NIT no tiene ningún dígito.');
+      /**
+       * `normalizarNit` Y NO `replace(/\D/g, '')`.
+       *
+       * ESTA LÍNEA PARTIÓ EN DOS AL COLEGIO BENEDICTINO. La pantalla
+       * imprime el NIT como se escribe ---«890.982.209-4»--- y quitar
+       * todo lo que no sea dígito deja «8909822094», que es el NIT con
+       * su dígito pegado detrás. Como llave es OTRA, así que el
+       * `upsert` de abajo no encuentra la organización buena y crea una
+       * segunda con su gente.
+       *
+       * Copiar el NIT de la propia pantalla y pegarlo aquí bastaba.
+       * Lo encontró el cliente el 2 oct 2026 con 6 leads en una fila y
+       * 8 en la otra, y una auditoría del mismo día localizó la causa:
+       * `normalizarNit` parte el dígito pegado desde el 30 sep, pero
+       * tres puertas no la llamaban. Esta es la que más gente usa.
+       *
+       * DOS NORMALIZACIONES DEL MISMO DATO SON DOS LLAVES DISTINTAS, y
+       * por eso el arreglo no es «quitar también el guion»: es llamar a
+       * la única que hay.
+       *
+       * De paso exige entre 5 y 15 dígitos, así que deja de poder
+       * crearse la «Organización 1» que hay en la base: un NIT de un
+       * dígito no es un NIT.
+       */
+      const leido = normalizarNit(dto.nit);
+      if (!leido) {
+        throw new BadRequestException(
+          'Ese NIT no tiene forma de NIT. Son entre 5 y 15 dígitos, con ' +
+            'o sin el dígito de verificación.',
+        );
+      }
+      const nit = leido.nit;
 
       /// El DV lo pone la DIAN, no la persona.
       ///
@@ -1816,8 +1854,21 @@ export class PreinscripcionService {
         }
       }
     } else if (dto.rutPropio) {
-      // su cedula es su RUT: la persona es su propia unidad
-      // economica y asi la reporta el F7
+      /**
+       * SU CÉDULA ES SU RUT: la persona es su propia unidad económica
+       * y así la reporta el F7.
+       *
+       * AQUÍ NO VA `normalizarNit`, Y ES A PROPÓSITO. Esa regla parte
+       * el dígito de verificación pegado cuando el número tiene diez
+       * dígitos, empieza en 8 o 9 y el último cuadra con la cuenta de
+       * la DIAN. Eso es lo que hay que hacer con un NIT y lo contrario
+       * de lo que hay que hacer con una CÉDULA: aquí el número no
+       * lleva dígito pegado, es la cédula entera, y partirla dejaría a
+       * la persona registrada con un documento que no es el suyo.
+       *
+       * Las tres puertas que se corrigieron el 2 oct 2026 manejaban un
+       * NIT de verdad. Esta no, y por eso se queda como está.
+       */
       const nit = p.persona.numeroDocumento.replace(/\D/g, '');
       const nombre = [
         p.persona.primerNombre,
