@@ -28,6 +28,8 @@
  */
 
 import { PrismaClient } from '../generated/prisma';
+import { cubreA } from '../src/crm/cobertura';
+import { DEPARTAMENTO_POR_ID, MUNICIPIO_POR_ID } from '../src/crm/catalogos-sep';
 
 const prisma = new PrismaClient();
 
@@ -288,6 +290,119 @@ async function ciudadesSinDepartamento(): Promise<Hallazgo> {
   };
 }
 
+/**
+ * GENTE QUE NO SE PUEDE MATRICULAR PORQUE SU DEPARTAMENTO NO TIENE
+ * ESA ACCIÓN.
+ *
+ * `cobertura.ts` NO MIRA LA MODALIDAD: aplica la misma frontera de
+ * departamento a un curso virtual que a un taller presencial. En un
+ * presencial eso es la regla y está bien ---a alguien de Bogotá no se
+ * le mete en el grupo de Medellín---. En un VIRTUAL no hay nada
+ * físico que lo justifique: el curso se toma por internet.
+ *
+ * ESTO NO DICE QUE SEA UN FALLO, Y POR ESO CUENTA EN VEZ DE AVISAR.
+ * Las ubicaciones de una acción virtual existen porque el F7 del SENA
+ * pide un lugar, y puede que la lista de departamentos sea un
+ * compromiso adquirido. Si lo es, estos bloqueos son correctos. Si no
+ * lo es, es gente que se pierde todos los días.
+ *
+ * La decisión es del cliente y necesita un número para tomarse, que es
+ * lo que esto trae. Las virtuales salen primero por eso.
+ */
+async function sinSedeEnSuDepartamento(): Promise<Hallazgo> {
+  const ofertas = await prisma.oferta.findMany({
+    select: {
+      accionFormacionId: true,
+      ubicacion: { select: { nombre: true, tipo: true, departamento: true } },
+    },
+  });
+
+  const porAccion = new Map<string, (typeof ofertas)[number][]>();
+  for (const o of ofertas) {
+    const suyas = porAccion.get(o.accionFormacionId) ?? [];
+    suyas.push(o);
+    porAccion.set(o.accionFormacionId, suyas);
+  }
+
+  const gente = await prisma.participante.findMany({
+    where: {
+      accionFormacionId: { not: null },
+      /// Sin oferta puesta: con ella ya pasó, no es una matrícula
+      /// que se esté escapando.
+      ofertaId: null,
+      /// LOS QUE TODAVÍA SE PUEDEN SALVAR, y por eso no es
+      /// `OCUPAN_SILLA`: ese es el conjunto de los que YA entraron.
+      /// Fuera quedan también los callejones sin salida ---un lead
+      /// perdido hace tres meses no se está escapando---.
+      etapa: { in: ['INTERESADO', 'CONTACTADO', 'DATOS_COMPLETOS'] },
+    },
+    select: {
+      accionFormacion: { select: { codigo: true, modalidad: true } },
+      accionFormacionId: true,
+      persona: { select: { departamentoSepId: true, municipioSepId: true } },
+    },
+  });
+
+  /// Por acción: cuántos quedan fuera y de qué departamentos.
+  const fuera = new Map<
+    string,
+    { modalidad: string; cuantos: number; dptos: Set<string> }
+  >();
+
+  for (const p of gente) {
+    const suyas = porAccion.get(p.accionFormacionId ?? '') ?? [];
+    if (suyas.length === 0) continue;
+
+    const dep = p.persona.departamentoSepId;
+    const mun = p.persona.municipioSepId;
+    /// Sin domicilio no se juzga: `cubreA` dice que sí a propósito
+    /// cuando no se sabe dónde vive, y que falte el domicilio se
+    /// avisa por otro lado.
+    if (!dep) continue;
+
+    const vive = {
+      departamento: DEPARTAMENTO_POR_ID.get(dep)?.etiqueta ?? null,
+      ciudad: mun ? (MUNICIPIO_POR_ID.get(mun)?.[2] ?? null) : null,
+    };
+
+    if (suyas.some((o) => cubreA(o.ubicacion, vive))) continue;
+
+    const codigo = p.accionFormacion?.codigo ?? '—';
+    const modalidad = String(p.accionFormacion?.modalidad ?? '—');
+    const y = fuera.get(codigo) ?? {
+      modalidad,
+      cuantos: 0,
+      dptos: new Set<string>(),
+    };
+    y.cuantos += 1;
+    if (vive.departamento) y.dptos.add(vive.departamento);
+    fuera.set(codigo, y);
+  }
+
+  /// Las virtuales primero: son las discutibles.
+  const lista = [...fuera.entries()].sort((a, b) => {
+    const orden = (m: string) =>
+      m === 'VIRTUAL' ? 0 : m === 'HIBRIDA' ? 1 : 2;
+    return (
+      orden(a[1].modalidad) - orden(b[1].modalidad) ||
+      b[1].cuantos - a[1].cuantos
+    );
+  });
+
+  return {
+    titulo: 'Gente sin matricular porque su departamento no tiene esa acción',
+    cuantos: lista.reduce((n, [, y]) => n + y.cuantos, 0),
+    ejemplos: lista
+      .slice(0, EJEMPLOS)
+      .map(
+        ([codigo, y]) =>
+          `${codigo.padEnd(5)} ${y.modalidad.padEnd(11)} ${String(y.cuantos).padStart(4)} personas · ${[...y.dptos].sort().join(', ')}`,
+      ),
+    comoSeArregla:
+      'En las PRESENCIALES es la regla y está bien. En las VIRTUALES hay que decidir: si la lista de departamentos es un compromiso con el SENA, estos bloqueos son correctos; si no lo es, la regla debería dejar de mirar el departamento cuando la modalidad es VIRTUAL, y se recupera esta gente. Es una decisión del cliente, no un arreglo.',
+  };
+}
+
 async function main() {
   console.log('\n═══ SONDEO DE LOS DATOS ═══\n');
 
@@ -297,20 +412,32 @@ async function main() {
     await nitQueNoEsNumero(),
     await independientesAMedias(),
     await ciudadesSinDepartamento(),
+    await sinSedeEnSuDepartamento(),
   ];
 
   const conCasos = hallazgos.filter((h) => h.cuantos > 0);
 
   if (conCasos.length === 0) {
-    console.log('  Nada que reportar: los cinco controles salen en cero.\n');
+    console.log('  Nada que reportar: los seis controles salen en cero.\n');
     return;
   }
 
   for (const h of conCasos) {
     console.log(`▸ ${h.titulo}: ${h.cuantos}`);
     for (const e of h.ejemplos) console.log(`    ${e}`);
-    if (h.cuantos > h.ejemplos.length) {
-      console.log(`    …y ${h.cuantos - h.ejemplos.length} más.`);
+    /// SOLO SI LA LISTA SE CORTÓ DE VERDAD.
+    ///
+    /// Antes bastaba con que `cuantos` fuera mayor que los ejemplos, y
+    /// eso da por supuesto que un ejemplo es una fila. Deja de ser
+    /// cierto en cuanto un hallazgo cuenta una cosa y enseña otra: el
+    /// de la gente sin sede cuenta PERSONAS y agrupa sus ejemplos POR
+    /// ACCIÓN, así que con 5 personas en 3 acciones decía «…y 2 más»
+    /// y no había ninguna más. Un informe que inventa dos casos es
+    /// peor que uno que no los enseña.
+    ///
+    /// La lista se cortó solo si llegó al tope.
+    if (h.ejemplos.length === EJEMPLOS && h.cuantos > h.ejemplos.length) {
+      console.log(`    …y más, hasta ${h.cuantos}.`);
     }
     console.log(`    Se arregla con: ${h.comoSeArregla}\n`);
   }
