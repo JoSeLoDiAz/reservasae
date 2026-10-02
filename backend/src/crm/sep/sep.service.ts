@@ -402,14 +402,38 @@ export class SepService {
             /// mandarle al Estado un dato sensible amparado por
             /// un consentimiento retirado.
             ///
-            /// Y CON ORDEN. Abajo se manda `[0]` y el comentario
-            /// dice «la primera que marcó»: sin `orderBy` eso lo
-            /// decidía Postgres, así que dos exportaciones del
-            /// mismo día podían mandar marcas distintas de la
-            /// misma persona.
+            /**
+             * Y CON ORDEN QUE DESEMPATA DE VERDAD.
+             *
+             * Abajo se manda `[0]` y el comentario decía «la primera
+             * que marcó». Se añadió `orderBy: creadoEn` para que no lo
+             * decidiera Postgres, y NO BASTABA: las marcas de un envío
+             * se escriben TODAS en un único `createMany` dentro de una
+             * transacción, y `creadoEn` es `now()`, que en Postgres es
+             * la hora de la TRANSACCIÓN ---idéntica para todas las
+             * filas---. Ordenar por un valor igual no ordena nada: el
+             * desempate seguía siendo del motor.
+             *
+             * O sea que quien marcó «víctima del conflicto armado» y
+             * «discapacidad auditiva» en el mismo formulario podía
+             * salir el lunes con una y el martes con la otra. Es un
+             * dato sensible y es el que ve el SENA.
+             *
+             * El segundo criterio es el id del catálogo: arbitrario
+             * pero ESTABLE, que es lo único que hace falta. Elegir «la
+             * primera que marcó» de verdad pediría guardar el orden en
+             * que las marcó, y eso no se guarda.
+             *
+             * Lo encontró una auditoría del 2 oct 2026, que ademas vio
+             * que la prueba daba esto por bueno sin comprobar el
+             * empate.
+             */
             caracterizaciones: {
               where: { autorizacion: { revocadaEn: null } },
-              orderBy: { creadoEn: 'asc' },
+              orderBy: [
+                { creadoEn: 'asc' },
+                { caracterizacionSepId: 'asc' },
+              ],
             },
           },
         },

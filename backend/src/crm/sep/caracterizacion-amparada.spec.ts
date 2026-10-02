@@ -54,12 +54,50 @@ describe('el reporte solo manda lo que sigue amparado', () => {
 
 describe('cuál viaja no lo decide Postgres', () => {
   it('la consulta lleva orden', () => {
-    /// Abajo se manda `[0]` y el comentario dice «la primera que
-    /// marcó». Sin `orderBy` eso lo decidía el motor, así que dos
-    /// exportaciones del mismo día podían mandar marcas distintas
-    /// de la misma persona — y el comentario afirmaba algo que el
-    /// código no garantizaba.
     expect(bloqueDeCaracterizaciones()).toContain('orderBy');
+  });
+
+  /**
+   * Y CON DESEMPATE, QUE ES LO QUE FALTABA.
+   *
+   * Esta prueba comprobaba que hubiera `orderBy` y se quedaba ahí,
+   * así que daba por bueno un orden que no ordenaba: las marcas de
+   * un envío se escriben TODAS en un único `createMany` dentro de
+   * una transacción, y `creadoEn` es `now()` ---la hora de la
+   * transacción, idéntica para todas---. Ordenar por un valor igual
+   * deja el desempate en manos del motor.
+   *
+   * Quien marcó dos cosas en el mismo formulario podía salir el
+   * lunes con una y el martes con la otra. Es un dato sensible.
+   *
+   * El segundo criterio es arbitrario pero ESTABLE, que es lo único
+   * que hace falta: elegir «la primera que marcó» de verdad pediría
+   * guardar el orden en que las marcó, y eso no se guarda.
+   */
+  it('y el orden desempata: `creadoEn` solo no basta', () => {
+    const bloque = bloqueDeCaracterizaciones();
+    expect(bloque).toContain("{ creadoEn: 'asc' }");
+    expect(bloque).toContain("{ caracterizacionSepId: 'asc' }");
+  });
+
+  /**
+   * Y QUE SIGAN ESCRIBIÉNDOSE DE GOLPE, porque es lo que hace
+   * necesario el desempate: si algún día se escribieran una a una,
+   * `creadoEn` las separaría y esto sobraría. Mientras sea un
+   * `createMany`, no.
+   */
+  it('se escriben todas de golpe, que es por lo que empatan', () => {
+    const t = require('fs').readFileSync(
+      require('path').join(
+        __dirname,
+        '..',
+        '..',
+        'preinscripcion',
+        'preinscripcion.service.ts',
+      ),
+      'utf8',
+    ) as string;
+    expect(t).toContain('caracterizacionPersona.createMany(');
   });
 
   it('se sigue mandando UNA, que es lo que el formato admite', () => {
