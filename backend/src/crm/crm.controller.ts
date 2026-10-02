@@ -37,6 +37,7 @@ import { CrmService } from './crm.service';
 import { AsignarGrupo } from './asignar-grupo.service';
 import { SoloQuienAsignaGrupo } from './quien-asigna-grupo';
 import { SoloQuienCargaPlano } from './quien-carga-plano';
+import { conveniosQueLlevanFichas } from './quien-lleva-fichas';
 import { DirectorioService } from './directorio.service';
 import { PlantillasCorreoService } from '../correo/plantillas/plantillas-correo.service';
 import { RuiService } from './rui/rui.service';
@@ -811,7 +812,16 @@ export class CrmController {
     @AmbitoActual() ambito: Ambito,
     @IpReal() ip: string,
   ) {
-    return this.crm.crear(dto, admin, ambito.convenios, ip);
+    return this.crm.crear(
+      dto,
+      admin,
+      ambito.convenios,
+      ip,
+      undefined,
+      /// Si quien crea se puede quedar con la ficha. Sale de los
+      /// roles que el guard ya resolvió, sin una consulta más.
+      conveniosQueLlevanFichas(ambito.roles).includes(dto.convenioId),
+    );
   }
 
   @Patch(':id')

@@ -1792,8 +1792,52 @@ export class CrmService {
     ambito: string[],
     ip?: string,
     opciones?: { encolarRui?: boolean },
+    /// Si quien crea puede QUEDARSE con la ficha en este convenio.
+    /// Lo resuelve el controlador, que ya tiene `ambito.roles` en la
+    /// mano: preguntarlo aquí sería una consulta por cada alta para
+    /// un dato que el llamador ya conoce.
+    ///
+    /// Por defecto NO, que es el lado seguro: un llamador que se
+    /// olvide de pasarlo crea la ficha sin asesor ---se reparte
+    /// después--- en vez de dejársela a quien no la trabaja.
+    creadorLlevaFichas = false,
   ) {
     this.exigirConvenio(dto.convenioId, ambito);
+
+    /**
+     * LA TERCERA PUERTA, Y LA QUE NO VALIDABA NADA.
+     *
+     * `crear()` escribía `dto.asesorId ?? admin?.id ?? null` tal cual:
+     * ni miraba el rol ni comprobaba que esa persona trabajara en el
+     * convenio. O sea que por aquí se podía dejar una ficha en manos de
+     * alguien que NO LA VE ---que es lo que `exigirAsesorDelConvenio`
+     * existe para impedir---, y encima saltándose la regla del cliente
+     * sobre qué roles llevan leads.
+     *
+     * José la señaló como la tercera el 2 oct 2026, junto con
+     * `actualizar()` y el lote. Las otras dos ya pasaban por la
+     * cerradura; esta no pasaba por ninguna.
+     *
+     * DOS CASOS Y SE TRATAN DISTINTO, a propósito:
+     *
+     * · Si alguien ELIGE un asesor, se exige y se rechaza con su
+     *   motivo: pidió algo que no se puede, y callarlo le dejaría la
+     *   ficha en manos de quien no la trabaja sin enterarse.
+     *
+     * · Si NO elige, la ficha se queda con quien la crea ---que es lo
+     *   que hacía--- pero SOLO si su rol lleva leads. Aquí no se
+     *   rechaza: que un líder de sistemas dé de alta una ficha es
+     *   normal, y lo que no debe pasar es que se le quede a él. Se
+     *   crea sin asesor y la reparte quien corresponda. Tumbar el alta
+     *   sería castigar al que hizo bien su trabajo.
+     */
+    let asesorDeLaFicha: string | null = null;
+    if (dto.asesorId) {
+      await this.exigirAsesorDelConvenio(dto.asesorId, dto.convenioId);
+      asesorDeLaFicha = dto.asesorId;
+    } else if (admin?.id && creadorLlevaFichas) {
+      asesorDeLaFicha = admin.id;
+    }
 
     // el tipo tiene que servir para una persona y estar
     // permitido aqui: sin esto la API acepta cualquier
@@ -2120,7 +2164,8 @@ export class CrmService {
           accionFormacionId: accionId,
           reservaId: dto.reservaId ?? null,
           origen: dto.origen ?? 'ASESOR',
-          asesorId: dto.asesorId ?? admin?.id ?? null,
+          /// Ya resuelto y validado arriba: ver el porqué allí.
+          asesorId: asesorDeLaFicha,
           cargoEnEmpresa: dto.cargoEnEmpresa ?? null,
           nivelOcupacionalSepId: dto.nivelOcupacionalSepId ?? null,
           beneficiarioPrevio: dto.beneficiarioPrevio ?? null,
@@ -3438,6 +3483,7 @@ export class CrmService {
   /// Un asesor sin concesion en ese convenio no VE la ficha que
   /// se le asigna: quedaria con dueño y sin nadie que la mire, y
   /// la brecha de nombres la contaria como atendida.
+
   async exigirAsesorDelConvenio(asesorId: string, convenioId: string) {
     const asesor = await this.prisma.admin.findFirst({
       where: { id: asesorId, activo: true },
