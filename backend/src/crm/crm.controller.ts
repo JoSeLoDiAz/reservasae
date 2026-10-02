@@ -823,7 +823,7 @@ export class CrmController {
     @AmbitoActual() ambito: Ambito,
     @IpReal() ip: string,
   ) {
-    return this.crm.actualizar(id, dto, admin, ambito.convenios, ip);
+    return this.crm.actualizar(id, dto, admin, ambito.convenios, ambito.roles, ip);
   }
 
   /** Quita a la persona de este curso. No la borra. */
@@ -959,7 +959,14 @@ export class CrmController {
     @AdminActual() admin: Admin,
     @IpReal() ip: string,
   ) {
-    return this.crm.restablecerValor(id, valorId, ambito.convenios, admin, ip);
+    return this.crm.restablecerValor(
+      id,
+      valorId,
+      ambito.convenios,
+      admin,
+      ambito.roles,
+      ip,
+    );
   }
 
   /// Los datos de la empresa, desde la ficha.

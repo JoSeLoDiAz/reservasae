@@ -122,6 +122,23 @@ export function BarraDeGestion({
   const [accionId, setAccionId] = useState<string | null>(null);
   const { admin } = useAdmin();
   const puedeAsignarGrupo = admin.puede?.asignarGrupo === true;
+
+  /// COGER UNO LIBRE (Josse, 2 oct 2026). Solo si NO reparte --quien
+  /// reparte ya tiene el desplegable--, el lead no es de nadie, y
+  /// quien mira se queda con leads.
+  const [cogiendo, setCogiendo] = useState(false);
+  const puedeCogerlo =
+    !puedeRepartir && !lead.asesor && admin.puede?.llevarFichas === true;
+
+  function cogerlo() {
+    setCogiendo(true);
+    void alGuardar(
+      async () => {
+        await crmApi.actualizar(lead.id, { asesorId: admin.id });
+      },
+      "Este lead ya es suyo.",
+    ).finally(() => setCogiendo(false));
+  }
   const [coberturaId, setCoberturaId] = useState(lead.cobertura?.id ?? "");
   const [guardando, setGuardando] = useState(false);
 
@@ -317,6 +334,21 @@ export function BarraDeGestion({
               alElegir={setAsesorId}
             />
           </div>
+        ) : puedeCogerlo ? (
+          /* COGER UNO LIBRE, y nada más (Josse, 2 oct 2026).
+             Un gestor no reparte, pero sí se queda con un lead que no
+             es de nadie: sin esto el equipo no podía ni empezar a
+             trabajarlo. La cerradura está en el servidor
+             (`coger-un-lead.ts`); esto solo evita el botón que daría
+             un 403. */
+          <button
+            type="button"
+            onClick={cogerlo}
+            disabled={cogiendo}
+            style={{ ...D.control, cursor: "pointer", textAlign: "left" }}
+          >
+            {cogiendo ? "Cogiéndolo…" : "Sin asignar · cogerlo"}
+          </button>
         ) : (
           <div style={{ ...D.control, cursor: "default" }}>
             {lead.asesor?.nombre ?? "Sin asignar"}

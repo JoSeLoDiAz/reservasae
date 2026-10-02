@@ -50,6 +50,7 @@ import {
   conveniosQueMuevenInscrito,
   conveniosQueVenElEquipo,
 } from './permisos';
+import { conveniosQueLlevanFichas } from '../crm/quien-lleva-fichas';
 import { AdminService, vistaAdmin } from './admin.service';
 import { corregirContraste, derivarTemas } from './derivar';
 import {
@@ -152,6 +153,12 @@ export class AdminController {
       /// error y no se entiende.
       puede: {
         repartirFichas: conveniosQueReparten(ambito.roles).length > 0,
+        /// Si se QUEDA con leads. No es lo mismo que repartirlos: un
+        /// gestor lleva fichas y no las reparte, y un líder académico
+        /// las reparte y no le toca ninguna. Con esto el panel le
+        /// ofrece «Coger este lead» a quien de verdad lo va a
+        /// trabajar; la cerradura está en `coger-un-lead.ts`.
+        llevarFichas: conveniosQueLlevanFichas(ambito.roles).length > 0,
         sacarDeInscrito: conveniosQueMuevenInscrito(ambito.roles).length > 0,
         /// Logos, colores del sistema y textos: solo los correos de
         /// `EDITORES_DE_MARCA`. Para que Apariencia no le enseñe a

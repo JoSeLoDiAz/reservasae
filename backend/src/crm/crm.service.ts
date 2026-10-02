@@ -13,6 +13,7 @@ import {
   type OrigenParticipante,
   Prisma,
   RolAdmin,
+  type RolConvenio,
   type Admin,
 } from '../../generated/prisma';
 import {
@@ -34,7 +35,12 @@ import { origenDeLead } from './origen-del-lead';
 import { documentoValido, normalizarDocumento } from '../comun/documento';
 import { normalizarNit, calcularDigitoVerificacion } from '../comun/nit';
 import { borrarParticipaciones } from './borrar-participaciones';
-import { llevanFichasEn } from './quien-lleva-fichas';
+import { conveniosQueReparten } from '../admin/permisos';
+import { motivoParaNoTocarElAsesor } from './coger-un-lead';
+import {
+  conveniosQueLlevanFichas,
+  llevanFichasEn,
+} from './quien-lleva-fichas';
 import { analizar, esInsalvable, repetidosEnElPegado } from './carga';
 import { leerOrganizacion, queSeEscribe, type OrganizacionLeida } from './organizacion-de-carga';
 import { lugarDeUbicacion } from './plantilla-de-carga';
@@ -2180,6 +2186,12 @@ export class CrmService {
     dto: ActualizarParticipanteDto,
     admin: Admin,
     ambito: string[],
+    /// Los roles de quien pide, POR CONVENIO. Hacen falta aquí porque
+    /// quién puede tocar el asesor depende del convenio de ESTA ficha,
+    /// y eso no se sabe hasta haberla leído. Va obligatorio para que
+    /// el compilador cace la llamada que se olvide de pasarlo: este
+    /// camino estuvo sin comprobar nada hasta el 2 oct 2026.
+    rolesPorConvenio: Record<string, RolConvenio[]>,
     ip?: string,
   ) {
     await this.exigirParticipante(id, ambito);
@@ -2423,6 +2435,29 @@ export class CrmService {
       dto.asesorId !== undefined && (dto.asesorId || null) !== p.asesorId;
     let notaAsesor: string | null = null;
 
+    /// EL CANDADO QUE FALTABA. `PATCH lote/asesor` sí exigía repartir
+    /// y esta puerta no exigía NADA: comprobado en caliente el 2 oct
+    /// 2026, una gestora movió una ficha de un asesor a otro por aquí
+    /// y recibió un 200. El candado vivía solo en la pantalla.
+    ///
+    /// La regla entera, con su porqué, está en `coger-un-lead.ts`.
+    if (cambiaAsesor) {
+      const motivo = motivoParaNoTocarElAsesor({
+        quien: {
+          adminId: admin.id,
+          reparte: conveniosQueReparten(rolesPorConvenio).includes(
+            p.convenioId,
+          ),
+          llevaFichas: conveniosQueLlevanFichas(rolesPorConvenio).includes(
+            p.convenioId,
+          ),
+        },
+        asesorAhora: p.asesorId,
+        asesorPedido: dto.asesorId || null,
+      });
+      if (motivo) throw new ForbiddenException(motivo);
+    }
+
     if (cambiaAsesor && dto.asesorId) {
       const asesor = await this.exigirAsesorDelConvenio(
         dto.asesorId,
@@ -2631,6 +2666,10 @@ export class CrmService {
     valorId: string,
     ambito: string[],
     admin: Admin,
+    /// Van de paso hasta `actualizar`, que los necesita para decidir
+    /// quién puede tocar el asesor. Deshacer un cambio pasa por la
+    /// misma puerta que hacerlo, así que también por el mismo candado.
+    rolesPorConvenio: Record<string, RolConvenio[]>,
     ip?: string,
   ) {
     await this.exigirParticipante(participanteId, ambito);
@@ -2673,6 +2712,7 @@ export class CrmService {
       { [fila.campo]: fila.valorAnterior },
       admin,
       ambito,
+      rolesPorConvenio,
       ip,
     );
 

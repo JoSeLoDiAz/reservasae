@@ -108,6 +108,10 @@ function armar(opciones: { rol: string; otraPersona?: unknown }) {
           dto: unknown,
           admin: unknown,
           ambito: string[],
+          /// Desde el 2 oct 2026. Va con `LIDER_SISTEMAS` para que
+          /// estos casos --que son del documento, no del asesor--
+          /// pasen el candado nuevo sin tener que saber de él.
+          rolesPorConvenio: Record<string, string[]>,
           ip?: string,
         ) => Promise<unknown>;
       }
@@ -116,6 +120,7 @@ function armar(opciones: { rol: string; otraPersona?: unknown }) {
       dto,
       { id: 'a-1', nombre: 'Quien sea', rol: opciones.rol },
       ['c-1'],
+      { 'c-1': ['LIDER_SISTEMAS'] },
       '1.2.3.4',
     );
 

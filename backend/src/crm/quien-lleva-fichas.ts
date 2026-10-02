@@ -48,3 +48,19 @@ export function llevanFichasEn(convenio: string | string[]) {
     },
   };
 }
+
+/**
+ * En qué convenios esta cuenta puede QUEDARSE con una ficha.
+ *
+ * Gemela de `conveniosQueReparten`, y hace falta aparte porque son
+ * dos preguntas distintas: un gestor LLEVA fichas y no las REPARTE,
+ * y un líder académico las reparte y no le toca ninguna. Desde el
+ * 2 oct 2026 la usa `coger-un-lead.ts`, para que quien coge uno
+ * libre sea alguien que de verdad lo va a trabajar.
+ */
+export const conveniosQueLlevanFichas = (
+  roles: Record<string, RolConvenio[]>,
+) =>
+  Object.entries(roles)
+    .filter(([, suyos]) => suyos.some((r) => PUEDEN_LLEVAR_FICHAS.includes(r)))
+    .map(([convenioId]) => convenioId);

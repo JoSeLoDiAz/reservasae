@@ -188,6 +188,9 @@ export type AdminActual = {
   /// 23 sep 2026).
   puede?: {
     repartirFichas: boolean;
+    /// Si se queda con leads. Un gestor lleva fichas y no las
+    /// reparte; con esto se le ofrece «Coger este lead».
+    llevarFichas: boolean;
     sacarDeInscrito: boolean;
     editarMarca?: boolean;
     /// Si ve el trabajo de OTRAS personas. No es lo mismo que
