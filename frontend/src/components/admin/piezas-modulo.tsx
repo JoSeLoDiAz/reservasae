@@ -26,6 +26,8 @@
 
 import Link from "next/link";
 
+import { Desplegable } from "./desplegable";
+
 /**
  * El acento de cada módulo, de un token y no de un hex.
  *
@@ -404,26 +406,47 @@ export function Filtro({
   todos?: string;
 }) {
   return (
-    <label className="flex min-w-0 flex-col gap-1">
+    /// UN `<div>` y no un `<label>`: el disparador del `Desplegable`
+    /// es un `<button>`, y una etiqueta no se ata a un boton ---se
+    /// quedaria apuntando al vacio---. El nombre lo da `etiquetaAria`.
+    <div className="flex min-w-0 flex-col gap-1">
       <span className="text-[0.6875rem] font-semibold text-texto-suave">{etiqueta}</span>
-      <select
-        value={valor}
-        onChange={(e) => alCambiar(e.target.value)}
-        className={`max-w-[15rem] min-w-[9rem] truncate rounded-lg border bg-campo-fondo px-2.5 py-1.5 text-[0.78125rem] ${
+      <div
+        className={
+          "max-w-[15rem] min-w-[9rem] " +
           /// El que está puesto se NOTA. Un filtro activo que se ve
           /// igual que uno vacío explica resultados que nadie se
           /// explica: es la misma razón por la que las fichas de
           /// filtro de las tablas se quedan visibles.
-          valor ? "border-marca" : "border-campo-borde"
-        }`}
+          ///
+          /// El borde lo pinta el disparador del desplegable, asi que
+          /// el aviso de «activo» se le pasa por aqui: tocarle la clase
+          /// de dentro desde fuera es lo unico que no obliga a abrirle
+          /// una prop de color.
+          ///
+          /// `>div>button` y no `_button`: el `Desplegable` envuelve el
+          /// disparador en un `div.relative`, y la lista abierta cuelga
+          /// de ese mismo div llena de `<button>` ---una por opcion---,
+          /// que con el descendiente suelto se pintarian todas de
+          /// borde de marca.
+          (valor ? "[&>div>button]:border-marca" : "")
+        }
       >
-        <option value="">{todos}</option>
-        {opciones.map((o) => (
-          <option key={o.id} value={o.id}>
-            {o.nombre}
-          </option>
-        ))}
-      </select>
-    </label>
+        {/* «Todas» va como OPCION de verdad, no como marcador: aqui el
+            valor vacio significa algo ---sin filtrar--- y hay que poder
+            volver a elegirlo para quitar el filtro. Es el mismo reparto
+            que en los filtros de Acciones y Mesa de entrada. */}
+        <Desplegable
+          valor={valor}
+          etiquetaAria={etiqueta}
+          alto={30}
+          alElegir={alCambiar}
+          opciones={[
+            { valor: "", etiqueta: todos },
+            ...opciones.map((o) => ({ valor: o.id, etiqueta: o.nombre })),
+          ]}
+        />
+      </div>
+    </div>
   );
 }

@@ -38,6 +38,7 @@ export function GruposDeLaAccion({
   grupos,
   personas,
   alElegirGrupo,
+  alElegirAccion,
   verInscritos,
   alAlternarTabla,
 }: {
@@ -52,6 +53,8 @@ export function GruposDeLaAccion({
   grupos: Grupo[];
   personas: FilaAcademica[];
   alElegirGrupo: (id: string) => void;
+  /// Para que la tarjeta macro pueda entrar en su acción.
+  alElegirAccion: (id: string) => void;
   verInscritos: boolean;
   alAlternarTabla: () => void;
 }) {
@@ -72,48 +75,145 @@ export function GruposDeLaAccion({
   /// los demás no hay con qué pintar la tarjeta, y una en cero sería
   /// afirmar que ese grupo está vacío. Se enseña el suyo y la puerta
   /// de vuelta.
-  const aPintar = grupoId ? suyos.filter((g) => g.id === grupoId) : suyos;
+  /**
+   * LAS TARJETAS QUE SE PINTAN.
+   *
+   * LA REGLA: O EL ESCOGEDOR O LA TABLA, NUNCA LOS DOS.
+   *
+   * «Cuando le doy limpiar se ven esas dos tarjetas, todo feo»
+   * (cliente, 1 oct 2026), y antes «¿por qué esto así?» con las
+   * tarjetas de acción encima de una tabla de 167 personas.
+   *
+   * Las tarjetas ---de acción o de grupo--- son el ESCOGEDOR, y la
+   * tabla es el RESULTADO. Juntas, la pantalla pregunta y responde a
+   * la vez, y encima con recortes distintos: las tarjetas separan por
+   * grupo y la tabla los junta. Con la tabla abierta manda la tabla,
+   * que es lo que se pidió ver; para volver al escogedor está
+   * «Ocultar la tabla», que queda justo encima.
+   *
+   * Con un grupo elegido NO SE PINTA NINGUNA: «cuando uno la
+   * seleccione que se oculte esto, no porque vea eso cómo se ve de
+   * fatal; que quede solo "Ver todos los grupos / Ocultar la tabla" y
+   * la tarjeta se oculte» (cliente, 1 oct 2026).
+   *
+   * Tiene razón: una sola tarjeta suelta a la izquierda, con la
+   * pantalla entera vacía a su derecha y la tabla debajo, no informa
+   * de nada que no diga ya la miga de arriba ---qué acción, qué grupo,
+   * cuántas personas--- y encima empuja la tabla, que es a lo que se
+   * entra. Las tarjetas son para ELEGIR grupo; elegido ya, sobran.
+   */
+  const aPintar = grupoId || verInscritos ? [] : suyos;
+
+  /**
+   * SIN ACCIÓN ELEGIDA SE VEN LAS ACCIONES, NO LOS GRUPOS.
+   *
+   * «Se me ocurre lo siguiente: primero como las 3 tarjetas macro,
+   * no? Luego las de sus grupos, no?» (cliente, 1 oct 2026), con
+   * cuarenta tarjetas de grupo delante.
+   *
+   * Tiene razón y es la misma idea de siempre: de lo general a lo
+   * particular. Cuarenta tarjetas mezcladas de AF1, AF2 y AF3 no se
+   * comparan entre sí ---el «Grupo 4» de AF1 y el de AF2 son dos
+   * cosas--- y obligan a leer el código de arriba de cada una para
+   * saber de qué formación es. Agrupadas por acción son tres o cuatro
+   * tarjetas, se comparan de un vistazo, y se entra a la que interesa.
+   *
+   * Solo las acciones QUE TIENEN gente en el aula: `grupos` ya viene
+   * acotado a eso, así que se deducen de ahí y no del catálogo.
+   */
+  const conGrupos = acciones.filter((a) =>
+    grupos.some((x) => x.accionFormacionId === a.id),
+  );
+  /**
+   * ...Y NO CUANDO LA TABLA YA ESTÁ ABIERTA CON TODO EL MUNDO.
+   *
+   * «¿Por qué esto así?» (cliente, 1 oct 2026), con las dos tarjetas
+   * de acción encima de una tabla de 167 personas de todas las
+   * acciones.
+   *
+   * Tiene razón y la incoherencia es de este componente: las tarjetas
+   * son el ESCOGEDOR ---de qué acción quiere ver los grupos--- y la
+   * tabla es el RESULTADO. Teniéndolas a la vez, la pantalla pregunta
+   * y responde al mismo tiempo, con dos recortes distintos: las
+   * tarjetas separan por acción y la tabla las junta todas.
+   *
+   * Con la tabla abierta manda la tabla: es lo que se pidió ver. Para
+   * volver al escogedor está «Ocultar la tabla», que es justo lo que
+   * hay encima.
+   */
+  const porAccion =
+    !accionFormacionId && !grupoId && !verInscritos && conGrupos.length > 1;
 
   return (
     <section className="flex flex-col gap-3">
       {/* LOS DESPLEGABLES, ARRIBA DEL TODO. Mandan sobre las
-          tarjetas y sobre la tabla: los dos van al servidor. */}
-      <div className="flex flex-wrap items-end gap-2">{controles}</div>
+          tarjetas y sobre la tabla: los dos van al servidor.
 
-      {/* VOLVER A LOS GRUPOS Y CERRAR LA TABLA, en la misma fila y
-          como ENLACES, no como botones: la navegación hacia atrás es
-          un enlace y los botones son acciones --regla del handoff--.
-          Aquí estaba el segundo «Ver inscritos» y se fue: dos cosas
-          con el mismo nombre en la misma pantalla es lo primero que
-          confunde (lo señalaron el 27 sep 2026). Ahora la única
-          puerta a la tabla es el botón de cada tarjeta, y de ahí se
-          sale por «Ver todos los grupos», que la deja abierta con
-          todo el mundo dentro. */}
-      {(grupoId || verInscritos) && (
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[0.8125rem]">
-          {grupoId && (
-            <button
-              type="button"
-              onClick={() => alElegirGrupo("")}
-              className="font-medium text-marca underline hover:no-underline"
-            >
-              ← Ver todos los grupos
-            </button>
-          )}
-          {verInscritos && (
-            <button
-              type="button"
-              onClick={alAlternarTabla}
-              aria-expanded
-              className="text-texto-suave underline hover:text-texto"
-            >
-              Ocultar la tabla
-            </button>
-          )}
-        </div>
-      )}
+          Y LAS DOS PUERTAS ---volver a los grupos, cerrar la tabla---
+          EN ESTA MISMA FILA: «cómo se acomoda esto, porque mucha cosa
+          arriba y prácticamente la tabla se va a perder» (cliente, 1
+          oct 2026). Con un grupo puesto había seis bandas antes de la
+          tabla; dos de ellas llevaban un enlace cada una. */}
+      <div className="flex flex-wrap items-end gap-x-4 gap-y-2">
+        <div className="flex min-w-0 flex-1 flex-wrap items-end gap-2">{controles}</div>
+        {/* VOLVER A LOS GRUPOS Y CERRAR LA TABLA, en la misma fila y
+            como ENLACES, no como botones: la navegación hacia atrás es
+            un enlace y los botones son acciones --regla del handoff--.
+            Aquí estaba el segundo «Ver inscritos» y se fue: dos cosas
+            con el mismo nombre en la misma pantalla es lo primero que
+            confunde (lo señalaron el 27 sep 2026). Ahora la única
+            puerta a la tabla es el botón de cada tarjeta, y de ahí se
+            sale por «Ver todos los grupos», que la deja abierta con
+            todo el mundo dentro. */}
+        {(grupoId || verInscritos) && (
+          <div className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-1 pb-1.5 text-[0.8125rem]">
+            {grupoId && (
+              <button
+                type="button"
+                /// CIERRA LA TABLA, ADEMÁS DE SOLTAR EL GRUPO.
+                ///
+                /// El botón promete GRUPOS, y hasta ahora entregaba una
+                /// tabla: soltaba el grupo pero la tabla seguía abierta,
+                /// y como con la tabla abierta no se pintan tarjetas
+                /// ---esa es la regla de «o el escogedor o la tabla»---
+                /// lo que salía eran las 83 personas de la acción
+                /// entera. Para ver los grupos había que pasar por
+                /// «Ocultar la tabla» y volver a entrar.
+                ///
+                /// Lo encontró el barrido de QA del 1 oct 2026, y es un
+                /// efecto que yo mismo introduje ese día al separar el
+                /// escogedor de la tabla: la regla era correcta y este
+                /// botón se quedó diciendo lo de antes.
+                onClick={() => {
+                  alElegirGrupo("");
+                  if (verInscritos) alAlternarTabla();
+                }}
+                className="font-medium text-marca underline hover:no-underline"
+              >
+                ← Ver todos los grupos
+              </button>
+            )}
+            {verInscritos && (
+              <button
+                type="button"
+                onClick={alAlternarTabla}
+                aria-expanded
+                className="text-texto-suave underline hover:text-texto"
+              >
+                Ocultar la tabla
+              </button>
+            )}
+          </div>
+        )}
+      </div>
 
-      {aPintar.length === 0 ? (
+      {/* EL VACÍO SE MIDE SOBRE LOS GRUPOS QUE HAY ---`suyos`---, no
+          sobre los que se pintan. Con la tabla abierta `aPintar` va
+          vacío a propósito, y midiendo ahí salía «Todavía no hay grupos
+          con gente en el aula» encima de una tabla con 167 personas
+          dentro: «cuando le doy limpiar se ve feo» (cliente, 1 oct
+          2026). Un cartel que dice lo contrario de lo que hay debajo. */}
+      {!grupoId && !verInscritos && suyos.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-borde px-6 py-8 text-center">
           <p className="font-medium">Todavía no hay grupos con gente en el aula</p>
           <p className="mx-auto mt-1 max-w-md text-sm text-texto-suave">
@@ -121,8 +221,35 @@ export function GruposDeLaAccion({
             acción virtual, que son las únicas que el aula sigue.
           </p>
         </div>
-      ) : (
-        <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
+      ) : porAccion ? (
+        /// DE LADO A LADO Y NO EN REJILLA FIJA: «no sé cómo hacer para
+        /// que queden de lado a lado, es que se ve raro» (cliente, 1
+        /// oct 2026). Con cuatro columnas clavadas y solo dos acciones
+        /// con gente en el aula, las dos tarjetas quedaban a la
+        /// izquierda y media fila en blanco. Repartidas, dos ocupan
+        /// media pantalla cada una, tres un tercio, y de cinco en
+        /// adelante bajan solas al pasar de los 18 rem ---el mismo
+        /// reparto de las tarjetas de cifras de arriba---.
+        <div className="flex flex-wrap items-stretch gap-2.5 [&>*]:min-w-[18rem] [&>*]:flex-1">
+          {conGrupos.map((a) => (
+            <TarjetaDeAccion
+              key={a.id}
+              accion={a}
+              grupos={grupos.filter((x) => x.accionFormacionId === a.id).length}
+              cupos={grupos
+                .filter((x) => x.accionFormacionId === a.id)
+                .reduce((t, x) => t + (x.cupos ?? 0), 0)}
+              suya={personas.filter((p) => p.accionFormacionId === a.id)}
+              alEntrar={() => alElegirAccion(a.id)}
+            />
+          ))}
+        </div>
+      ) : aPintar.length > 0 ? (
+        <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
+          {/* CUATRO POR FILA Y NO CINCO: «acomódalo, o sea son 8, cuatro
+              y cuatro, no?» (cliente, 1 oct 2026). Con cinco columnas
+              los ocho grupos salían 5 y 3: una fila coja y un hueco a
+              la derecha. */}
           {aPintar.map((g) => (
             <TarjetaDeGrupo
               key={g.id}
@@ -142,7 +269,7 @@ export function GruposDeLaAccion({
             />
           ))}
         </div>
-      )}
+      ) : null}
 
     </section>
   );
@@ -165,6 +292,118 @@ export function GruposDeLaAccion({
  * que el aula ya calcula por persona; si un grupo no tiene a nadie
  * en ese estado, la píldora NO se pinta en vez de decir 0 %.
  */
+/**
+ * UNA ACCIÓN DE FORMACIÓN ENTERA, para elegir en cuál entrar.
+ *
+ * Enseña lo mismo que la de grupo ---cuántos dentro, cuánto avance---
+ * porque es la misma pregunta una talla más arriba, y añade de cuántos
+ * grupos se compone, que es lo que dice si vale la pena entrar.
+ */
+function TarjetaDeAccion({
+  accion,
+  grupos,
+  cupos,
+  suya,
+  alEntrar,
+}: {
+  accion: { id: string; codigo: string; nombre: string };
+  grupos: number;
+  /// Los cupos de sus grupos sumados: el mismo «de cuántos» de la
+  /// tarjeta de grupo, una talla más arriba.
+  cupos: number;
+  suya: FilaAcademica[];
+  alEntrar: () => void;
+}) {
+  /// EL MISMO PROMEDIO QUE LA TARJETA DE GRUPO, y por lo mismo: solo
+  /// cuenta a quien tiene actividades cargadas. Ver el porqué allá.
+  const conActividades = suya.filter((p) => p.total > 0);
+  const avance =
+    conActividades.length > 0
+      ? Math.round(
+          conActividades.reduce((a, p) => a + p.porcentaje, 0) /
+            conActividades.length,
+        )
+      : null;
+  const certificados = suya.filter((p) => p.estado === "CERTIFICADO").length;
+  const atrasados = suya.filter((p) => p.estado === "ATRASADO").length;
+  const pct = (n: number) => (suya.length > 0 ? Math.round((n / suya.length) * 100) : 0);
+
+  return (
+    <div className="overflow-hidden rounded-xl border border-borde bg-superficie text-left">
+      <div className="p-3">
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <span className="block text-[0.625rem] font-semibold tracking-[0.08em] text-texto-suave uppercase">
+              Acción de formación
+            </span>
+            <span className="mt-0.5 block text-[1.375rem] leading-none font-bold text-titulo">
+              {accion.codigo}
+            </span>
+          </div>
+
+          {/* LAS MISMAS DOS PÍLDORAS QUE LA TARJETA DE GRUPO, y por lo
+              mismo: aquí un cero no es un vacío, es la respuesta. */}
+          <div className="flex shrink-0 flex-wrap justify-end gap-1">
+            <Pildora
+              tono="var(--exito)"
+              icono={<IconoCheckCirculo tamano={12} />}
+              titulo={`${certificados} de ${suya.length} ya certificados`}
+            >
+              {pct(certificados)} %
+            </Pildora>
+            <Pildora
+              tono="var(--aviso)"
+              icono={<IconoReloj tamano={12} />}
+              titulo={`${atrasados} de ${suya.length} atrasados frente a su calendario`}
+            >
+              {pct(atrasados)} %
+            </Pildora>
+          </div>
+        </div>
+
+        {/* EL NOMBRE, A DOS RENGLONES. Los de ADECOPRIA miden hasta
+            noventa caracteres y a renglón corrido una tarjeta medía el
+            doble que su vecina. */}
+        <p className="mt-1 line-clamp-2 text-[0.75rem] leading-snug text-texto-suave">
+          {accion.nombre}
+        </p>
+
+        <div className="mt-2">
+          <CifraConBarra
+            etiqueta="En el aula"
+            valor={cupos > 0 ? `${suya.length} de ${cupos}` : String(suya.length)}
+            porcentaje={cupos > 0 ? Math.min(100, (suya.length / cupos) * 100) : null}
+            tono="var(--marca)"
+            pie={null}
+          />
+        </div>
+
+        <div className="mt-2">
+          <CifraConBarra
+            etiqueta="Avance"
+            valor={avance === null ? "—" : `${avance} %`}
+            porcentaje={avance}
+            tono="var(--exito)"
+            pie={
+              conActividades.length > 0
+                ? `Promedio de ${conActividades.length} ${conActividades.length === 1 ? "persona" : "personas"} con actividades.`
+                : "Todavía nadie tiene actividades cargadas."
+            }
+          />
+        </div>
+
+        <button
+          type="button"
+          onClick={alEntrar}
+          className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg border border-borde px-3 py-1.5 text-[0.8125rem] font-medium text-marca transition hover:border-marca"
+        >
+          Ver sus {grupos === 1 ? "grupo" : `${grupos} grupos`}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function TarjetaDeGrupo({
   grupo,
   codigo,
@@ -227,21 +466,9 @@ function TarjetaDeGrupo({
         elegido ? "border-marca" : "border-borde hover:border-marca/40"
       }`}
     >
-      {/* LA FRANJA. De `--marca` a `--acento`, y el segundo NO sale
-          del gremio a propósito: el handoff fija los `--acento*` en
-          CSS, así que el degradado se ve igual de vivo lleve el
-          gremio el verde de ADECOPRIA o el azul de BRITCHAM. Con
-          `--exito` los dos extremos eran casi el mismo verde y la
-          franja se leía como una raya lisa. */}
-      <span
-        aria-hidden
-        className="block h-[3px] w-full"
-        style={{
-          background:
-            "linear-gradient(90deg, var(--marca) 0%, var(--acento) 100%)",
-        }}
-      />
-
+      {/* SIN LA FRANJA DE COLORES ARRIBA: «sin este reborde» (cliente,
+          1 oct 2026). Con ocho tarjetas eran ocho degradados compitiendo
+          con las cifras, que es lo que se viene a leer. */}
       <div className="p-3">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">

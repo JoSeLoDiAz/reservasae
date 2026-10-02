@@ -15,6 +15,7 @@ import {
   CamposDeLaPersona,
   type DatosDeLaPersona,
 } from "@/components/admin/campos-de-la-persona";
+import { Desplegable } from "@/components/admin/desplegable";
 import { IconoPerfil } from "@/components/admin/iconos";
 import { crmApi, type CatalogosSep, type Ficha } from "@/lib/crm-api";
 
@@ -327,21 +328,27 @@ export function DatosSena({
           catalogos={catalogos}
           identidad={
             <>
-              <Campo etiqueta="Tipo de documento">
+              {/* `comoDiv` solo cuando de verdad lleva el desplegable:
+                  en lectura lo de dentro es un `<input>`, y ahi el
+                  `<label>` sigue sirviendo para llevarle el foco. */}
+              <Campo comoDiv={puedeCambiarDocumento} etiqueta="Tipo de documento">
                 {puedeCambiarDocumento ? (
-                  <select
-                    className={CLASE_CONTROL}
-                    value={c.tipoDocumentoSepId}
-                    onChange={(e) =>
-                      setC({ ...c, tipoDocumentoSepId: Number(e.target.value) })
+                  /// El desplegable de la casa: el nativo abre la lista
+                  /// que dibuja el sistema operativo ---cuadrada y con
+                  /// su azul--- y no hay CSS que llegue ahi.
+                  <Desplegable
+                    valor={String(c.tipoDocumentoSepId)}
+                    etiquetaAria="Tipo de documento"
+                    /// El id viaja como texto y vuelve a numero al
+                    /// guardar: es lo que espera el servidor.
+                    alElegir={(v) =>
+                      setC({ ...c, tipoDocumentoSepId: Number(v) })
                     }
-                  >
-                    {(catalogos?.documentosPersona ?? []).map((d) => (
-                      <option key={d.id} value={d.id}>
-                        {d.etiqueta}
-                      </option>
-                    ))}
-                  </select>
+                    opciones={(catalogos?.documentosPersona ?? []).map((d) => ({
+                      valor: String(d.id),
+                      etiqueta: d.etiqueta,
+                    }))}
+                  />
                 ) : (
                   <input
                     readOnly

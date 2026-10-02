@@ -96,7 +96,11 @@ export default function PaginaAcademica() {
     /// `min-h-0` hace falta además de `grow`: por defecto un hijo
     /// de flex no encoge por debajo de su contenido, así que sin él
     /// `grow` no acota nada.
-    <div className="flex min-h-0 grow flex-col gap-3 px-4 pt-3">
+    /// `pb-2` Y NO `pb-6`: la línea de respeto de abajo estaba en
+    /// CERO ---se quitó el día que sobraba aire--- y la barra de
+    /// desplazamiento de la tabla acababa pegada al pie, tocándolo.
+    /// Ocho píxeles bastan para despegarla sin que vuelva a sobrar.
+    <div className="flex min-h-0 grow flex-col gap-3 px-4 pt-3 pb-2">
       <Seguimiento />
     </div>
   );
@@ -230,17 +234,6 @@ function Seguimiento() {
   /// Un filtro que no se ve es un filtro que parece un fallo. Esto
   /// lo pone en el sitio donde estaba el ojo, y con la salida al
   /// lado.
-  const puesto: string[] = [];
-  if (accionFormacionId) {
-    const a = datos.acciones.find((x) => x.id === accionFormacionId);
-    if (a) puesto.push(`${a.codigo} · ${a.nombre}`);
-  }
-  if (grupoId) {
-    const g = datos.grupos.find((x) => x.id === grupoId);
-    if (g) puesto.push(`Grupo ${g.numero}`);
-  }
-
-
   function quitarFiltros() {
     setAccion("");
     setGrupo("");
@@ -358,7 +351,13 @@ function Seguimiento() {
     /// espacio en la línea de respeto»---. El hueco hasta el pie lo
     /// pone ya el marco.
     <div className="flex min-h-0 grow flex-col gap-3">
-      <header className="flex flex-wrap items-start justify-between gap-4">
+      {/* EN SU TARJETA, como las demás pantallas: «acá le falta el
+          fondo al título» (cliente, 1 oct 2026). Era un título suelto
+          sobre el fondo de la página. Mismas medidas que `Encabezado`
+          compacto ---borde, `px-7`, `py-2.5` y centrado--- escritas
+          aquí porque esta cabecera lleva su propio indicador de
+          actualización a la derecha. */}
+      <header className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-borde bg-superficie px-7 py-2.5">
         <div className="min-w-0">
           {/* «SEGUIMIENTO DEL AULA» Y NO «SEGUIMIENTO ACADÉMICO».
               Se llamaban igual dos pantallas distintas, y el cliente
@@ -367,7 +366,7 @@ function Seguimiento() {
               --resúmenes, sin personas--; esta es la lista con la que
               se trabaja, persona por persona. El menú ya la llamaba
               así; solo el título seguía con el nombre del otro. */}
-          <h1 className="text-[1.125rem] font-bold tracking-[-0.02em] text-titulo">
+          <h1 className="text-[1.3125rem] font-bold tracking-[-0.02em] text-titulo">
             Seguimiento del aula
           </h1>
           {/* Sin bajada (cliente, 12 sep 2026). El título ya dice
@@ -408,49 +407,13 @@ function Seguimiento() {
       )}
 
 
-      {/* LO QUE ESTÁ PUESTO, ENCIMA DE LAS TARJETAS y no debajo:
-          es lo que explica sus números. Sin esto, con una acción
-          elegida las seis tarjetas suman cinco y la pantalla no dice
-          por qué ---parece que se hubieran perdido treinta personas---. */}
-      {puesto.length > 0 && (
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg bg-marca-suave px-3 py-2 text-[0.78125rem]">
-          <span className="font-semibold text-marca">Viendo solo:</span>
-          {puesto.map((q) => (
-            <span
-              key={q}
-              title={q}
-              /// Truncada y no desbordada: el nombre de una accion son
-              /// noventa letras y a 390 px sacaba la pildora de la
-              /// pantalla. El `title` devuelve el texto entero con el
-              /// puntero; en el telefono esta a un toque en el propio
-              /// desplegable.
-              className="min-w-0 max-w-full truncate rounded-full bg-superficie px-2.5 py-0.5 text-texto"
-            >
-              {q}
-            </span>
-          ))}
-          {/* LO QUE HAY EN PANTALLA, no el total del servidor.
-              Estuvo con `resumen.analizadas` y se contradecía con
-              las tarjetas: con «Atrasado» pulsado el aviso decía «6
-              personas» y la tarjeta de Atrasado decía 0. Es que
-              `analizadas` lo cuenta el SERVIDOR, que sabe de la
-              acción y del grupo pero no de la tarjeta ---esa filtra
-              aquí---. Dos cifras de lo mismo en la misma franja y
-              distintas. */}
-          <span className="text-texto-suave">
-            {visibles.length.toLocaleString("es-CO")}{" "}
-            {visibles.length === 1 ? "persona" : "personas"}
-          </span>
-          <button
-            type="button"
-            onClick={quitarFiltros}
-            className="ml-auto font-semibold text-marca underline hover:no-underline"
-          >
-            Ver a todos
-          </button>
-        </div>
-      )}
-
+      {/* SIN LA BANDA «Viendo solo»: «mucha cosa arriba y
+          prácticamente la tabla se va a perder» (cliente, 1 oct 2026).
+          Nació porque los desplegables vivían DEBAJO de las tarjetas y
+          un filtro que no se ve parece un fallo; ahora están arriba,
+          con lo elegido escrito dentro de cada uno, así que la banda
+          repetía palabra por palabra lo que ya decían ellos y costaba
+          una fila entera. */}
       {/* LAS SEIS, FUERA DE LA TARJETA DE FILTROS (cliente, 24 sep
           2026: «las tarjetas viven afuera»). Estuvieron dentro y
           separadas por una raya, con el argumento de que pulsar un
@@ -508,6 +471,7 @@ function Seguimiento() {
         </div>
 
       <GruposDeLaAccion
+        alElegirAccion={setAccion}
         controles={controlesDeServidor}
         accionFormacionId={accionFormacionId}
         grupoId={grupoId}

@@ -178,7 +178,11 @@ export default function PaginaCarga() {
 
   return (
     <div className="pb-10">
-      <header className="border-b border-borde bg-superficie px-7 pt-[18px] pb-[22px]">
+      {/* EL MISMO CANTO QUE SU CONTENIDO. Iba a sangre ---empezaba en
+          0 px--- mientras lo de debajo arrancaba en 16, y se leía como
+          dos páginas pegadas. Ahora es una tarjeta como las demás
+          cabeceras del panel. */}
+      <header className="mx-4 mt-3 rounded-2xl border border-borde bg-superficie px-7 pt-[18px] pb-[22px]">
         <Link
           href="/admin/participantes"
           className="inline-flex items-center gap-1 text-[0.75rem] text-texto-suave transition hover:text-marca"

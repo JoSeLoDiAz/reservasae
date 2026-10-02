@@ -162,7 +162,6 @@ export function PropuestasPendientes() {
     setConfirmarAceptar(false);
   }
 
-  const sugeridas = propuestas?.filter((p) => p.fuente === "WEB").length ?? 0;
   const hay = propuestas?.length ?? 0;
   const todasSeleccionadas = hay > 0 && seleccion.length === hay;
 
@@ -216,7 +215,14 @@ export function PropuestasPendientes() {
   return (
     /// EL MARGEN LATERAL VA AQUÍ, UNA VEZ, y no en cada hijo: lo
     /// llevaba solo el encabezado y el resto salía pegado al borde.
-    <div className="px-4">
+    /// `gap-3 pt-3`: LAS BANDAS SE SEPARAN. «Visualmente acomódalo, se
+    /// ve montado, se ve fatal» (cliente, 1 oct 2026), y medido era
+    /// literal: la cabecera terminaba en y=177 y el resumen empezaba
+    /// EN 177, y la barra de selección terminaba en 285 y la tabla
+    /// empezaba en 285. Cero píxeles entre las tres bandas, así que se
+    /// leían como una sola cosa pegada. El contenedor no tenía ni
+    /// separación entre hijos ni margen contra la cabecera.
+    <div className="flex flex-col gap-3 px-4 pt-3">
       {/* SIN LA EXPLICACIÓN DE ARRIBA: «esto se elimina» (cliente, 1
           oct 2026). Eran cuatro renglones en una tarjeta propia para
           decir una regla que la pantalla ya enseña ---cada campo con su
@@ -236,16 +242,11 @@ export function PropuestasPendientes() {
 
       {!cargando && propuestas && propuestas.length > 0 && (
         <>
-          <p className="text-sm text-texto-suave">
-            {propuestas.length === 1
-              ? "1 propuesta esperando."
-              : `${propuestas.length} propuestas esperando, de la más antigua a la más reciente.`}
-            {sugeridas > 0 &&
-              (sugeridas === 1
-                ? " Una la trajo el buscador web: es la que conviene revisar con más cuidado."
-                : ` ${sugeridas} las trajo el buscador web: son las que conviene revisar con más cuidado.`)}
-          </p>
-
+          {/* SIN EL RESUMEN DE ARRIBA: «eliminar» (cliente, 1 oct
+              2026). Las dos cosas que decía ya están en la tabla: la
+              cuenta, en «Seleccionar las N que esperan» de la barra de
+              abajo; y cuáles trajo el buscador, en la columna
+              Procedencia, marcadas una por una. */}
           {/* La barra de lote: es la salida de una bandeja atascada.
               Resolver de a una cuesta entre dos y siete clics, así que
               con 45 esperando son cientos. Va arriba y fija en el

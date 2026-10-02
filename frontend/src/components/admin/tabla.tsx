@@ -9,6 +9,7 @@ import {
   type ReactNode,
 } from "react";
 
+import { Desplegable } from "./desplegable";
 import {
   IconoAbajo,
   IconoArriba,
@@ -21,7 +22,6 @@ import {
   IconoPapelera,
   IconoVista,
 } from "./iconos";
-import { Desplegable } from "./desplegable";
 
 /**
  * La tabla de datos del panel: columnas que se eligen,
@@ -149,6 +149,20 @@ export type Columna<T> = {
   ancho?: string;
   /** no se puede quitar: identifica la fila */
   fija?: boolean;
+  /**
+   * ABRE UN GRUPO: una raya vertical más marcada a su izquierda.
+   *
+   * «Separadores como Control de inscritos: una línea para cupos
+   * reservados, otra de leads recibidos hasta total leads
+   * gestionados, y otra en cupos pendientes» (cliente, 30 sep 2026).
+   *
+   * Los carriles de `con-carriles` separan TODAS las columnas por
+   * igual y con eso no dicen nada: con veintiocho, todo separado es
+   * como nada separado. Esto marca las fronteras que importan ---de
+   * quién es la fila, qué prometió, cómo va la gestión, qué falta---
+   * para que el ojo las encuentre sin leer los títulos.
+   */
+  separaAntes?: boolean;
   /** existe pero no sale hasta que la pidan */
   aparte?: boolean;
   /**
@@ -212,6 +226,18 @@ export function TiradorDeAncho({
   /// Un clic pendiente de saber si era doble.
   const clicPendiente = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  /**
+   * ¿SE ESTÁ ARRASTRANDO AHORA MISMO?
+   *
+   * «Cuando acomodo la columna debe iluminarse esa línea, no solo la
+   * fila del título, para que le dé más profesionalidad» (cliente, 1
+   * oct 2026). La línea se encendía con `hover`, y el hover se pierde
+   * en cuanto el puntero se adelanta al borde ---que con una tabla
+   * ancha pasa siempre---, así que de la guía solo quedaba encendido
+   * el trocito de la cabecera.
+   */
+  const [ajustando, setAjustando] = useState(false);
+
   function empezar(e: React.PointerEvent<HTMLDivElement>) {
     e.preventDefault();
     e.stopPropagation();
@@ -243,6 +269,7 @@ export function TiradorDeAncho({
       if (!arrastro) {
         if (Math.abs(ev.clientX - desdeX) < HOLGURA_DEL_CLIC) return;
         arrastro = true;
+        setAjustando(true);
         if (fila) alEmpezar(medidas);
         document.body.style.cursor = "col-resize";
         document.body.style.userSelect = "none";
@@ -253,6 +280,7 @@ export function TiradorDeAncho({
     const soltar = (ev: PointerEvent) => {
       window.removeEventListener("pointermove", mover);
       window.removeEventListener("pointerup", soltar);
+      setAjustando(false);
       document.body.style.cursor = "";
       document.body.style.userSelect = "";
       if (arrastro) return;
@@ -327,7 +355,15 @@ export function TiradorDeAncho({
       ///
       /// Ocho pixeles: la banda justa del borde, donde no hay
       /// texto que pulsar. Se ve solo al acercarse.
-      className="absolute top-0 right-0 z-20 w-2 cursor-col-resize touch-none select-none before:absolute before:inset-y-0 before:left-1/2 before:w-px before:-translate-x-1/2 before:bg-transparent hover:before:bg-marca"
+      className={
+        "absolute top-0 right-0 z-20 w-2 cursor-col-resize touch-none select-none before:absolute before:inset-y-0 before:left-1/2 before:-translate-x-1/2 " +
+        (ajustando
+          ? /// ENCENDIDA Y MÁS GRUESA mientras dura el arrastre: es la
+            /// guía de dónde va a quedar el borde, y tiene que verse de
+            /// arriba abajo sin depender de dónde esté el puntero.
+            "before:w-0.5 before:bg-marca"
+          : "before:w-px before:bg-transparent hover:before:bg-marca")
+      }
     />
   );
 }
@@ -373,6 +409,7 @@ function escribir(id: string, g: Guardado) {
 }
 
 export function Tabla<T>({
+  cuadricula,
   id,
   columnas,
   filas,
@@ -390,6 +427,21 @@ export function Tabla<T>({
   sinDescarga,
   ordenFijo,
 }: {
+  /**
+   * RAYA ENTRE TODAS LAS COLUMNAS, como Control de inscritos.
+   *
+   * «Formatos tabla como esta en CONTROL DE INSCRITOS» (cliente, 1
+   * oct 2026), con las dos capturas al lado. Lo que diferencia a esa
+   * tabla no son los anchos: es la cuadrícula. Con raya, el espacio
+   * que sobra en una columna se lee como celda; sin ella, como un
+   * vacío entre dos cifras sueltas, y por eso la misma tabla parece
+   * desparramada en Seguimiento de asesores y cuadrada en Control de
+   * inscritos.
+   *
+   * Es la clase que ya usan `tabla-por-accion` y `tabla-por-grupo`:
+   * misma regla, mismo color de pelo, no una copia.
+   */
+  cuadricula?: boolean;
   id: string;
   columnas: Columna<T>[];
   filas: T[] | null;
@@ -1065,7 +1117,7 @@ export function Tabla<T>({
               /// no aporta nada y ensucia: son rayas que no
               /// separan nada que no separara ya el espacio.
               className={`tabla-datos w-full text-sm${
-                enPantalla.length > 8 ? " con-carriles" : ""
+                cuadricula ? " tabla-cuadricula" : enPantalla.length > 8 ? " con-carriles" : ""
               }`}
               style={{
                 /// El suelo de la tabla entera.
@@ -1088,7 +1140,10 @@ export function Tabla<T>({
                   : null),
               }}
             >
-            <thead className="sticky top-0 z-10">
+            {/* z-30: la cabecera tapa TODO lo que sube, incluidas las
+                celdas de la columna fija. Ver los cuatro niveles
+                explicados más abajo, en la celda de la esquina. */}
+            <thead className="sticky top-0 z-30">
               <tr>
                 {seleccion && (
                   <th className="w-10">
@@ -1123,9 +1178,9 @@ export function Tabla<T>({
                     style={
                       anchos[c.clave]
                         ? { width: anchos[c.clave] }
-                        : c.ancho
-                          ? { width: c.ancho }
-                          : undefined
+                          : c.ancho
+                            ? { width: c.ancho, minWidth: c.ancho }
+                            : undefined
                     }
                     /// Arrastrable para reordenar.
                     ///
@@ -1156,8 +1211,9 @@ export function Tabla<T>({
                     }}
                     className={
                       "relative select-none" +
+                      (c.separaAntes ? " frontera-de-grupo" : "") +
                       (c.clave === primeraFija
-                        ? " sticky left-0 z-20 bg-tabla-cabecera-fondo"
+                        ? " sticky left-0 z-40 bg-tabla-cabecera-fondo"
                         : "") +
                       (c.numerica ? " text-right" : "") +
                       (arrastrada === c.clave ? " opacity-40" : "") +
@@ -1296,6 +1352,7 @@ export function Tabla<T>({
                       key={c.clave}
                       className={
                         (c.numerica ? "text-right tabular-nums" : "") +
+                        (c.separaAntes ? " frontera-de-grupo" : "") +
                         (c.clave === primeraFija
                           ? " sticky left-0 z-20 bg-inherit"
                           : "") || undefined
@@ -1916,22 +1973,23 @@ function Pie({
           página: es lo que deja BAJAR a 10 cuando hay 40 filas y
           uno quiere revisarlas de a poquitos. Escondiéndolo
           cuando `paginas === 1` no habría forma de llegar a él. */}
+      {/* CON EL `Desplegable` DE LA CASA, no con un `<select>`. «No
+          debe haber desplegables cuadrados, todos deben ser
+          redondeados» (cliente, 1 oct 2026). La lista de un `<select>`
+          la dibuja Windows ---cuadro cuadrado y azul de sistema--- y no
+          hay CSS que llegue ahi: la unica forma de redondearla es no
+          usar la del sistema. */}
       {filtradas > 0 && (
-        <label className="flex items-center gap-2">
+        <div className="flex items-center gap-2">
           <span>Por página:</span>
-          <select
-            value={tamano}
-            onChange={(e) => setTamano(Number(e.target.value))}
-            aria-label="Cuántas filas por página"
-            className="rounded-lg border border-borde bg-superficie px-2 py-1 text-xs"
-          >
-            {TAMANOS.map((n) => (
-              <option key={n} value={n}>
-                {n}
-              </option>
-            ))}
-          </select>
-        </label>
+          <Desplegable
+            alto={26}
+            etiquetaAria="Cuántas filas por página"
+            valor={String(tamano)}
+            opciones={TAMANOS.map((n) => ({ valor: String(n), etiqueta: String(n) }))}
+            alElegir={(v) => setTamano(Number(v))}
+          />
+        </div>
       )}
 
       {paginas > 1 && (

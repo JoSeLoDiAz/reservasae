@@ -212,29 +212,23 @@ function Celda({ celda }: { celda: CeldaReserva | undefined }) {
       }
       title={detalle}
     >
-      {/* «2 de 16» Y NO «16» A SECAS (cliente, 25 sep 2026: «que esto
-          se sepa de qué AF»). Las columnas «Cupos ocupados» y «Cupos
-          pendientes» son el total de la fila --que es lo que una
-          columna de fila debe decir-- y no había dónde ver de qué
-          acción salía cada parte.
+      {/* SOLO EL DATO (cliente, 30 sep 2026: «en el ejemplo no está
+          esto: 1 de 16; solo el dato»).
 
-          CON LA PALABRA «de» Y NO CON UN PUNTO DEL MEDIO. Aquí sí es
-          una razón --los dos números son cupos de la misma acción--, y
-          es por escribirla con un punto que «2 · 30 cupos» se leyó
-          como «2 de 30» cuando no lo era.
+          Decía «2 de 16» ---inscritos de cupos--- desde el 25 sep,
+          cuando pidió saber de qué AF salía cada parte. Su modelo en
+          Excel lleva el número solo, y el modelo manda: la columna
+          «Cupos reservados» ya da el total de la fila, y los cupos de
+          cada acción siguen en el rótulo al pasar el ratón.
 
-          La cancelada se queda con su cifra sola y tachada: sus cupos
-          volvieron a la oferta, así que no hay ninguno ocupado del que
-          hablar. */}
+          La cancelada se queda con su cifra tachada: sus cupos
+          volvieron a la oferta. */}
       {cancelada ? (
         cupos
       ) : (
-        <>
-          <span className={celda.conNombre > 0 ? "font-semibold" : "text-texto-suave"}>
-            {celda.conNombre}
-          </span>
-          <span className="text-texto-suave"> de {cupos}</span>
-        </>
+        <span className={celda.conNombre > 0 ? "font-semibold" : "text-texto-suave"}>
+          {celda.conNombre}
+        </span>
       )}
       {enEspera && <span className="text-aviso"> +{celda.cuposEnEspera}</span>}
       {/* Dos sedes en la misma acción. Sin esta marca, la celda
@@ -391,6 +385,10 @@ export function ReservasUnificadas({
         /// Ordena por la ÚLTIMA: es la que dice quién se movió hace
         /// poco. La primera va en el cajón.
         valor: (f) => f.ultimaReserva,
+        /// ERA LA ÚNICA SIN FILTRO y su celda salía vacía en la fila
+        /// de filtros. Filtra por la ÚLTIMA reserva, que es por la que
+        /// ordena.
+        filtro: "fecha",
         /// SEPARADAS POR « / » Y NO UNA POR RENGLÓN. Estuvieron en
         /// renglones desde el 25 sep, y el modelo que entregó el
         /// cliente las trae en una sola línea --«07 de sept de 26 /
@@ -527,6 +525,7 @@ export function ReservasUnificadas({
       },
       {
         clave: "cuposConfirmados",
+        separaAntes: true,
         /// EL RÓTULO SE COPIA LETRA POR LETRA del Seguimiento de
         /// Control de Reservas: dos nombres para la misma cifra en
         /// dos pantallas que se miran seguidas es lo que hace dudar
@@ -550,6 +549,7 @@ export function ReservasUnificadas({
          habría que cambiarlo en dos. */
       {
         clave: "leadsRecibidos",
+        separaAntes: true,
         /// En minúscula, como en su hoja. La cabecera va en versalita
         /// por CSS, así que en pantalla se lee igual que las demás, y
         /// dejar su palabra tal cual es lo que permite cotejar esta
@@ -608,6 +608,7 @@ export function ReservasUnificadas({
       },
       {
         clave: "cuposPendientes",
+        separaAntes: true,
         /// «Cupos pendientes» ES AHORA LA FÓRMULA DE SU HOJA
         /// --`cupos reservados − leads recibidos`-- y no los cupos
         /// sin persona, que es lo que decía hasta hoy. Aquella sigue

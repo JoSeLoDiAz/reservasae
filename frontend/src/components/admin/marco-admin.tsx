@@ -10,6 +10,7 @@ import {
   useRef,
   useState,
 } from "react";
+import type { ReactNode } from "react";
 import { createPortal } from "react-dom";
 
 import { ConmutadorTema, useMarca } from "@/components/marca-publica";
@@ -1411,6 +1412,34 @@ function CajonMovil({
 /// acciones, con `AccionesDePagina`.
 export const RANURA_ACCIONES = "acciones-de-pagina";
 
+/// El hueco de la cabecera del informe, a la derecha del título,
+/// donde cada pestaña pone sus filtros.
+export const RANURA_FILTROS_INFORME = "filtros-del-informe";
+
+/**
+ * Manda unos filtros a la derecha del título del informe.
+ *
+ * «¿Esto no se puede a la parte derecha del título? Y por qué los
+ * filtros de Tráfico Formulario no fueron ajustados como Control de
+ * inscritos» (cliente, 1 oct 2026). En Control de inscritos el
+ * periodo va en la cabecera y en Tráfico ocupaba una tarjeta propia
+ * debajo, así que dos pestañas del mismo informe colocaban la misma
+ * decisión en dos sitios.
+ *
+ * Por portal y no por props, como `AccionesDePagina`: la cabecera no
+ * tiene por qué saber qué filtros lleva cada pestaña.
+ */
+export function FiltrosDelInforme({ children }: { children: ReactNode }) {
+  const [ranura, setRanura] = useState<HTMLElement | null>(null);
+
+  useEffect(() => {
+    setRanura(document.getElementById(RANURA_FILTROS_INFORME));
+  }, []);
+
+  if (!ranura) return null;
+  return createPortal(children, ranura);
+}
+
 /**
  * Manda unos botones a la barra superior.
  *
@@ -1617,18 +1646,36 @@ export function Tarjeta({
 export function Campo({
   etiqueta,
   ayuda,
+  comoDiv,
   children,
 }: {
   etiqueta: string;
   ayuda?: string;
+  /**
+   * UN `<div>` EN LUGAR DEL `<label>`, para los desplegables.
+   *
+   * Una etiqueta se ata al primer control «atable» que lleva
+   * dentro, y el disparador del `Desplegable` es un `<button>`,
+   * que no es de los que se pueden atar: el `<label>` quedaria
+   * apuntando al vacio y el control sin nombre. Por eso el que va
+   * con `comoDiv` repite su rotulo en `etiquetaAria`.
+   *
+   * Los que envuelven un `<input>` siguen siendo `<label>`, que es
+   * lo que hace que pulsar el rotulo lleve el foco a la casilla.
+   *
+   * Es el mismo reparto que en `formulario-reserva.tsx`, donde
+   * esto se resolvio primero.
+   */
+  comoDiv?: boolean;
   children: React.ReactNode;
 }) {
+  const Envoltorio = comoDiv ? "div" : "label";
   return (
-    <label className="block">
+    <Envoltorio className="block">
       <span className="mb-1.5 block text-[12.5px] font-medium">{etiqueta}</span>
       {children}
       {ayuda && <span className="mt-1.5 block text-xs text-texto-suave">{ayuda}</span>}
-    </label>
+    </Envoltorio>
   );
 }
 

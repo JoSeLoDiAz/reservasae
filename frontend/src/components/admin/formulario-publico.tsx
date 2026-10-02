@@ -18,6 +18,7 @@ import QRCode from "qrcode";
 
 import { palabraCorta } from "@/lib/enlace-corto";
 
+import { Desplegable } from "./desplegable";
 import { Tarjeta } from "./marco-admin";
 
 /**
@@ -332,20 +333,26 @@ export function EnlacePublico({
               Marcar de dónde va a llegar
             </h3>
             <div className="flex flex-wrap items-end gap-3">
-              <label className="text-sm">
+              {/* UN `<div>` y no un `<label>`: el disparador del
+                  `Desplegable` es un `<button>`, y una etiqueta no se
+                  ata a un boton. El nombre lo da `etiquetaAria`. */}
+              <div className="min-w-[11rem] text-sm">
                 <span className="mb-1 block text-texto-suave">Se reparte por</span>
-                <select
-                  value={canal}
-                  onChange={(e) => setCanal(e.target.value)}
-                  className="rounded-lg border border-borde bg-superficie px-3 py-2 text-sm"
-                >
-                  {CANALES_DEL_ENLACE.map((c) => (
-                    <option key={c.utm} value={c.utm}>
-                      {c.etiqueta}
-                    </option>
-                  ))}
-                </select>
-              </label>
+                {/* `alto={38}` para que cuadre con los campos de texto
+                    de al lado: en una fila de filtros todo tiene que
+                    medir lo mismo, y los `<input>` de aqui van con
+                    `py-2` sobre cuerpo 14. */}
+                <Desplegable
+                  valor={canal}
+                  etiquetaAria="Se reparte por"
+                  alto={38}
+                  alElegir={setCanal}
+                  opciones={CANALES_DEL_ENLACE.map((c) => ({
+                    valor: c.utm,
+                    etiqueta: c.etiqueta,
+                  }))}
+                />
+              </div>
               {canal === CANAL_PROPIO && (
                 <label className="text-sm">
                   <span className="mb-1 block text-texto-suave">Cómo se llama el canal</span>

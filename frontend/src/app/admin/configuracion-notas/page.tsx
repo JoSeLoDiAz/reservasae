@@ -29,14 +29,10 @@ import {
 } from "@/components/admin/marco-admin";
 import { olvidarCatalogoDeNotas } from "@/components/admin/clasificacion-de-la-nota";
 import { Desplegable } from "@/components/admin/desplegable";
-import { Bloque, Cargando } from "@/components/admin/piezas";
+import { n } from "@/components/admin/graficos";
+import { Bloque, Cargando, Cifra, Encabezado } from "@/components/admin/piezas";
 import { conPermiso } from "@/components/admin/puerta-de-pantalla";
 import { ErrorApi } from "@/lib/api";
-import {
-  ETIQUETA_RESULTADO,
-  RESULTADOS,
-  type ResultadoGestion,
-} from "@/lib/crm-api";
 import { useDatosVivos } from "@/lib/datos-vivos";
 import {
   notasConfigApi,
@@ -44,33 +40,52 @@ import {
 } from "@/lib/notas-config-api";
 
 /**
- * Lo que puede significar una categoría, con el «—» delante.
+ * POR QUÉ AQUÍ NO SE PREGUNTA CÓMO CUENTA UNA CATEGORÍA.
  *
- * Puesto el 30 sep 2026. El cliente señaló que al anotar una gestión
- * se preguntaba LO MISMO DOS VECES: arriba «Cómo salió» --[Hablé con
- * la persona] [No contestó] [El dato no sirve]-- y debajo
- * «Clasificación», cuyas categorías son esas mismas tres más
- * «Seguimiento». Textual: «Ese "Cómo salió" es la "Clasificación"».
+ * La pregunta existió, y el cliente la mandó fuera tres veces el
+ * mismo día (30 sep 2026). Queda escrito para que a nadie se le
+ * ocurra devolverla:
  *
- * Se quitaron los tres botones. Pero el `resultado` de la nota no se
- * podía perder --de él cuelgan los informes y la cuenta de intentos
- * sin respuesta-- así que ahora lo DECLARA la categoría y lo deriva
- * el servidor al escribir. Esta es la pantalla donde se declara, y
- * por eso se dice aquí qué pasa si se deja en «—».
+ *   1. En el formulario de la nota había «Cómo salió» ---hablé / no
+ *      contestó / el dato no sirve--- justo encima de «Clasificación».
+ *      «Ese "Cómo salió" es la "Clasificación"». Se quitó, y el
+ *      resultado se pasó a derivar de la categoría.
+ *   2. Para poder derivarlo se puso la MISMA pregunta, con las MISMAS
+ *      tres opciones, al crear la categoría, llamada «Significa».
+ *      «¿Cómo así que QUÉ SIGNIFICA, coño? Para eso la categoría y
+ *      subcategoría». Se quitó del formulario de crear.
+ *   3. Quedó al editar una ya existente, como «Cuenta en los informes
+ *      como». «¿Por qué putas este listado? Esto saldría de la
+ *      ecuación». Fuera del todo.
+ *
+ * Y tiene razón las tres veces: LA CATEGORÍA ES LA CLASIFICACIÓN.
+ * Mapearla a mano a otra lista de tres es la misma pregunta con otro
+ * traje.
+ *
+ * QUÉ PASA AHORA. La columna `resultado` sigue en la base y las
+ * cuatro categorías sembradas conservan la suya ---de ahí sale el
+ * contador de «lleva N intentos sin respuesta»---. Una categoría
+ * nueva nace sin ella, así que sus notas no entran en ese contador.
+ *
+ * LO QUE HAY QUE HACER PARA CERRARLO DE VERDAD, y está dicho al
+ * cliente: que los informes cuenten por CATEGORÍA en vez de por ese
+ * enum heredado. El día que eso esté, la columna sobra y se va con
+ * ella el último rastro de la pregunta.
+ *
  */
-const SIGNIFICADOS = [
-  /// El «—» primero y con nombre, no un hueco en blanco: «ninguno»
-  /// es una decisión, no un olvido, y tiene consecuencias --las notas
-  /// de esa categoría quedan sin resultado-- que se dicen debajo.
-  { valor: "", etiqueta: "— ninguno" },
-  ...RESULTADOS.map((r) => ({ valor: r, etiqueta: ETIQUETA_RESULTADO[r] })),
-];
 
-/// Lo que elige el desplegable, pasado a lo que entiende la API.
-/// `""` es «ninguno», que se manda como `null` y NO como ausencia:
-/// quitarle el significado a una categoría tiene que poder hacerse.
-function aResultado(v: string): ResultadoGestion | null {
-  return v ? (v as ResultadoGestion) : null;
+/// QUÉ FILA SE MIRA: las que se ofrecen, las ocultas, o todas.
+///
+/// Tres valores y no un interruptor de dos: «todas» tiene que existir
+/// porque es lo que había antes de la barra ---la tabla arriba y las
+/// ocultas abajo--- y quitarlo sería cambiar la pantalla por el filtro.
+type EstadoCatalogo = "" | "ofrecidas" | "ocultas";
+
+/// El valor del desplegable llega como `string`. Se estrecha aquí en
+/// vez de forzarlo con un `as`: cualquier cosa que no sea una de las
+/// dos opciones es «todas», que es el estado neutro.
+function aEstado(valor: string): EstadoCatalogo {
+  return valor === "ofrecidas" || valor === "ocultas" ? valor : "";
 }
 
 /// LA PUERTA, CON EL MISMO PAR `area`/`nivel` QUE DECLARA SU
@@ -99,11 +114,18 @@ function PaginaConfiguracionNotas() {
   const [error, setError] = useState<string | null>(null);
   const [exito, setExito] = useState<string | null>(null);
   const [nueva, setNueva] = useState("");
-  /// Qué va a significar la categoría nueva. Arranca en «ninguno»
-  /// porque no se puede adivinar, y la pantalla avisa de lo que eso
-  /// implica en vez de elegir por quien configura.
-  const [nuevoSignificado, setNuevoSignificado] = useState("");
   const [guardando, setGuardando] = useState(false);
+  /// Por qué nombre filtrar la lista.
+  ///
+  /// Lo pidió el cliente el 30 sep 2026: «¿Organiza eso? O sea, si
+  /// tengo 10, ¿cómo voy a bajar hasta ver el último?». Plegar las
+  /// categorías arregla el bajar; esto arregla el BUSCAR, que es la
+  /// otra mitad de la pregunta.
+  const [filtro, setFiltro] = useState("");
+  /// Y por estado, en la misma barra: la pantalla tiene DOS listas
+  /// --las que se ofrecen arriba, las ocultas abajo-- y buscar solo en
+  /// la de arriba dejaba la mitad del catálogo fuera del buscador.
+  const [estado, setEstado] = useState<EstadoCatalogo>("");
 
   async function conError(accion: () => Promise<void>, hecho?: string) {
     setError(null);
@@ -131,30 +153,126 @@ function PaginaConfiguracionNotas() {
   const ofrecidas = categorias.filter((c) => !c.oculta);
   const ocultas = categorias.filter((c) => c.oculta);
 
+  /// LAS CIFRAS, DE LO QUE YA ESTÁ CARGADO. `listar()` trae el catálogo
+  /// entero --ocultas incluidas-- con sus subcategorías y su contador de
+  /// notas dentro, así que las cuatro salen de sumar lo que hay en la
+  /// mano. Nada de pedir un resumen aparte: sería un viaje más para
+  /// repetir números que ya están en esta misma respuesta, y los dos
+  /// podrían no cuadrar.
+  const totalSub = categorias.reduce((t, c) => t + c.subcategorias.length, 0);
+  /// Las que se ofrecen y no tienen ninguna: son las que están a medio
+  /// configurar, y al asesor le sale el segundo desplegable apagado.
+  const sinSub = ofrecidas.filter((c) => c.subcategorias.length === 0).length;
+  /// Las notas se cuentan por CATEGORÍA y no sumando también las
+  /// subcategorías: una nota nombra una categoría y, si acaso, una
+  /// subcategoría suya, así que sumar las dos listas contaría dos veces
+  /// la misma nota.
+  const notasClasificadas = categorias.reduce((t, c) => t + c.notas, 0);
+
+  /// LA BARRA, SIEMPRE QUE HAYA CATÁLOGO. Estuvo escondida hasta la
+  /// séptima categoría --«con seis o menos la lista entra de un
+  /// vistazo»--, y el umbral era el error: un control que aparece solo
+  /// no se busca cuando hace falta, porque nadie sabe que existe. Y con
+  /// el filtro de estado ya no es solo buscar: es decidir qué mitad del
+  /// catálogo se mira.
+  const conBarra = categorias.length > 0;
+  const aguja = filtro.trim().toLocaleLowerCase("es");
+  const coincide = (c: CategoriaDeNota) =>
+    !aguja || c.nombre.toLocaleLowerCase("es").includes(aguja);
+  /// Cada lista se filtra por su lado y el estado decide si se pinta:
+  /// así «Ocultas» deja de ser un cajón al final y pasa a ser una vista.
+  const visibles = estado === "ocultas" ? [] : ofrecidas.filter(coincide);
+  const ocultasVisibles = estado === "ofrecidas" ? [] : ocultas.filter(coincide);
+  const filtrando = Boolean(aguja) || estado !== "";
+
   return (
-    <div className="flex flex-col gap-4 px-4 pt-4 pb-6">
-      <header>
-        <h1 className="text-[1.3125rem] font-bold tracking-[-0.02em] text-titulo">
-          Configuración notas
-        </h1>
-        <p className="mt-1 max-w-3xl text-texto-suave">
-          Con qué se clasifica una gestión. El asesor elige una categoría y una
-          subcategoría, y además escribe lo que pasó: esto enmarca su texto, no
-          lo sustituye.
-        </p>
-      </header>
+    <div className="flex flex-col gap-4 px-4 pt-4 pb-6 [&>header]:mx-0 [&>header]:mb-0">
+      {/* EN SU TARJETA, como las demas pantallas: «¿esto por que no esta
+          igual, o sea por que el titulo no tiene su margen?» (cliente, 1
+          oct 2026). Era un titulo suelto sobre el fondo mientras sus
+          hermanas lo llevan en recuadro, y asi la pantalla parecia de
+          otra aplicacion. */}
+      <Encabezado compacto titulo="Configuración notas" />
 
       {error && <Aviso tipo="error">{error}</Aviso>}
       {exito && <Aviso tipo="exito">{exito}</Aviso>}
 
-      {/* La regla de la casa, dicha antes de que alguien busque el
-          botón de borrar y no lo encuentre. */}
-      <p className="rounded-lg border border-borde bg-superficie-alterna px-3 py-2 text-sm text-texto-suave">
-        Aquí nada se elimina: una categoría se <strong>oculta</strong> y deja de
-        ofrecerse al anotar, pero las notas que ya la nombran siguen
-        leyéndose. Ocultar es reversible; borrar dejaría notas diciendo
-        «categoría» sin que nadie pueda saber cuál.
-      </p>
+      {/* LAS CUATRO CIFRAS, como en las demás pantallas del panel. Con
+          `Cifra` --la tira apretada de Gestión de leads-- y no con
+          `TarjetaCifra`: 110 px de alto en una pantalla cuyo contenido
+          es una tabla se comen justo lo que se viene a mirar.
+
+          Son las cuatro preguntas que se contestaban bajando y contando
+          a mano: cuántas se ofrecen, cuántas se ocultaron, cuántas
+          subcategorías hay en todo el catálogo y cuántas notas lo
+          nombran. La última es además la cifra que sostiene la regla de
+          la casa: con notas clasificadas, borrar no es una opción. */}
+      {categorias.length > 0 && (
+        <div className="flex flex-wrap items-stretch gap-2">
+          <Cifra
+            etiqueta="Se ofrecen"
+            valor={n(ofrecidas.length)}
+            pie={`de ${n(categorias.length)} en el catálogo`}
+          />
+          <Cifra
+            etiqueta="Ocultas"
+            valor={n(ocultas.length)}
+            pie={ocultas.length > 0 ? "ya no se ofrecen" : "ninguna"}
+          />
+          {/* EN AVISO CUANDO ALGUNA SE OFRECE SIN SUBCATEGORÍAS: es la
+              única de las cuatro que señala algo por arreglar. */}
+          <Cifra
+            etiqueta="Subcategorías"
+            valor={n(totalSub)}
+            pie={sinSub > 0 ? `${n(sinSub)} categorías sin ninguna` : "todas con alguna"}
+            color={sinSub > 0 ? "var(--aviso)" : undefined}
+          />
+          <Cifra
+            etiqueta="Notas clasificadas"
+            valor={n(notasClasificadas)}
+            pie="por eso no hay borrar"
+          />
+        </div>
+      )}
+
+      {/* LO QUE HAY QUE EXPLICAR, PLEGADO. «Esto no dice nada; acá
+          pienso algo como en Tráfico del formulario» (cliente, 1 oct
+          2026), con la captura de «Cómo leer estas cifras». Dos
+          párrafos sueltos encima de la pantalla se leen una vez y
+          estorban siempre; plegados son un renglón y se abren el día
+          que alguien pregunta. */}
+      <Bloque titulo="Cómo funciona esta pantalla" plegable>
+        <dl className="grid gap-x-8 gap-y-3 sm:grid-cols-2">
+          <div>
+            <dt className="font-medium text-titulo">Categoría y subcategoría</dt>
+            <dd className="text-texto-suave">
+              Son los dos desplegables que el asesor elige al dejar una nota.
+              Enmarcan lo que escribe; no lo sustituyen.
+            </dd>
+          </div>
+          <div>
+            <dt className="font-medium text-titulo">Nada se elimina</dt>
+            <dd className="text-texto-suave">
+              Una categoría se oculta y deja de ofrecerse, pero las notas que ya
+              la nombran siguen leyéndose.
+            </dd>
+          </div>
+          <div>
+            <dt className="font-medium text-titulo">Cuántas notas la nombran</dt>
+            <dd className="text-texto-suave">
+              Es la cifra de cada fila, y es la razón por la que no hay botón de
+              borrar.
+            </dd>
+          </div>
+          <div>
+            <dt className="font-medium text-titulo">Cuenta en los informes</dt>
+            <dd className="text-texto-suave">
+              Lo que la categoría declara es lo que suman los tableros de
+              gestión.
+            </dd>
+          </div>
+        </dl>
+      </Bloque>
 
       <Bloque
         titulo="Añadir una categoría"
@@ -167,12 +285,8 @@ function PaginaConfiguracionNotas() {
             const nombre = nueva.trim();
             if (!nombre) return;
             void conError(async () => {
-              await notasConfigApi.crearCategoria(
-                nombre,
-                aResultado(nuevoSignificado),
-              );
+              await notasConfigApi.crearCategoria(nombre);
               setNueva("");
-              setNuevoSignificado("");
             }, `Categoría «${nombre}» creada.`);
           }}
         >
@@ -183,49 +297,115 @@ function PaginaConfiguracionNotas() {
             maxLength={80}
             onChange={(e) => setNueva(e.target.value)}
           />
-          <label className="flex items-center gap-2 text-sm text-texto-suave">
-            Significa
-            <span className="w-[13rem]">
-              <Desplegable
-                etiquetaAria="Qué significa la categoría nueva"
-                valor={nuevoSignificado}
-                alElegir={setNuevoSignificado}
-                opciones={SIGNIFICADOS}
-              />
-            </span>
-          </label>
           <Boton type="submit" disabled={!nueva.trim() || guardando}>
             Añadir categoría
           </Boton>
         </form>
 
-        {/* Dicho DEBAJO del control y no en un aviso aparte: es la
-            consecuencia de dejarlo en «—», y donde se decide es
-            aquí. */}
-        <p className="mt-2 text-sm text-texto-suave">
-          «Significa» es cómo cuenta esta categoría en los informes. El asesor
-          ya no marca «cómo salió» aparte --era la misma pregunta-- así que de
-          esto sale el resultado de cada gestión. En «— ninguno», sus notas
-          quedan sin resultado y no cuentan como contacto ni como intento.
-        </p>
       </Bloque>
 
-      {ofrecidas.map((c) => (
-        <FilaDeCategoria
-          key={c.id}
-          categoria={c}
-          guardando={guardando}
-          conError={conError}
-        />
-      ))}
+      {/* LA BARRA DE FILTROS. Ver `conBarra`: en cuanto hay catálogo.
 
-      {ocultas.length > 0 && (
+          Con `Desplegable` y nunca un `<select>`: la lista del nativo la
+          dibuja el sistema, cuadrada y con su azul, y el cliente la
+          rechazó. Sin portal, que es como va donde no hay recorte: la
+          barra es un div suelto de la columna y la tabla de abajo es su
+          hermana, así que la lista abierta pasa por encima sola. */}
+      {conBarra && (
+        <div className="flex flex-wrap items-center gap-3">
+          <input
+            type="search"
+            className={`${CLASE_CONTROL} max-w-xs`}
+            placeholder="Buscar por nombre"
+            aria-label="Buscar una categoría por nombre"
+            value={filtro}
+            onChange={(e) => setFiltro(e.target.value)}
+          />
+          <div className="w-48">
+            <Desplegable
+              alto={33}
+              etiquetaAria="Estado de la categoría"
+              marcador="Todas"
+              valor={estado}
+              opciones={[
+                { valor: "", etiqueta: "Todas" },
+                { valor: "ofrecidas", etiqueta: "Se ofrecen" },
+                { valor: "ocultas", etiqueta: "Ocultas" },
+              ]}
+              alElegir={(v) => setEstado(aEstado(v))}
+            />
+          </div>
+          {/* La cuenta SOBRE EL CATÁLOGO ENTERO cuando se filtra: el
+              filtro cruza las dos listas, y decir «de las ofrecidas»
+              dejaría fuera lo que se está mirando. */}
+          <p className="text-sm text-texto-suave">
+            {filtrando
+              ? `${visibles.length + ocultasVisibles.length} de ${categorias.length}`
+              : `${ofrecidas.length} se ofrecen`}
+          </p>
+        </div>
+      )}
+
+      {/* Un bloque vacío dice POR QUÉ lo está: aquí la lista no está
+          vacía, está filtrada, y decirlo evita que alguien crea que
+          se le borró algo en una pantalla donde nada se borra. */}
+      {filtrando && visibles.length === 0 && ocultasVisibles.length === 0 && (
+        <p className="rounded-lg border border-borde bg-superficie-alterna px-3 py-2 text-sm text-texto-suave">
+          Ninguna categoría coincide con el filtro.
+        </p>
+      )}
+
+      {/* LAS CATEGORÍAS, COMO TABLA. «No sé, esto como en tabla o de
+          otra forma, es que la visual se ve rara» (cliente, 1 oct
+          2026). Eran cinco tarjetas a todo lo ancho con tres palabras
+          cada una y un «Ver» solo en la otra punta: mil ochocientos
+          píxeles de nada entre el nombre y su enlace.
+
+          Con cabecera y columnas se lee de un vistazo cuál tiene
+          subcategorías y cuál no, que es lo que se viene a mirar. Cada
+          fila sigue abriéndose en su sitio: lo que se edita de una
+          categoría son sus subcategorías, y sacarlas a otra pantalla
+          seria un viaje por cada cambio. */}
+      {visibles.length > 0 && (
+        <div className="overflow-hidden rounded-xl border border-borde bg-superficie">
+          <div
+            className={
+              "grid grid-cols-[minmax(12rem,1fr)_8rem_12rem_4rem] items-center gap-3 px-4" +
+              " border-b border-borde bg-superficie-alterna py-2 text-[0.625rem] font-bold tracking-[0.08em] uppercase text-texto-suave"
+            }
+          >
+            <span>Categoría</span>
+            <span>Subcategorías</span>
+            {/* «Notas que la nombran: ¿qué es esto?» (cliente, 1 oct
+                2026). Era la cuenta de gestiones registradas con esa
+                categoría, dicho de una forma que había que descifrar.
+                Es la razón por la que no hay botón de borrar, así que
+                tiene que leerse sola. */}
+            <span>Notas con esta categoría</span>
+            <span className="text-right">Ver</span>
+          </div>
+          {visibles.map((c) => (
+            <FilaDeCategoria
+              key={c.id}
+              categoria={c}
+              guardando={guardando}
+              conError={conError}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* LAS OCULTAS, YA FILTRADAS. Antes se pintaban todas siempre, al
+          margen del buscador: con el filtro cruzando las dos listas,
+          dejarlas fuera sería que buscar un nombre oculto no diera nada
+          y la fila estuviera ahí abajo. */}
+      {ocultasVisibles.length > 0 && (
         <Bloque
           titulo="Ocultas"
           descripcion="Ya no se ofrecen al anotar. Siguen aquí porque hay notas que las nombran."
         >
           <div className="space-y-3">
-            {ocultas.map((c) => (
+            {ocultasVisibles.map((c) => (
               <div
                 key={c.id}
                 className="flex flex-wrap items-center justify-between gap-3 border-t border-borde pt-3 first:border-t-0 first:pt-0"
@@ -233,10 +413,7 @@ function PaginaConfiguracionNotas() {
                 <div>
                   <p className="font-medium text-texto-suave">{c.nombre}</p>
                   <p className="text-sm text-texto-suave">
-                    {c.subcategorias.length}{" "}
-                    {c.subcategorias.length === 1
-                      ? "subcategoría"
-                      : "subcategorías"}
+                    {contarSub(c.subcategorias.length)}
                     {" · "}
                     {contar(c.notas)}
                   </p>
@@ -272,6 +449,17 @@ function contar(n: number): string {
   return n === 1 ? "1 nota la nombra" : `${n} notas la nombran`;
 }
 
+/// Cuántas subcategorías tiene, para el renglón de la puerta.
+///
+/// Con la lista plegada (30 sep 2026) ese renglón es TODO lo que se
+/// ve de una categoría cerrada, así que tiene que contestar solo
+/// «¿la abro?». «Sin subcategorías» es la respuesta más útil de las
+/// tres: esa es la que está a medio configurar.
+function contarSub(n: number): string {
+  if (n === 0) return "sin subcategorías";
+  return n === 1 ? "1 subcategoría" : `${n} subcategorías`;
+}
+
 function FilaDeCategoria({
   categoria,
   guardando,
@@ -286,42 +474,50 @@ function FilaDeCategoria({
   const ocultas = categoria.subcategorias.filter((s) => s.oculta);
 
   return (
-    <Bloque titulo={categoria.nombre} descripcion={contar(categoria.notas)}>
-      <div className="space-y-4">
-        {/* QUÉ SIGNIFICA, arriba de todo: es lo que decide el
-            `resultado` de cada nota que se anote con esta categoría, y
-            cambiarlo cambia lo que cuentan los informes de ahí en
-            adelante. Las notas YA escritas no se tocan: guardaron su
-            resultado el día que se anotaron. */}
-        <label className="flex flex-wrap items-center gap-2 text-sm text-texto-suave">
-          Significa
-          <span className="w-[13rem]">
-            <Desplegable
-              etiquetaAria={`Qué significa «${categoria.nombre}»`}
-              valor={categoria.resultado ?? ""}
-              alElegir={(v) =>
-                void conError(
-                  () =>
-                    notasConfigApi
-                      .actualizarCategoria(categoria.id, {
-                        resultado: aResultado(v),
-                      })
-                      .then(() => undefined),
-                  v
-                    ? `«${categoria.nombre}» ahora significa ${ETIQUETA_RESULTADO[v as ResultadoGestion]}.`
-                    : `«${categoria.nombre}» ya no significa ningún resultado.`,
-                )
-              }
-              opciones={SIGNIFICADOS}
-            />
-          </span>
-          {categoria.resultado === null && (
-            <span className="text-xs text-texto-suave">
-              Sin esto, sus notas quedan sin resultado.
-            </span>
-          )}
-        </label>
+    /**
+     * PLEGADA, Y CERRADA DE NACIMIENTO.
+     *
+     * Lo pidió el cliente el 30 sep 2026, textual: «¿Organiza eso?
+     * O sea, si tengo 10, ¿cómo voy a bajar hasta ver el último?».
+     * Antes cada categoría se pintaba entera y abierta, con todas sus
+     * subcategorías y un «Ocultar» por cada una: con las cuatro
+     * sembradas ya había que bajar mucho, y con diez no se podía
+     * abarcar.
+     *
+     * Con `Bloque plegable` y no con un `useState` propio: esta casa
+     * ya tenía la pieza --el mismo desplegable que él pidió el 27 sep
+     * para una leyenda que «ocupaba mucho espacio»-- y es un
+     * `<details>`, así que el abierto/cerrado lo guarda el navegador.
+     * Eso importa aquí: al ocultar una subcategoría la lista se
+     * refresca, y con el estado en React la categoría se cerraría
+     * sola en las narices de quien la está editando.
+     *
+     * En el renglón de la puerta va lo que se necesita para decidir
+     * si abrirla: cuántas subcategorías tiene, cuántas notas la
+     * nombran y --si no cuenta en los informes-- el aviso, porque esa
+     * es justo la que hay que abrir.
+     */
+    <details className="group border-t border-hairline first:border-t-0">
+      <summary
+        className={
+          "grid grid-cols-[minmax(12rem,1fr)_8rem_12rem_4rem] items-center gap-3 px-4" +
+          " sin-aro cursor-pointer list-none py-2.5 text-[0.8125rem] select-none hover:bg-superficie-alterna"
+        }
+      >
+        <span className="truncate font-medium text-titulo">{categoria.nombre}</span>
+        <span className="tabular-nums text-texto-suave">
+          {categoria.subcategorias.length}
+        </span>
+        <span className="tabular-nums text-texto-suave">{categoria.notas}</span>
+        <span className="text-right font-medium text-marca">
+          {/* El mismo «Ver» de antes, que ahora dice además si está
+              abierta sin necesidad de buscar la flecha. */}
+          <span className="group-open:hidden">Ver</span>
+          <span className="hidden group-open:inline">Cerrar</span>
+        </span>
+      </summary>
 
+      <div className="space-y-4 border-t border-hairline px-4 py-3">
         <div className="space-y-2">
           {ofrecidas.length === 0 && (
             /* Un bloque vacío dice POR QUÉ lo está. */
@@ -427,7 +623,8 @@ function FilaDeCategoria({
             Ocultar la categoría
           </button>
         </form>
+
       </div>
-    </Bloque>
+    </details>
   );
 }
