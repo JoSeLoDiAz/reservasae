@@ -96,7 +96,36 @@ export class DirectorioService {
       create: {
         nit: lectura.nit,
         razonSocial: nombre,
-        digitoDeclarado: lectura.digitoVerificacion,
+        /// EL QUE TECLEARON, Y NO EL CALCULADO.
+        ///
+        /// El schema dice de este campo «el declarado en la fuente;
+        /// el que vale se calcula», y aquí la fuente es la persona
+        /// que escribió el NIT. `leerNit` ya separa lo que tecleó
+        /// (`digitoTecleado`, nulo si no puso ninguno) de lo que sale
+        /// de la cuenta (`digitoVerificacion`).
+        ///
+        /// Escribir el CALCULADO aquí apagaba un control, y de la
+        /// peor manera: en silencio. La lectura de arriba solo enseña
+        /// el declarado CUANDO DIFIERE del real ---esa comparación es
+        /// la que caza el NIT mal tecleado---, y si el guardado es el
+        /// calculado por construcción, no puede diferir nunca.
+        ///
+        /// Lo caro no era el dato: era que cuando alguien tecleaba un
+        /// dígito EQUIVOCADO, esta línea lo pisaba con el correcto y
+        /// la discrepancia desaparecía para siempre. El único momento
+        /// en que se sabe que hubo un error es este, y aquí se
+        /// borraba.
+        ///
+        /// Lo encontró José al revisar `poner-al-dia-independientes.ts`
+        /// el 1 oct 2026 ---ese guion hacía lo mismo--- y resultó que
+        /// el guion no inventó el patrón: lo copió de aquí.
+        ///
+        /// NULO cuando no tecleó ninguno, que es lo honesto: no hay
+        /// nada declarado. Y las filas ya escritas con el calculado no
+        /// necesitan arreglo, porque la lectura las enmascara igual
+        /// que a las nulas; lo que no se recupera es el dígito
+        /// equivocado de quien ya pasó por aquí.
+        digitoDeclarado: lectura.digitoTecleado,
         // la escribio una persona, no una fuente oficial:
         // el RUES puede corregirla despues
         fuente: 'HUMANO',
