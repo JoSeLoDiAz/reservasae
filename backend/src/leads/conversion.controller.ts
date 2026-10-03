@@ -36,6 +36,8 @@ export class ConversionController {
     @AmbitoActual() ambito: Ambito,
     @IpReal() ip: string,
   ) {
-    return this.conversion.convertir(id, dto, admin, ambito.convenios, ip);
+    return this.conversion.convertir(id, dto, admin, ambito.convenios, ip, {
+      rolesPorConvenio: ambito.roles,
+    });
   }
 }
