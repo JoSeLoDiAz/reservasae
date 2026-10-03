@@ -568,12 +568,24 @@ Socorro.
   Si esa fecha se acerca y la tailnet nueva no está, hay que apagarla: cuando
   caduca, el nodo sale de la red, **la replicación y las sondas se cortan y el
   sitio sigue sirviendo**, así que nadie se entera.
-- **La tailnet de Grupo AE está por crear**, y solo pasan los **tres servidores**;
-  los equipos personales se quedan donde están (Josse, 3 oct). Tiene una mina:
-  cada nodo recibe una IP `100.x` nueva y **`PG_BIND` se queda rancia** —
-  `promover.sh:61` solo la escribe **si falta**—, así que el contenedor `db` moriría
-  con `cannot assign requested address`, que es justo lo que dejó a Bogotá sin base
-  el 18 ago 2026. Hay que borrarla del `.env` de cada sede antes de reautenticar.
+- **La tailnet se quedó como estaba, y fue la decisión correcta.** Josse creó la
+  de `grupo-ae.com.co` el 3 oct, vio lo que costaba mover los tres servidores y
+  **lo dio la vuelta**: dejó las máquinas donde están e invitó a
+  `proyectos@grupo-ae.com.co` a la tailnet existente, como Admin. Con eso las IP
+  `100.x` **no cambian**, así que desaparece la mina —`PG_BIND` rancia y los dos
+  `primary_conninfo` con la IP escrita a fuego por `pg_basebackup -R`— y no hubo
+  ni un segundo sin replicación. Queda en
+  [docs/operacion/tailnet-de-grupo-ae.md](docs/operacion/tailnet-de-grupo-ae.md),
+  con el procedimiento conservado por si algún día se retoma.
+- **Pero el Owner de esa red privada es una cuenta PERSONAL**,
+  `josediazd40z@gmail.com`. `proyectos@` entró como Admin, que no es lo mismo: si
+  esa cuenta se pierde, la tailnet donde viven las bases de producción se va con
+  ella. Tailscale deja transferir la propiedad; es el paso que falta.
+- **Y la caducidad de llave de nodo pasa a importar de verdad**, porque el motivo
+  para posponerla era la tailnet nueva y ya no existe. Sigue armada para el **10
+  feb 2027** en las tres: al caducar, el nodo sale de la red, **la replicación y
+  las sondas se cortan y el sitio sigue sirviendo**, así que nadie se entera. Son
+  tres clics en Machines → Disable key expiry.
 - **Los cuatro discos de 2,5 TB siguen crudos**, y es deliberado: montarlos exige
   parar Docker y tumbar los dos Moodle. Reservasae no los necesita.
 - **`prueba.reservasae.com` se queda en Bogotá** con su propio túnel. No gana nada

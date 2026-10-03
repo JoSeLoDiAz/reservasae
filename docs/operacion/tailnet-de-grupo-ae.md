@@ -1,5 +1,39 @@
 # Pasar los tres servidores a la tailnet de Grupo AE
 
+> ## NO SE HIZO, Y LA DECISIÓN FUE MEJOR — 3 oct 2026
+>
+> Josse creó la tailnet `grupo-ae.com.co` y, al ver lo que costaba mover los tres
+> servidores, **lo dio la vuelta**: dejó las máquinas donde están e **invitó a
+> `proyectos@grupo-ae.com.co` a la tailnet que ya existe**, como Admin. Textual:
+> *«tocó dejarlo así y más bien invitar»*.
+>
+> **Y eso ahorra la parte peligrosa entera.** Las IP `100.x` no cambian, así que
+> no hay `PG_BIND` rancia, no hay que reescribir los dos `primary_conninfo`, no
+> hay ventana sin replicación y no hay riesgo de dejar a El Socorro colgado entre
+> dos tailnets. Comprobado después: las tres sedes siguen en la línea 18, el mismo
+> LSN, `streaming`, y el dominio sirviendo.
+>
+> **Lo que la decisión deja a cambio, y conviene tenerlo escrito:**
+>
+> - **El Owner de la red privada es una cuenta personal**, `josediazd40z@gmail.com`,
+>   desde el 14 ago 2026. `proyectos@grupo-ae.com.co` entró como **Admin**, que no
+>   es lo mismo: si esa cuenta de Gmail se pierde o se cierra, la tailnet donde
+>   viven las bases de producción se va con ella. Tailscale deja **transferir la
+>   propiedad**; es el paso que falta y no se arregla solo.
+> - **Queda una tailnet `grupo-ae.com.co` vacía**, creada ese día y con un ensayo
+>   de 14 días. O se borra o se deja caducar, pero conviene decidirlo: dos tailnets
+>   con nombres parecidos es como alguien acaba conectando un servidor al sitio
+>   equivocado.
+> - **Y la caducidad de llave de nodo pasa a importar.** El motivo para dejarla era
+>   «primero va la tailnet nueva», y ese motivo desapareció. Sigue armada para el
+>   **10 feb 2027** en las tres: cuando caduca, el nodo sale de la red, **la
+>   replicación y las sondas se cortan y el sitio sigue sirviendo**, así que nadie
+>   se entera. Se apaga en **Machines → cada servidor → Disable key expiry**.
+>
+> **Lo de abajo se conserva** por si algún día se retoma el traslado de verdad. No
+> se ejecute sin leer la sección de la mina: hay dos sitios con la IP escrita a
+> fuego y uno de ellos no se corrige solo.
+
 Hoy las máquinas viven en una tailnet **personal**: los nodos salen como
 `josediazd40z@` y el dominio es `tailab261a.ts.net`. La decisión de Josse (3 oct
 2026) es crear una de **Grupo AE** y pasar **solo los tres servidores** —
