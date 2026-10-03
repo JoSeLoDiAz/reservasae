@@ -78,10 +78,7 @@ const metaDiaria = (porDia: number | null) =>
   porDia === null ? "—" : n(Math.ceil(porDia));
 
 type Subvista =
-  | "inscripciones"
-  | "academicos"
-  | "proyeccion"
-  | "proyeccionAcademica";
+  "inscripciones" | "academicos" | "proyeccion" | "proyeccionAcademica";
 
 /// SIN FRASE AL LADO (cliente, 23 sep 2026). Cada tabla ya dice contra
 /// qué fecha corre en su propia descripción y en su pie; repetirlo
@@ -140,7 +137,10 @@ const VEREDICTO: Record<Veredicto, { texto: string; color: string }> = {
 /// Cómo se lee cada estado y de qué color va. `SIN_PLAZO` va en gris y
 /// NO en verde: no se sabe si va bien, y un verde ahí es una mentira
 /// tranquilizadora.
-const SEMAFORO: Record<RitmoDeAsesor["estado"], { texto: string; clase: string }> = {
+const SEMAFORO: Record<
+  RitmoDeAsesor["estado"],
+  { texto: string; clase: string }
+> = {
   TERMINADO: { texto: "Terminado", clase: "text-exito" },
   AL_DIA: { texto: "Al día", clase: "text-exito" },
   AJUSTADO: { texto: "Ajustado", clase: "text-aviso" },
@@ -186,7 +186,12 @@ function Cifra({ ahora, antes }: { ahora: number; antes: number | null }) {
       <span
         className="block text-[0.6875rem] leading-tight font-normal"
         style={{
-          color: d === 0 ? "var(--texto-suave)" : d > 0 ? "var(--exito)" : "var(--error)",
+          color:
+            d === 0
+              ? "var(--texto-suave)"
+              : d > 0
+                ? "var(--exito)"
+                : "var(--error)",
         }}
       >
         {d === 0 ? "=" : d > 0 ? "▲" : "▼"} {n(antes)}
@@ -280,7 +285,8 @@ export function PanelAsesores() {
   /// anterior, así que se le dice lo que es en vez de dejar la segunda
   /// cifra sin dueño.
   const rotuloAnterior =
-    etiquetaDelAnterior(periodo.rango) || "el tramo anterior, de la misma duración";
+    etiquetaDelAnterior(periodo.rango) ||
+    "el tramo anterior, de la misma duración";
 
   return (
     <div className="flex flex-col gap-3 px-4 pt-3 pb-6 [&>header]:mx-0 [&>header]:mb-0">
@@ -310,7 +316,10 @@ export function PanelAsesores() {
         <ElegirConRotulo
           rotulo="Seleccione el informe"
           valor={subvista}
-          opciones={SUBVISTAS.map((s) => ({ valor: s.clave, etiqueta: s.etiqueta }))}
+          opciones={SUBVISTAS.map((s) => ({
+            valor: s.clave,
+            etiqueta: s.etiqueta,
+          }))}
           alElegir={(v) => setSubvista(v as Subvista)}
           ancho="13.5rem"
         />
@@ -411,7 +420,8 @@ function vistoDe(f: FilaDeAsesor, accion: string): Vista["visto"] | null {
 
 /// LA MISMA LLAVE PARA LOS DOS PERIODOS. `asesorId` es nulo en la fila
 /// de «Sin asesor asignado», y dos nulos no se encuentran en un `Map`.
-const llaveDeAsesor = (f: { asesorId: string | null }) => f.asesorId ?? "sin-asesor";
+const llaveDeAsesor = (f: { asesorId: string | null }) =>
+  f.asesorId ?? "sin-asesor";
 
 function DeInscripciones({
   ventana,
@@ -435,21 +445,18 @@ function DeInscripciones({
   /// separados se refrescan cada uno por su lado, y durante un
   /// instante la tabla enseñaría el periodo nuevo contra el anterior
   /// viejo: dos cifras que no son comparables con cara de serlo.
-  const cargar = useCallback(
-    async (): Promise<{
-      ahora: FilaDeAsesor[];
-      antes: FilaDeAsesor[] | null;
-      proyeccion: FilaDeProyeccion[];
-    }> => {
-      const [ahora, antes, proyeccion] = await Promise.all([
-        crmApi.asesoresDeInscripciones(ventana),
-        ventanaAntes ? crmApi.asesoresDeInscripciones(ventanaAntes) : null,
-        crmApi.proyeccionDeInscripciones(ventana),
-      ]);
-      return { ahora, antes, proyeccion };
-    },
-    [ventana, ventanaAntes],
-  );
+  const cargar = useCallback(async (): Promise<{
+    ahora: FilaDeAsesor[];
+    antes: FilaDeAsesor[] | null;
+    proyeccion: FilaDeProyeccion[];
+  }> => {
+    const [ahora, antes, proyeccion] = await Promise.all([
+      crmApi.asesoresDeInscripciones(ventana),
+      ventanaAntes ? crmApi.asesoresDeInscripciones(ventanaAntes) : null,
+      crmApi.proyeccionDeInscripciones(ventana),
+    ]);
+    return { ahora, antes, proyeccion };
+  }, [ventana, ventanaAntes]);
   const vivos = useDatosVivos<{
     ahora: FilaDeAsesor[];
     antes: FilaDeAsesor[] | null;
@@ -533,7 +540,10 @@ function DeInscripciones({
   /// acción---: entonces no hay con qué comparar y no se pinta nada,
   /// en vez de un cero que diría que no hizo nada.
   const vistoAntes = new Map(
-    (vivos.datos.antes ?? []).map((f) => [llaveDeAsesor(f), vistoDe(f, accion)]),
+    (vivos.datos.antes ?? []).map((f) => [
+      llaveDeAsesor(f),
+      vistoDe(f, accion),
+    ]),
   );
   const antesDe = (f: Vista) =>
     comparando ? (vistoAntes.get(llaveDeAsesor(f)) ?? null) : null;
@@ -552,7 +562,14 @@ function DeInscripciones({
       descartados: a.descartados + f.visto.descartados,
       pendientes: a.pendientes + f.visto.pendientes,
     }),
-    { total: 0, gestionados: 0, resueltos: 0, inscritos: 0, descartados: 0, pendientes: 0 },
+    {
+      total: 0,
+      gestionados: 0,
+      resueltos: 0,
+      inscritos: 0,
+      descartados: 0,
+      pendientes: 0,
+    },
   );
 
   /// LA MISMA SUMA DEL TRAMO DE ANTES, y de las mismas filas: los
@@ -591,7 +608,11 @@ function DeInscripciones({
       valor: (f) => f.nombre,
       filtro: "texto",
       pinta: (f) => (
-        <span className={f.asesorId ? "font-medium" : "font-medium text-texto-suave"}>
+        <span
+          className={
+            f.asesorId ? "font-medium" : "font-medium text-texto-suave"
+          }
+        >
           {f.nombre}
         </span>
       ),
@@ -627,7 +648,10 @@ function DeInscripciones({
       valor: (f) => f.visto.inscritos,
       pinta: (f) => (
         <span className="font-medium text-exito tabular-nums">
-          <Cifra ahora={f.visto.inscritos} antes={antesDe(f)?.inscritos ?? null} />
+          <Cifra
+            ahora={f.visto.inscritos}
+            antes={antesDe(f)?.inscritos ?? null}
+          />
         </span>
       ),
     },
@@ -639,7 +663,10 @@ function DeInscripciones({
       valor: (f) => f.visto.descartados,
       pinta: (f) => (
         <span className="tabular-nums text-texto-suave">
-          <Cifra ahora={f.visto.descartados} antes={antesDe(f)?.descartados ?? null} />
+          <Cifra
+            ahora={f.visto.descartados}
+            antes={antesDe(f)?.descartados ?? null}
+          />
         </span>
       ),
     },
@@ -657,7 +684,10 @@ function DeInscripciones({
       valor: (f) => f.visto.gestionados,
       pinta: (f) => (
         <span className="tabular-nums">
-          <Cifra ahora={f.visto.gestionados} antes={antesDe(f)?.gestionados ?? null} />
+          <Cifra
+            ahora={f.visto.gestionados}
+            antes={antesDe(f)?.gestionados ?? null}
+          />
         </span>
       ),
     },
@@ -693,7 +723,9 @@ function DeInscripciones({
       numerica: true,
       valor: (f) => f.ritmo.exigidoPorDia,
       pinta: (f) => (
-        <span className="font-semibold tabular-nums">{metaDiaria(f.ritmo.exigidoPorDia)}</span>
+        <span className="font-semibold tabular-nums">
+          {metaDiaria(f.ritmo.exigidoPorDia)}
+        </span>
       ),
     },
     {
@@ -714,47 +746,51 @@ function DeInscripciones({
 
   return (
     <>
-    {/* LAS TARJETAS DE «GESTIÓN DE LEADS»: 46 px de alto. Estuvieron
+      {/* LAS TARJETAS DE «GESTIÓN DE LEADS»: 46 px de alto. Estuvieron
         con `TarjetaCifra` --32 px de cifra, 110 de alto, dentro de su
         bloque-- y el cliente lo paró: «que no ocupen mucho espacio y le
         da orden» (23 sep 2026). */}
-    <div className="flex flex-wrap gap-2">
-      <CifraCompacta
-        etiqueta="Asesores"
-        valor={n(conAsesor)}
-        pie={aReforzar > 0 ? `${n(aReforzar)} necesitan refuerzo` : undefined}
-      />
-      <CifraCompacta
-        etiqueta="Leads asignados"
-        valor={n(t.total)}
-        pie={comparado(t.total, tAntes?.total)}
-      />
-      {/* LOS MISMOS NOMBRES Y EL MISMO ORDEN QUE LAS COLUMNAS DE
+      <div className="flex flex-wrap gap-2">
+        <CifraCompacta
+          etiqueta="Asesores"
+          valor={n(conAsesor)}
+          pie={aReforzar > 0 ? `${n(aReforzar)} necesitan refuerzo` : undefined}
+        />
+        <CifraCompacta
+          etiqueta="Leads asignados"
+          valor={n(t.total)}
+          pie={comparado(t.total, tAntes?.total)}
+        />
+        {/* LOS MISMOS NOMBRES Y EL MISMO ORDEN QUE LAS COLUMNAS DE
           DEBAJO: asignados, inscritos, descartados, gestionados. Una
           tira que va en otro orden que la tabla que tiene pegada
           debajo se lee como si fueran otras cifras. */}
-      <CifraCompacta
-        etiqueta="Leads inscritos"
-        valor={n(t.inscritos)}
-        color="var(--exito)"
-        pie={comparado(t.inscritos, tAntes?.inscritos)}
-      />
-      <CifraCompacta
-        etiqueta="Leads descartados"
-        valor={n(t.descartados)}
-        pie={comparado(t.descartados, tAntes?.descartados)}
-      />
-      <CifraCompacta
-        etiqueta="Leads gestionados"
-        valor={n(t.gestionados)}
-        detalle={t.total > 0 ? `${Math.round((t.gestionados / t.total) * 100)} %` : undefined}
-        pie={comparado(t.gestionados, tAntes?.gestionados)}
-      />
-    </div>
+        <CifraCompacta
+          etiqueta="Leads inscritos"
+          valor={n(t.inscritos)}
+          color="var(--exito)"
+          pie={comparado(t.inscritos, tAntes?.inscritos)}
+        />
+        <CifraCompacta
+          etiqueta="Leads descartados"
+          valor={n(t.descartados)}
+          pie={comparado(t.descartados, tAntes?.descartados)}
+        />
+        <CifraCompacta
+          etiqueta="Leads gestionados"
+          valor={n(t.gestionados)}
+          detalle={
+            t.total > 0
+              ? `${Math.round((t.gestionados / t.total) * 100)} %`
+              : undefined
+          }
+          pie={comparado(t.gestionados, tAntes?.gestionados)}
+        />
+      </div>
 
-    {comparando && <ContraQue rotulo={rotuloAnterior} />}
+      {comparando && <ContraQue rotulo={rotuloAnterior} />}
 
-    {/* LA TABLA, SUELTA EN LA PÁGINA. «Que quede como la segunda
+      {/* LA TABLA, SUELTA EN LA PÁGINA. «Que quede como la segunda
         captura» (cliente, 25 sep 2026), que era Gestión de leads:
         allí el buscador, los filtros y la descarga van sobre el fondo
         y la tabla debajo. Aquí estaban metidos dentro de una caja con
@@ -763,75 +799,79 @@ function DeInscripciones({
         Es la misma `Tabla` de Gestión de leads --con su buscador, sus
         filtros por columna, el selector de columnas y la descarga--,
         así que montada igual se ve igual. */}
-    {comoSeVe === "resumen" && (
-    <Tabla
-      cuadricula
-      /// EL NOMBRE CAMBIA PORQUE CAMBIÓ EL ORDEN DE LAS COLUMNAS.
-      ///
-      /// La tabla graba en el navegador qué columnas se ven Y EN QUÉ
-      /// ORDEN, y lo graba en la PRIMERA visita sin que nadie toque
-      /// nada. Así que quien hubiera abierto esta pantalla antes de
-      /// hoy seguía viendo el orden viejo ---gestionados delante de
-      /// inscritos--- por mucho que el código diga otro. El cliente
-      /// pidió el orden nuevo el 30 sep 2026 y no le llegaba.
-      ///
-      /// Es el mismo caso que la tabla de reservas, y la misma cura:
-      /// con nombre nuevo todos arrancan del orden declarado. Lo que
-      /// cada quien hubiera acomodado se queda bajo el nombre viejo,
-      /// sin estorbar.
-      ///
-      /// REGLA QUE SALE DE AQUÍ: reordenar columnas obliga a renombrar
-      /// la tabla. Si no, el cambio solo lo ven los que nunca entraron.
-      id="asesores-inscripciones-v2"
-      columnas={columnas}
-      filas={filas}
-      clave={(f) => f.asesorId ?? "sin-asesor"}
-      /// Vuelve a pulsar la misma fila y se cierra: es la única
-      /// puerta de salida que se prueba sola.
-      alClic={(f) => setDesglosado((v) => (v && v.asesorId === f.asesorId ? null : f))}
-      porPagina={25}
-      vacio={
-        accion
-          ? "Ningún asesor tiene leads en esa acción de formación."
-          : "Todavía no hay leads repartidos."
-      }
-      /* EL FILTRO DE ACCIÓN, FUSIONADO EN LA FILA DEL BUSCADOR,
+      {comoSeVe === "resumen" && (
+        <Tabla
+          cuadricula
+          /// EL NOMBRE CAMBIA PORQUE CAMBIÓ EL ORDEN DE LAS COLUMNAS.
+          ///
+          /// La tabla graba en el navegador qué columnas se ven Y EN QUÉ
+          /// ORDEN, y lo graba en la PRIMERA visita sin que nadie toque
+          /// nada. Así que quien hubiera abierto esta pantalla antes de
+          /// hoy seguía viendo el orden viejo ---gestionados delante de
+          /// inscritos--- por mucho que el código diga otro. El cliente
+          /// pidió el orden nuevo el 30 sep 2026 y no le llegaba.
+          ///
+          /// Es el mismo caso que la tabla de reservas, y la misma cura:
+          /// con nombre nuevo todos arrancan del orden declarado. Lo que
+          /// cada quien hubiera acomodado se queda bajo el nombre viejo,
+          /// sin estorbar.
+          ///
+          /// REGLA QUE SALE DE AQUÍ: reordenar columnas obliga a renombrar
+          /// la tabla. Si no, el cambio solo lo ven los que nunca entraron.
+          id="asesores-inscripciones-v2"
+          columnas={columnas}
+          filas={filas}
+          clave={(f) => f.asesorId ?? "sin-asesor"}
+          /// Vuelve a pulsar la misma fila y se cierra: es la única
+          /// puerta de salida que se prueba sola.
+          alClic={(f) =>
+            setDesglosado((v) => (v && v.asesorId === f.asesorId ? null : f))
+          }
+          porPagina={25}
+          vacio={
+            accion
+              ? "Ningún asesor tiene leads en esa acción de formación."
+              : "Todavía no hay leads repartidos."
+          }
+          /* EL FILTRO DE ACCIÓN, FUSIONADO EN LA FILA DEL BUSCADOR,
          como en Seguimiento del aula: no es un filtro de columna
          ---cambia QUÉ CIFRAS se enseñan, no qué filas quedan--- y
          en su propia tarjeta encima volvería a estirarse a media
          pantalla. */
-      filtrosDelServidor={
-        <>
-          <SelectorBuscable
-            clase="min-w-[12rem] flex-1"
-            etiqueta="Acción de formación"
-            valor={accion}
-            alElegir={setAccion}
-            vacio="Todas las acciones"
-            quitar="Ver todas las acciones"
-            marcador="AF1, AF2…"
-            opciones={acciones}
-          />
-          {accion && (
-            <button
-              type="button"
-              onClick={() => setAccion("")}
-              className="shrink-0 text-[0.78125rem] text-texto-suave underline hover:text-texto"
-            >
-              Limpiar
-            </button>
-          )}
-        </>
-      }
-    />
+          filtrosDelServidor={
+            <>
+              <SelectorBuscable
+                clase="min-w-[12rem] flex-1"
+                etiqueta="Acción de formación"
+                valor={accion}
+                alElegir={setAccion}
+                vacio="Todas las acciones"
+                quitar="Ver todas las acciones"
+                marcador="AF1, AF2…"
+                opciones={acciones}
+              />
+              {accion && (
+                <button
+                  type="button"
+                  onClick={() => setAccion("")}
+                  className="shrink-0 text-[0.78125rem] text-texto-suave underline hover:text-texto"
+                >
+                  Limpiar
+                </button>
+              )}
+            </>
+          }
+        />
+      )}
 
-    )}
+      {comoSeVe === "resumen" && desglosado && (
+        <DesgloseDelAsesor
+          fila={desglosado}
+          alCerrar={() => setDesglosado(null)}
+        />
+      )}
 
-    {comoSeVe === "resumen" && desglosado && (
-      <DesgloseDelAsesor fila={desglosado} alCerrar={() => setDesglosado(null)} />
-    )}
-
-    {/* EL CUADRO DE DIANITA, AQUÍ Y NO EN LA OTRA SUBVISTA.
+      {/* EL CUADRO DE DIANITA, AQUÍ Y NO EN LA OTRA SUBVISTA.
 
         Lo puse primero colgado de «Proyección Inscripciones», que es
         de donde salen sus cifras, y el cliente lo pidió AQUÍ (30 sep
@@ -843,17 +883,17 @@ function DeInscripciones({
 
         Se MUEVE, no se copia: dos cuadros iguales en dos pantallas
         acaban discrepando el día que uno se cambie y el otro no. */}
-    {comoSeVe === "calendario" && (
-    <RepartoDiario
-      meta={reparto.meta}
-      queEs="cupos por cubrir"
-      asesores={reparto.asesores}
-      cierre={reparto.cierre}
-      alIrALaProyeccion={alIrALaProyeccion}
-      vencidas={reparto.vencidas}
-      faltaEnVencidas={reparto.faltaEnVencidas}
-    />
-    )}
+      {comoSeVe === "calendario" && (
+        <RepartoDiario
+          meta={reparto.meta}
+          queEs="cupos por cubrir"
+          asesores={reparto.asesores}
+          cierre={reparto.cierre}
+          alIrALaProyeccion={alIrALaProyeccion}
+          vencidas={reparto.vencidas}
+          faltaEnVencidas={reparto.faltaEnVencidas}
+        />
+      )}
     </>
   );
 }
@@ -862,19 +902,16 @@ function Academicos({ ventana, ventanaAntes, rotuloAnterior }: ConPeriodo) {
   /// LOS DOS PERIODOS EN LA MISMA CONSULTA, por lo mismo que en la
   /// pestaña de al lado: separados se refrescarían cada uno por su
   /// cuenta y por un instante se compararía lo nuevo contra lo viejo.
-  const cargar = useCallback(
-    async (): Promise<{
-      ahora: FilaDeAsesorAcademico[];
-      antes: FilaDeAsesorAcademico[] | null;
-    }> => {
-      const [ahora, antes] = await Promise.all([
-        crmApi.asesoresAcademicos(ventana),
-        ventanaAntes ? crmApi.asesoresAcademicos(ventanaAntes) : null,
-      ]);
-      return { ahora, antes };
-    },
-    [ventana, ventanaAntes],
-  );
+  const cargar = useCallback(async (): Promise<{
+    ahora: FilaDeAsesorAcademico[];
+    antes: FilaDeAsesorAcademico[] | null;
+  }> => {
+    const [ahora, antes] = await Promise.all([
+      crmApi.asesoresAcademicos(ventana),
+      ventanaAntes ? crmApi.asesoresAcademicos(ventanaAntes) : null,
+    ]);
+    return { ahora, antes };
+  }, [ventana, ventanaAntes]);
   const vivos = useDatosVivos<{
     ahora: FilaDeAsesorAcademico[];
     antes: FilaDeAsesorAcademico[] | null;
@@ -904,7 +941,8 @@ function Academicos({ ventana, ventanaAntes, rotuloAnterior }: ConPeriodo) {
   if (datos.length === 0) {
     return (
       <Vacio titulo="Todavía no hay grupos con participantes">
-        Aquí aparece cada asesor en cuanto tenga grupos asignados con participantes.
+        Aquí aparece cada asesor en cuanto tenga grupos asignados con
+        participantes.
       </Vacio>
     );
   }
@@ -943,46 +981,58 @@ function Academicos({ ventana, ventanaAntes, rotuloAnterior }: ConPeriodo) {
 
   return (
     <>
-    <div className="flex flex-wrap gap-2">
-      <CifraCompacta
-        etiqueta="Grupos"
-        valor={n(t.grupos)}
-        pie={comparado(t.grupos, tAntes?.grupos)}
-      />
-      <CifraCompacta etiqueta="PAX" valor={n(t.pax)} pie={comparado(t.pax, tAntes?.pax)} />
-      <CifraCompacta
-        etiqueta="Con seguimiento"
-        valor={n(t.seguimiento)}
-        detalle={t.pax > 0 ? `${Math.round((t.seguimiento / t.pax) * 100)} %` : undefined}
-        pie={comparado(t.seguimiento, tAntes?.seguimiento)}
-      />
-      <CifraCompacta
-        etiqueta="Certificados"
-        valor={n(t.certificados)}
-        color="var(--exito)"
-        detalle={t.pax > 0 ? `${Math.round((t.certificados / t.pax) * 100)} %` : undefined}
-        pie={comparado(t.certificados, tAntes?.certificados)}
-      />
-      {/* «Por certificar» es lo que FALTA, no lo que se hizo: no
+      <div className="flex flex-wrap gap-2">
+        <CifraCompacta
+          etiqueta="Grupos"
+          valor={n(t.grupos)}
+          pie={comparado(t.grupos, tAntes?.grupos)}
+        />
+        <CifraCompacta
+          etiqueta="PAX"
+          valor={n(t.pax)}
+          pie={comparado(t.pax, tAntes?.pax)}
+        />
+        <CifraCompacta
+          etiqueta="Con seguimiento"
+          valor={n(t.seguimiento)}
+          detalle={
+            t.pax > 0
+              ? `${Math.round((t.seguimiento / t.pax) * 100)} %`
+              : undefined
+          }
+          pie={comparado(t.seguimiento, tAntes?.seguimiento)}
+        />
+        <CifraCompacta
+          etiqueta="Certificados"
+          valor={n(t.certificados)}
+          color="var(--exito)"
+          detalle={
+            t.pax > 0
+              ? `${Math.round((t.certificados / t.pax) * 100)} %`
+              : undefined
+          }
+          pie={comparado(t.certificados, tAntes?.certificados)}
+        />
+        {/* «Por certificar» es lo que FALTA, no lo que se hizo: no
           compara, ni aquí ni en la tabla. */}
-      <CifraCompacta
-        etiqueta="Por certificar"
-        valor={n(t.porCertificar)}
-        color={t.porCertificar > 0 ? "var(--error)" : undefined}
-      />
-    </div>
-
-    {comparando && <ContraQue rotulo={rotuloAnterior} />}
-
-    {nadieAsignado && (
-      <div className="rounded-lg border border-aviso/30 bg-aviso-suave p-3.5 text-[0.8125rem] text-texto">
-        <p className="font-semibold text-titulo">
-          Ningún grupo tiene asesor académico asignado todavía.
-        </p>
+        <CifraCompacta
+          etiqueta="Por certificar"
+          valor={n(t.porCertificar)}
+          color={t.porCertificar > 0 ? "var(--error)" : undefined}
+        />
       </div>
-    )}
 
-    {/* LA MISMA `Tabla` QUE LA PESTAÑA DE AL LADO.
+      {comparando && <ContraQue rotulo={rotuloAnterior} />}
+
+      {nadieAsignado && (
+        <div className="rounded-lg border border-aviso/30 bg-aviso-suave p-3.5 text-[0.8125rem] text-texto">
+          <p className="font-semibold text-titulo">
+            Ningún grupo tiene asesor académico asignado todavía.
+          </p>
+        </div>
+      )}
+
+      {/* LA MISMA `Tabla` QUE LA PESTAÑA DE AL LADO.
 
         Hasta hoy era un `<table>` escrito a mano dentro de una caja, y
         por eso no tenía buscador, ni filtros por columna, ni selector
@@ -993,15 +1043,15 @@ function Academicos({ ventana, ventanaAntes, rotuloAnterior }: ConPeriodo) {
         Con el componente compartido esas siete cosas vienen de fábrica
         y la caja sobra, que es lo que la dejaba «metida feo» al lado
         de su hermana. Las filas y las columnas son las mismas. */}
-    <Tabla
-      cuadricula
-      id="asesores-academicos"
-      columnas={columnas}
-      filas={datos}
-      clave={(f) => f.asesorId ?? "sin-asesor"}
-      porPagina={25}
-      vacio="Aquí aparece cada asesor en cuanto tenga grupos asignados con participantes."
-    />
+      <Tabla
+        cuadricula
+        id="asesores-academicos"
+        columnas={columnas}
+        filas={datos}
+        clave={(f) => f.asesorId ?? "sin-asesor"}
+        porPagina={25}
+        vacio="Aquí aparece cada asesor en cuanto tenga grupos asignados con participantes."
+      />
     </>
   );
 }
@@ -1030,7 +1080,9 @@ const columnasAcademicas = (
     valor: (f) => f.nombre,
     filtro: "texto",
     pinta: (f) => (
-      <span className={f.asesorId ? "font-medium" : "font-medium text-texto-suave"}>
+      <span
+        className={f.asesorId ? "font-medium" : "font-medium text-texto-suave"}
+      >
         {f.nombre}
       </span>
     ),
@@ -1074,7 +1126,10 @@ const columnasAcademicas = (
     valor: (f) => f.conSeguimiento,
     pinta: (f) => (
       <span className="tabular-nums">
-        <Cifra ahora={f.conSeguimiento} antes={antesDe(f)?.conSeguimiento ?? null} />
+        <Cifra
+          ahora={f.conSeguimiento}
+          antes={antesDe(f)?.conSeguimiento ?? null}
+        />
       </span>
     ),
   },
@@ -1086,7 +1141,10 @@ const columnasAcademicas = (
     valor: (f) => f.certificados,
     pinta: (f) => (
       <span className="font-semibold text-exito tabular-nums">
-        <Cifra ahora={f.certificados} antes={antesDe(f)?.certificados ?? null} />
+        <Cifra
+          ahora={f.certificados}
+          antes={antesDe(f)?.certificados ?? null}
+        />
       </span>
     ),
   },
@@ -1103,7 +1161,8 @@ const columnasAcademicas = (
     pinta: (f) => (
       <span
         className={
-          "font-semibold tabular-nums " + (f.ritmo.pendientes > 0 ? "text-error" : "")
+          "font-semibold tabular-nums " +
+          (f.ritmo.pendientes > 0 ? "text-error" : "")
         }
       >
         {n(f.ritmo.pendientes)}
@@ -1140,7 +1199,11 @@ const columnasAcademicas = (
     ancho: "112px",
     numerica: true,
     valor: (f) => f.ritmo.exigidoPorDia,
-    pinta: (f) => <span className="font-semibold tabular-nums">{metaDiaria(f.ritmo.exigidoPorDia)}</span>,
+    pinta: (f) => (
+      <span className="font-semibold tabular-nums">
+        {metaDiaria(f.ritmo.exigidoPorDia)}
+      </span>
+    ),
   },
   {
     clave: "estado",
@@ -1152,7 +1215,9 @@ const columnasAcademicas = (
     /// se partía en «Termina / do» y esa fila quedaba más alta que sus
     /// vecinas.
     pinta: (f) => (
-      <span className={`whitespace-nowrap text-[0.75rem] font-semibold ${SEMAFORO[f.ritmo.estado].clase}`}>
+      <span
+        className={`whitespace-nowrap text-[0.75rem] font-semibold ${SEMAFORO[f.ritmo.estado].clase}`}
+      >
         {SEMAFORO[f.ritmo.estado].texto}
       </span>
     ),
@@ -1180,25 +1245,22 @@ const columnasAcademicas = (
  */
 function Proyeccion({ ventana, ventanaAntes, rotuloAnterior }: ConPeriodo) {
   /// Los dos periodos en la misma consulta, como en las otras tres.
-  const cargar = useCallback(
-    async (): Promise<{
-      ahora: FilaDeProyeccion[];
-      antes: FilaDeProyeccion[] | null;
-      equipo: FilaDeAsesor[];
-    }> => {
-      /// EL EQUIPO VIENE EN LA MISMA CONSULTA. El cuadro de Dianita va
-      /// por NOMBRE ---Julieth, Kathe---, no por un número: una meta
-      /// con nombre se le pide a alguien, y una meta «entre dos
-      /// asesores» no se le pide a nadie.
-      const [ahora, antes, equipo] = await Promise.all([
-        crmApi.proyeccionDeInscripciones(ventana),
-        ventanaAntes ? crmApi.proyeccionDeInscripciones(ventanaAntes) : null,
-        crmApi.asesoresDeInscripciones(ventana),
-      ]);
-      return { ahora, antes, equipo };
-    },
-    [ventana, ventanaAntes],
-  );
+  const cargar = useCallback(async (): Promise<{
+    ahora: FilaDeProyeccion[];
+    antes: FilaDeProyeccion[] | null;
+    equipo: FilaDeAsesor[];
+  }> => {
+    /// EL EQUIPO VIENE EN LA MISMA CONSULTA. El cuadro de Dianita va
+    /// por NOMBRE ---Julieth, Kathe---, no por un número: una meta
+    /// con nombre se le pide a alguien, y una meta «entre dos
+    /// asesores» no se le pide a nadie.
+    const [ahora, antes, equipo] = await Promise.all([
+      crmApi.proyeccionDeInscripciones(ventana),
+      ventanaAntes ? crmApi.proyeccionDeInscripciones(ventanaAntes) : null,
+      crmApi.asesoresDeInscripciones(ventana),
+    ]);
+    return { ahora, antes, equipo };
+  }, [ventana, ventanaAntes]);
   const vivos = useDatosVivos<{
     ahora: FilaDeProyeccion[];
     antes: FilaDeProyeccion[] | null;
@@ -1225,8 +1287,15 @@ function Proyeccion({ ventana, ventanaAntes, rotuloAnterior }: ConPeriodo) {
   const [guardando, setGuardando] = useState<string | null>(null);
 
   const setCampo = useCallback(
-    (accionId: string, campo: "asesores" | "dias" | "cierre", valor: string) => {
-      setBorrador((b) => ({ ...b, [accionId]: { ...b[accionId], [campo]: valor } }));
+    (
+      accionId: string,
+      campo: "asesores" | "dias" | "cierre",
+      valor: string,
+    ) => {
+      setBorrador((b) => ({
+        ...b,
+        [accionId]: { ...b[accionId], [campo]: valor },
+      }));
     },
     [],
   );
@@ -1259,7 +1328,9 @@ function Proyeccion({ ventana, ventanaAntes, rotuloAnterior }: ConPeriodo) {
         vivos.refrescar();
         toast.exito("Guardado.");
       } catch (e) {
-        toast.error((e as { message?: string }).message ?? "No se pudo guardar.");
+        toast.error(
+          (e as { message?: string }).message ?? "No se pudo guardar.",
+        );
       } finally {
         setGuardando(null);
       }
@@ -1276,7 +1347,8 @@ function Proyeccion({ ventana, ventanaAntes, rotuloAnterior }: ConPeriodo) {
   /// no estar allí ---nació después---: entonces no hay con qué
   /// comparar y no se pinta nada.
   const antesPorAccion = useMemo(
-    () => new Map((vivos.datos?.antes ?? []).map((f) => [f.accionFormacionId, f])),
+    () =>
+      new Map((vivos.datos?.antes ?? []).map((f) => [f.accionFormacionId, f])),
     [vivos.datos],
   );
   const comparando = vivos.datos?.antes != null;
@@ -1343,7 +1415,9 @@ function Proyeccion({ ventana, ventanaAntes, rotuloAnterior }: ConPeriodo) {
           valor={n(t.inscritos)}
           color="var(--exito)"
           detalle={
-            t.cupos > 0 ? `${Math.round((t.inscritos / t.cupos) * 100)} %` : undefined
+            t.cupos > 0
+              ? `${Math.round((t.inscritos / t.cupos) * 100)} %`
+              : undefined
           }
           pie={comparado(t.inscritos, inscritosAntes)}
         />
@@ -1355,7 +1429,9 @@ function Proyeccion({ ventana, ventanaAntes, rotuloAnterior }: ConPeriodo) {
         <CifraCompacta
           etiqueta="Leads que faltan"
           valor={n(t.porConseguir)}
-          pie={t.enRiesgo > 0 ? `${n(t.enRiesgo)} acciones en riesgo` : undefined}
+          pie={
+            t.enRiesgo > 0 ? `${n(t.enRiesgo)} acciones en riesgo` : undefined
+          }
         />
       </div>
 
@@ -1511,7 +1587,10 @@ function repartoDeLaProyeccion(
 type EdicionProyeccion = {
   puedeEditar: boolean;
   /// Lo que se está tecleando, sin guardar, por acción.
-  borrador: Record<string, { asesores?: string; dias?: string; cierre?: string }>;
+  borrador: Record<
+    string,
+    { asesores?: string; dias?: string; cierre?: string }
+  >;
   setCampo: (
     accionId: string,
     campo: "asesores" | "dias" | "cierre",
@@ -1616,24 +1695,63 @@ function CeldaNumero({
  * Como las de número: escribe en el borrador y se guarda con el
  * botón. Vacía = usa la del cronograma, que va de hint debajo.
  */
+/**
+ * LAS DEMÁS FECHAS EN QUE CIERRA LA ACCIÓN.
+ *
+ * «Las AF no cierran como tal una completa sino por partes» (cliente,
+ * 2 oct 2026). En el cronograma de ADECOPRIA seis de las siete cierran
+ * en dos o más fechas, y AF3 en cinco ---una por cada uno de sus
+ * grupos---.
+ *
+ * La columna sigue enseñando UNA: la más próxima, que es la primera
+ * puerta que se cierra y de la que salen los días y la meta diaria. Eso
+ * no cambia. Lo que faltaba era decir que hay más, porque el asesor de
+ * los grupos que cierran después estaba leyendo una fecha que no era la
+ * suya y no tenía cómo saberlo.
+ */
+function OtrosCierres({ fechas }: { fechas: string[] }) {
+  if (fechas.length < 2) return null;
+  return (
+    <span
+      className="mt-0.5 block text-xs text-aviso"
+      title={
+        `Esta acción cierra en ${fechas.length} fechas distintas, una por ` +
+        `tanda de grupos: ${fechas.map(dia).join(", ")}. Los días y la meta ` +
+        `diaria se cuentan contra la primera.`
+      }
+    >
+      cierra por partes: {fechas.map(dia).join(" · ")}
+    </span>
+  );
+}
+
 function CeldaFecha({
   accionId,
   guardado,
   delCronograma,
+  cierres,
   edicion,
 }: {
   accionId: string;
   guardado: string | null;
   delCronograma: string | null;
+  cierres: string[];
   edicion: EdicionProyeccion;
 }) {
   if (!edicion.puedeEditar) {
-    return guardado ? (
-      <span>{dia(guardado)}</span>
-    ) : delCronograma ? (
-      <span>{dia(delCronograma)}</span>
-    ) : (
-      <span className="text-aviso">Sin fecha</span>
+    return (
+      <span className="block">
+        {guardado ? (
+          <span>{dia(guardado)}</span>
+        ) : delCronograma ? (
+          <span>{dia(delCronograma)}</span>
+        ) : (
+          <span className="text-aviso">Sin fecha</span>
+        )}
+        {/* TAMBIÉN A QUIEN NO PUEDE EDITAR, que es justamente el
+            asesor: es el que trabaja contra esa fecha. */}
+        <OtrosCierres fechas={cierres} />
+      </span>
     );
   }
   const enBorrador = edicion.borrador[accionId]?.cierre;
@@ -1653,6 +1771,7 @@ function CeldaFecha({
           cronograma: {dia(delCronograma)}
         </span>
       )}
+      <OtrosCierres fechas={cierres} />
     </span>
   );
 }
@@ -1712,7 +1831,9 @@ const columnasDeProyeccion = (
         <span className="shrink-0 font-mono text-xs whitespace-nowrap text-texto-suave">
           {f.codigo}
         </span>
-        <span className="min-w-0 break-words whitespace-normal">{f.nombre}</span>
+        <span className="min-w-0 break-words whitespace-normal">
+          {f.nombre}
+        </span>
       </span>
     ),
   },
@@ -1751,7 +1872,9 @@ const columnasDeProyeccion = (
     valor: (f) => f.faltan,
     pinta: (f) => (
       <span
-        className={"font-semibold tabular-nums " + (f.faltan > 0 ? "text-error" : "")}
+        className={
+          "font-semibold tabular-nums " + (f.faltan > 0 ? "text-error" : "")
+        }
       >
         {n(f.faltan)}
       </span>
@@ -1811,7 +1934,10 @@ const columnasDeProyeccion = (
     valor: (f) =>
       metasEnVivo(f, edicion.borrador[f.accionFormacionId]).metaDiaria ?? 0,
     pinta: (f) => {
-      const { metaDiaria } = metasEnVivo(f, edicion.borrador[f.accionFormacionId]);
+      const { metaDiaria } = metasEnVivo(
+        f,
+        edicion.borrador[f.accionFormacionId],
+      );
       return (
         <span className="font-semibold tabular-nums">
           {metaDiaria === null ? "—" : n(Math.round(metaDiaria))}
@@ -1874,6 +2000,9 @@ const columnasDeProyeccion = (
         accionId={f.accionFormacionId}
         guardado={f.cierreProyeccion}
         delCronograma={f.cierre}
+        /// `?? []` porque un backend anterior a esto no manda el campo,
+        /// y leerle `.length` a `undefined` tumba la tabla entera.
+        cierres={f.cierresDeLosGrupos ?? []}
         edicion={edicion}
       />
     ),
@@ -1917,21 +2046,22 @@ const columnasDeProyeccion = (
  * parecidas pero distintas en la misma pantalla es como se acaba
  * comparando lo que no se puede comparar.
  */
-function ProyeccionAcademica({ ventana, ventanaAntes, rotuloAnterior }: ConPeriodo) {
+function ProyeccionAcademica({
+  ventana,
+  ventanaAntes,
+  rotuloAnterior,
+}: ConPeriodo) {
   /// Los dos periodos en la misma consulta, como en las otras tres.
-  const cargar = useCallback(
-    async (): Promise<{
-      ahora: FilaDeProyeccionAcademica[];
-      antes: FilaDeProyeccionAcademica[] | null;
-    }> => {
-      const [ahora, antes] = await Promise.all([
-        crmApi.proyeccionAcademica(ventana),
-        ventanaAntes ? crmApi.proyeccionAcademica(ventanaAntes) : null,
-      ]);
-      return { ahora, antes };
-    },
-    [ventana, ventanaAntes],
-  );
+  const cargar = useCallback(async (): Promise<{
+    ahora: FilaDeProyeccionAcademica[];
+    antes: FilaDeProyeccionAcademica[] | null;
+  }> => {
+    const [ahora, antes] = await Promise.all([
+      crmApi.proyeccionAcademica(ventana),
+      ventanaAntes ? crmApi.proyeccionAcademica(ventanaAntes) : null,
+    ]);
+    return { ahora, antes };
+  }, [ventana, ventanaAntes]);
   const vivos = useDatosVivos<{
     ahora: FilaDeProyeccionAcademica[];
     antes: FilaDeProyeccionAcademica[] | null;
@@ -1940,7 +2070,8 @@ function ProyeccionAcademica({ ventana, ventanaAntes, rotuloAnterior }: ConPerio
   });
 
   const antesPorAccion = useMemo(
-    () => new Map((vivos.datos?.antes ?? []).map((f) => [f.accionFormacionId, f])),
+    () =>
+      new Map((vivos.datos?.antes ?? []).map((f) => [f.accionFormacionId, f])),
     [vivos.datos],
   );
   const comparando = vivos.datos?.antes != null;
@@ -1974,7 +2105,13 @@ function ProyeccionAcademica({ ventana, ventanaAntes, rotuloAnterior }: ConPerio
         a.enRiesgo +
         (f.veredicto === "NO_LLEGA" || f.veredicto === "APRETADO" ? 1 : 0),
     }),
-    { enElAula: 0, certificados: 0, porCertificar: 0, salieron: 0, enRiesgo: 0 },
+    {
+      enElAula: 0,
+      certificados: 0,
+      porCertificar: 0,
+      salieron: 0,
+      enRiesgo: 0,
+    },
   );
 
   /// Del tramo de antes, solo lo que se compara.
@@ -2018,7 +2155,9 @@ function ProyeccionAcademica({ ventana, ventanaAntes, rotuloAnterior }: ConPerio
           etiqueta="Por certificar"
           valor={n(t.porCertificar)}
           color={t.porCertificar > 0 ? "var(--error)" : undefined}
-          pie={t.enRiesgo > 0 ? `${n(t.enRiesgo)} acciones en riesgo` : undefined}
+          pie={
+            t.enRiesgo > 0 ? `${n(t.enRiesgo)} acciones en riesgo` : undefined
+          }
         />
         {/* SALIERON, aparte y sin color de alarma: no son pendientes
             que se puedan recuperar, y meterlos con los otros haría
@@ -2031,7 +2170,6 @@ function ProyeccionAcademica({ ventana, ventanaAntes, rotuloAnterior }: ConPerio
       </div>
 
       {comparando && <ContraQue rotulo={rotuloAnterior} />}
-
 
       <Tabla
         cuadricula
@@ -2067,7 +2205,9 @@ const columnasDeProyeccionAcademica = (
         <span className="shrink-0 font-mono text-xs whitespace-nowrap text-texto-suave">
           {f.codigo}
         </span>
-        <span className="min-w-0 break-words whitespace-normal">{f.nombre}</span>
+        <span className="min-w-0 break-words whitespace-normal">
+          {f.nombre}
+        </span>
       </span>
     ),
   },
@@ -2091,7 +2231,10 @@ const columnasDeProyeccionAcademica = (
     valor: (f) => f.certificados,
     pinta: (f) => (
       <span className="font-medium text-exito tabular-nums">
-        <Cifra ahora={f.certificados} antes={antesDe(f)?.certificados ?? null} />
+        <Cifra
+          ahora={f.certificados}
+          antes={antesDe(f)?.certificados ?? null}
+        />
       </span>
     ),
   },
@@ -2104,7 +2247,8 @@ const columnasDeProyeccionAcademica = (
     pinta: (f) => (
       <span
         className={
-          "font-semibold tabular-nums " + (f.porCertificar > 0 ? "text-error" : "")
+          "font-semibold tabular-nums " +
+          (f.porCertificar > 0 ? "text-error" : "")
         }
       >
         {n(f.porCertificar)}
@@ -2162,7 +2306,9 @@ const columnasDeProyeccionAcademica = (
     ancho: "165px",
     numerica: true,
     valor: (f) => f.certificadosVentana,
-    pinta: (f) => <span className="tabular-nums">{n(f.certificadosVentana)}</span>,
+    pinta: (f) => (
+      <span className="tabular-nums">{n(f.certificadosVentana)}</span>
+    ),
   },
   {
     clave: "proyeccion",
@@ -2174,7 +2320,9 @@ const columnasDeProyeccionAcademica = (
       <span
         className={
           "font-semibold tabular-nums " +
-          (f.proyeccion >= f.enElAula - f.salieron ? "text-exito" : "text-error")
+          (f.proyeccion >= f.enElAula - f.salieron
+            ? "text-exito"
+            : "text-error")
         }
       >
         {n(f.proyeccion)}
@@ -2188,7 +2336,10 @@ const columnasDeProyeccionAcademica = (
     valor: (f) => VEREDICTO[f.veredicto].texto,
     filtro: "opciones",
     pinta: (f) => (
-      <span className="font-medium" style={{ color: VEREDICTO[f.veredicto].color }}>
+      <span
+        className="font-medium"
+        style={{ color: VEREDICTO[f.veredicto].color }}
+      >
         {VEREDICTO[f.veredicto].texto}
       </span>
     ),

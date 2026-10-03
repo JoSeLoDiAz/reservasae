@@ -43,7 +43,11 @@ import {
   llevanFichasEn,
 } from './quien-lleva-fichas';
 import { analizar, esInsalvable, repetidosEnElPegado } from './carga';
-import { leerOrganizacion, queSeEscribe, type OrganizacionLeida } from './organizacion-de-carga';
+import {
+  leerOrganizacion,
+  queSeEscribe,
+  type OrganizacionLeida,
+} from './organizacion-de-carga';
 import { lugarDeUbicacion } from './plantilla-de-carga';
 import { elegirOferta, type OfertaParaCarga } from './accion-de-la-fila';
 import {
@@ -52,7 +56,11 @@ import {
   exigeDatosParaElAula,
   motivoDeTransicionImposible,
 } from './escalera';
-import { cubreA, exigirCoberturaDeLaOferta, repartirPorCobertura } from './cobertura';
+import {
+  cubreA,
+  exigirCoberturaDeLaOferta,
+  repartirPorCobertura,
+} from './cobertura';
 import type { Ambito } from '../admin/admin.guard';
 import {
   completarFila,
@@ -73,6 +81,7 @@ import {
 } from './resumen-general';
 import {
   cierrePorAccion,
+  cierresPorAccion,
   repartirAcademicos,
   repartirInscripciones,
   type FilaDeAsesor,
@@ -734,9 +743,9 @@ export class CrmService {
     recorte: RecorteDelResumen = {},
   ): Promise<FilaDeAccion[]> {
     if (ambito.convenios.length === 0) return [];
-    const filas = await this.prisma.$queryRaw<Parameters<typeof completarFila>[0][]>(
-      resumenPorAccionSql(ambito.convenios, ambito.gremioElegido, recorte),
-    );
+    const filas = await this.prisma.$queryRaw<
+      Parameters<typeof completarFila>[0][]
+    >(resumenPorAccionSql(ambito.convenios, ambito.gremioElegido, recorte));
     const completas = filas.map(completarFila);
     /// CON UNA ACCIÓN ELEGIDA, SOLO ESA FILA.
     ///
@@ -747,7 +756,9 @@ export class CrmService {
     /// catorce en cero, y es lo que el cliente pidió al pulsar una
     /// fila: «que se oculten las demás AF» (23 sep 2026).
     return recorte.accionFormacionId
-      ? completas.filter((f) => f.accionFormacionId === recorte.accionFormacionId)
+      ? completas.filter(
+          (f) => f.accionFormacionId === recorte.accionFormacionId,
+        )
       : completas;
   }
 
@@ -761,7 +772,11 @@ export class CrmService {
    * la misma pregunta, en la misma pantalla.
    */
   async resumenGeneral(filtros: Filtros): Promise<FilaResumenGeneral[]> {
-    const donde = this.donde({ ...filtros, etapa: undefined, tramo: undefined });
+    const donde = this.donde({
+      ...filtros,
+      etapa: undefined,
+      tramo: undefined,
+    });
     const filas = await this.prisma.participante.findMany({
       where: donde,
       select: SELECT_RESUMEN_GENERAL,
@@ -776,7 +791,10 @@ export class CrmService {
    * grupos de las quince, que es una tabla de setenta filas y ya
    * existe una arriba que dice lo mismo resumido.
    */
-  async resumenPorGrupo(ambito: Ambito, accionFormacionId: string): Promise<FilaDeGrupo[]> {
+  async resumenPorGrupo(
+    ambito: Ambito,
+    accionFormacionId: string,
+  ): Promise<FilaDeGrupo[]> {
     if (ambito.convenios.length === 0) return [];
     /// El ámbito se comprueba por la acción y no dentro del SQL: una
     /// cuenta sin concesión en ese gremio no puede abrir sus grupos
@@ -786,9 +804,9 @@ export class CrmService {
       select: { id: true },
     });
     if (!suya) return [];
-    const filas = await this.prisma.$queryRaw<Parameters<typeof completarGrupo>[0][]>(
-      resumenPorGrupoSql(accionFormacionId),
-    );
+    const filas = await this.prisma.$queryRaw<
+      Parameters<typeof completarGrupo>[0][]
+    >(resumenPorGrupoSql(accionFormacionId));
     return filas.map(completarGrupo);
   }
 
@@ -805,7 +823,10 @@ export class CrmService {
     ahora = new Date(),
   ): Promise<FilaDeAsesor[]> {
     if (ambito.convenios.length === 0) return [];
-    const donde = { convenioId: { in: ambito.convenios }, ...cuandoLlego(ventana) };
+    const donde = {
+      convenioId: { in: ambito.convenios },
+      ...cuandoLlego(ventana),
+    };
 
     const [leads, grupos] = await Promise.all([
       this.prisma.participante.findMany({
@@ -872,7 +893,10 @@ export class CrmService {
     ahora = new Date(),
   ): Promise<FilaConMetas[]> {
     if (ambito.convenios.length === 0) return [];
-    const donde = { convenioId: { in: ambito.convenios }, ...cuandoLlego(ventana) };
+    const donde = {
+      convenioId: { in: ambito.convenios },
+      ...cuandoLlego(ventana),
+    };
 
     /// EL ARRANQUE DE LA VENTANA DEL RITMO, en dias de TRABAJO.
     const desdeRitmo = diasDeTrabajoAtras(hoyEnColombia(ahora), DIAS_DE_RITMO);
@@ -976,10 +1000,24 @@ export class CrmService {
       ahora,
     );
 
+    /**
+     * TODAS las fechas en que cierra cada acción, para poder decirlo.
+     *
+     * «Las AF no cierran como tal una completa sino por partes»
+     * (cliente, 2 oct 2026). La fila sigue llevando UNA fecha ---la más
+     * próxima, que es la primera puerta que se cierra--- porque de ella
+     * salen los días y la meta diaria y eso no cambia. Lo que faltaba
+     * era poder avisar de que hay más: en el cronograma de ADECOPRIA,
+     * seis de las siete acciones cierran en dos o más fechas y AF3 en
+     * cinco, así que el asesor de los grupos que cierran después veía
+     * una fecha que no era la suya y no tenía cómo saberlo.
+     */
+    const todosLosCierres = cierresPorAccion(grupos);
+
     /// Y encima, la cuenta de metas de Josse: # asesores y días
     /// editables → meta diaria y meta por asesor.
-    return filas.map((f) =>
-      conMetas(
+    return filas.map((f) => ({
+      ...conMetas(
         f,
         configPorAccion.get(f.accionFormacionId) ?? {
           asesores: null,
@@ -987,7 +1025,13 @@ export class CrmService {
           cierre: null,
         },
       ),
-    );
+      /// En el mismo formato que `cierre`, que es lo que la pantalla
+      /// ya sabe leer. Una sola fecha aquí significa que la acción
+      /// cierra entera y la pantalla no tiene nada que avisar.
+      cierresDeLosGrupos: (todosLosCierres.get(f.accionFormacionId) ?? []).map(
+        (d) => d.toISOString().slice(0, 10),
+      ),
+    }));
   }
 
   /**
@@ -1184,7 +1228,8 @@ export class CrmService {
     for (const g of grupos) {
       if (!g.fechaFin) continue;
       const actual = finales.get(g.accionFormacionId);
-      if (!actual || g.fechaFin > actual) finales.set(g.accionFormacionId, g.fechaFin);
+      if (!actual || g.fechaFin > actual)
+        finales.set(g.accionFormacionId, g.fechaFin);
     }
 
     /// Una vez por persona, como en la otra: certificar deja un
@@ -1350,31 +1395,31 @@ export class CrmService {
      */
     const [asesores, asesoresAsignables, acciones, convenios] =
       await Promise.all([
-      this.prisma.admin.findMany({
-        where: { id: { in: idsAsesor } },
-        select: { id: true, nombre: true },
-        orderBy: { nombre: 'asc' },
-      }),
-      /// Sin ámbito no se pregunta: `llevanFichasEn([])` no casa con
-      /// nadie, pero pedirlo igual es una consulta que se sabe vacía.
-      !filtros.ambito || filtros.ambito.length === 0
-        ? Promise.resolve([])
-        : this.prisma.admin.findMany({
-            where: llevanFichasEn(filtros.ambito),
-            select: { id: true, nombre: true },
-            orderBy: { nombre: 'asc' },
-          }),
-      this.prisma.accionFormacion.findMany({
-        where: { id: { in: idsAccion } },
-        select: { id: true, codigo: true, nombre: true },
-        orderBy: { codigo: 'asc' },
-      }),
-      this.prisma.convenio.findMany({
-        where: { id: { in: idsConvenio } },
-        select: { id: true, sigla: true, nombre: true },
-        orderBy: { nombre: 'asc' },
-      }),
-    ]);
+        this.prisma.admin.findMany({
+          where: { id: { in: idsAsesor } },
+          select: { id: true, nombre: true },
+          orderBy: { nombre: 'asc' },
+        }),
+        /// Sin ámbito no se pregunta: `llevanFichasEn([])` no casa con
+        /// nadie, pero pedirlo igual es una consulta que se sabe vacía.
+        !filtros.ambito || filtros.ambito.length === 0
+          ? Promise.resolve([])
+          : this.prisma.admin.findMany({
+              where: llevanFichasEn(filtros.ambito),
+              select: { id: true, nombre: true },
+              orderBy: { nombre: 'asc' },
+            }),
+        this.prisma.accionFormacion.findMany({
+          where: { id: { in: idsAccion } },
+          select: { id: true, codigo: true, nombre: true },
+          orderBy: { codigo: 'asc' },
+        }),
+        this.prisma.convenio.findMany({
+          where: { id: { in: idsConvenio } },
+          select: { id: true, sigla: true, nombre: true },
+          orderBy: { nombre: 'asc' },
+        }),
+      ]);
 
     const totalAsesor = new Map(
       porAsesor.map((f) => [f.asesorId, f._count._all]),
@@ -1709,9 +1754,19 @@ export class CrmService {
   /// El motivo por el que esta oferta no admite inscripciones,
   /// listo para la pantalla. Null en `porQueNo` cuando si admite.
   private async puedeInscribirse(ofertaId: string | null) {
-    if (!ofertaId) return { admite: false, porQueNo: 'No tiene oferta asignada.', motivo: 'SIN_OFERTA' as const };
+    if (!ofertaId)
+      return {
+        admite: false,
+        porQueNo: 'No tiene oferta asignada.',
+        motivo: 'SIN_OFERTA' as const,
+      };
     const panel = await this.cupos.deLaOferta(ofertaId);
-    if (!panel) return { admite: false, porQueNo: 'No se encontró su oferta.', motivo: 'SIN_OFERTA' as const };
+    if (!panel)
+      return {
+        admite: false,
+        porQueNo: 'No se encontró su oferta.',
+        motivo: 'SIN_OFERTA' as const,
+      };
     return {
       admite: panel.admiteInscripciones,
       porQueNo: panel.porQueNo,
@@ -3135,9 +3190,11 @@ export class CrmService {
      *     mensaje dice cuál es para que el asesor sepa que esa
      *     persona va movida a la existente, no renombrada aquí.
      */
-    let parcheNit:
-      | { nit: string; digitoVerificacion: string; institucionId: null }
-      | null = null;
+    let parcheNit: {
+      nit: string;
+      digitoVerificacion: string;
+      institucionId: null;
+    } | null = null;
     let nitAntes: string | null = null;
 
     if (datos.nit !== undefined && datos.nit.trim() !== '') {
@@ -3260,7 +3317,10 @@ export class CrmService {
     /// municipio que no cuadra tumba el cargue entero— y misma
     /// función que ya usa la ficha de la persona, para que no
     /// haya dos reglas distintas.
-    if (limpio.municipioSepId !== undefined || limpio.departamentoSepId !== undefined) {
+    if (
+      limpio.municipioSepId !== undefined ||
+      limpio.departamentoSepId !== undefined
+    ) {
       const actual = await this.prisma.empresa.findUnique({
         where: { id: empresaId },
         select: { departamentoSepId: true, municipioSepId: true },
@@ -3279,7 +3339,7 @@ export class CrmService {
         throw new BadRequestException(
           limpio.municipioSepId === undefined
             ? 'El municipio que ya tiene no es de ese departamento. Cambie ' +
-              'también el municipio.'
+                'también el municipio.'
             : 'Ese municipio no pertenece a ese departamento.',
         );
       }
@@ -3810,7 +3870,9 @@ export class CrmService {
         etapa: true,
         creadoEn: true,
         convenioId: true,
-        accionFormacion: { select: { codigo: true, nombre: true, evento: true } },
+        accionFormacion: {
+          select: { codigo: true, nombre: true, evento: true },
+        },
         asesor: { select: { id: true, nombre: true } },
         empresa: { select: { razonSocial: true } },
         _count: { select: { notas: true, avances: true } },
@@ -3855,39 +3917,41 @@ export class CrmService {
       porPersona.set(llave, suyas);
     }
 
-    return [...porPersona.values()]
-      .filter((x) => x.length > 1)
-      .map((x) => ({
-        personaId: x[0].personaId,
-        nombre: [
-          x[0].persona.primerNombre,
-          x[0].persona.segundoNombre,
-          x[0].persona.primerApellido,
-          x[0].persona.segundoApellido,
-        ]
-          .filter(Boolean)
-          .join(' '),
-        documento: x[0].persona.numeroDocumento,
-        correo: x[0].persona.correo,
-        fichas: x.map((f) => ({
-          id: f.id,
-          codigo: f.accionFormacion?.codigo ?? null,
-          accion: f.accionFormacion?.nombre ?? null,
-          etapa: f.etapa,
-          asesor: f.asesor?.nombre ?? null,
-          empresa: f.empresa?.razonSocial ?? null,
-          creadoEn: f.creadoEn,
-          notas: f._count.notas,
-          avances: f._count.avances,
-        })),
-      }))
-      /// Primero las que más gestión tienen encima: son las que más
-      /// cuesta deshacer a mano y las que más urge unir bien.
-      .sort(
-        (a, b) =>
-          b.fichas.reduce((t, f) => t + f.notas, 0) -
-          a.fichas.reduce((t, f) => t + f.notas, 0),
-      );
+    return (
+      [...porPersona.values()]
+        .filter((x) => x.length > 1)
+        .map((x) => ({
+          personaId: x[0].personaId,
+          nombre: [
+            x[0].persona.primerNombre,
+            x[0].persona.segundoNombre,
+            x[0].persona.primerApellido,
+            x[0].persona.segundoApellido,
+          ]
+            .filter(Boolean)
+            .join(' '),
+          documento: x[0].persona.numeroDocumento,
+          correo: x[0].persona.correo,
+          fichas: x.map((f) => ({
+            id: f.id,
+            codigo: f.accionFormacion?.codigo ?? null,
+            accion: f.accionFormacion?.nombre ?? null,
+            etapa: f.etapa,
+            asesor: f.asesor?.nombre ?? null,
+            empresa: f.empresa?.razonSocial ?? null,
+            creadoEn: f.creadoEn,
+            notas: f._count.notas,
+            avances: f._count.avances,
+          })),
+        }))
+        /// Primero las que más gestión tienen encima: son las que más
+        /// cuesta deshacer a mano y las que más urge unir bien.
+        .sort(
+          (a, b) =>
+            b.fichas.reduce((t, f) => t + f.notas, 0) -
+            a.fichas.reduce((t, f) => t + f.notas, 0),
+        )
+    );
   }
 
   /**
@@ -3955,8 +4019,14 @@ export class CrmService {
     } as const;
 
     const [conservar, absorbida] = await Promise.all([
-      this.prisma.participante.findUnique({ where: { id: dto.conservarId }, select: campos }),
-      this.prisma.participante.findUnique({ where: { id: dto.absorberId }, select: campos }),
+      this.prisma.participante.findUnique({
+        where: { id: dto.conservarId },
+        select: campos,
+      }),
+      this.prisma.participante.findUnique({
+        where: { id: dto.absorberId },
+        select: campos,
+      }),
     ]);
     if (!conservar || !absorbida) {
       throw new NotFoundException('Una de las dos fichas ya no existe.');
@@ -3984,7 +4054,8 @@ export class CrmService {
       return m;
     });
 
-    const quien = `${conservar.persona.primerNombre} ${conservar.persona.primerApellido ?? ''}`.trim();
+    const quien =
+      `${conservar.persona.primerNombre} ${conservar.persona.primerApellido ?? ''}`.trim();
     await this.auditoria.registrar({
       actor: admin,
       accion: 'PARTICIPANTE_BORRADO',
@@ -4094,13 +4165,11 @@ export class CrmService {
    * decir a cuál no significa nada, y al llegar la fecha no
    * hay contra qué matricularlo.
    */
-  private async exigirQueQuepa(
-    p: {
-      id: string;
-      ofertaId: string | null;
-      coberturaId: string | null;
-    },
-  ) {
+  private async exigirQueQuepa(p: {
+    id: string;
+    ofertaId: string | null;
+    coberturaId: string | null;
+  }) {
     /// Sin los datos de su organización no se inscribe.
     ///
     /// Es una cadena: inscribir es comprometerse a reportar a
@@ -4523,7 +4592,10 @@ export class CrmService {
           const [cobertura, dentro] = await Promise.all([
             tx.grupoCobertura.findUnique({
               where: { id: p.coberturaId },
-              select: { cuposMaximos: true, grupo: { select: { numero: true } } },
+              select: {
+                cuposMaximos: true,
+                grupo: { select: { numero: true } },
+              },
             }),
             tx.participante.count({
               where: {
@@ -5072,15 +5144,24 @@ export class CrmService {
       /// La acción de la fila, si la trae; si no, la de la pantalla.
       const elegida = elegirOferta(f.accionCodigo, ofertasDelConvenio, {
         departamento: f.departamentoSepId
-          ? DEPARTAMENTO_POR_ID.get(f.departamentoSepId)?.etiqueta ?? null
+          ? (DEPARTAMENTO_POR_ID.get(f.departamentoSepId)?.etiqueta ?? null)
           : null,
-        ciudad: f.municipioSepId ? MUNICIPIO_POR_ID.get(f.municipioSepId)?.[2] ?? null : null,
+        ciudad: f.municipioSepId
+          ? (MUNICIPIO_POR_ID.get(f.municipioSepId)?.[2] ?? null)
+          : null,
       });
       problemas.push(...elegida.problemas);
-      const ofertaId = elegida.ofertaId ?? (f.accionCodigo ? null : oferta?.id ?? null);
+      const ofertaId =
+        elegida.ofertaId ?? (f.accionCodigo ? null : (oferta?.id ?? null));
       const accionFormacionId =
-        elegida.accionFormacionId ?? (f.accionCodigo ? null : oferta?.accionFormacionId ?? null);
-      if (f.accionCodigo && oferta && accionFormacionId && accionFormacionId !== oferta.accionFormacionId) {
+        elegida.accionFormacionId ??
+        (f.accionCodigo ? null : (oferta?.accionFormacionId ?? null));
+      if (
+        f.accionCodigo &&
+        oferta &&
+        accionFormacionId &&
+        accionFormacionId !== oferta.accionFormacionId
+      ) {
         problemas.push(
           `el archivo pide ${f.accionCodigo} y arriba se eligió otra acción: manda la del archivo`,
         );
@@ -5103,7 +5184,9 @@ export class CrmService {
           estado = 'PERSONA_CONOCIDA';
           if (
             accionFormacionId &&
-            persona.participaciones.some((x) => x.accionFormacionId === accionFormacionId)
+            persona.participaciones.some(
+              (x) => x.accionFormacionId === accionFormacionId,
+            )
           ) {
             estado = 'DESCARTADA';
             problemas.push('ya está en esa acción de formación');
@@ -5138,17 +5221,14 @@ export class CrmService {
       filas: previa,
       /// La organización se mira DESPUÉS de resolver las filas: su
       /// reserva es de una oferta, y las ofertas las deciden las filas.
-      organizacion: await this.organizacionDeLaCarga(
-        dto,
-        [
-          ...new Set(
-            previa
-              .filter((f) => f.estado !== 'DESCARTADA' && f.estado !== 'REPETIDA')
-              .map((f) => f.ofertaId ?? dto.ofertaId)
-              .filter((x): x is string => Boolean(x)),
-          ),
-        ],
-      ),
+      organizacion: await this.organizacionDeLaCarga(dto, [
+        ...new Set(
+          previa
+            .filter((f) => f.estado !== 'DESCARTADA' && f.estado !== 'REPETIDA')
+            .map((f) => f.ofertaId ?? dto.ofertaId)
+            .filter((x): x is string => Boolean(x)),
+        ),
+      ]),
     };
   }
 
@@ -5285,7 +5365,10 @@ export class CrmService {
     }
     const { datos } = queSeEscribe(empresa, org);
     if (Object.keys(datos).length > 0) {
-      await this.prisma.empresa.update({ where: { id: empresa.id }, data: datos });
+      await this.prisma.empresa.update({
+        where: { id: empresa.id },
+        data: datos,
+      });
     }
     return empresa.id;
   }
@@ -5371,7 +5454,11 @@ export class CrmService {
       ];
       if (ofertas.length > 0) {
         const reservas = await this.prisma.reserva.findMany({
-          where: { empresaId, ofertaId: { in: ofertas }, estado: { not: 'CANCELADA' } },
+          where: {
+            empresaId,
+            ofertaId: { in: ofertas },
+            estado: { not: 'CANCELADA' },
+          },
           select: { id: true, ofertaId: true },
         });
         for (const r of reservas) reservaPorOferta.set(r.ofertaId, r.id);
@@ -5383,7 +5470,8 @@ export class CrmService {
       try {
         /// El grupo de ESTA fila --el que cubre donde vive-- y, si no
         /// trajo acción, el que se eligió en la pantalla.
-        const ofertaDeLaFila = f.ofertaId ?? (f.accionCodigo ? undefined : dto.ofertaId);
+        const ofertaDeLaFila =
+          f.ofertaId ?? (f.accionCodigo ? undefined : dto.ofertaId);
         const hecho = await this.crear(
           {
             tipoDocumentoSepId: f.tipoDocumentoSepId,
@@ -5411,11 +5499,15 @@ export class CrmService {
             ofertaId: ofertaDeLaFila,
             /// Sin grupo que le sirva, al menos la ACCIÓN: así cuenta
             /// para su meta y el asesor solo tiene que ponerle grupo.
-            accionFormacionId: ofertaDeLaFila ? undefined : f.accionFormacionId ?? undefined,
+            accionFormacionId: ofertaDeLaFila
+              ? undefined
+              : (f.accionFormacionId ?? undefined),
             /// Con la reserva, cada persona ocupa un cupo con nombre de su
             /// organización. `crear` la comprueba: del convenio y de la
             /// misma oferta.
-            reservaId: ofertaDeLaFila ? reservaPorOferta.get(ofertaDeLaFila) : undefined,
+            reservaId: ofertaDeLaFila
+              ? reservaPorOferta.get(ofertaDeLaFila)
+              : undefined,
             origen: 'EMPRESA',
           },
           admin,
@@ -5426,9 +5518,7 @@ export class CrmService {
           /// antes del 2 oct 2026. Sin esta línea `crear` cae en su
           /// valor por defecto --no-- y la lista entera nace sin
           /// asesor, que es un cambio de dueño que nadie decidió.
-          conveniosQueLlevanFichas(rolesPorConvenio).includes(
-            dto.convenioId,
-          ),
+          conveniosQueLlevanFichas(rolesPorConvenio).includes(dto.convenioId),
         );
         creados += 1;
         if (hecho?.id) nuevos.push(hecho.id);
@@ -5476,7 +5566,9 @@ export class CrmService {
    * persona, se prefiere el que tiene más sitio, y así una tanda grande
    * no llena uno y deja el otro vacío.
    */
-  private async ofertasParaCarga(convenioId: string): Promise<OfertaParaCarga[]> {
+  private async ofertasParaCarga(
+    convenioId: string,
+  ): Promise<OfertaParaCarga[]> {
     const ofertas = await this.prisma.oferta.findMany({
       where: { accionFormacion: { convenioId } },
       select: {
@@ -5486,7 +5578,9 @@ export class CrmService {
         accionFormacionId: true,
         accionFormacion: { select: { codigo: true, nombre: true } },
         ubicacion: { select: { nombre: true, tipo: true, departamento: true } },
-        _count: { select: { participantes: { where: { etapa: { in: ETAPAS_VIVAS } } } } },
+        _count: {
+          select: { participantes: { where: { etapa: { in: ETAPAS_VIVAS } } } },
+        },
       },
     });
 
@@ -5515,7 +5609,10 @@ export class CrmService {
 
     const ofertas = await this.prisma.oferta.findMany({
       where: { accionFormacion: { convenioId }, abierta: true },
-      orderBy: [{ accionFormacion: { orden: 'asc' } }, { ubicacion: { nombre: 'asc' } }],
+      orderBy: [
+        { accionFormacion: { orden: 'asc' } },
+        { ubicacion: { nombre: 'asc' } },
+      ],
       select: {
         ubicacion: { select: { nombre: true, departamento: true } },
         accionFormacion: { select: { codigo: true, nombre: true } },
@@ -5527,7 +5624,10 @@ export class CrmService {
     for (const o of ofertas) {
       const etiqueta = `${o.accionFormacion.codigo} · ${o.accionFormacion.nombre}`;
       const deptos = porAccion.get(etiqueta) ?? new Set<number>();
-      const lugar = lugarDeUbicacion(o.ubicacion.nombre, o.ubicacion.departamento);
+      const lugar = lugarDeUbicacion(
+        o.ubicacion.nombre,
+        o.ubicacion.departamento,
+      );
       if (lugar) {
         deptos.add(lugar.departamentoSepId);
         if (lugar.municipioSepId) conAula.add(lugar.municipioSepId);
@@ -5606,41 +5706,41 @@ export class CrmService {
     const reglasDelAula: Prisma.ParticipanteWhereInput[] = [
       { etapa: { in: ETAPAS_EN_AULA } },
       /// SOLO LO VIRTUAL, Y POR LA OFERTA DE CADA PERSONA.
-        ///
-        /// «Seguimiento del aula es solo de las acciones de formación
-        /// virtuales; no aplica presencial, bootcamp ni foro»
-        /// (cliente, 24 sep 2026).
-        ///
-        /// Se mira la modalidad de SU cobertura y no la de la acción,
-        /// y no es un capricho: AF7 y AF8 tienen ofertas presenciales,
-        /// híbridas y virtuales a la vez, así que la acción no
-        /// distingue a quién sigue un aula. La cobertura sí: es la
-        /// oferta concreta en la que esa persona quedó.
-        ///
-        /// Y la modalidad de la ACCIÓN tampoco serviría aunque fueran
-        /// puras: AF6 es un bootcamp y está guardada como PRESENCIAL
-        /// --lo dice el comentario de `SesionDeGrupo` en el schema--,
-        /// así que preguntar por la acción dejaría fuera lo correcto
-        /// por accidente y no por la regla.
-        { cobertura: { modalidad: 'VIRTUAL' } },
-        /// Y SOLO LOS CURSOS: «no aplica presencial, bootcamp ni
-        /// foro» (cliente, 24 sep 2026).
-        ///
-        /// Por `evento`, que es el campo que ya lo decía --CURSO,
-        /// TALLER, TALLER-BOOTCAMP, FORO-- y que la pantalla de Oferta
-        /// lleva enseñando desde siempre: «AF1 · CURSO virtual · 40 h».
-        ///
-        /// ESTUVO UN RATO COMO UNA LISTA DE CÓDIGOS a mano, con «AF7»
-        /// dentro, y estaba mal de una forma que solo se ve mirando los
-        /// dos gremios a la vez: el foro es AF8 en uno y AF7 en el
-        /// otro. Aquella lista sacaba el foro de ADECOPRIA y, de paso,
-        /// el BOOTCAMP del otro gremio, dejando su foro dentro. Justo
-        /// al revés de lo que se pedía, y sin que nada fallara.
-        ///
-        /// La regla es del dato, no del código de la acción. Un
-        /// convenio nuevo con sus propios números entra sin tocar una
-        /// línea, que es la misma razón por la que `SesionDeGrupo` no
-        /// pregunta nunca «¿es la AF6?».
+      ///
+      /// «Seguimiento del aula es solo de las acciones de formación
+      /// virtuales; no aplica presencial, bootcamp ni foro»
+      /// (cliente, 24 sep 2026).
+      ///
+      /// Se mira la modalidad de SU cobertura y no la de la acción,
+      /// y no es un capricho: AF7 y AF8 tienen ofertas presenciales,
+      /// híbridas y virtuales a la vez, así que la acción no
+      /// distingue a quién sigue un aula. La cobertura sí: es la
+      /// oferta concreta en la que esa persona quedó.
+      ///
+      /// Y la modalidad de la ACCIÓN tampoco serviría aunque fueran
+      /// puras: AF6 es un bootcamp y está guardada como PRESENCIAL
+      /// --lo dice el comentario de `SesionDeGrupo` en el schema--,
+      /// así que preguntar por la acción dejaría fuera lo correcto
+      /// por accidente y no por la regla.
+      { cobertura: { modalidad: 'VIRTUAL' } },
+      /// Y SOLO LOS CURSOS: «no aplica presencial, bootcamp ni
+      /// foro» (cliente, 24 sep 2026).
+      ///
+      /// Por `evento`, que es el campo que ya lo decía --CURSO,
+      /// TALLER, TALLER-BOOTCAMP, FORO-- y que la pantalla de Oferta
+      /// lleva enseñando desde siempre: «AF1 · CURSO virtual · 40 h».
+      ///
+      /// ESTUVO UN RATO COMO UNA LISTA DE CÓDIGOS a mano, con «AF7»
+      /// dentro, y estaba mal de una forma que solo se ve mirando los
+      /// dos gremios a la vez: el foro es AF8 en uno y AF7 en el
+      /// otro. Aquella lista sacaba el foro de ADECOPRIA y, de paso,
+      /// el BOOTCAMP del otro gremio, dejando su foro dentro. Justo
+      /// al revés de lo que se pedía, y sin que nada fallara.
+      ///
+      /// La regla es del dato, no del código de la acción. Un
+      /// convenio nuevo con sus propios números entra sin tocar una
+      /// línea, que es la misma razón por la que `SesionDeGrupo` no
+      /// pregunta nunca «¿es la AF6?».
       { accionFormacion: { evento: 'CURSO' } },
     ];
 
@@ -5722,7 +5822,9 @@ export class CrmService {
             /// cédula. Es el mismo criterio con el que «Grupos de AF»
             /// reparte sus filas, y así las dos pantallas suman lo
             /// mismo.
-            ubicacion: { select: { nombre: true, tipo: true, departamento: true } },
+            ubicacion: {
+              select: { nombre: true, tipo: true, departamento: true },
+            },
             grupo: {
               select: {
                 numero: true,
@@ -5969,14 +6071,16 @@ export class CrmService {
         /// arriba, y dos definiciones de completada en la misma fila
         /// es justo lo que hace que una cifra no cuadre con la de al
         /// lado.
-        actividades: (actividadesDe.get(p.accionFormacionId ?? '') ?? []).map((a) => ({
-          orden: a.orden,
-          titulo: a.titulo,
-          obligatoria: a.obligatoria,
-          completada: p.avances.some(
-            (av) => av.actividad.id === a.id && av.estado === 'APROBADA',
-          ),
-        })),
+        actividades: (actividadesDe.get(p.accionFormacionId ?? '') ?? []).map(
+          (a) => ({
+            orden: a.orden,
+            titulo: a.titulo,
+            obligatoria: a.obligatoria,
+            completada: p.avances.some(
+              (av) => av.actividad.id === a.id && av.estado === 'APROBADA',
+            ),
+          }),
+        ),
       };
     });
 
@@ -6278,43 +6382,54 @@ export class CrmService {
       porAccion.set(o.accionFormacion.id, lista);
     }
 
-    const acciones = [...porAccion.entries()].map(([accionFormacionId, suyas]) => {
-      /// Las que llegan a donde vive. Puede haber mas de una
-      /// —una ciudad y su departamento, o una virtual—, y
-      /// entonces manda la que MAS cupo libre tenga: es la
-      /// unica desempate que no perjudica a nadie.
-      const alcanzan = suyas
-        .filter((o) => cubreA({ tipo: o.ubicacion.tipo, nombre: o.ubicacion.nombre, departamento: o.ubicacion.departamento }, vive))
-        .sort(
-          (a, b) =>
-            b.cuposMaximos -
-            b._count.participantes -
-            (a.cuposMaximos - a._count.participantes),
-        );
+    const acciones = [...porAccion.entries()].map(
+      ([accionFormacionId, suyas]) => {
+        /// Las que llegan a donde vive. Puede haber mas de una
+        /// —una ciudad y su departamento, o una virtual—, y
+        /// entonces manda la que MAS cupo libre tenga: es la
+        /// unica desempate que no perjudica a nadie.
+        const alcanzan = suyas
+          .filter((o) =>
+            cubreA(
+              {
+                tipo: o.ubicacion.tipo,
+                nombre: o.ubicacion.nombre,
+                departamento: o.ubicacion.departamento,
+              },
+              vive,
+            ),
+          )
+          .sort(
+            (a, b) =>
+              b.cuposMaximos -
+              b._count.participantes -
+              (a.cuposMaximos - a._count.participantes),
+          );
 
-      const elegida = alcanzan[0] ?? null;
-      const primera = suyas[0];
+        const elegida = alcanzan[0] ?? null;
+        const primera = suyas[0];
 
-      return {
-        accionFormacionId,
-        codigo: primera.accionFormacion.codigo,
-        nombre: primera.accionFormacion.nombre,
-        etiqueta: `${primera.accionFormacion.codigo} · ${primera.accionFormacion.nombre}`,
-        /// La oferta que le toca a ESTA persona. Null cuando su
-        /// departamento no tiene cobertura.
-        ofertaId: elegida?.id ?? null,
-        ubicacion: elegida?.ubicacion.nombre ?? null,
-        cupos: elegida?.cuposMaximos ?? 0,
-        disponibles: elegida
-          ? Math.max(0, elegida.cuposMaximos - elegida._count.participantes)
-          : 0,
-        abierta: elegida?.abierta ?? false,
-        cubre: elegida !== null,
-        /// En cuantas sedes se dicta, para poder decir «se
-        /// dicta en 6 departamentos, ninguno el suyo».
-        sedes: suyas.length,
-      };
-    });
+        return {
+          accionFormacionId,
+          codigo: primera.accionFormacion.codigo,
+          nombre: primera.accionFormacion.nombre,
+          etiqueta: `${primera.accionFormacion.codigo} · ${primera.accionFormacion.nombre}`,
+          /// La oferta que le toca a ESTA persona. Null cuando su
+          /// departamento no tiene cobertura.
+          ofertaId: elegida?.id ?? null,
+          ubicacion: elegida?.ubicacion.nombre ?? null,
+          cupos: elegida?.cuposMaximos ?? 0,
+          disponibles: elegida
+            ? Math.max(0, elegida.cuposMaximos - elegida._count.participantes)
+            : 0,
+          abierta: elegida?.abierta ?? false,
+          cubre: elegida !== null,
+          /// En cuantas sedes se dicta, para poder decir «se
+          /// dicta en 6 departamentos, ninguno el suyo».
+          sedes: suyas.length,
+        };
+      },
+    );
 
     return {
       asesores,
@@ -6361,10 +6476,7 @@ export class CrmService {
         /// Lo pidio el cliente: «cada vez que una persona se
         /// inscribe y se asigna a un grupo, que nos muestre
         /// cuantos cupos quedan».
-        caben: Math.max(
-          0,
-          g.cuposMaximos - (apuntadosPorCelda.get(g.id) ?? 0),
-        ),
+        caben: Math.max(0, g.cuposMaximos - (apuntadosPorCelda.get(g.id) ?? 0)),
         fechaInicio: g.grupo.fechaInicio,
         fechaFin: g.grupo.fechaFin,
       })),
@@ -6394,7 +6506,6 @@ export class CrmService {
       },
     });
     if (!p) throw new NotFoundException('Ese participante no existe.');
-
 
     const oferta = await this.prisma.oferta.findUnique({
       where: { id: dto.ofertaId },
@@ -6552,10 +6663,14 @@ export class CrmService {
       /// o sea preguntando «¿es analista en ALGÚN gremio?». El
       /// bueno está abajo, colgado de que la cobertura cambie de
       /// verdad y con `p.convenioId`.
-      const cobertura = await exigirCoberturaDeLaOferta(this.prisma, dto.coberturaId, {
-        accionFormacionId: oferta.accionFormacionId,
-        ubicacionId: oferta.ubicacionId,
-      });
+      const cobertura = await exigirCoberturaDeLaOferta(
+        this.prisma,
+        dto.coberturaId,
+        {
+          accionFormacionId: oferta.accionFormacionId,
+          ubicacionId: oferta.ubicacionId,
+        },
+      );
       numeroDeGrupo = cobertura.numero;
     }
 
@@ -7029,10 +7144,7 @@ export class CrmService {
       persona: p.persona,
       nivelOcupacionalSepId: p.nivelOcupacionalSepId,
     });
-    const faltaEmpresa = faltaDeLaEmpresa(
-      suEmpresa,
-      p.persona.numeroDocumento,
-    );
+    const faltaEmpresa = faltaDeLaEmpresa(suEmpresa, p.persona.numeroDocumento);
 
     return {
       id: p.id,
