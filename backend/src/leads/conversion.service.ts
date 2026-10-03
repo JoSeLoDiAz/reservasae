@@ -22,7 +22,8 @@
  * después, nunca antes.
  */
 
-import type { Admin } from '../../generated/prisma';
+import type { Admin, RolConvenio } from '../../generated/prisma';
+import { conveniosQueLlevanFichas } from '../crm/quien-lleva-fichas';
 import {
   BadRequestException,
   ConflictException,
@@ -90,7 +91,19 @@ export class ConversionDeLeads {
     admin: Admin | null,
     ambito: string[],
     ip?: string,
-    opciones?: { sinConstancia?: boolean; asesorId?: string },
+    opciones?: {
+      sinConstancia?: boolean;
+      asesorId?: string;
+      /// Los roles de quien convierte, POR CONVENIO.
+      ///
+      /// Desde el 2 oct 2026 `crm.crear` ya no cae solo en `admin.id`:
+      /// hay que decirle que quien crea se queda con la ficha. Sin
+      /// esto, EL GESTOR QUE CONVIERTE UN LEAD LO PIERDE ---la ficha
+      /// nace sin dueño y se va al montón común, de donde se la puede
+      /// llevar otro---. El lote no se entera: ahí manda
+      /// `opciones.asesorId`, que va explícito.
+      rolesPorConvenio?: Record<string, RolConvenio[]>;
+    },
   ) {
     const quien = admin?.nombre ?? 'el sistema';
 
@@ -277,6 +290,12 @@ export class ConversionDeLeads {
       /// demostrar -- lo contrario de lo que este fichero dice
       /// hacer dos lineas mas abajo.
       { encolarRui: false },
+      /// Quien convierte UNO se lo queda, como antes del 2 oct 2026.
+      /// En el lote no cambia nada: allí `opciones.asesorId` viene
+      /// puesto y gana a esto.
+      conveniosQueLlevanFichas(opciones?.rolesPorConvenio ?? {}).includes(
+        lead.convenioId,
+      ),
     );
 
     const participanteId = (ficha as { id: string }).id;

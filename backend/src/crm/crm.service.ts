@@ -5295,6 +5295,11 @@ export class CrmService {
     dto: CargaDto,
     admin: Admin,
     ambito: string[],
+    /// Los roles de quien carga, POR CONVENIO. Van hasta `crear`, que
+    /// desde el 2 oct 2026 ya no deduce el asesor de `admin.id`: si
+    /// nadie le dice que quien crea lleva fichas, la ficha nace sin
+    /// dueño. Sin esto, UNA LISTA PEGADA ENTERA nacía sin asesor.
+    rolesPorConvenio: Record<string, RolConvenio[]>,
     ip?: string,
   ) {
     this.exigirConvenio(dto.convenioId, ambito);
@@ -5416,6 +5421,14 @@ export class CrmService {
           admin,
           ambito,
           ip,
+          undefined,
+          /// Las filas pegadas se quedan con QUIEN LAS SUBIÓ, como
+          /// antes del 2 oct 2026. Sin esta línea `crear` cae en su
+          /// valor por defecto --no-- y la lista entera nace sin
+          /// asesor, que es un cambio de dueño que nadie decidió.
+          conveniosQueLlevanFichas(rolesPorConvenio).includes(
+            dto.convenioId,
+          ),
         );
         creados += 1;
         if (hecho?.id) nuevos.push(hecho.id);

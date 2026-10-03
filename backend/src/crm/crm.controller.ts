@@ -671,7 +671,13 @@ export class CrmController {
     @AmbitoActual() ambito: Ambito,
     @IpReal() ip: string,
   ) {
-    return this.crm.confirmarCarga(dto, admin, ambito.convenios, ip);
+    return this.crm.confirmarCarga(
+      dto,
+      admin,
+      ambito.convenios,
+      ambito.roles,
+      ip,
+    );
   }
 
   /** Un asesor para varias fichas de una vez. */
