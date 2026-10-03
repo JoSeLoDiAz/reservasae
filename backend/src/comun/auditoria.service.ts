@@ -99,6 +99,31 @@ export const ACCIONES = [
   /// filtra---, así que esta entrada es la traza: sin ella, el
   /// deshacer sería el único paso del proceso sin autor.
   'DESCARTE_REVOCADO',
+  /**
+   * Se movieron las fechas, las sesiones o el asesor de un grupo.
+   *
+   * MUEVE MÁS DE LO QUE PARECE: la fecha de inicio de un grupo decide
+   * su cierre de inscripciones, los días que le quedan al asesor y su
+   * meta diaria. Se cambia en un campo y se nota en tres pantallas.
+   */
+  'GRUPO_EDITADO',
+  /**
+   * Se cambiaron los cupos de una cobertura.
+   *
+   * Es lo que el sitio público anuncia como disponible, así que un
+   * cambio aquí es un cambio en lo que se le promete a la gente.
+   */
+  'CUPOS_EDITADOS',
+  /**
+   * El cronograma del cliente se volcó sobre los grupos.
+   *
+   * Aparte de `GRUPO_EDITADO` porque no lo hace una persona campo a
+   * campo: lo hace un comando sobre muchos grupos a la vez, leyendo
+   * una hoja de cálculo que se mueve fuera del sistema. Cuando dentro
+   * de un mes alguien pregunte por qué un grupo arranca el 19 y no el
+   * 12, la respuesta es «lo dijo la hoja, en esta versión, este día».
+   */
+  'CRONOGRAMA_IMPORTADO',
 ] as const;
 
 export type Accion = (typeof ACCIONES)[number];
@@ -131,6 +156,25 @@ export const ENTIDADES = {
   /// en dos obligaría a mirar dos listas para reconstruir un cambio
   /// que la persona hizo de un tirón.
   CATEGORIA_DE_NOTA: 'categoria_de_nota',
+  /**
+   * EL GRUPO Y SU COBERTURA, que hasta hoy NO PODÍAN AUDITARSE.
+   *
+   * No es que nadie lo hubiera escrito: es que `entidad` va tipada
+   * contra este catálogo y, al estar `as const`, auditar el cronograma
+   * **no compilaba**. Había que ampliar esto primero, y por eso el
+   * módulo entero ---fechas de inicio y fin, sesiones, horarios, el
+   * asesor académico y los cupos de cada cobertura--- escribía sin
+   * dejar una sola fila.
+   *
+   * Y es de lo que más mueve: cambiar la fecha de inicio de un grupo
+   * mueve su cierre de inscripciones, los días que le quedan al asesor
+   * y su meta diaria. Cambiar `cuposMaximos` mueve lo que el sitio
+   * público anuncia como disponible. Las dos cosas se notan en
+   * pantalla al minuto y hasta ahora no había forma de saber quién las
+   * tocó.
+   */
+  GRUPO: 'grupo',
+  COBERTURA: 'cobertura',
 } as const;
 
 export type Entidad = (typeof ENTIDADES)[keyof typeof ENTIDADES];
@@ -201,7 +245,9 @@ export class AuditoriaService {
         },
       });
     } catch (e) {
-      this.log.error(`No se pudo auditar ${entrada.accion}: ${(e as Error).message}`);
+      this.log.error(
+        `No se pudo auditar ${entrada.accion}: ${(e as Error).message}`,
+      );
     }
   }
 

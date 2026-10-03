@@ -33,7 +33,9 @@ export class SesionDto {
   @IsISO8601()
   dia?: string | null;
 
-  @Matches(HORA, { message: 'La hora de inicio va como HH:MM, de 00:00 a 23:59.' })
+  @Matches(HORA, {
+    message: 'La hora de inicio va como HH:MM, de 00:00 a 23:59.',
+  })
   horaInicio!: string;
 
   @Matches(HORA, { message: 'La hora de fin va como HH:MM, de 00:00 a 23:59.' })
@@ -93,7 +95,9 @@ export class ActualizarGrupoDto {
 
   // el que le asigna el SENA, para el reporte
   @IsOptional()
-  @Transform(({ value }) => (value === '' || value === null ? null : Number(value)))
+  @Transform(({ value }) =>
+    value === '' || value === null ? null : Number(value),
+  )
   @ValidateIf((_o: unknown, v: unknown) => v !== null)
   @IsInt()
   sepGrupoId?: number | null;
@@ -143,14 +147,18 @@ export class ActualizarInformacionDto {
 export class ActualizarCuposDto {
   /// Lo comprometido en el proyecto, sin sobrecupo.
   @IsOptional()
-  @Transform(({ value }) => (value === '' || value === null ? undefined : Number(value)))
+  @Transform(({ value }) =>
+    value === '' || value === null ? undefined : Number(value),
+  )
   @IsInt()
   @Min(0)
   cuposBase?: number;
 
   /// El tope duro, sobrecupo incluido. Nunca por debajo del base.
   @IsOptional()
-  @Transform(({ value }) => (value === '' || value === null ? undefined : Number(value)))
+  @Transform(({ value }) =>
+    value === '' || value === null ? undefined : Number(value),
+  )
   @IsInt()
   @Min(0)
   cuposMaximos?: number;

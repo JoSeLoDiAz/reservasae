@@ -241,10 +241,44 @@ async function main() {
       const datos: Record<string, Date> = {};
       for (const c of e.cambios) datos[c.campo] = medianocheEnBogota(c.a);
       await tx.grupo.update({ where: { id: e.grupoId }, data: datos });
+
+      /**
+       * Y CADA GRUPO DEJA SU FILA, dentro de la misma transacción.
+       *
+       * Un volcado masivo es justo el cambio que más falta hace poder
+       * explicar después: mueve de golpe las fechas de 26 grupos, y con
+       * ellas sus cierres de inscripción, los días que les quedan a los
+       * asesores y sus metas diarias. Sin esto, dentro de un mes nadie
+       * podría decir por qué un grupo arranca el 19 y no el 12.
+       *
+       * EL ACTOR NO ES UNA PERSONA y se dice así: esto lo corre un
+       * comando, no alguien desde una pantalla. Lo que identifica al
+       * cambio es la HOJA y su versión, que es el dato por el que se va
+       * a preguntar. Aquí va `tx` directo en vez de `AuditoriaService`
+       * porque un guion no levanta el contenedor de Nest.
+       */
+      await tx.registroAuditoria.create({
+        data: {
+          adminId: null,
+          actorNombre: `Cronograma (${HOJA})`,
+          accion: 'CRONOGRAMA_IMPORTADO',
+          entidad: 'grupo',
+          entidadId: e.grupoId,
+          convenioId: convenio.id,
+          resumen:
+            `${e.rotulo}: ` +
+            e.cambios
+              .map((c) => `${c.campo} ${c.de ?? '—'} → ${c.a}`)
+              .join(', '),
+          camposTocados: e.cambios.map((c) => c.campo),
+        },
+      });
       escritos++;
     }
   });
-  console.log(`\nEscritos ${escritos} grupos.`);
+  console.log(
+    `\nEscritos ${escritos} grupos, cada uno con su fila en la bitácora.`,
+  );
   await prisma.$disconnect();
 }
 

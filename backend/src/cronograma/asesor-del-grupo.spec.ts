@@ -19,6 +19,23 @@ import { BadRequestException } from '@nestjs/common';
 
 import { CronogramaService } from './cronograma.service';
 
+/// Quien hace el cambio. Desde el 2 oct 2026 estas dos rutas lo exigen:
+/// el modulo escribia fechas y cupos sin dejar una sola fila de
+/// auditoria, y no por olvido ---el catalogo de entidades no tenia
+/// GRUPO ni COBERTURA, asi que auditarlo no compilaba---.
+const ACTOR = { id: 'adm-1', nombre: 'Quien lo cambio' };
+
+/// La auditoria no es lo que estas pruebas miran, pero sin ella el
+/// servicio no se puede construir. Devuelve lo registrado por si
+/// alguna quiere comprobarlo.
+const auditoriaDePrueba = () => ({
+  registradas: [] as unknown[],
+  registrar(e: unknown) {
+    this.registradas.push(e);
+    return Promise.resolve();
+  },
+});
+
 const AMBITO = ['convenio-1', 'convenio-2'];
 
 /**
@@ -53,7 +70,10 @@ function armar(puede: { adminId: string } | null) {
   };
 
   return {
-    servicio: new CronogramaService(prisma as never),
+    servicio: new CronogramaService(
+      prisma as never,
+      auditoriaDePrueba() as never,
+    ),
     escrito,
     preguntado,
   };
@@ -67,6 +87,7 @@ describe('el asesor académico de un grupo', () => {
       'gru-1',
       { asesorAcademicoId: 'marta' },
       AMBITO,
+      ACTOR,
     );
 
     expect(escrito.data).toMatchObject({ asesorAcademicoId: 'marta' });
@@ -80,6 +101,7 @@ describe('el asesor académico de un grupo', () => {
       'gru-1',
       { asesorAcademicoId: 'marta' },
       AMBITO,
+      ACTOR,
     );
 
     expect(preguntado[0]).toMatchObject({
@@ -99,6 +121,7 @@ describe('el asesor académico de un grupo', () => {
       'gru-1',
       { asesorAcademicoId: 'marta' },
       AMBITO,
+      ACTOR,
     );
 
     expect(preguntado[0].rol).toEqual({
@@ -110,7 +133,12 @@ describe('el asesor académico de un grupo', () => {
     const { servicio, escrito } = armar(null);
 
     await expect(
-      servicio.actualizarGrupo('gru-1', { asesorAcademicoId: 'ajeno' }, AMBITO),
+      servicio.actualizarGrupo(
+        'gru-1',
+        { asesorAcademicoId: 'ajeno' },
+        AMBITO,
+        ACTOR,
+      ),
     ).rejects.toThrow(BadRequestException);
     /// Y no se guarda NADA: ni las fechas que vinieran en el mismo envío.
     expect(escrito.data).toBeUndefined();
@@ -124,6 +152,7 @@ describe('el asesor académico de un grupo', () => {
       'gru-1',
       { asesorAcademicoId: null },
       AMBITO,
+      ACTOR,
     );
 
     expect(escrito.data).toMatchObject({ asesorAcademicoId: null });
@@ -139,6 +168,7 @@ describe('el asesor académico de un grupo', () => {
       'gru-1',
       { fechaInicio: '2026-09-02' },
       AMBITO,
+      ACTOR,
     );
 
     expect(
@@ -171,7 +201,10 @@ describe('a quién se le puede asignar', () => {
           ]),
       },
     };
-    const servicio = new CronogramaService(prisma as never);
+    const servicio = new CronogramaService(
+      prisma as never,
+      auditoriaDePrueba() as never,
+    );
 
     await expect(servicio.asesoresPosibles(AMBITO)).resolves.toEqual([
       {
@@ -185,7 +218,10 @@ describe('a quién se le puede asignar', () => {
 
   it('sin ámbito no ofrece a nadie', async () => {
     const prisma = { adminConvenio: { findMany: () => Promise.resolve([]) } };
-    const servicio = new CronogramaService(prisma as never);
+    const servicio = new CronogramaService(
+      prisma as never,
+      auditoriaDePrueba() as never,
+    );
 
     await expect(servicio.asesoresPosibles([])).resolves.toEqual([]);
   });
