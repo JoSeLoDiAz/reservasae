@@ -38,8 +38,14 @@ export function leerTemaPropio(valor: unknown): TemaPropio {
     const crudo = (valor as Record<string, unknown>)[esquema];
     if (!crudo || typeof crudo !== 'object' || Array.isArray(crudo)) continue;
     const limpio: ColoresPropios = {};
-    for (const [clave, color] of Object.entries(crudo as Record<string, unknown>)) {
-      if (CLAVES_TOKEN.has(clave) && typeof color === 'string' && HEXADECIMAL.test(color)) {
+    for (const [clave, color] of Object.entries(
+      crudo as Record<string, unknown>,
+    )) {
+      if (
+        CLAVES_TOKEN.has(clave) &&
+        typeof color === 'string' &&
+        HEXADECIMAL.test(color)
+      ) {
         limpio[clave] = color;
       }
     }
@@ -60,11 +66,17 @@ export function conColores(
   esquema: EsquemaColor,
   colores: ColoresPropios,
 ): TemaPropio {
-  return leerTemaPropio({ ...actual, [esquema]: { ...(actual[esquema] ?? {}), ...colores } });
+  return leerTemaPropio({
+    ...actual,
+    [esquema]: { ...(actual[esquema] ?? {}), ...colores },
+  });
 }
 
 /** Sin sus colores de ese esquema: vuelve a ver los del sistema. */
-export function sinEsquema(actual: TemaPropio, esquema: EsquemaColor): TemaPropio {
+export function sinEsquema(
+  actual: TemaPropio,
+  esquema: EsquemaColor,
+): TemaPropio {
   const copia: TemaPropio = { ...actual };
   delete copia[esquema];
   return copia;

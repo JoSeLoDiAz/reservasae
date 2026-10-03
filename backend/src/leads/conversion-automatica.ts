@@ -1,6 +1,11 @@
 /** El lead que llega completo pasa solo a Gestión de leads. */
 
-import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  OnModuleDestroy,
+  OnModuleInit,
+} from '@nestjs/common';
 
 import type { OrigenParticipante } from '../../generated/prisma';
 import { PrismaService } from '../prisma/prisma.service';
@@ -89,7 +94,8 @@ export class ConversionAutomatica implements OnModuleInit, OnModuleDestroy {
       where: { id: leadId },
       select: CAMPOS,
     });
-    if (!lead) return { paso: false, porque: 'Ese lead ya no está.', falta: [] };
+    if (!lead)
+      return { paso: false, porque: 'Ese lead ya no está.', falta: [] };
     return this.conEsteLead(lead);
   }
 
@@ -120,10 +126,35 @@ export class ConversionAutomatica implements OnModuleInit, OnModuleDestroy {
       },
       select: {
         participaciones: {
-          where: { accionFormacionId: { not: null } },
+          /**
+           * DENTRO DE SU MISMO GREMIO, y esto no es un detalle.
+           *
+           * «Una sola acción de formación» es una regla DEL CONVENIO:
+           * cada gremio tiene su oferta, su cupo y su reporte al SENA.
+           * La misma persona puede estar en ADECOPRIA y en BRITCHAM, y
+           * eso es legítimo.
+           *
+           * Sin el filtro, un lead de BRITCHAM no se convertía nunca
+           * porque esa persona ya estaba en una acción de ADECOPRIA.
+           * Y NO SE VEÍA: el lead se queda en la mesa, que es el
+           * comportamiento normal para los demás rechazos, así que el
+           * barrido lo volvía a rechazar cada minuto, para siempre,
+           * sin síntoma.
+           *
+           * Es el mismo arreglo que `preinscripcion.service.ts` lleva
+           * desde el 1 oct 2026, con su comentario de quince líneas.
+           * Se aplicó allí y no se barrió el patrón; esta era la otra
+           * puerta.
+           */
+          where: {
+            accionFormacionId: { not: null },
+            convenioId: lead.convenioId,
+          },
           select: {
             accionFormacionId: true,
-            accionFormacion: { select: { codigo: true, nombre: true, evento: true } },
+            accionFormacion: {
+              select: { codigo: true, nombre: true, evento: true },
+            },
           },
         },
       },
@@ -195,7 +226,11 @@ export class ConversionAutomatica implements OnModuleInit, OnModuleDestroy {
       };
     } catch (e) {
       const porque = e instanceof Error ? e.message : String(e);
-      return { paso: false, porque: `Se queda en la mesa: ${porque}`, falta: [] };
+      return {
+        paso: false,
+        porque: `Se queda en la mesa: ${porque}`,
+        falta: [],
+      };
     }
   }
 

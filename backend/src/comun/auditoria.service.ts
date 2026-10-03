@@ -124,6 +124,20 @@ export const ACCIONES = [
    * 12, la respuesta es «lo dijo la hoja, en esta versión, este día».
    */
   'CRONOGRAMA_IMPORTADO',
+  /// Se creó una cuenta del equipo, con su rol y sus convenios.
+  'CUENTA_CREADA',
+  /**
+   * Se cambió el rol, los convenios o el estado de una cuenta.
+   *
+   * El resumen lleva el ANTES Y EL DESPUÉS de los convenios, no solo
+   * los nuevos: las concesiones se reemplazan enteras ---se borran
+   * todas y se vuelven a crear--- así que sin el antes no hay forma de
+   * saber qué acceso se quitó, que es justo lo que se va a querer
+   * reconstruir.
+   */
+  'CUENTA_EDITADA',
+  /// Se le generó una contraseña temporal a otra persona.
+  'CLAVE_REINICIADA',
 ] as const;
 
 export type Accion = (typeof ACCIONES)[number];
@@ -175,6 +189,21 @@ export const ENTIDADES = {
    */
   GRUPO: 'grupo',
   COBERTURA: 'cobertura',
+  /**
+   * LA CUENTA DE UNA PERSONA DEL EQUIPO, y sus permisos.
+   *
+   * Era el hueco más serio que quedaba: de las 23 escrituras de
+   * `admin.service.ts` ---crear cuentas, cambiar roles, repartir
+   * concesiones de convenio, desactivar--- NINGUNA dejaba rastro. Quién
+   * le dio acceso a quién, y a qué gremio, no constaba en ninguna
+   * parte.
+   *
+   * Y es la escritura que más poder mueve: una concesión decide qué
+   * datos ve una persona, de qué gremio, y si puede escribirlos. Las
+   * fichas sí dejan huella de todo desde hace semanas; la puerta por la
+   * que se entra a tocarlas, no.
+   */
+  ADMIN: 'admin',
 } as const;
 
 export type Entidad = (typeof ENTIDADES)[keyof typeof ENTIDADES];

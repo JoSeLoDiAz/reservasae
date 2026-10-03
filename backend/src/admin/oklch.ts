@@ -53,7 +53,8 @@ function intentarHex({ l, c, h }: Oklch): string | null {
   const bl = -0.0041960863 * l_ - 0.7034186147 * m_ + 1.707614701 * s_;
 
   const margen = 0.0005;
-  if (Math.min(r, g, bl) < -margen || Math.max(r, g, bl) > 1 + margen) return null;
+  if (Math.min(r, g, bl) < -margen || Math.max(r, g, bl) > 1 + margen)
+    return null;
 
   return (
     '#' +

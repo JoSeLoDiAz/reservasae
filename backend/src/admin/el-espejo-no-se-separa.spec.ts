@@ -24,7 +24,12 @@ const ARCHIVO = join(
 );
 
 /** El literal que abre en `desde`, con los pares casados. */
-function literal(texto: string, desde: number, abre: string, cierra: string): string {
+function literal(
+  texto: string,
+  desde: number,
+  abre: string,
+  cierra: string,
+): string {
   let hondo = 0;
   for (let i = desde; i < texto.length; i++) {
     if (texto[i] === abre) hondo++;
@@ -79,13 +84,16 @@ describe('el espejo del panel no se separa de la matriz', () => {
     expect(Object.keys(espejo).sort()).toEqual(Object.keys(PERMISOS).sort());
   });
 
-  it.each(Object.keys(PERMISOS))('%s dice lo mismo en los dos sitios', (rol) => {
-    for (const area of AREAS) {
-      expect(espejo[rol]?.[area]).toBe(
-        PERMISOS[rol as keyof typeof PERMISOS][area],
-      );
-    }
-  });
+  it.each(Object.keys(PERMISOS))(
+    '%s dice lo mismo en los dos sitios',
+    (rol) => {
+      for (const area of AREAS) {
+        expect(espejo[rol]?.[area]).toBe(
+          PERMISOS[rol as keyof typeof PERMISOS][area],
+        );
+      }
+    },
+  );
 });
 
 /// El correo de bienvenida las lee del backend y el

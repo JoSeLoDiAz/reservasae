@@ -111,7 +111,10 @@ export function nivelDe(roles: RolConvenio[], area: Area): Nivel {
  * Certificar o dar por no aprobado es de lider: es lo que
  * el SENA paga, y no lo firma quien digita.
  */
-export const CIERRAN_FORMACION: RolConvenio[] = ['LIDER_ACADEMICO', 'LIDER_SISTEMAS'];
+export const CIERRAN_FORMACION: RolConvenio[] = [
+  'LIDER_ACADEMICO',
+  'LIDER_SISTEMAS',
+];
 
 /// Se responde por convenio, no en general: se puede
 /// liderar academico en uno y solo digitar en el otro.
@@ -195,7 +198,10 @@ export const conveniosQueReparten = (roles: Record<string, RolConvenio[]>) =>
 /// El «admin» de esa frase no es una concesión sino `RolAdmin`, y
 /// por eso no está aquí: se suma aparte, donde se pregunta. Quien
 /// lleva sistemas suele ser superadmin y entra por esa puerta.
-export const VEN_EL_EQUIPO: RolConvenio[] = ['LIDER_INSCRIPCION', 'COUNTRY_MANAGER'];
+export const VEN_EL_EQUIPO: RolConvenio[] = [
+  'LIDER_INSCRIPCION',
+  'COUNTRY_MANAGER',
+];
 
 export const conveniosQueVenElEquipo = (roles: Record<string, RolConvenio[]>) =>
   Object.entries(roles)

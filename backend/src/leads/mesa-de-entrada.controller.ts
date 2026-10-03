@@ -152,7 +152,14 @@ export class MesaDeEntradaController {
     @AmbitoActual() ambito: Ambito,
     @IpReal() ip: string,
   ) {
-    return this.gestion.asignar(dto.ids, dto.asesorId ?? null, admin, ambito.convenios, ip);
+    return this.gestion.asignar(
+      dto.ids,
+      dto.asesorId ?? null,
+      admin,
+      ambito.convenios,
+      ip,
+      conveniosQueReparten(ambito.roles),
+    );
   }
 
   /**

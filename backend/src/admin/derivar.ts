@@ -65,16 +65,28 @@ const NEUTROS: Record<EsquemaColor, Record<string, Receta>> = {
 };
 
 // la marca, por esquema
-const MARCA: Record<EsquemaColor, { l: number; factorCroma: number; fuerte: number }> = {
+const MARCA: Record<
+  EsquemaColor,
+  { l: number; factorCroma: number; fuerte: number }
+> = {
   CLARO: { l: 0.5, factorCroma: 1, fuerte: -0.09 },
   OSCURO: { l: 0.72, factorCroma: 0.75, fuerte: 0.08 },
 };
 
-const CLAVES_ESTADO = ['exito', 'exitoSuave', 'aviso', 'avisoSuave', 'error', 'errorSuave'];
+const CLAVES_ESTADO = [
+  'exito',
+  'exitoSuave',
+  'aviso',
+  'avisoSuave',
+  'error',
+  'errorSuave',
+];
 
 /** El que se lea mejor sobre el fondo dado. */
 function textoLegible(fondo: string, claro: string, oscuro: string): string {
-  return (contraste(claro, fondo) ?? 0) >= (contraste(oscuro, fondo) ?? 0) ? claro : oscuro;
+  return (contraste(claro, fondo) ?? 0) >= (contraste(oscuro, fondo) ?? 0)
+    ? claro
+    : oscuro;
 }
 
 function derivarEsquema(
@@ -87,7 +99,11 @@ function derivarEsquema(
   const colores: ColoresTema = {};
 
   colores.marca = oklchAHex({ l: receta.l, c: croma, h: base.h });
-  colores.marcaFuerte = oklchAHex({ l: receta.l + receta.fuerte, c: croma, h: base.h });
+  colores.marcaFuerte = oklchAHex({
+    l: receta.l + receta.fuerte,
+    c: croma,
+    h: base.h,
+  });
   colores.marcaSuave =
     esquema === 'CLARO'
       ? oklchAHex({ l: 0.965, c: Math.min(croma, 0.03), h: base.h })
@@ -104,8 +120,16 @@ function derivarEsquema(
     const lFondo = esquema === 'CLARO' ? 0.42 : 0.28;
     const cFondo = Math.min(croma, esquema === 'CLARO' ? 0.16 : 0.09);
     colores.encabezadoFondo = oklchAHex({ l: lFondo, c: cFondo, h: base.h });
-    colores.encabezadoTexto = textoLegible(colores.encabezadoFondo, '#ffffff', casiNegro);
-    colores.encabezadoBorde = oklchAHex({ l: lFondo - 0.07, c: cFondo, h: base.h });
+    colores.encabezadoTexto = textoLegible(
+      colores.encabezadoFondo,
+      '#ffffff',
+      casiNegro,
+    );
+    colores.encabezadoBorde = oklchAHex({
+      l: lFondo - 0.07,
+      c: cFondo,
+      h: base.h,
+    });
   } else {
     colores.encabezadoFondo = colores.superficie;
     colores.encabezadoTexto = colores.texto;
@@ -181,7 +205,11 @@ export function derivarTemas(
   const salida = {} as Record<EsquemaColor, ColoresTema>;
 
   for (const esquema of esquemas) {
-    const derivado = derivarEsquema(esquema, base, opciones.encabezadoDeColor ?? false);
+    const derivado = derivarEsquema(
+      esquema,
+      base,
+      opciones.encabezadoDeColor ?? false,
+    );
     const conAjustes = { ...derivado, ...(opciones.ajustes?.[esquema] ?? {}) };
     const corregido = corregirContraste(conAjustes);
 

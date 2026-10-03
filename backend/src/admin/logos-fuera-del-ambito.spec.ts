@@ -24,6 +24,7 @@ import request from 'supertest';
 
 import { AdminController, MarcaPublicaController } from './admin.controller';
 import { AdminGuard, COOKIE_SESION } from './admin.guard';
+import { AuditoriaService } from '../comun/auditoria.service';
 import { AdminService } from './admin.service';
 import { BienvenidaService } from '../correo/bienvenida.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -78,7 +79,11 @@ const prismaFalso: Record<string, unknown> = {
     count: async () => 1,
   },
   logo: {
-    findUnique: async () => ({ id: LOGO_BRI, formularioId: FORM_BRI, orden: 0 }),
+    findUnique: async () => ({
+      id: LOGO_BRI,
+      formularioId: FORM_BRI,
+      orden: 0,
+    }),
     findMany: async () => [],
     count: async () => 0,
     create: escribe('logo.create'),
@@ -110,12 +115,16 @@ describe('logos: nada del convenio ajeno', () => {
         { provide: PrismaService, useValue: prismaFalso },
         // aqui se prueban los logos, no el correo de acceso
         { provide: BienvenidaService, useValue: { enviar: jest.fn() } },
+        /// Aqui se prueban los logos, no la bitacora: basta con que exista.
+        { provide: AuditoriaService, useValue: { registrar: jest.fn() } },
       ],
     }).compile();
 
     app = modulo.createNestApplication();
     app.use(cookieParser());
-    app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
+    app.useGlobalPipes(
+      new ValidationPipe({ whitelist: true, transform: true }),
+    );
     await app.init();
 
     cookie = `${COOKIE_SESION}=${app.get(JwtService).sign({ sub: 'adm-1' })}`;
@@ -139,7 +148,10 @@ describe('logos: nada del convenio ajeno', () => {
   }
 
   it('no lista los logos del formulario de BRITCHAM', async () => {
-    const res = await desdeAdecopria('get', `/admin/logos?formularioId=${FORM_BRI}`);
+    const res = await desdeAdecopria(
+      'get',
+      `/admin/logos?formularioId=${FORM_BRI}`,
+    );
     expect(res.status).not.toBe(200);
   });
 
@@ -152,7 +164,10 @@ describe('logos: nada del convenio ajeno', () => {
   it('no sube un logo al formulario de BRITCHAM', async () => {
     const res = await desdeAdecopria('post', '/admin/logos')
       .field('formularioId', FORM_BRI)
-      .attach('logo', PNG, { filename: 'colado.png', contentType: 'image/png' });
+      .attach('logo', PNG, {
+        filename: 'colado.png',
+        contentType: 'image/png',
+      });
 
     expect(escrituras).toEqual([]);
     expect(res.status).not.toBe(200);

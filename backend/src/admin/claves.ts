@@ -22,16 +22,25 @@ export async function hashearClave(clave: string): Promise<string> {
   return `scrypt$${sal.toString('base64')}$${hash.toString('base64')}`;
 }
 
-export async function verificarClave(clave: string, guardado: string): Promise<boolean> {
+export async function verificarClave(
+  clave: string,
+  guardado: string,
+): Promise<boolean> {
   const [algoritmo, salBase64, hashBase64] = guardado.split('$');
   if (algoritmo !== 'scrypt' || !salBase64 || !hashBase64) return false;
 
   const sal = Buffer.from(salBase64, 'base64');
   const esperado = Buffer.from(hashBase64, 'base64');
-  const calculado = await derivar(clave.normalize('NFKC'), sal, esperado.length);
+  const calculado = await derivar(
+    clave.normalize('NFKC'),
+    sal,
+    esperado.length,
+  );
 
   // comparación en tiempo constante
-  return calculado.length === esperado.length && timingSafeEqual(calculado, esperado);
+  return (
+    calculado.length === esperado.length && timingSafeEqual(calculado, esperado)
+  );
 }
 
 /** Contraseña temporal legible. */

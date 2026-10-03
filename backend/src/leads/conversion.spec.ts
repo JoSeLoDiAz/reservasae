@@ -31,6 +31,8 @@ type Opciones = {
   lead?: Partial<typeof LEAD> | null;
   hayPolitica?: boolean;
   yaAutorizada?: boolean;
+  /// Ya había revocado: entonces no se escribe ninguna constancia.
+  revocada?: boolean;
 };
 
 function armar(o: Opciones = {}) {
@@ -109,8 +111,24 @@ function armar(o: Opciones = {}) {
         ),
     },
     autorizacionDatos: {
-      findFirst: () =>
-        Promise.resolve(o.yaAutorizada ? { id: 'a-vieja' } : null),
+      /**
+       * DISTINGUE LAS DOS CONSULTAS, que antes no.
+       *
+       * `dejarConstancia` hace dos: una por la REVOCADA
+       * ---`revocadaEn: { not: null }`--- y otra por la VIVA
+       * ---`revocadaEn: null`---. Este doble devolvía lo mismo a las
+       * dos, así que con `yaAutorizada` daba por revocada a quien solo
+       * tenía una autorización viva. Un doble que responde menos que
+       * la consulta real deja pasar código roto; uno que responde a
+       * todo por igual, rompe código sano.
+       */
+      findFirst: ({ where }: { where: Record<string, unknown> }) => {
+        const pideRevocada =
+          typeof where.revocadaEn === 'object' && where.revocadaEn !== null;
+        if (pideRevocada)
+          return Promise.resolve(o.revocada ? { id: 'a-rev' } : null);
+        return Promise.resolve(o.yaAutorizada ? { id: 'a-vieja' } : null);
+      },
       create: () => {
         hecho.push('autorizacion.create');
         orden.push('AUTORIZACION');

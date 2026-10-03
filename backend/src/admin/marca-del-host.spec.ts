@@ -25,7 +25,10 @@ function conConvenios(marcaDe: Record<string, string | null>) {
     },
   };
 
-  const servicio = new AdminService(prisma as never);
+  const servicio = new AdminService(
+    prisma as never,
+    { registrar: () => Promise.resolve() } as never,
+  );
   const general = jest
     .spyOn(servicio, 'obtenerMarca')
     .mockResolvedValue({ ambito: 'GENERAL' } as never);
@@ -94,9 +97,9 @@ describe('la marca que decide la direccion', () => {
 
   it('un gremio sin formulario de marca no rompe: da la general', async () => {
     const { servicio, general } = conConvenios({ adecopria: null });
-    const r = (await servicio.obtenerMarcaDeGremio(
-      'adecopria',
-    )) as unknown as { ambito: string };
+    const r = (await servicio.obtenerMarcaDeGremio('adecopria')) as unknown as {
+      ambito: string;
+    };
 
     expect(r.ambito).toBe('GENERAL');
     expect(general).toHaveBeenCalled();
@@ -104,9 +107,9 @@ describe('la marca que decide la direccion', () => {
 
   it('un convenio que no existe tampoco rompe', async () => {
     const { servicio } = conConvenios({});
-    const r = (await servicio.obtenerMarcaDeGremio(
-      'inventado',
-    )) as unknown as { ambito: string };
+    const r = (await servicio.obtenerMarcaDeGremio('inventado')) as unknown as {
+      ambito: string;
+    };
 
     expect(r.ambito).toBe('GENERAL');
   });

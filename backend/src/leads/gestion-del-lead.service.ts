@@ -164,7 +164,44 @@ export class GestionDelLead {
     admin: Admin,
     ambito: string[],
     ip?: string,
+    reparten: string[] = [],
   ) {
+    /**
+     * REPARTIR LEADS ES DE QUIEN RESPONDE POR EL EQUIPO.
+     *
+     * Este candado existía en el gemelo de FICHAS ---`lote/asesor`,
+     * que recibe `conveniosQueReparten(ambito.roles)`--- y aquí no,
+     * aunque las dos rutas hacen lo mismo con cosas distintas. La ruta
+     * solo exigía `inscripciones · ESCRIBIR`, que tiene cualquier
+     * gestor de inscripciones.
+     *
+     * Un gestor ES un asesor: los suyos los trabaja, no los reparte.
+     * Sin esto podía pasarle sus leads a otro, o ---con `asesorId:
+     * null`--- quitárselos a toda una compañera de un solo golpe. Es
+     * palabra por palabra el agujero que `permisos.ts` dice haber
+     * cerrado: se cerró en fichas y la mesa se quedó abierta.
+     *
+     * SE COMPRUEBA SOBRE LOS LEADS DE VERDAD y no sobre lo que venga
+     * en el cuerpo: un id pegado a mano no decide de qué convenio es.
+     *
+     * Por defecto vacío para no romper a quien no lo pase, y entonces
+     * no deja repartir nada: el lado seguro. Antes el lado por defecto
+     * era el inseguro.
+     */
+    const suyos = await this.prisma.leadEntrante.findMany({
+      where: { id: { in: ids }, convenioId: { in: ambito } },
+      select: { convenioId: true },
+    });
+    const ajenos = [...new Set(suyos.map((l) => l.convenioId))].filter(
+      (c) => !reparten.includes(c),
+    );
+    if (ajenos.length > 0) {
+      throw new ForbiddenException(
+        'Repartir leads entre asesores lo hace un líder: es organizar el ' +
+          'trabajo del equipo, no atender un lead.',
+      );
+    }
+
     /// El asesor tiene que poder VER lo que se le asigna.
     ///
     /// Sin esto, un lead de ADECOPRIA asignado a quien solo tiene

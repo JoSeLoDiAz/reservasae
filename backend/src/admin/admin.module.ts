@@ -2,6 +2,7 @@ import { Logger, Module, OnModuleInit } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 
 import { AdminController, MarcaPublicaController } from './admin.controller';
+import { AuditoriaService } from '../comun/auditoria.service';
 import { AdminService } from './admin.service';
 import { editoresDeMarca } from './editores-de-marca';
 
@@ -14,7 +15,7 @@ import { editoresDeMarca } from './editores-de-marca';
     }),
   ],
   controllers: [AdminController, MarcaPublicaController],
-  providers: [AdminService],
+  providers: [AdminService, AuditoriaService],
   /// Lo exporta para que el correo resuelva la marca con la
   /// MISMA funcion que pinta el panel por Host, y no con una
   /// segunda que acabe discrepando.
@@ -37,7 +38,9 @@ export class AdminModule implements OnModuleInit {
   onModuleInit(): void {
     const cuantos = editoresDeMarca().length;
     if (cuantos > 0) {
-      this.log.log(`${cuantos} cuenta(s) pueden cambiar logos y colores del sistema.`);
+      this.log.log(
+        `${cuantos} cuenta(s) pueden cambiar logos y colores del sistema.`,
+      );
       return;
     }
     this.log.warn(

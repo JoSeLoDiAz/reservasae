@@ -159,7 +159,9 @@ export class ActualizarMarcaDto {
   @Transform(recortar)
   mensajeEncabezado?: string;
 
-  @IsOptional() @IsString() @MaxLength(400)
+  @IsOptional()
+  @IsString()
+  @MaxLength(400)
   piePagina?: string;
 
   @IsOptional()
@@ -184,7 +186,9 @@ export class ColoresDeTema implements ValidatorConstraintInterface {
       return false;
     }
 
-    for (const [clave, color] of Object.entries(valor as Record<string, unknown>)) {
+    for (const [clave, color] of Object.entries(
+      valor as Record<string, unknown>,
+    )) {
       if (!CLAVES_TOKEN.has(clave)) {
         this.motivo = `"${clave}" no es un color configurable.`;
         return false;
@@ -255,7 +259,9 @@ export class ActualizarLogoDto {
 
 /** Genera las dos paletas a partir de un color. */
 export class DerivarTemaDto {
-  @Matches(HEXADECIMAL, { message: 'El color debe ser hexadecimal de 6 dígitos, como #1d4ed8.' })
+  @Matches(HEXADECIMAL, {
+    message: 'El color debe ser hexadecimal de 6 dígitos, como #1d4ed8.',
+  })
   principal!: string;
 
   @IsOptional()

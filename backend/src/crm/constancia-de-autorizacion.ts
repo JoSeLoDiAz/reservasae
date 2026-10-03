@@ -49,13 +49,51 @@ export type Constancia = {
  * `YA_TENIA` tampoco: registrar dos veces la misma autorización
  * no la hace más cierta, y crearía dos filas que después habría
  * que revocar por separado.
+ *
+ * `REVOCADA` sí es un alto, y es el que faltaba. Ver abajo.
  */
 export async function dejarConstancia(
   prisma: PrismaService,
   c: Constancia,
-): Promise<'REGISTRADA' | 'YA_TENIA' | 'SIN_POLITICA'> {
+): Promise<'REGISTRADA' | 'YA_TENIA' | 'SIN_POLITICA' | 'REVOCADA'> {
   const politica = await politicaVigente(prisma, c.convenioId);
   if (!politica) return 'SIN_POLITICA';
+
+  /**
+   * QUIEN YA REVOCÓ NO SE REAUTORIZA SOLO.
+   *
+   * El `findFirst` de abajo mira únicamente las autorizaciones VIVAS,
+   * así que ante una revocada caía derecho al `create` y escribía una
+   * nueva: en silencio, se deshacía un derecho que la persona ya
+   * ejerció.
+   *
+   * La conversión de un lead ya lo comprobaba por su cuenta
+   * ---`revocoDespuesDe`, en `conversion.service.ts`--- y la
+   * preinscripción pública no, que es la peor de las dos para
+   * saltárselo: es una ruta ANÓNIMA Y SIN SESIÓN donde basta teclear
+   * una cédula, y las cédulas están en cualquier fotocopia. Un tercero
+   * podía reactivar el tratamiento de datos de alguien que había
+   * pedido expresamente que pararan.
+   *
+   * Se comprueba AQUÍ y no en cada llamador para que no vuelva a
+   * quedar una puerta fuera: es el único sitio del sistema que escribe
+   * esta fila.
+   *
+   * NO CIERRA LA PUERTA PARA SIEMPRE: quien revocó y quiere volver
+   * sigue pudiendo, pero por el camino donde alguien del equipo deja
+   * constancia de con quién habló ---`registrarAutorizacion` del
+   * panel---, que es exactamente lo que hay que poder demostrar
+   * después.
+   */
+  const revocada = await prisma.autorizacionDatos.findFirst({
+    where: {
+      personaId: c.personaId,
+      politica: { convenioId: c.convenioId },
+      revocadaEn: { not: null },
+    },
+    select: { id: true },
+  });
+  if (revocada) return 'REVOCADA';
 
   const ya = await prisma.autorizacionDatos.findFirst({
     where: {

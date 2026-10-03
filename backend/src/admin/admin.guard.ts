@@ -96,7 +96,9 @@ export class AdminGuard implements CanActivate {
     if (publica) return true;
 
     const peticion = contexto.switchToHttp().getRequest<PeticionConAdmin>();
-    const token = (peticion.cookies as Record<string, string> | undefined)?.[COOKIE_SESION];
+    const token = (peticion.cookies as Record<string, string> | undefined)?.[
+      COOKIE_SESION
+    ];
     if (!token) {
       throw new UnauthorizedException('Inicie sesión para continuar.');
     }
@@ -105,7 +107,9 @@ export class AdminGuard implements CanActivate {
     try {
       sujeto = this.jwt.verify<{ sub: string }>(token).sub;
     } catch {
-      throw new UnauthorizedException('Su sesión expiró. Vuelva a iniciar sesión.');
+      throw new UnauthorizedException(
+        'Su sesión expiró. Vuelva a iniciar sesión.',
+      );
     }
 
     // se relee en cada petición
@@ -132,10 +136,10 @@ export class AdminGuard implements CanActivate {
     });
     const activos = conveniosActivos.length;
 
-    const exigido = this.reflector.getAllAndOverride<{ areas: Area[]; nivel: Nivel }>(
-      AREA,
-      [contexto.getHandler(), contexto.getClass()],
-    );
+    const exigido = this.reflector.getAllAndOverride<{
+      areas: Area[];
+      nivel: Nivel;
+    }>(AREA, [contexto.getHandler(), contexto.getClass()]);
 
     // sin @Requiere valen todos los concedidos; con el,
     // solo aquellos donde el rol alcanza el nivel pedido
@@ -143,7 +147,9 @@ export class AdminGuard implements CanActivate {
     // etapa es de inscripciones y tambien de academico
     const convenios = exigido
       ? concedidos.filter((id) =>
-          exigido.areas.some((a) => alcanza(nivelDe(roles[id], a), exigido.nivel)),
+          exigido.areas.some((a) =>
+            alcanza(nivelDe(roles[id], a), exigido.nivel),
+          ),
         )
       : concedidos;
 
@@ -189,7 +195,9 @@ export class AdminGuard implements CanActivate {
     }
 
     const gremioElegido = delHost ? delHost.id : porCabecera;
-    const alcance = gremioElegido ? convenios.filter((id) => id === gremioElegido) : convenios;
+    const alcance = gremioElegido
+      ? convenios.filter((id) => id === gremioElegido)
+      : convenios;
 
     peticion.ambito = {
       convenios: alcance,

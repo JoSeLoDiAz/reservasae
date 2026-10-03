@@ -21,7 +21,11 @@ export type DefinicionToken = {
   ayuda?: string;
 };
 
-export const GRUPOS: Array<{ clave: GrupoToken; etiqueta: string; descripcion: string }> = [
+export const GRUPOS: Array<{
+  clave: GrupoToken;
+  etiqueta: string;
+  descripcion: string;
+}> = [
   {
     clave: 'MARCA',
     etiqueta: 'Marca',
@@ -32,7 +36,11 @@ export const GRUPOS: Array<{ clave: GrupoToken; etiqueta: string; descripcion: s
     etiqueta: 'Superficies',
     descripcion: 'El fondo de la página y las tarjetas que van encima.',
   },
-  { clave: 'TEXTO', etiqueta: 'Texto', descripcion: 'Títulos, texto normal y ayudas.' },
+  {
+    clave: 'TEXTO',
+    etiqueta: 'Texto',
+    descripcion: 'Títulos, texto normal y ayudas.',
+  },
   {
     clave: 'ENCABEZADO',
     etiqueta: 'Encabezado',
@@ -66,63 +74,268 @@ export const GRUPOS: Array<{ clave: GrupoToken; etiqueta: string; descripcion: s
 
 export const TOKENS: DefinicionToken[] = [
   // Marca
-  { clave: 'marca', variableCss: '--marca', grupo: 'MARCA', etiqueta: 'Principal', ayuda: 'Botones, enlaces y selección.' },
-  { clave: 'marcaFuerte', variableCss: '--marca-fuerte', grupo: 'MARCA', etiqueta: 'Principal oscuro', ayuda: 'Al pasar el ratón por encima.' },
-  { clave: 'marcaSuave', variableCss: '--marca-suave', grupo: 'MARCA', etiqueta: 'Fondo resaltado', ayuda: 'Zonas destacadas y pestaña activa.' },
-  { clave: 'marcaTexto', variableCss: '--marca-texto', grupo: 'MARCA', etiqueta: 'Texto sobre la marca' },
+  {
+    clave: 'marca',
+    variableCss: '--marca',
+    grupo: 'MARCA',
+    etiqueta: 'Principal',
+    ayuda: 'Botones, enlaces y selección.',
+  },
+  {
+    clave: 'marcaFuerte',
+    variableCss: '--marca-fuerte',
+    grupo: 'MARCA',
+    etiqueta: 'Principal oscuro',
+    ayuda: 'Al pasar el ratón por encima.',
+  },
+  {
+    clave: 'marcaSuave',
+    variableCss: '--marca-suave',
+    grupo: 'MARCA',
+    etiqueta: 'Fondo resaltado',
+    ayuda: 'Zonas destacadas y pestaña activa.',
+  },
+  {
+    clave: 'marcaTexto',
+    variableCss: '--marca-texto',
+    grupo: 'MARCA',
+    etiqueta: 'Texto sobre la marca',
+  },
 
   // Superficies
-  { clave: 'fondo', variableCss: '--fondo', grupo: 'SUPERFICIES', etiqueta: 'Fondo de la página' },
-  { clave: 'superficie', variableCss: '--superficie', grupo: 'SUPERFICIES', etiqueta: 'Tarjetas' },
-  { clave: 'superficieAlterna', variableCss: '--superficie-alterna', grupo: 'SUPERFICIES', etiqueta: 'Superficie alterna', ayuda: 'Bloques secundarios dentro de una tarjeta.' },
-  { clave: 'borde', variableCss: '--borde', grupo: 'SUPERFICIES', etiqueta: 'Bordes' },
+  {
+    clave: 'fondo',
+    variableCss: '--fondo',
+    grupo: 'SUPERFICIES',
+    etiqueta: 'Fondo de la página',
+  },
+  {
+    clave: 'superficie',
+    variableCss: '--superficie',
+    grupo: 'SUPERFICIES',
+    etiqueta: 'Tarjetas',
+  },
+  {
+    clave: 'superficieAlterna',
+    variableCss: '--superficie-alterna',
+    grupo: 'SUPERFICIES',
+    etiqueta: 'Superficie alterna',
+    ayuda: 'Bloques secundarios dentro de una tarjeta.',
+  },
+  {
+    clave: 'borde',
+    variableCss: '--borde',
+    grupo: 'SUPERFICIES',
+    etiqueta: 'Bordes',
+  },
 
   // Texto
-  { clave: 'titulo', variableCss: '--titulo', grupo: 'TEXTO', etiqueta: 'Títulos' },
-  { clave: 'texto', variableCss: '--texto', grupo: 'TEXTO', etiqueta: 'Texto normal' },
-  { clave: 'textoSuave', variableCss: '--texto-suave', grupo: 'TEXTO', etiqueta: 'Texto secundario', ayuda: 'Ayudas bajo los campos y notas.' },
+  {
+    clave: 'titulo',
+    variableCss: '--titulo',
+    grupo: 'TEXTO',
+    etiqueta: 'Títulos',
+  },
+  {
+    clave: 'texto',
+    variableCss: '--texto',
+    grupo: 'TEXTO',
+    etiqueta: 'Texto normal',
+  },
+  {
+    clave: 'textoSuave',
+    variableCss: '--texto-suave',
+    grupo: 'TEXTO',
+    etiqueta: 'Texto secundario',
+    ayuda: 'Ayudas bajo los campos y notas.',
+  },
 
   // Encabezado
-  { clave: 'encabezadoFondo', variableCss: '--encabezado-fondo', grupo: 'ENCABEZADO', etiqueta: 'Fondo' },
-  { clave: 'encabezadoTexto', variableCss: '--encabezado-texto', grupo: 'ENCABEZADO', etiqueta: 'Texto' },
-  { clave: 'encabezadoBorde', variableCss: '--encabezado-borde', grupo: 'ENCABEZADO', etiqueta: 'Línea inferior' },
+  {
+    clave: 'encabezadoFondo',
+    variableCss: '--encabezado-fondo',
+    grupo: 'ENCABEZADO',
+    etiqueta: 'Fondo',
+  },
+  {
+    clave: 'encabezadoTexto',
+    variableCss: '--encabezado-texto',
+    grupo: 'ENCABEZADO',
+    etiqueta: 'Texto',
+  },
+  {
+    clave: 'encabezadoBorde',
+    variableCss: '--encabezado-borde',
+    grupo: 'ENCABEZADO',
+    etiqueta: 'Línea inferior',
+  },
 
   // Tablas
-  { clave: 'tablaCabeceraFondo', variableCss: '--tabla-cabecera-fondo', grupo: 'TABLAS', etiqueta: 'Fondo de la cabecera' },
-  { clave: 'tablaCabeceraTexto', variableCss: '--tabla-cabecera-texto', grupo: 'TABLAS', etiqueta: 'Texto de la cabecera' },
-  { clave: 'tablaFilaAlterna', variableCss: '--tabla-fila-alterna', grupo: 'TABLAS', etiqueta: 'Fila alterna', ayuda: 'El sombreado de una fila sí y otra no.' },
-  { clave: 'tablaFilaResaltada', variableCss: '--tabla-fila-resaltada', grupo: 'TABLAS', etiqueta: 'Fila bajo el ratón' },
-  { clave: 'tablaBorde', variableCss: '--tabla-borde', grupo: 'TABLAS', etiqueta: 'Líneas de la tabla' },
+  {
+    clave: 'tablaCabeceraFondo',
+    variableCss: '--tabla-cabecera-fondo',
+    grupo: 'TABLAS',
+    etiqueta: 'Fondo de la cabecera',
+  },
+  {
+    clave: 'tablaCabeceraTexto',
+    variableCss: '--tabla-cabecera-texto',
+    grupo: 'TABLAS',
+    etiqueta: 'Texto de la cabecera',
+  },
+  {
+    clave: 'tablaFilaAlterna',
+    variableCss: '--tabla-fila-alterna',
+    grupo: 'TABLAS',
+    etiqueta: 'Fila alterna',
+    ayuda: 'El sombreado de una fila sí y otra no.',
+  },
+  {
+    clave: 'tablaFilaResaltada',
+    variableCss: '--tabla-fila-resaltada',
+    grupo: 'TABLAS',
+    etiqueta: 'Fila bajo el ratón',
+  },
+  {
+    clave: 'tablaBorde',
+    variableCss: '--tabla-borde',
+    grupo: 'TABLAS',
+    etiqueta: 'Líneas de la tabla',
+  },
 
   // Controles
-  { clave: 'campoFondo', variableCss: '--campo-fondo', grupo: 'CONTROLES', etiqueta: 'Fondo de los campos' },
-  { clave: 'campoBorde', variableCss: '--campo-borde', grupo: 'CONTROLES', etiqueta: 'Borde de los campos' },
-  { clave: 'campoFoco', variableCss: '--campo-foco', grupo: 'CONTROLES', etiqueta: 'Aro de foco', ayuda: 'Marca el campo activo. Debe verse: es lo que guía a quien navega con el teclado.' },
+  {
+    clave: 'campoFondo',
+    variableCss: '--campo-fondo',
+    grupo: 'CONTROLES',
+    etiqueta: 'Fondo de los campos',
+  },
+  {
+    clave: 'campoBorde',
+    variableCss: '--campo-borde',
+    grupo: 'CONTROLES',
+    etiqueta: 'Borde de los campos',
+  },
+  {
+    clave: 'campoFoco',
+    variableCss: '--campo-foco',
+    grupo: 'CONTROLES',
+    etiqueta: 'Aro de foco',
+    ayuda:
+      'Marca el campo activo. Debe verse: es lo que guía a quien navega con el teclado.',
+  },
 
   // Estados
-  { clave: 'exito', variableCss: '--exito', grupo: 'ESTADOS', etiqueta: 'Disponible / confirmado' },
-  { clave: 'exitoSuave', variableCss: '--exito-suave', grupo: 'ESTADOS', etiqueta: 'Fondo de disponible' },
-  { clave: 'aviso', variableCss: '--aviso', grupo: 'ESTADOS', etiqueta: 'Últimos cupos / en espera' },
-  { clave: 'avisoSuave', variableCss: '--aviso-suave', grupo: 'ESTADOS', etiqueta: 'Fondo de últimos cupos' },
-  { clave: 'error', variableCss: '--error', grupo: 'ESTADOS', etiqueta: 'Completo / error' },
-  { clave: 'errorSuave', variableCss: '--error-suave', grupo: 'ESTADOS', etiqueta: 'Fondo de error' },
+  {
+    clave: 'exito',
+    variableCss: '--exito',
+    grupo: 'ESTADOS',
+    etiqueta: 'Disponible / confirmado',
+  },
+  {
+    clave: 'exitoSuave',
+    variableCss: '--exito-suave',
+    grupo: 'ESTADOS',
+    etiqueta: 'Fondo de disponible',
+  },
+  {
+    clave: 'aviso',
+    variableCss: '--aviso',
+    grupo: 'ESTADOS',
+    etiqueta: 'Últimos cupos / en espera',
+  },
+  {
+    clave: 'avisoSuave',
+    variableCss: '--aviso-suave',
+    grupo: 'ESTADOS',
+    etiqueta: 'Fondo de últimos cupos',
+  },
+  {
+    clave: 'error',
+    variableCss: '--error',
+    grupo: 'ESTADOS',
+    etiqueta: 'Completo / error',
+  },
+  {
+    clave: 'errorSuave',
+    variableCss: '--error-suave',
+    grupo: 'ESTADOS',
+    etiqueta: 'Fondo de error',
+  },
 
   // Etapas del CRM
-  { clave: 'etapaInteresado', variableCss: '--etapa-interesado', grupo: 'ETAPAS', etiqueta: 'Interesado' },
-  { clave: 'etapaContactado', variableCss: '--etapa-contactado', grupo: 'ETAPAS', etiqueta: 'Contactado' },
-  { clave: 'etapaDatosCompletos', variableCss: '--etapa-datos-completos', grupo: 'ETAPAS', etiqueta: 'Datos completos' },
-  { clave: 'etapaInscrito', variableCss: '--etapa-inscrito', grupo: 'ETAPAS', etiqueta: 'Inscrito' },
-  { clave: 'etapaEnFormacion', variableCss: '--etapa-en-formacion', grupo: 'ETAPAS', etiqueta: 'En formación' },
-  { clave: 'etapaCertificado', variableCss: '--etapa-certificado', grupo: 'ETAPAS', etiqueta: 'Certificado' },
-  { clave: 'etapaPerdido', variableCss: '--etapa-perdido', grupo: 'ETAPAS', etiqueta: 'No interesado' },
-  { clave: 'etapaRetirado', variableCss: '--etapa-retirado', grupo: 'ETAPAS', etiqueta: 'Retirado' },
-  { clave: 'etapaNoAprobo', variableCss: '--etapa-no-aprobo', grupo: 'ETAPAS', etiqueta: 'No aprobó' },
-  { clave: 'etapaDeserto', variableCss: '--etapa-deserto', grupo: 'ETAPAS', etiqueta: 'Desertó' },
-  { clave: 'etapaAbandono', variableCss: '--etapa-abandono', grupo: 'ETAPAS', etiqueta: 'Abandonó' },
+  {
+    clave: 'etapaInteresado',
+    variableCss: '--etapa-interesado',
+    grupo: 'ETAPAS',
+    etiqueta: 'Interesado',
+  },
+  {
+    clave: 'etapaContactado',
+    variableCss: '--etapa-contactado',
+    grupo: 'ETAPAS',
+    etiqueta: 'Contactado',
+  },
+  {
+    clave: 'etapaDatosCompletos',
+    variableCss: '--etapa-datos-completos',
+    grupo: 'ETAPAS',
+    etiqueta: 'Datos completos',
+  },
+  {
+    clave: 'etapaInscrito',
+    variableCss: '--etapa-inscrito',
+    grupo: 'ETAPAS',
+    etiqueta: 'Inscrito',
+  },
+  {
+    clave: 'etapaEnFormacion',
+    variableCss: '--etapa-en-formacion',
+    grupo: 'ETAPAS',
+    etiqueta: 'En formación',
+  },
+  {
+    clave: 'etapaCertificado',
+    variableCss: '--etapa-certificado',
+    grupo: 'ETAPAS',
+    etiqueta: 'Certificado',
+  },
+  {
+    clave: 'etapaPerdido',
+    variableCss: '--etapa-perdido',
+    grupo: 'ETAPAS',
+    etiqueta: 'No interesado',
+  },
+  {
+    clave: 'etapaRetirado',
+    variableCss: '--etapa-retirado',
+    grupo: 'ETAPAS',
+    etiqueta: 'Retirado',
+  },
+  {
+    clave: 'etapaNoAprobo',
+    variableCss: '--etapa-no-aprobo',
+    grupo: 'ETAPAS',
+    etiqueta: 'No aprobó',
+  },
+  {
+    clave: 'etapaDeserto',
+    variableCss: '--etapa-deserto',
+    grupo: 'ETAPAS',
+    etiqueta: 'Desertó',
+  },
+  {
+    clave: 'etapaAbandono',
+    variableCss: '--etapa-abandono',
+    grupo: 'ETAPAS',
+    etiqueta: 'Abandonó',
+  },
 ];
 
 /** Los tokens de etapa, en el orden del embudo. */
-export const CLAVES_ETAPA = TOKENS.filter((t) => t.grupo === 'ETAPAS').map((t) => t.clave);
+export const CLAVES_ETAPA = TOKENS.filter((t) => t.grupo === 'ETAPAS').map(
+  (t) => t.clave,
+);
 
 export const CLAVES_TOKEN = new Set(TOKENS.map((t) => t.clave));
 
@@ -137,16 +350,48 @@ export const COMPROBACIONES_CONTRASTE: Array<{
   entreEstados?: boolean;
 }> = [
   { frente: 'texto', fondo: 'fondo', descripcion: 'Texto sobre el fondo' },
-  { frente: 'texto', fondo: 'superficie', descripcion: 'Texto sobre las tarjetas' },
-  { frente: 'textoSuave', fondo: 'superficie', descripcion: 'Texto secundario sobre las tarjetas' },
+  {
+    frente: 'texto',
+    fondo: 'superficie',
+    descripcion: 'Texto sobre las tarjetas',
+  },
+  {
+    frente: 'textoSuave',
+    fondo: 'superficie',
+    descripcion: 'Texto secundario sobre las tarjetas',
+  },
   { frente: 'titulo', fondo: 'fondo', descripcion: 'Títulos', grande: true },
   { frente: 'marcaTexto', fondo: 'marca', descripcion: 'Texto de los botones' },
-  { frente: 'marca', fondo: 'superficie', descripcion: 'Enlaces sobre las tarjetas' },
-  { frente: 'marca', fondo: 'marcaSuave', descripcion: 'Texto sobre el fondo resaltado' },
-  { frente: 'encabezadoTexto', fondo: 'encabezadoFondo', descripcion: 'Texto del encabezado' },
-  { frente: 'tablaCabeceraTexto', fondo: 'tablaCabeceraFondo', descripcion: 'Cabecera de tabla' },
-  { frente: 'texto', fondo: 'tablaFilaAlterna', descripcion: 'Texto en la fila alterna' },
-  { frente: 'texto', fondo: 'campoFondo', descripcion: 'Lo que se escribe en un campo' },
+  {
+    frente: 'marca',
+    fondo: 'superficie',
+    descripcion: 'Enlaces sobre las tarjetas',
+  },
+  {
+    frente: 'marca',
+    fondo: 'marcaSuave',
+    descripcion: 'Texto sobre el fondo resaltado',
+  },
+  {
+    frente: 'encabezadoTexto',
+    fondo: 'encabezadoFondo',
+    descripcion: 'Texto del encabezado',
+  },
+  {
+    frente: 'tablaCabeceraTexto',
+    fondo: 'tablaCabeceraFondo',
+    descripcion: 'Cabecera de tabla',
+  },
+  {
+    frente: 'texto',
+    fondo: 'tablaFilaAlterna',
+    descripcion: 'Texto en la fila alterna',
+  },
+  {
+    frente: 'texto',
+    fondo: 'campoFondo',
+    descripcion: 'Lo que se escribe en un campo',
+  },
   /// Los estados se miden contra `superficie`, no contra su
   /// propio fondo tenido.
   ///
@@ -155,9 +400,21 @@ export const COMPROBACIONES_CONTRASTE: Array<{
   /// banda. Seguir midiendo el par viejo daba por bueno un
   /// verde que se lee sobre su propio fondo claro y no sobre el
   /// blanco de la tabla, que es donde de verdad está.
-  { frente: 'exito', fondo: 'superficie', descripcion: 'Estado «disponible» en una tabla' },
-  { frente: 'aviso', fondo: 'superficie', descripcion: 'Estado «últimos cupos» en una tabla' },
-  { frente: 'error', fondo: 'superficie', descripcion: 'Estado «completo» o error' },
+  {
+    frente: 'exito',
+    fondo: 'superficie',
+    descripcion: 'Estado «disponible» en una tabla',
+  },
+  {
+    frente: 'aviso',
+    fondo: 'superficie',
+    descripcion: 'Estado «últimos cupos» en una tabla',
+  },
+  {
+    frente: 'error',
+    fondo: 'superficie',
+    descripcion: 'Estado «completo» o error',
+  },
 
   /// Y DISTINGUIBLES ENTRE SÍ.
   ///
@@ -193,17 +450,61 @@ export const COMPROBACIONES_CONTRASTE: Array<{
 
   // la pildora tiñe la superficie con su propio color,
   // asi que el par que hay que medir es contra ella
-  { frente: 'etapaInteresado', fondo: 'superficie', descripcion: 'Etiqueta de Interesado' },
-  { frente: 'etapaContactado', fondo: 'superficie', descripcion: 'Etiqueta de Contactado' },
-  { frente: 'etapaDatosCompletos', fondo: 'superficie', descripcion: 'Etiqueta de Datos completos' },
-  { frente: 'etapaInscrito', fondo: 'superficie', descripcion: 'Etiqueta de Inscrito' },
-  { frente: 'etapaEnFormacion', fondo: 'superficie', descripcion: 'Etiqueta de En formación' },
-  { frente: 'etapaCertificado', fondo: 'superficie', descripcion: 'Etiqueta de Certificado' },
-  { frente: 'etapaPerdido', fondo: 'superficie', descripcion: 'Etiqueta de Perdido' },
-  { frente: 'etapaRetirado', fondo: 'superficie', descripcion: 'Etiqueta de Retirado' },
-  { frente: 'etapaNoAprobo', fondo: 'superficie', descripcion: 'Etiqueta de No aprobó' },
-  { frente: 'etapaDeserto', fondo: 'superficie', descripcion: 'Etiqueta de Desertó' },
-  { frente: 'etapaAbandono', fondo: 'superficie', descripcion: 'Etiqueta de Abandonó' },
+  {
+    frente: 'etapaInteresado',
+    fondo: 'superficie',
+    descripcion: 'Etiqueta de Interesado',
+  },
+  {
+    frente: 'etapaContactado',
+    fondo: 'superficie',
+    descripcion: 'Etiqueta de Contactado',
+  },
+  {
+    frente: 'etapaDatosCompletos',
+    fondo: 'superficie',
+    descripcion: 'Etiqueta de Datos completos',
+  },
+  {
+    frente: 'etapaInscrito',
+    fondo: 'superficie',
+    descripcion: 'Etiqueta de Inscrito',
+  },
+  {
+    frente: 'etapaEnFormacion',
+    fondo: 'superficie',
+    descripcion: 'Etiqueta de En formación',
+  },
+  {
+    frente: 'etapaCertificado',
+    fondo: 'superficie',
+    descripcion: 'Etiqueta de Certificado',
+  },
+  {
+    frente: 'etapaPerdido',
+    fondo: 'superficie',
+    descripcion: 'Etiqueta de Perdido',
+  },
+  {
+    frente: 'etapaRetirado',
+    fondo: 'superficie',
+    descripcion: 'Etiqueta de Retirado',
+  },
+  {
+    frente: 'etapaNoAprobo',
+    fondo: 'superficie',
+    descripcion: 'Etiqueta de No aprobó',
+  },
+  {
+    frente: 'etapaDeserto',
+    fondo: 'superficie',
+    descripcion: 'Etiqueta de Desertó',
+  },
+  {
+    frente: 'etapaAbandono',
+    fondo: 'superficie',
+    descripcion: 'Etiqueta de Abandonó',
+  },
 ];
 
 export type ColoresTema = Record<string, string>;
@@ -323,7 +624,9 @@ export function conValoresPorDefecto(
 ): ColoresTema {
   const base = TEMAS_POR_DEFECTO[esquema];
   const validos =
-    guardados && typeof guardados === 'object' ? (guardados as ColoresTema) : {};
+    guardados && typeof guardados === 'object'
+      ? (guardados as ColoresTema)
+      : {};
 
   const resultado: ColoresTema = {};
   for (const token of TOKENS) {
