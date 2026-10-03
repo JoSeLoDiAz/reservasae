@@ -5,7 +5,11 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { faltaEnF7 } from '../crm/sep/formato-f7';
-import { DEPARTAMENTO_POR_ID, MUNICIPIO_POR_ID } from '../crm/catalogos-sep';
+import {
+  DEPARTAMENTO_POR_ID,
+  MUNICIPIO_POR_ID,
+  TIPO_DOCUMENTO_POR_ID,
+} from '../crm/catalogos-sep';
 
 import {
   AccionMovimiento,
@@ -81,6 +85,33 @@ const TOPE_EMPRESAS = 500;
 
 /** Todas las acciones, publicadas o no. */
 const UNIVERSO: Prisma.OfertaWhereInput = {};
+
+/**
+ * Si la organización responde con NIT o con RUT.
+ *
+ * «No entiendo por qué el listado de empresas no trae los RUT»
+ * (cliente, 2 oct 2026). El dato estaba ---`Empresa.tipoDocumentoSepId`,
+ * y el modelo ya lo advertía: «puede ser una persona con RUT, no solo
+ * un NIT»--- pero la tabla no lo enseñaba, así que un RUT se leía como
+ * un NIT mal escrito, de nueve o diez cifras que no cuadran.
+ *
+ * SE DICE «RUT» Y NO «CÉDULA DE CIUDADANÍA» aunque el catálogo del SEP
+ * lo llame así: aquí no se está identificando a una persona, se está
+ * identificando a QUIEN RESPONDE por la gente que se forma. Un
+ * independiente responde con su RUT, que es el documento de su
+ * actividad y lleva su cédula dentro. Poner «C.C.» en la columna de la
+ * organización haría pensar que alguien se equivocó de casilla.
+ */
+export function tipoDeDocumentoDeLaOrganizacion(
+  id: number | null,
+): 'NIT' | 'RUT' | null {
+  if (id === null) return null;
+  const tipo = TIPO_DOCUMENTO_POR_ID.get(id);
+  if (!tipo) return null;
+  /// El 6 es el Nit. Cualquier otro documento válido para una empresa
+  /// lo lleva una persona natural, y eso es un RUT.
+  return tipo.sigla === 'N.I.T.' ? 'NIT' : 'RUT';
+}
 
 const nombreDepartamento = (id: number | null) =>
   id ? (DEPARTAMENTO_POR_ID.get(id)?.etiqueta ?? null) : null;
@@ -927,6 +958,20 @@ export class TablerosService {
             },
           },
         },
+        /**
+         * SU GENTE, que para las de RUT es lo único que tienen.
+         *
+         * Una persona natural con RUT no aparta cupos: se inscribe. Sin
+         * esta cuenta, las organizaciones que entran por el formulario
+         * salían con reservas, confirmados y en espera en cero, o sea
+         * como si no fueran nadie, que es justo lo que se quería dejar
+         * de hacer al enseñarlas.
+         */
+        _count: {
+          select: {
+            participantes: { where: { convenioId: { in: ambito } } },
+          },
+        },
       },
     });
 
@@ -934,6 +979,24 @@ export class TablerosService {
       id: e.id,
       nit: e.nit,
       digitoVerificacion: e.digitoVerificacion,
+      /**
+       * NIT O RUT, dicho en la fila.
+       *
+       * «No entiendo por qué el listado de empresas no trae los RUT»
+       * (cliente, 2 oct 2026). Sí los trae ---`Empresa` guarda su tipo
+       * de documento desde siempre, y el modelo lo dice: «puede ser una
+       * persona con RUT, no solo un NIT»--- pero la tabla no lo
+       * enseñaba, así que un RUT parecía un NIT mal escrito.
+       *
+       * En UNA SOLA TABLA y no en dos: son la misma cosa ---quién
+       * responde por la gente que se forma--- y partirlas obligaría a
+       * mirar en dos sitios para la misma pregunta, además de duplicar
+       * los filtros, la descarga y el cargue. Lo que hacía falta era la
+       * columna que las distingue.
+       */
+      tipoDocumento: tipoDeDocumentoDeLaOrganizacion(e.tipoDocumentoSepId),
+      /// Cuántas personas suyas se están formando en este gremio.
+      inscritos: e._count.participantes,
       razonSocial: e.razonSocial,
       numeroColaboradores: e.numeroColaboradores,
       redAsociada: e.redAsociada,

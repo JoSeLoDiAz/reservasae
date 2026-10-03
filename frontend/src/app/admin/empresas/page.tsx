@@ -72,8 +72,22 @@ function PaginaEmpresas() {
   const columnas = useMemo<Columna<FilaEmpresa>[]>(
     () => [
       {
+        /**
+         * NIT O RUT, Y SE DICE CUAL.
+         *
+         * «No entiendo por que el listado de empresas no trae los
+         * RUT» (cliente, 2 oct 2026). Si los traia ---el dato esta
+         * en la organizacion desde siempre--- pero la columna se
+         * llamaba «NIT» a secas, asi que un RUT de persona natural
+         * se leia como un NIT mal escrito.
+         *
+         * EN UNA SOLA TABLA y no en dos: son la misma pregunta
+         * ---quien responde por la gente que se forma--- y partirla
+         * obligaria a mirar en dos sitios, y a duplicar filtros,
+         * descarga y cargue. Lo que faltaba era decir cual es cual.
+         */
         clave: "nit",
-        titulo: "NIT",
+        titulo: "NIT / RUT",
         fija: true,
         valor: (f) => f.nit,
         pinta: (f) => (
@@ -85,12 +99,65 @@ function PaginaEmpresas() {
         filtro: "texto",
       },
       {
+        /// Al lado de su numero, que es donde se lee. El filtro va
+        /// por opciones para poder sacar solo los RUT de un clic.
+        clave: "tipoDocumento",
+        nueva: true,
+        titulo: "Tipo",
+        ancho: "92px",
+        valor: (f) => f.tipoDocumento ?? "",
+        pinta: (f) =>
+          f.tipoDocumento ? (
+            <span
+              className={
+                "rounded px-1.5 py-0.5 text-xs font-semibold " +
+                (f.tipoDocumento === "RUT"
+                  ? "bg-aviso-suave text-aviso"
+                  : "bg-marca-suave text-marca")
+              }
+            >
+              {f.tipoDocumento}
+            </span>
+          ) : (
+            <span className="text-texto-suave">—</span>
+          ),
+        filtro: "opciones",
+      },
+      {
         clave: "razonSocial",
         titulo: "Organización",
         fija: true,
         valor: (f) => enMayusculas(f.razonSocial),
         pinta: (f) => <span className="font-medium">{enMayusculas(f.razonSocial)}</span>,
         filtro: "texto",
+      },
+      {
+        /**
+         * SU GENTE, Y NO SUS RESERVAS.
+         *
+         * Esta columna existe porque las organizaciones que entran
+         * por el formulario ---las de RUT, entre ellas--- NO APARTAN
+         * CUPOS: su gente se inscribe. Sin esta cuenta salian con
+         * reservas, confirmados y en espera en cero, o sea como si
+         * no fueran nadie, que es justo lo que se queria dejar de
+         * hacer al empezar a enseñarlas.
+         */
+        clave: "inscritos",
+        nueva: true,
+        titulo: "Inscritos",
+        ancho: "110px",
+        numerica: true,
+        valor: (f) => f.inscritos,
+        pinta: (f) => (
+          <span
+            className={
+              "tabular-nums " + (f.inscritos > 0 ? "font-semibold text-exito" : "")
+            }
+          >
+            {f.inscritos}
+          </span>
+        ),
+        filtro: "numero",
       },
       // De aqui abajo, todo `aparte`: la vista pedida es NIT
       // y Organizacion. No se borran -- siguen a un clic en
