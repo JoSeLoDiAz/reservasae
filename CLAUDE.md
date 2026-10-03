@@ -563,11 +563,6 @@ Socorro.
 
 ### Lo que queda abierto de verdad
 
-- **La caducidad de llave de nodo de Tailscale sigue armada para el 10 feb 2027**
-  en las tres. Josse decidió no apagarla porque antes va la tailnet de Grupo AE.
-  Si esa fecha se acerca y la tailnet nueva no está, hay que apagarla: cuando
-  caduca, el nodo sale de la red, **la replicación y las sondas se cortan y el
-  sitio sigue sirviendo**, así que nadie se entera.
 - **La tailnet se quedó como estaba, y fue la decisión correcta.** Josse creó la
   de `grupo-ae.com.co` el 3 oct, vio lo que costaba mover los tres servidores y
   **lo dio la vuelta**: dejó las máquinas donde están e invitó a
