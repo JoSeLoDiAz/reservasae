@@ -386,7 +386,109 @@ bajaba la plantilla equivocada; con el arreglo no bajaba ninguna.
 > pinta como «No se pudo completar la operación»** — parecen fallos de la
 > aplicación y no lo son. Un segundo entre peticiones.
 
-## Estado actual (2 oct 2026 · v0.17.0-JD)
+## Estado actual (2 oct 2026 · v0.19.0-JD)
+
+> **v0.19.0-JD está en PRODUCCIÓN** (2 oct 2026, commit `9abe344`, etiqueta
+> `v0.19.0`), y encima de ella **los NIT pegados ya están unidos**. Ninguna de las
+> dos cosas trae migración, schema ni variables nuevas. Dos copias previas:
+> `~/reservasae-antes-de-v0.19.0-20261003-0049.sql.gz` para el despliegue y
+> `~/reservasae-antes-de-unir-nit-20261002.sql.gz` para el arreglo de datos.
+>
+> Antes de v0.18.0 producción tenía 131 organizaciones; hoy son **142**, y el
+> camino no es el que parece: 131 → 152 por el trabajo del día, y 152 → 142 al
+> unir las diez que el dígito pegado había partido en dos. Las **325 fichas** y
+> las **334 personas** no se movieron en ninguno de los dos pasos.
+>
+> **v0.18.0-JD** (`26bfe5a`, copia `…-v0.18.0-20261002-1450.sql.gz`) fue la
+> entrega de forma de Andrés en sus dos mitades, `forma-arregla` y encima
+> `forma-apariencia`. Con ella **el capítulo del diseño queda cerrado**, que es
+> justo lo que dice el bloque del 24 sep: de aquí en adelante solo entra función.
+
+### `crear()` dejó sin asesor a dos de sus tres llamadores (2 oct 2026)
+
+El arreglo de Andrés a la séptima de Josse era correcto —`crear()` dejó de deducir
+el asesor de `admin.id` y pasó a recibirlo, cerrando la tercera puerta de la regla
+de los roles— pero el parámetro nuevo nació **con valor por defecto `false`** y de
+los TRES llamadores solo se actualizó uno, el del panel.
+
+Los otros dos son justo los que más fichas crean: **convertir un lead** —el gestor
+lo convertía y la ficha se le iba al montón común, de donde se la podía llevar
+otro— y **la carga masiva**, donde una lista pegada entera nacía sin dueño.
+
+- **No lo cazó nada, y eso es lo que hay que recordar.** `tsc` no se queja porque
+  el parámetro tiene valor por defecto; las **2.446 pruebas pasaron en verde**; y
+  el spec de la tercera puerta leía `crear()` y la llamada del panel, de los otros
+  dos no decía nada. Es la forma exacta del `import 'dotenv/config'` del PR #2:
+  un cambio correcto y bien diagnosticado con un defecto dentro que solo se ve
+  **recorriendo la superficie**.
+- `quien-crea-se-queda-la-ficha.spec.ts` la recorre, con el criterio de
+  `escribir-pide-escribir` y `fuera-del-ambito`: busca todo `crm.crear(` y
+  `this.crear(` del árbol y exige que cada llamada diga explícitamente si quien
+  crea se queda la ficha. **Quita los comentarios antes de buscar**, y no es un
+  detalle: este proyecto explica sus decisiones en docblocks, así que `crm.crear()`
+  aparece citado en prosa más veces que llamado —al escribirlo acusó dos docblocks
+  de `preinscripcion.service.ts` que no llaman a nada—. Y lleva un aserto de que
+  **hay al menos tres llamadas que mirar**: sin él, renombrar `crear` dejaría el
+  spec en verde sin mirar nada.
+- `rolesPorConvenio` va **obligatorio** en `confirmarCarga` y en `convertir`, así
+  que el compilador caza al cuarto llamador que se olvide.
+
+### Los NIT que el dígito pegado había partido en dos (2 oct 2026)
+
+Diez organizaciones estaban duplicadas en producción —`800183767` y
+`8001837677`— y dieciséis más llevaban el dígito pegado sin tener gemela todavía.
+**La causa estaba en el código y ya está arreglada**: `normalizarNit` se tragaba un
+DV pegado en vez de partirlo, así que la misma organización escrita con y sin su
+dígito eran dos filas distintas, y las dos salían al F7 del SENA.
+
+El arreglo de los datos se hizo con SQL contra la base, no con el guion de Andrés,
+y queda apuntado **cómo**, porque es el procedimiento para los que vengan después:
+
+- **Una «mala» no es un NIT de diez dígitos**: es uno cuyos nueve primeros,
+  pasados por el algoritmo de la DIAN, dan **exactamente** el décimo. Esa
+  condición es la que separa un dígito pegado de un número mal tecleado, y es por
+  eso que **dos filas se quedaron fuera a propósito**: en `9007104515` los nueve
+  primeros dan DV 1, el último dígito es 5 y el guardado es 2 —tres números
+  distintos—, así que nadie puede decir cuál era el NIT. Corregirlas es adivinar,
+  y adivinar es una decisión, no un arreglo.
+- **Una reserva chocaba, y no se movió: se sumó.** `Reserva` tiene
+  `@@unique([empresaId, ofertaId])` y Fontán había reservado por los dos lados
+  contra la misma oferta —1 cupo en la buena y 3 en la pegada—. Sumarlas da la
+  verdad (4) y **deja el contador de la oferta donde estaba**, que es lo único que
+  no se puede descuadrar: es un `UPDATE` condicional atómico con sus `CHECK`
+  detrás. La suma deja su huella en `movimientos_reserva` como `AJUSTE_ADMIN`.
+- **El DV no se copia de la fila pegada a la buena.** Es tentador —rellenar lo
+  vacío— y manda un dígito falso al SENA: el DV no es una propiedad de la
+  organización como la dirección, **es una función del NIT**, y las dos filas
+  tienen NIT distinto. `DV("8001837677")` es 1 y `DV("800183767")` es 7.
+- **Tres guardas dentro de la misma transacción**, y las tres se probaron por
+  mutación antes de aplicar: que no quede ni un NIT con el dígito pegado (contra
+  el estado sin arreglar salta nombrando las 26 que había), que **las 106
+  ofertas** —no solo las 8 que se tocan— sigan con su contador cuadrado, y que no
+  se haya perdido ninguna ficha ni ninguna persona. Un informe que imprime
+  «DESCUADRADO» y hace `COMMIT` igual es el control en pie y vacío de efecto.
+- **El fichero que estaba en el servidor desde el 30 sep era el ENSAYO**, con
+  `ROLLBACK` al pie, y pesaba lo mismo que el supuesto definitivo. Correrlo
+  «de verdad» imprimía todo bien y no aplicaba nada. Si hay dos versiones de un
+  guion destructivo, que se distingan por algo más que el nombre.
+- **El resultado se comprobó en la réplica, no solo en el principal**: El Socorro
+  quedó en el LSN idéntico y contando las mismas 142 organizaciones, 325 fichas y
+  37 reservas, con las dos mal tecleadas intactas.
+
+> **`instituciones.digitoDeclarado` NO hay que limpiarlo**, aunque estuviera
+> apuntado como pendiente. La columna existe para avisar de una discrepancia, y la
+> lectura la enmascara cuando coincide con el calculado —lo dice su propio
+> docblock—; medido además en producción, **ninguna de las 295 filas tiene un
+> declarado que no cuadre**. Un `UPDATE` ahí sería trabajo sin efecto.
+
+> **Y el guion de Andrés —`db:nit-pegado`— ya es seguro, no es el que estaba
+> mal.** Las tres cosas que se le devolvieron están arregladas: el DV fuera de
+> `RELLENABLES` con el porqué escrito, el choque de `(empresaId, ofertaId)`
+> detectado, y `ts-node` en vez de `tsx`. Lo que hace con una pareja que choca es
+> **saltarla y decirlo**, que es lo conservador; el SQL se usó porque además la
+> une. Hoy el guion no encuentra nada, y para los casos que vengan sirve.
+
+## De antes (2 oct 2026 · v0.17.0-JD)
 
 > **v0.17.0-JD está en PRODUCCIÓN** (2 oct 2026, commit `0ba5ad8`, etiqueta
 > `v0.17.0`). Sin migraciones, sin schema y sin variables nuevas. Copia previa en
