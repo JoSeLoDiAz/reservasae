@@ -524,16 +524,45 @@ una **copia** de los datos y se miró por un túnel ssh a `localhost:4601`.
 - **El ensayo se tiró con `down -v`** en cuanto terminó, y con él su copia de datos
   reales. Se comprobó que la réplica no se enteró.
 
-### Lo que queda, y está escrito porque hoy NO está hecho
+### El failover quedó cerrado el mismo día, y así está repartido
 
-- **`arrancar-tunel.timer` NO está instalado en la nube.** El túnel está arriba
-  porque se levantó a mano: **si esa VM reinicia, el dominio no vuelve solo**. Es
-  lo más urgente y necesita `sudo` allí.
-- **`AUTOPROMOVER` sigue quitada** de Bogotá y El Socorro, y `SEDE_PREFERIDA` de
-  Bogotá. O sea que **hoy no hay failover automático de ninguna clase**.
-- **`OTRAS_SEDES` y `PREFERENCIA_PROMOCION` siguen sin poner** en las tres, así
-  que los guiones usan la lista a fuego —con el PC Dell dentro y **sin la nube**—.
-  Se espera a que el PC Dell encienda para sacarlo bien (decisión de Josse, 3 oct).
+A las 22:54 UTC del 3 oct, el ciclo completo:
+
+| | la nube (principal) | Bogotá y El Socorro (réplicas) |
+|---|---|---|
+| `arrancar-tunel` | ✓ | ✓ |
+| `asegurar-base` | ✓ | ✓ |
+| `seguir-al-principal` | ✓ | ✓ |
+| `autorendirse` | ✓ | ✓ |
+| `autopromover` | **no se instala**: es el principal | ✓, con `AUTOPROMOVER=si` |
+| `recuperar-mando` | **no se instala** | no |
+
+Y las tres sedes con `OTRAS_SEDES="crm-nube server-bogota server-socorro"` y la
+misma `PREFERENCIA_PROMOCION`, o sea el orden que pidió Josse: nube, Bogotá, El
+Socorro.
+
+- **Comprobado con los guiones de verdad, no leyendo**: `autopromover.sh` en las
+  dos sedes contesta «crm-nube atiende» y se abstiene, y `autorendirse.sh` en la
+  nube contesta «linea 18, nadie va por delante».
+- **`recuperar-mando` se deja FUERA a propósito.** Es el que corre
+  `FORZAR=si promover.sh`, y `FORZAR` anula el guardia contra dos principales —es
+  la mina que casi deshace esta migración—. Sin él la nube no recupera el mando
+  sola tras una caída: hay que devolvérselo con `promover.sh` a mano, y eso es
+  justo lo que se quiere de un atajo que se salta un candado.
+- **El PC Dell quedó dado de baja** el mismo día: sus seis temporizadores
+  `disabled`, su pila retirada y fuera de las listas de las tres. **Su volumen de
+  datos NO se borró** —queda una copia en la línea 17 por si alguna vez hace falta
+  mirarla— y sigue en la tailnet hasta que alguien lo saque a mano.
+
+> **Con dos réplicas el quórum no existe, y ahora es permanente.** Ante un
+> principal `INALCANZABLE` ninguna promueve: hace falta una tercera opinión y ya no
+> hay tercera máquina. El failover automático solo actúa con una `CAIDA`
+> concluyente —llegar por ssh y ver la aplicación muerta—. Si algún día se quiere
+> recuperar esa garantía, hace falta una tercera sede; la más barata sería una
+> segunda VM pequeña en otra zona de GCP.
+
+### Lo que queda abierto de verdad
+
 - **La caducidad de llave de nodo de Tailscale sigue armada para el 10 feb 2027**
   en las tres. Josse decidió no apagarla porque antes va la tailnet de Grupo AE.
   Si esa fecha se acerca y la tailnet nueva no está, hay que apagarla: cuando
@@ -545,8 +574,12 @@ una **copia** de los datos y se miró por un túnel ssh a `localhost:4601`.
   `promover.sh:61` solo la escribe **si falta**—, así que el contenedor `db` moriría
   con `cannot assign requested address`, que es justo lo que dejó a Bogotá sin base
   el 18 ago 2026. Hay que borrarla del `.env` de cada sede antes de reautenticar.
+- **Los cuatro discos de 2,5 TB siguen crudos**, y es deliberado: montarlos exige
+  parar Docker y tumbar los dos Moodle. Reservasae no los necesita.
 - **`prueba.reservasae.com` se queda en Bogotá** con su propio túnel. No gana nada
   en disponibilidad y nada de esto lo tocó.
+- **Desplegar ya no es `ssh sep-vm`**: es `ssh josed@crm-nube` y desde allí
+  `desplegar.sh`. Las réplicas se ponen al día solas con `seguir-al-principal`.
 
 ## De antes (2 oct 2026 · v0.19.0-JD)
 
