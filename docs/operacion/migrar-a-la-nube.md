@@ -1,5 +1,35 @@
 # Migrar el principal a la nube, sin tumbar el servicio
 
+> ## ESTO YA SE EJECUTÓ — 3 oct 2026, 16:19 UTC
+>
+> **El corte fueron 31 segundos** (16:18:59 soltó Bogotá · 16:19:30 levantó la
+> nube) y no se perdió un dato: las tres sedes quedaron en la línea 18, el mismo
+> LSN y las mismas filas. No vuelva a correr las fases 1 a 4.
+>
+> **Tres cosas salieron distintas del plan, y las tres a mejor:**
+>
+> - **La fase 0 se hizo SIN `sudo`**, que pide contraseña en las dos sedes. Los
+>   dos guiones salen por una puerta de variable, y el `.env` es de `sepadmin`:
+>   basta con quitar `AUTOPROMOVER` y `SEDE_PREFERIDA`. Y `autorendirse.sh`, que
+>   no tiene puerta de variable, era inofensivo porque recorre `OTRAS_SEDES` y
+>   ninguna sede la tiene puesta: la lista a fuego no incluye a la nube.
+> - **El Socorro se rindió ANTES que Bogotá**, al revés de lo escrito abajo. Así
+>   la nube gana su segunda réplica cuanto antes y la base de Bogotá —intacta en
+>   la línea 17— sigue siendo la marcha atrás barata el mayor tiempo posible.
+> - **El corte real fue de 31 s, no de «segundos»** como decía la fase 3 ni de los
+>   60-90 que estimé al ejecutarla. La cuenta honesta es: soltar Bogotá ~11 s, y
+>   `promover.sh` más `arrancar-tunel.sh` ~31 s con las imágenes en caché.
+>
+> **Y antes de cortar se ensayó la pila entera**, que no estaba en este plan y
+> debería estarlo: la aplicación no arranca en una réplica, así que se montó
+> `docker-compose.prueba.yml` en la nube con una copia de los datos y se miró por
+> un túnel ssh a `localhost:4601`. Ahí se comprobó lo que el corte no deja
+> comprobar a tiempo: que el backend arranca, que las 80 migraciones corren, que
+> los reportes del SEP salen y que una preinscripción entra de punta a punta.
+>
+> Lo que quedó pendiente está al pie, en «Lo que queda abierto», y en el bloque
+> de `CLAUDE.md` del 3 oct.
+
 Decisión de Josse (3 oct 2026): **la VM de Google Cloud pasa a ser el principal, y
 Bogotá y El Socorro se quedan como réplicas en ese orden de preferencia. El PC Dell
 sale del esquema.** La condición que manda sobre todo lo demás es que

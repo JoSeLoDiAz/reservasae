@@ -386,7 +386,169 @@ bajaba la plantilla equivocada; con el arreglo no bajaba ninguna.
 > pinta como «No se pudo completar la operación»** — parecen fallos de la
 > aplicación y no lo son. Un segundo entre peticiones.
 
-## Estado actual (2 oct 2026 · v0.19.0-JD)
+## Estado actual (3 oct 2026 · el principal vive en la NUBE)
+
+> **`reservasae.com` se sirve desde Google Cloud desde el 3 oct 2026 a las 16:19
+> UTC** (11:19 de Bogotá). Bogotá y El Socorro se quedan como réplicas, en ese
+> orden de preferencia, y el PC Dell sale del esquema. Lo decidió Josse ese día:
+> *«opción 3 pero debe haber una manera que se replique en Bogotá y Socorro en
+> caso de que el server falle… cloud principal, luego Bogotá y por último
+> Socorro, y sacar a PC Dell del partido»*.
+>
+> **El corte fueron 31 segundos** —16:18:59 soltó Bogotá, 16:19:30 levantó la
+> nube— y **no se perdió un dato**: las tres sedes quedaron en la línea temporal
+> 18, el mismo LSN y las mismas filas (145 organizaciones, 334 fichas, 343
+> personas, 37 reservas). El procedimiento entero, con su marcha atrás, está en
+> [docs/operacion/migrar-a-la-nube.md](docs/operacion/migrar-a-la-nube.md).
+>
+> Tres respaldos: `~/reservasae-antes-de-la-nube-20261003.sql.gz` (3,2 MB, antes
+> de tocar nada), y los `~/rendicion-20261003-*.sql` de 13,6 MB que guardó
+> `rendirse.sh` en cada sede antes de reemplazar su volumen.
+
+### La máquina es COMPARTIDA, y eso manda sobre todo lo demás
+
+`instance-grupo-ae-col-2026` · `c3d-standard-16` (16 vCPU, 62 GB) · Ubuntu 26.04 ·
+`us-east4-b` · **sin IP pública**: solo sale, no entra.
+
+**Y no es nuestra sola: sirve DOS Moodle en producción.** `campusadecopria.com` y
+`campusgrupoadvanced.com`, los dos con su PHP-FPM en Docker, su `moodledata` en
+`/srv/<sitio>/` y sus bases en el **PostgreSQL 18 nativo** del puerto 5432. Josse
+lo dijo con esas palabras: *«no puedo tocar nada de lo que ya está montado»*.
+
+> **El LMS que este archivo lleva meses dando por pendiente YA EXISTE.** El
+> adaptador de Moodle sigue sin escribirse, pero la instalación de ADECOPRIA está
+> corriendo **en la misma máquina**, así que el adaptador puede hablarle por
+> `127.0.0.1` en vez de por internet.
+
+**Lo que NO se tocó, y por qué.** Hay cuatro discos conectados y crudos —2,5 TB
+sin formatear, sin montar y sin una línea en `/etc/fstab`—, y **mover
+`/var/lib/docker` a su disco exige parar Docker, o sea tumbar los dos Moodle**.
+Reservasae no los necesita: su base pesa 41 MB y el disco de arranque tiene 468 GB
+libres. Y como la base es un **volumen con nombre**, el día que ese disco se monte
+se la lleva consigo sin tocar el compose ni los guiones.
+
+| Disco | Lo que el plan decía | Lo que de verdad le toca |
+|---|---|---|
+| `var-lib-docker` 200 GB | no estaba en el plan | **la base del CRM**: es un volumen con nombre y esos viven en `/var/lib/docker/volumes/` |
+| `var-lib-postgresql` 300 GB | «base de datos del CRM» | **las dos bases de Moodle** — el PG 18 nativo guarda en `/var/lib/postgresql/18/main` |
+| `var-moodledata` 1,5 TB | archivos de estudiantes | correcto, pero hoy están en `/srv/<sitio>/moodledata` |
+| `var-lib-mysql` 500 GB | las tres bases de Moodle | **sin dueño: Moodle se instaló en PostgreSQL** |
+
+> **La base del CRM NO PUEDE ir en `/var/lib/postgresql`, y no es preferencia.**
+> `rendirse.sh:85-87` identifica el volumen leyendo `.Name` del montaje, y en un
+> bind mount **`.Name` viene vacío** → aborta. Ese guion es lo único que sabe
+> añadir una réplica y resincronizarla, y es lo que llama `autorendirse.sh`.
+> Montarla ahí rompería la replicación entera en esa sede.
+
+### Cómo entró la nube, y lo que hay que saber para repetirlo
+
+- **Tailscale es el ÚNICO camino de entrada**, porque la VM no tiene IP pública.
+  Todo lo que una sede le pregunta a otra va por `ssh sepadmin@<nombre>` y el
+  `curl` al 4600 se hace *dentro* de ese ssh (`comun.sh:46`), así que no hace
+  falta ningún puerto abierto. Se unió con una **auth key** (`--auth-key=file:`,
+  no por la línea de órdenes: en esa máquina hay más usuarios y un `ps` la
+  dejaría a la vista). Latencia Bogotá ↔ nube: **84 ms** por el relevo de
+  Washington, mejor que los 125-130 ms del de Miami por el que van las sedes.
+- **Tailscale NO tocó el DNS de la máquina**: usó split-DNS y `resolv.conf` sigue
+  apuntando al metadata de GCP. Era el riesgo de los dos Moodle y no se cumplió.
+- **El usuario es `sepadmin` y la ruta es `/opt/sep/reservasae`**, exactas. Están
+  escritas a fuego en 18 y 11 líneas de 8 guiones; se crea el usuario y se clona
+  ahí en vez de editar nueve ficheros.
+- **El repositorio llegó en un `git bundle` por el túnel IAP**, porque la VM no
+  tiene llave de GitHub. No hace falta que la tenga: `seguir-al-principal.sh` cae
+  a `git fetch` desde el principal por ssh, y se comprobó que funciona.
+- **No existe guion para AÑADIR una réplica.** El único `pg_basebackup` vive
+  dentro de `rendirse.sh`, así que la nube se enganchó con
+  `scripts/rendirse.sh server-bogota` **mientras Bogotá seguía sirviendo**. Antes
+  hay que correr `docker compose up -d db` una vez: el guion saca el volumen del
+  contenedor `db` y **se muere en la línea 87 si no existe**.
+
+### Las dos minas que habrían deshecho esto solo, y estaban armadas
+
+**1 · `recuperar-mando.sh`, que este archivo no documentaba.** Corre
+`FORZAR=si exec scripts/promover.sh` (línea 85), y `FORZAR=si` es exactamente lo
+que anula el guardia contra dos principales (`promover.sh:34-37`). Bogotá tenía
+`SEDE_PREFERIDA=server-bogota`, su `recuperar-mando.timer` **habilitado** y
+`ESPERA_RECUPERAR=60`: en cuanto hubiera quedado como réplica sana, **a los 60
+segundos se habría promovido sola**, dejando dos bases escribiendo. Y después el
+`autorendirse` de la nube habría visto a Bogotá en línea mayor y le habría borrado
+el volumen a la nube.
+
+**2 · `ESPERA_PROMOCION` son 60 segundos, no 300.** Los 300 son el valor por
+defecto del guion (`autopromover.sh:11`); el `.env` de las dos sedes lo baja a 60.
+**La ventana de un corte no se puede planear contra el número de este archivo.**
+
+> **Se desarmaron SIN `sudo`, y conviene saber cómo**: `sudo` pide contraseña en
+> las dos sedes, pero los dos guiones salen por una puerta de variable
+> —`[ "${AUTOPROMOVER:-}" = si ] || exit 0` y `[ -n "$PREFERIDA" ] || exit 0`— y el
+> `.env` es de `sepadmin`. Y `autorendirse.sh`, que **no tiene puerta de
+> variable**, era inofensivo por otra razón: recorre `OTRAS_SEDES`, y ninguna sede
+> la tiene puesta, así que usa la lista escrita a fuego de `comun.sh:104`, donde
+> `crm-nube` no está. No podía ver la nube ni rendirse sola.
+
+### Y una tercera que se evitó poniendo una línea
+
+`SEDE=${SEDE:-$(hostname)}` (`arrancar-tunel.sh:8`), y el `hostname` de la VM es
+`instance-grupo-ae-col-2026`, que **no** es el nombre con que las otras la llaman.
+Descuadrados, la sede se sonda **a sí misma**, se ve `SIRVE`, entra en
+`[ "$est" = SIRVE ] && bajar` (línea 34) y **no levanta su propio túnel** — mientras
+`promover.sh`, que no tiene `set -e`, imprime «✓ es ahora el principal» igual. Por
+eso el `.env` de la nube lleva `SEDE=crm-nube` y su nombre de Tailscale es el mismo.
+
+> La ranura de replicación, en cambio, **se nombra con `hostname` y no con `SEDE`**
+> (`ranura_de "$(hostname)"`), así que la de la nube es
+> `instance_grupo_ae_col_2026`. Es lo mismo que le pasa a Bogotá, cuya ranura se
+> llama `sep_dev`: funciona y es consistente consigo misma. No busque `crm-nube` en
+> `pg_replication_slots` porque no está.
+
+### Se ensayó la pila entera antes de cortar, y así se hace
+
+Lo pidió Josse: *«hay que probar como en una IP local o una dirección antes de
+mandar a producción»*. La aplicación **no se puede arrancar en una réplica**
+—`arrancar.sh` corre `prisma migrate deploy` antes de `node` y eso falla contra una
+base de solo lectura—, así que se montó la pila de pruebas del propio repositorio
+(`docker-compose.prueba.yml`, proyecto y volumen propios, puertos 5434 y 4601) con
+una **copia** de los datos y se miró por un túnel ssh a `localhost:4601`.
+
+- **Las mismas imágenes del commit que iba a producción.** El backend arrancó, las
+  80 migraciones corrieron, las cinco pantallas dieron 200 y los tres reportes al
+  SEP salieron con sus dos hojas.
+- **Y nada salió hacia afuera**: sin `SMTP_*` y con `ENTORNO=prueba` sin
+  `CORREO_REDIRIGIR_A` el sistema **se niega a mandar** —falla cerrado—, y
+  `RUI_WORKER=0`, `WEB_WORKER=0`, `CORREO_AUTOMATICO=no`. El propio log lo dice.
+- **`ADMIN_JWT_SECRET` y `LEADS_WEBHOOK_SECRET` propios**, para que una sesión del
+  ensayo no valga en producción y el orquestador de Mauricio no pueda escribir ahí.
+- Se ejercitó una **preinscripción pública de punta a punta**: 201, la constancia
+  de habeas data contra la versión 5 de la política con su hora e IP, el enlace de
+  completado marcado `delRegistro` y abriendo, y el acuse **encolado y sin salir**.
+- **El ensayo se tiró con `down -v`** en cuanto terminó, y con él su copia de datos
+  reales. Se comprobó que la réplica no se enteró.
+
+### Lo que queda, y está escrito porque hoy NO está hecho
+
+- **`arrancar-tunel.timer` NO está instalado en la nube.** El túnel está arriba
+  porque se levantó a mano: **si esa VM reinicia, el dominio no vuelve solo**. Es
+  lo más urgente y necesita `sudo` allí.
+- **`AUTOPROMOVER` sigue quitada** de Bogotá y El Socorro, y `SEDE_PREFERIDA` de
+  Bogotá. O sea que **hoy no hay failover automático de ninguna clase**.
+- **`OTRAS_SEDES` y `PREFERENCIA_PROMOCION` siguen sin poner** en las tres, así
+  que los guiones usan la lista a fuego —con el PC Dell dentro y **sin la nube**—.
+  Se espera a que el PC Dell encienda para sacarlo bien (decisión de Josse, 3 oct).
+- **La caducidad de llave de nodo de Tailscale sigue armada para el 10 feb 2027**
+  en las tres. Josse decidió no apagarla porque antes va la tailnet de Grupo AE.
+  Si esa fecha se acerca y la tailnet nueva no está, hay que apagarla: cuando
+  caduca, el nodo sale de la red, **la replicación y las sondas se cortan y el
+  sitio sigue sirviendo**, así que nadie se entera.
+- **La tailnet de Grupo AE está por crear**, y solo pasan los **tres servidores**;
+  los equipos personales se quedan donde están (Josse, 3 oct). Tiene una mina:
+  cada nodo recibe una IP `100.x` nueva y **`PG_BIND` se queda rancia** —
+  `promover.sh:61` solo la escribe **si falta**—, así que el contenedor `db` moriría
+  con `cannot assign requested address`, que es justo lo que dejó a Bogotá sin base
+  el 18 ago 2026. Hay que borrarla del `.env` de cada sede antes de reautenticar.
+- **`prueba.reservasae.com` se queda en Bogotá** con su propio túnel. No gana nada
+  en disponibilidad y nada de esto lo tocó.
+
+## De antes (2 oct 2026 · v0.19.0-JD)
 
 > **v0.19.0-JD está en PRODUCCIÓN** (2 oct 2026, commit `9abe344`, etiqueta
 > `v0.19.0`), y encima de ella **los NIT pegados ya están unidos**. Ninguna de las
