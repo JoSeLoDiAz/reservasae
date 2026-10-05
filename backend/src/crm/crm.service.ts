@@ -99,6 +99,7 @@ import { exigirQuienAsignaGrupo } from './quien-asigna-grupo';
 import {
   faltaDeLaEmpresa,
   faltaDeLaFicha,
+  paraQueFalta,
   faltaDeLaPersona,
   revisar,
   empresaDeLaFicha,
@@ -7156,6 +7157,11 @@ export class CrmService {
           : ('PARCIALES' as const),
       faltaDeLaPersona: falta,
       faltaDeLaEmpresa: faltaEmpresa,
+      /// Si lo que falta le impide ENTRAR o solo le falta para que se
+      /// la pueda REPORTAR. Ver `paraQueFalta`: quien ya está dentro
+      /// no tiene nada pendiente para entrar, y decirle «Falta 1» a
+      /// secas es reprocharle lo que nunca se le exigió.
+      paraQueFalta: paraQueFalta(p.etapa),
       creadoEn: p.creadoEn,
       documento: `${siglaDocumento(p.persona.tipoDocumentoSepId)} ${p.persona.numeroDocumento}`,
       nombre: [

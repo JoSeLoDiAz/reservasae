@@ -106,6 +106,23 @@ function cuantoFalta(f: FilaParticipante): number {
   return f.faltaDeLaPersona.length + (f.faltaDeLaEmpresa?.length ?? 0);
 }
 
+/**
+ * Lo que falta, DICIENDO PARA QUÉ.
+ *
+ * «Tengo personas inscritas y realmente no falta ningún dato»
+ * (cliente, 5 oct 2026). Tenía razón, y la causa son dos listas
+ * distintas que esta celda enseñaba como una sola.
+ *
+ * La compuerta para inscribir pide tres cosas ---curso con sede, un
+ * contacto y la autorización de datos--- y NO pide la organización
+ * ni los campos del SEP. Esta columna cuenta justo eso otro. Así que
+ * alguien se inscribe, se forma, se CERTIFICA, y la celda le sigue
+ * diciendo «Falta 1»: se le reprocha lo que nunca se le exigió para
+ * entrar. Medido: 18 de 18 inscritas y 24 de 24 certificadas.
+ *
+ * No se deja de contar ---esos datos sí hacen falta para el SENA y
+ * perderlos de vista sería peor--- se dice PARA QUÉ faltan.
+ */
 function pendientes(f: FilaParticipante): string {
   if (f.datos === "COMPLETOS") return "Sin pendientes";
   const n = cuantoFalta(f);
@@ -113,7 +130,9 @@ function pendientes(f: FilaParticipante): string {
   /// es viejo y no manda la de la empresa: se dice que falta algo
   /// sin inventarse un numero.
   if (n === 0) return "Falta algún dato";
-  return n === 1 ? "Falta 1" : `Faltan ${n}`;
+  /// Quien ya entró no tiene NADA pendiente para entrar.
+  const paraQue = f.paraQueFalta === "REPORTE" ? " para el SENA" : "";
+  return n === 1 ? `Falta 1${paraQue}` : `Faltan ${n}${paraQue}`;
 }
 
 /// Lo que falta, diciendo DE QUIEN es cada cosa.

@@ -400,6 +400,14 @@ export type FilaParticipante = {
    * lee siempre con `?? []`.
    */
   faltaDeLaEmpresa?: string[];
+  /**
+   * Si lo que falta le impide ENTRAR o solo le falta para que se la
+   * pueda REPORTAR al SENA.
+   *
+   * Opcional porque un backend sin reiniciar no la manda; sin ella
+   * la pantalla se comporta como antes.
+   */
+  paraQueFalta?: "INSCRIBIR" | "REPORTE";
   creadoEn: string;
   documento: string;
   nombre: string;

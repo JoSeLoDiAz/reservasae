@@ -205,6 +205,44 @@ export function faltaDeLaFicha(p: {
 }
 
 /**
+ * PARA QUÉ le falta: para poder inscribirla, o para reportarla.
+ *
+ * «Tengo personas inscritas y realmente no falta ningún dato»
+ * (cliente, 5 oct 2026). Tenía razón, y la causa son DOS LISTAS
+ * DISTINTAS que la pantalla enseñaba como una sola.
+ *
+ * La compuerta para matricular ---`revisar()`, aquí abajo--- exige
+ * tres cosas: curso con sede, un contacto, y la autorización de datos.
+ * NO exige la organización ni los campos del SEP.
+ *
+ * La columna «Falta N» cuenta otra cosa: todos los datos de la persona
+ * para el SEP más todos los de su organización.
+ *
+ * Así que una persona pasa la compuerta, se inscribe, se forma y hasta
+ * se certifica ---y la columna le sigue diciendo «Falta 1»---. Medido
+ * en la base: 18 de 18 inscritas, 24 de 24 certificadas y 93 de 95
+ * fichas cuya etapa se llama literalmente DATOS_COMPLETOS. El sistema
+ * las dejó entrar sin pedirles eso y después se lo reprocha.
+ *
+ * No se cambia lo que se cuenta ---esos datos SÍ hacen falta para el
+ * SENA, y perderlos de vista sería peor--- sino que se dice PARA QUÉ.
+ * Quien ya está dentro no tiene nada pendiente para entrar.
+ */
+export function paraQueFalta(
+  etapa: string,
+): 'INSCRIBIR' | 'REPORTE' {
+  /// Las tres que ocupan silla: ya entró. De aquí en adelante lo que
+  /// falte es del reporte, no de la puerta.
+  const YA_ENTRO = ['INSCRITO', 'EN_FORMACION', 'CERTIFICADO'];
+  /// Y las salidas del aula: estuvo dentro, así que tampoco le falta
+  /// nada «para inscribirse».
+  const YA_ESTUVO = ['NO_APROBO', 'DESERTO', 'ABANDONO', 'RETIRADO'];
+  return YA_ENTRO.includes(etapa) || YA_ESTUVO.includes(etapa)
+    ? 'REPORTE'
+    : 'INSCRIBIR';
+}
+
+/**
  * La única fuente. El panel pinta lo que devuelve esto, en
  * vez de llevar su propia lista: tres reglas distintas
  * hacían que la ficha dijera «completa» y la persona
