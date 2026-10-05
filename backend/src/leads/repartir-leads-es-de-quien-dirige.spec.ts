@@ -170,3 +170,150 @@ describe('el controlador le da la llave al servicio', () => {
     expect(cuerpo).toContain('conveniosQueReparten(ambito.roles)');
   });
 });
+
+/**
+ * PERO COGER UNO LIBRE NO ES REPARTIR, Y ESTO CASI SE ROMPE.
+ *
+ * Cerrar la ruta a secas habría bloqueado al equipo, y no es una
+ * suposición: el 2 oct Josse tuvo que abrir exactamente esta rendija en
+ * las FICHAS porque en producción los cinco gestores de ADECOPRIA son
+ * justo quienes trabajan los leads, y con la regla cerrada no podían ni
+ * quedarse con uno que no era de nadie. Lo reportó el equipo como «no
+ * deja asignar leads a asesores».
+ *
+ * Y en la mesa esta es la ÚNICA ruta que toca el asesor de un lead: no
+ * hay un «coger» aparte, así que el candado de repartir se llevaba por
+ * delante también el coger.
+ *
+ * Por eso se usa SU regla ---`motivoParaNoTocarElAsesor`, de
+ * `coger-un-lead.ts`--- en vez de escribir una segunda que acabaría
+ * discrepando de la primera. Las tres condiciones son suyas: el lead
+ * sin dueño, se lo queda quien lo pide, y quien lo pide lleva fichas.
+ */
+describe('coger un lead libre, para sí', () => {
+  /// Un lead SIN dueño, y quien pide es quien se lo queda.
+  const armarLibre = () => {
+    const actualizados: unknown[] = [];
+    const prisma = {
+      leadEntrante: {
+        findMany: () =>
+          Promise.resolve([{ convenioId: 'conv-adecopria', asesorId: null }]),
+        updateMany: (a: unknown) => {
+          actualizados.push(a);
+          return Promise.resolve({ count: 1 });
+        },
+      },
+      adminConvenio: {
+        findMany: () => Promise.resolve([{ convenioId: 'conv-adecopria' }]),
+      },
+    };
+    const servicio = new GestionDelLead(
+      prisma as never,
+      { registrar: () => Promise.resolve() } as never,
+      {} as never,
+      {} as never,
+    );
+    return { servicio, actualizados };
+  };
+
+  it('un gestor que NO reparte puede cogerse uno libre', async () => {
+    const { servicio, actualizados } = armarLibre();
+    await servicio.asignar(
+      ['l-1'],
+      'adm-1', // para sí
+      ADMIN,
+      ['conv-adecopria'],
+      undefined,
+      [], // no reparte en ningún convenio
+      ['conv-adecopria'], // pero sí lleva fichas
+    );
+    expect(actualizados).toHaveLength(1);
+  });
+
+  /// Y las tres condiciones que lo acotan, una a una.
+  it('pero no puede dárselo a otra persona', async () => {
+    const { servicio, actualizados } = armarLibre();
+    await expect(
+      servicio.asignar(
+        ['l-1'],
+        'otra-persona',
+        ADMIN,
+        ['conv-adecopria'],
+        undefined,
+        [],
+        ['conv-adecopria'],
+      ),
+    ).rejects.toThrow(/Solo puede cogerlo para usted/);
+    expect(actualizados).toEqual([]);
+  });
+
+  it('ni soltarlo: dejar un lead sin dueño es de un líder', async () => {
+    const { servicio, actualizados } = armarLibre();
+    await expect(
+      servicio.asignar(
+        ['l-1'],
+        null,
+        ADMIN,
+        ['conv-adecopria'],
+        undefined,
+        [],
+        ['conv-adecopria'],
+      ),
+    ).rejects.toThrow(/Soltar un lead/);
+    expect(actualizados).toEqual([]);
+  });
+
+  it('ni quitárselo a quien ya lo tiene', async () => {
+    const actualizados: unknown[] = [];
+    const prisma = {
+      leadEntrante: {
+        findMany: () =>
+          Promise.resolve([
+            { convenioId: 'conv-adecopria', asesorId: 'otra-asesora' },
+          ]),
+        updateMany: (a: unknown) => {
+          actualizados.push(a);
+          return Promise.resolve({ count: 1 });
+        },
+      },
+      adminConvenio: {
+        findMany: () => Promise.resolve([{ convenioId: 'conv-adecopria' }]),
+      },
+    };
+    const servicio = new GestionDelLead(
+      prisma as never,
+      { registrar: () => Promise.resolve() } as never,
+      {} as never,
+      {} as never,
+    );
+    await expect(
+      servicio.asignar(
+        ['l-1'],
+        'adm-1',
+        ADMIN,
+        ['conv-adecopria'],
+        undefined,
+        [],
+        ['conv-adecopria'],
+      ),
+    ).rejects.toThrow(/ya tiene asesor/);
+    expect(actualizados).toEqual([]);
+  });
+
+  /// Y a quien su rol no le deja llevar fichas, tampoco.
+  it('ni lo coge quien no lleva fichas', async () => {
+    const { servicio, actualizados } = armarLibre();
+    await expect(
+      servicio.asignar(
+        ['l-1'],
+        'adm-1',
+        ADMIN,
+        ['conv-adecopria'],
+        undefined,
+        [],
+        [], // no lleva fichas en ningún convenio
+      ),
+    ).rejects.toThrow(/no se queda con leads/);
+    expect(actualizados).toEqual([]);
+  });
+});

@@ -31,6 +31,7 @@ import {
 } from '@nestjs/common';
 
 import { PrismaService } from '../prisma/prisma.service';
+import { motivoParaNoTocarElAsesor } from '../crm/coger-un-lead';
 import { AuditoriaService, ENTIDADES } from '../comun/auditoria.service';
 import { AQuienSeParece } from './a-quien-se-parece';
 import { ConfiguracionDeNotasService } from '../notas/configuracion-de-notas.service';
@@ -165,41 +166,49 @@ export class GestionDelLead {
     ambito: string[],
     ip?: string,
     reparten: string[] = [],
+    llevanFichas: string[] = [],
   ) {
     /**
-     * REPARTIR LEADS ES DE QUIEN RESPONDE POR EL EQUIPO.
+     * REPARTIR ES DE UN LÍDER. COGER UNO LIBRE, NO.
      *
-     * Este candado existía en el gemelo de FICHAS ---`lote/asesor`,
-     * que recibe `conveniosQueReparten(ambito.roles)`--- y aquí no,
-     * aunque las dos rutas hacen lo mismo con cosas distintas. La ruta
-     * solo exigía `inscripciones · ESCRIBIR`, que tiene cualquier
-     * gestor de inscripciones.
+     * El candado existía en el gemelo de FICHAS ---`lote/asesor`--- y
+     * aquí no: la ruta solo exigía `inscripciones · ESCRIBIR`, que
+     * tiene cualquier gestor. Podía pasarle sus leads a otro o, con
+     * `asesorId: null`, vaciarle la cola a una compañera entera.
      *
-     * Un gestor ES un asesor: los suyos los trabaja, no los reparte.
-     * Sin esto podía pasarle sus leads a otro, o ---con `asesorId:
-     * null`--- quitárselos a toda una compañera de un solo golpe. Es
-     * palabra por palabra el agujero que `permisos.ts` dice haber
-     * cerrado: se cerró en fichas y la mesa se quedó abierta.
+     * PERO CERRARLO A SECAS HABRÍA BLOQUEADO AL EQUIPO, y eso ya pasó:
+     * el 2 oct Josse tuvo que abrir esta misma rendija en las fichas
+     * porque en producción los CINCO gestores de ADECOPRIA son justo
+     * quienes trabajan los leads, y con la regla cerrada no podían ni
+     * quedarse con uno que no era de nadie. Y en la mesa esta es la
+     * ÚNICA ruta que toca el asesor: no hay un «coger» aparte.
+     *
+     * Así que se usa SU regla, la de `coger-un-lead.ts`, en vez de
+     * escribir una segunda que acabaría discrepando. Las tres
+     * condiciones son suyas y ninguna sobra: el lead sin dueño, se lo
+     * queda quien lo pide, y quien lo pide lleva fichas. Soltar
+     * tampoco es coger, y sigue siendo de un líder.
      *
      * SE COMPRUEBA SOBRE LOS LEADS DE VERDAD y no sobre lo que venga
-     * en el cuerpo: un id pegado a mano no decide de qué convenio es.
-     *
-     * Por defecto vacío para no romper a quien no lo pase, y entonces
-     * no deja repartir nada: el lado seguro. Antes el lado por defecto
-     * era el inseguro.
+     * en el cuerpo: un id pegado a mano no decide de qué convenio es,
+     * ni de quién es el lead.
      */
     const suyos = await this.prisma.leadEntrante.findMany({
       where: { id: { in: ids }, convenioId: { in: ambito } },
-      select: { convenioId: true },
+      select: { convenioId: true, asesorId: true },
     });
-    const ajenos = [...new Set(suyos.map((l) => l.convenioId))].filter(
-      (c) => !reparten.includes(c),
-    );
-    if (ajenos.length > 0) {
-      throw new ForbiddenException(
-        'Repartir leads entre asesores lo hace un líder: es organizar el ' +
-          'trabajo del equipo, no atender un lead.',
-      );
+
+    for (const lead of suyos) {
+      const motivo = motivoParaNoTocarElAsesor({
+        quien: {
+          adminId: admin.id,
+          reparte: reparten.includes(lead.convenioId),
+          llevaFichas: llevanFichas.includes(lead.convenioId),
+        },
+        asesorAhora: lead.asesorId,
+        asesorPedido: asesorId,
+      });
+      if (motivo) throw new ForbiddenException(motivo);
     }
 
     /// El asesor tiene que poder VER lo que se le asigna.

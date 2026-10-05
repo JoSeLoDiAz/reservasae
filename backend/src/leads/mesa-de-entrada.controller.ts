@@ -24,6 +24,7 @@ import { AdminGuard, Requiere, Roles, type Ambito } from '../admin/admin.guard';
 
 import { AdminActual } from '../admin/admin-actual.decorator';
 import { conveniosQueReparten } from '../admin/permisos';
+import { conveniosQueLlevanFichas } from '../crm/quien-lleva-fichas';
 import { IpReal } from '../comun/ip-real';
 
 import {
@@ -159,6 +160,7 @@ export class MesaDeEntradaController {
       ambito.convenios,
       ip,
       conveniosQueReparten(ambito.roles),
+      conveniosQueLlevanFichas(ambito.roles),
     );
   }
 
