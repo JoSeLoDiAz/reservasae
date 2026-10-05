@@ -71,10 +71,7 @@ export const PRIMERA_ENTRADA_AL_AULA = Prisma.sql`
  * hecho haya ocurrido: quien nunca llegó a inscrito no es
  * un inscrito, se mire el periodo que se mire.
  */
-export function enPeriodo(
-  desde: Date | null,
-  hasta: Date | null,
-): Prisma.Sql {
+export function enPeriodo(desde: Date | null, hasta: Date | null): Prisma.Sql {
   if (!desde || !hasta) return Prisma.sql`AND an."momento" IS NOT NULL`;
   return Prisma.sql`AND an."momento" >= ${desde} AND an."momento" < ${hasta}`;
 }

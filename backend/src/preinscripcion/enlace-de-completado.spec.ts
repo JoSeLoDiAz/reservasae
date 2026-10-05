@@ -28,7 +28,10 @@ describe('el enlace del registro', () => {
   it('el del asesor no se marca', async () => {
     const { e, creados } = emisor();
     await e.emitir('p1', 'a1');
-    expect(creados[0]).toMatchObject({ delRegistro: false, emitidoPorId: 'a1' });
+    expect(creados[0]).toMatchObject({
+      delRegistro: false,
+      emitidoPorId: 'a1',
+    });
   });
 
   it('el del acuse sin vivo tampoco', async () => {

@@ -46,7 +46,7 @@ function conAmbito(ambito: string[]) {
     {} as never,
     {} as never,
     { alInscribir: () => Promise.resolve() } as never,
-  
+
     { avisar: () => Promise.resolve() } as never,
     /// El catálogo de notas. Devuelve «sin clasificar», que es lo
     /// que anota una pantalla que todavía no ofrece los
@@ -61,15 +61,29 @@ function conAmbito(ambito: string[]) {
 
 /// El `where` que se le puso a las participaciones anidadas.
 function dondeDeParticipaciones(consulta: Consulta): Record<string, unknown> {
-  const persona = (consulta.include as Record<string, { include?: Record<string, { where?: unknown }> }>)
-    ?.persona;
-  return (persona?.include?.participaciones?.where ?? {}) as Record<string, unknown>;
+  const persona = (
+    consulta.include as Record<
+      string,
+      { include?: Record<string, { where?: unknown }> }
+    >
+  )?.persona;
+  return (persona?.include?.participaciones?.where ?? {}) as Record<
+    string,
+    unknown
+  >;
 }
 
 function dondeDeAutorizaciones(consulta: Consulta): Record<string, unknown> {
-  const persona = (consulta.include as Record<string, { include?: Record<string, { where?: unknown }> }>)
-    ?.persona;
-  return (persona?.include?.autorizaciones?.where ?? {}) as Record<string, unknown>;
+  const persona = (
+    consulta.include as Record<
+      string,
+      { include?: Record<string, { where?: unknown }> }
+    >
+  )?.persona;
+  return (persona?.include?.autorizaciones?.where ?? {}) as Record<
+    string,
+    unknown
+  >;
 }
 
 describe('la ficha no ensena el otro gremio', () => {
@@ -117,7 +131,10 @@ describe('la ficha no ensena el otro gremio', () => {
     const { servicio, consultas } = conAmbito([ADE]);
     await servicio.obtener('p-1', [ADE]).catch(() => undefined);
 
-    const donde = dondeDeAutorizaciones(consultas[1]) as Record<string, unknown>;
+    const donde = dondeDeAutorizaciones(consultas[1]) as Record<
+      string,
+      unknown
+    >;
     expect(donde.revocadaEn).toBeUndefined();
   });
 

@@ -287,7 +287,11 @@ const corteDe = (v: Ventana | null): Prisma.Sql =>
   enPeriodo(v ? v.desde : null, v ? v.hasta : null);
 
 /** El corte por acción, del que salen los totales. */
-function consultaPorAccion(prisma: PrismaService, suyos: Prisma.Sql, v: Ventana | null) {
+function consultaPorAccion(
+  prisma: PrismaService,
+  suyos: Prisma.Sql,
+  v: Ventana | null,
+) {
   // LEFT JOIN, no INNER: `accionFormacionId` es nullable y
   // con INNER esas filas desaparecian de aqui pero no de
   // porAsesor, asi que las tres tablas de la misma pantalla
@@ -318,7 +322,11 @@ function consultaPorAccion(prisma: PrismaService, suyos: Prisma.Sql, v: Ventana 
  * No lleva el corte de la ventana: esto es futuro, y la
  * cohorte se ancla en haber pisado ya el aula.
  */
-function consultaQueArrancan(prisma: PrismaService, suyos: Prisma.Sql, ambito: string[]) {
+function consultaQueArrancan(
+  prisma: PrismaService,
+  suyos: Prisma.Sql,
+  ambito: string[],
+) {
   return prisma.$queryRaw<GrupoQueArranca[]>`
     SELECT af."codigo" AS codigo,
            g."numero" AS numero,
@@ -415,7 +423,8 @@ function consultaParados(prisma: PrismaService, suyos: Prisma.Sql) {
 /** La cabecera, sumando el corte por acción. */
 function resumir(filas: FilaAccion[]): Cabecera {
   // suma de un corte, no de otra consulta
-  const suma = (f: (x: FilaAccion) => number) => filas.reduce((s, x) => s + f(x), 0);
+  const suma = (f: (x: FilaAccion) => number) =>
+    filas.reduce((s, x) => s + f(x), 0);
 
   const total = suma((x) => x.enAula);
   const certificados = suma((x) => x.certificados);
@@ -491,7 +500,8 @@ function comparar(
     const maduraDistinto =
       hayVentana && MADURAN.includes(clave as (typeof MADURAN)[number]);
 
-    cambios[clave] = antes && !maduraDistinto ? variacion(hoy[clave], antes[clave]) : null;
+    cambios[clave] =
+      antes && !maduraDistinto ? variacion(hoy[clave], antes[clave]) : null;
   }
   return cambios;
 }
@@ -553,7 +563,13 @@ export async function tableroAcademico(
     // esa gente desaparecia de aqui pero no de las otras
     // dos tablas, y los tres totales no cuadraban
     prisma.$queryRaw<
-      Array<FilaAccion & { numero: number | null; inicio: Date | null; fin: Date | null }>
+      Array<
+        FilaAccion & {
+          numero: number | null;
+          inicio: Date | null;
+          fin: Date | null;
+        }
+      >
     >`
       ${CON_AVANCE}
       SELECT COALESCE(af."codigo", '—') AS codigo,
@@ -588,7 +604,9 @@ export async function tableroAcademico(
     consultaParados(prisma, suyos),
 
     // del previo solo hace falta la cabecera
-    comparacion.anterior ? consultaPorAccion(prisma, suyos, comparacion.anterior) : null,
+    comparacion.anterior
+      ? consultaPorAccion(prisma, suyos, comparacion.anterior)
+      : null,
   ]);
 
   const cabecera = resumir(porAccion);

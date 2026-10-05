@@ -29,7 +29,6 @@ export type Formato = 'uso-directo' | 'cargue-sep' | 'f7';
 /// cuáles se excluyen: por descarte entraría INTERESADO, que es
 /// un nombre que alguien tecleó y saldría como ACTIVO.
 
-
 type Excluido = {
   /// El id de la PARTICIPACIÓN, no el de la persona.
   ///
@@ -159,63 +158,57 @@ export class SepService {
    * los suyos se están formando.
    */
   private async prepararF7(convenioId: string, ambito: string[]) {
-    if (!ambito.includes(convenioId)) {
-      throw new ForbiddenException('No tiene acceso a ese convenio.');
-    }
-
-    /// Sin exigir reserva.
-    ///
-    /// Antes el filtro era `reserva: { isNot: null }`, y
-    /// `Participante.reservaId` no lo escribe NADIE en
-    /// produccion: solo lo pone la siembra de prueba. O sea
-    /// que el F7 exportaba cero filas y nadie lo veia, porque
-    /// en local la siembra tapaba el hueco.
-    ///
-    /// La empresa se resuelve de las dos: la propia del lead
-    /// primero, y si no, la de la reserva que lo trajo.
-    /// Quien revocó NO cuenta como beneficiario suyo.
-    ///
-    /// El F7 no miraba la autorización y los dos reportes de
-    /// personas sí, así que los DOS archivos que se le entregan
-    /// al mismo cliente se contradecían: el del SEP con 40
-    /// personas de una empresa y el F7 diciendo 41. Y da igual
-    /// que aquí la persona solo salga como un número: seguir
-    /// reportándola al SENA como beneficiaria es seguir tratando
-    /// su participación después de que pidió que no.
-    const participantes = await this.prisma.participante.findMany({
-      where: {
-        convenioId,
-        etapa: { in: ETAPAS_DEL_REPORTE },
-        persona: {
-          autorizaciones: {
-            some: { revocadaEn: null, politica: { convenioId } },
-          },
-        },
-      },
-      select: {
-        accionFormacion: { select: { nombre: true } },
-        empresa: true,
-        reserva: { select: { empresa: true } },
-      },
-    });
+    /**
+     * EL F7 CUENTA A LOS QUE ENTRAN EN EL CARGUE. A esos y a nadie más.
+     *
+     * Tenía su propia consulta, y el filtro NO era el mismo. Aquí se
+     * descartaba solo por autorización revocada; en `preparar` se
+     * descarta además por completitud ---sin celular, sin barrio, sin
+     * grupo, menor de edad, el grupo de otra acción---. Los dos
+     * archivos se le entregan JUNTOS al SENA, así que se
+     * contradecían: el cargue mandaba 2 personas de una empresa y el
+     * F7 decía que tenía 3 beneficiarios. Quien lo revise no sabe
+     * cuál de los dos miente, y el que rebota es el cargue.
+     *
+     * Por eso ya no hay dos consultas: se cuenta sobre `listos`, que
+     * es LITERALMENTE la lista de filas del cargue. No es que los dos
+     * filtros coincidan hoy —es que no pueden dejar de coincidir—.
+     *
+     * Efecto buscado: una empresa cuya gente entera se quedó fuera no
+     * sale en el F7 ni en la hoja de las incompletas. Correcto: en el
+     * cargue tiene cero beneficiarios, y reportarla como beneficiaria
+     * del PFCE sin una sola fila que lo respalde es lo mismo que
+     * reportar la cifra inflada.
+     *
+     * El filtro de autorización no se pierde: `revisar` saca a quien
+     * no la tiene viva ---es de los de matrícula, y el reporte los
+     * hereda---. Da igual que aquí la persona solo salga como un
+     * número: seguir reportándola al SENA como beneficiaria es seguir
+     * tratando su participación después de que pidió que no.
+     *
+     * Y el permiso lo sigue mirando `preparar`, que empieza por ahí:
+     * el archivo lleva cédulas.
+     */
+    const { listos, excluidos } = await this.preparar(convenioId, ambito);
 
     // agrupadas por empresa Y accion: la misma empresa
     // puede tener gente en dos cursos distintos
     const grupos = new Map<string, FilaF7>();
-    for (const p of participantes) {
-      // la suya manda sobre la de la reserva: si alguien
-      // llego por una reserva pero despues dijo donde trabaja
-      // de verdad, vale lo que dijo
-      const e = p.empresa ?? p.reserva?.empresa;
-      if (!e || !p.accionFormacion) continue;
-      const clave = `${e.id}|${p.accionFormacion.nombre}`;
+    for (const p of listos) {
+      /// Cuál es su empresa ya lo resolvió `preparar` ---la propia
+      /// manda sobre la de la reserva--- y sin empresa la fila ni
+      /// llega aquí: `preparar` la excluye. El guarda es para el
+      /// tipo, no para el dato.
+      const e = p.empresa;
+      if (!e) continue;
+      const clave = `${e.id}|${p.accion.nombre}`;
       const ya = grupos.get(clave);
       if (ya) {
         ya.beneficiarios += 1;
         continue;
       }
       grupos.set(clave, {
-        accion: p.accionFormacion.nombre,
+        accion: p.accion.nombre,
         beneficiarios: 1,
         empresa: {
           razonSocial: e.razonSocial,
@@ -242,9 +235,31 @@ export class SepService {
       });
     }
 
-    const todas = [...grupos.values()].sort((a, b) =>
-      a.empresa.razonSocial.localeCompare(b.empresa.razonSocial, 'es'),
-    );
+    /**
+     * CON DESEMPATE, PORQUE EL NÚMERO DE FILA SALE DEL ORDEN.
+     *
+     * Ordenaba solo por razón social, y eso EMPATA: la misma empresa
+     * con gente en dos acciones son dos filas con idéntica razón
+     * social. Un empate deja el orden en manos del motor —la consulta
+     * tampoco llevaba `orderBy`—, así que dos exportaciones del mismo
+     * día con los mismos datos podían numerar distinto. Y la columna
+     * «#» de `formato-f7.ts` es el índice: el cliente arma sus INSERT
+     * concatenando celdas y cruza los dos archivos por ese número.
+     *
+     * Los tres criterios juntos SÍ son un orden total: el NIT es
+     * único en el maestro (`@@unique([nit])`), así que no hay dos
+     * filas que queden iguales. La clave del grupo va de último por
+     * si algún día deja de serlo.
+     */
+    const todas = [...grupos.entries()]
+      .sort(
+        ([claveA, a], [claveB, b]) =>
+          a.empresa.razonSocial.localeCompare(b.empresa.razonSocial, 'es') ||
+          a.accion.localeCompare(b.accion, 'es') ||
+          a.empresa.nit.localeCompare(b.empresa.nit) ||
+          claveA.localeCompare(claveB),
+      )
+      .map(([, f]) => f);
 
     const listas: FilaF7[] = [];
     const incompletas: Array<{
@@ -269,11 +284,22 @@ export class SepService {
       }
     }
 
-    return { listas, incompletas };
+    /// `personasFuera` viaja para que el aviso no mienta.
+    ///
+    /// Desde que el F7 cuenta a los del cargue, una empresa cuya
+    /// gente entera se quedó fuera no sale en ninguna de las dos
+    /// hojas. Sin este número, el mensaje de «no se puede generar»
+    /// decía «todavía no hay a quien reportar» habiendo 40 personas
+    /// a medio completar, y eso manda a buscar el problema donde no
+    /// está.
+    return { listas, incompletas, personasFuera: excluidos.length };
   }
 
   async exportarF7(convenioId: string, ambito: string[]) {
-    const { listas, incompletas } = await this.prepararF7(convenioId, ambito);
+    const { listas, incompletas, personasFuera } = await this.prepararF7(
+      convenioId,
+      ambito,
+    );
 
     /// Un F7 sin una sola organizacion NO se baja.
     ///
@@ -284,7 +310,13 @@ export class SepService {
     /// cargue de cero registros que nadie nota. La pantalla
     /// tenia el candado en los dos reportes de personas y no
     /// en este, asi que el boton estaba siempre activo.
-    exigirQueHayaFilas(listas.length, incompletas.length, 'organización');
+    /// Si no hay ni una organización incompleta pero sí personas
+    /// fuera, se cuentan ellas: es donde está el trabajo.
+    exigirQueHayaFilas(
+      listas.length,
+      incompletas.length || personasFuera,
+      'organización',
+    );
 
     const hojas: Hoja[] = [
       {
@@ -385,7 +417,26 @@ export class SepService {
 
     const participantes = await this.prisma.participante.findMany({
       where: { convenioId, etapa: { in: ETAPAS_DEL_REPORTE } },
-      orderBy: [{ accionFormacionId: 'asc' }, { creadoEn: 'asc' }],
+      /**
+       * Y EL TERCER CRITERIO NO ES ADORNO: `creadoEn` EMPATA.
+       *
+       * Es la misma lección que las caracterizaciones de más abajo.
+       * Las participaciones de una nómina entera se escriben de golpe
+       * ---un cargue de plantilla, una reserva con sus nominados--- y
+       * `creadoEn` es `now()`, que en Postgres es la hora de la
+       * TRANSACCIÓN, idéntica para todas las filas. Ordenar por un
+       * valor igual no ordena nada.
+       *
+       * Y la columna «NO.» del cargue es el índice de esta lista, así
+       * que dos exportaciones del mismo día con los mismos datos
+       * numeraban distinto. El `id` es arbitrario pero ESTABLE, que es
+       * lo único que hace falta.
+       */
+      orderBy: [
+        { accionFormacionId: 'asc' },
+        { creadoEn: 'asc' },
+        { id: 'asc' },
+      ],
       include: {
         /// Con sus caracterizaciones: el reporte las mandaba
         /// SIEMPRE vacías porque aquí no se pedían y abajo se
@@ -430,10 +481,7 @@ export class SepService {
              */
             caracterizaciones: {
               where: { autorizacion: { revocadaEn: null } },
-              orderBy: [
-                { creadoEn: 'asc' },
-                { caracterizacionSepId: 'asc' },
-              ],
+              orderBy: [{ creadoEn: 'asc' }, { caracterizacionSepId: 'asc' }],
             },
           },
         },
@@ -456,19 +504,12 @@ export class SepService {
             },
           },
         },
-        reserva: {
-          select: {
-            empresa: {
-              select: {
-                nit: true,
-                digitoVerificacion: true,
-                razonSocial: true,
-                tamanoSepId: true,
-                tipoDocumentoSepId: true,
-              },
-            },
-          },
-        },
+        /// La empresa de la reserva, ENTERA y no los cinco campos
+        /// del cargue: de estas mismas filas sale ahora el F7, que
+        /// reporta dirección, teléfono, contacto, sector y tamaño.
+        /// Con el `select` corto, a quien llegó nominado por una
+        /// reserva el F7 le veía la empresa «sin dirección».
+        reserva: { select: { empresa: true } },
       },
     });
 
@@ -537,6 +578,33 @@ export class SepService {
         p.cobertura.grupo.accionFormacionId !== p.accionFormacionId
       ) {
         reporte.push('su grupo es de otra acción de formación');
+      }
+
+      /**
+       * SIN HORAS NO SE REPORTA, Y SOBRE TODO: SE AVISA.
+       *
+       * `AccionFormacion.horas` es opcional y «TOTAL DE HORAS EVENTO»
+       * lo exporta tal cual, así que una acción a la que nadie le
+       * puso las horas mandaba la celda VACÍA en sus 800 filas y
+       * nada lo decía: ni el alistamiento, ni la hoja de los no
+       * exportados, ni la ficha. El cliente arma sus INSERT
+       * concatenando celdas, así que de ahí no sale un error — sale
+       * un cargue con el total de horas en blanco.
+       *
+       * Y es el dato del que cuelga todo lo demás: el porcentaje de
+       * cumplimiento del cierre se mide contra él.
+       *
+       * El motivo nombra la ACCIÓN, no la persona, porque el arreglo
+       * es uno solo para las 800: se le ponen las horas a la acción.
+       * Va por participación igual que los demás porque esta lista
+       * es de participaciones, y el alistamiento agrupa por motivo —
+       * el asesor lee «800 sin horas» una vez, no 800 veces.
+       */
+      if (p.accionFormacion && p.accionFormacion.horas === null) {
+        reporte.push(
+          `su acción de formación no tiene el total de horas del evento ` +
+            `(${p.accionFormacion.codigo})`,
+        );
       }
 
       if (reporte.length > 0) {

@@ -20,7 +20,6 @@ import { aNumeroOAusente as aNumero } from '../comun/campo-vacio';
 const recortar = ({ value }: { value: unknown }) =>
   typeof value === 'string' ? value.trim() : value;
 
-
 const aTexto = ({ value }: { value: unknown }) =>
   typeof value === 'string' && value.trim() === ''
     ? undefined
@@ -115,8 +114,12 @@ export class CrearPreinscripcionDto {
   ///
   /// Este endpoint es PUBLICO: quien lo llama no es una pantalla
   /// nuestra, asi que el tipo del JSON no se puede dar por bueno.
-  @Transform(({ obj, key }) => booleanoDeVerdad((obj as Record<string, unknown>)[key]))
-  @IsOptional() @IsBoolean() aceptaPolitica?: boolean;
+  @Transform(({ obj, key }) =>
+    booleanoDeVerdad((obj as Record<string, unknown>)[key]),
+  )
+  @IsOptional()
+  @IsBoolean()
+  aceptaPolitica?: boolean;
 
   /// La visita que viene midiendo el embudo. Opaca y sin
   /// datos de nadie: sirve para cerrar el embudo del lado
@@ -202,7 +205,24 @@ export class DatosPersonaDto {
   @IsOptional() @Transform(aNumero) @IsInt() nivelOcupacionalSepId?: number;
 
   /** Sin esto la fila no entra en el reporte. */
-  @IsOptional() @IsBoolean() beneficiarioPrevio?: boolean;
+  /// Y TAMBIEN por el valor crudo, como sus cuatro hermanos de
+  /// este fichero.
+  ///
+  /// Era el unico booleano del modulo sin `booleanoDeVerdad`, y
+  /// con `enableImplicitConversion` puesto en el ValidationPipe
+  /// global la cadena «false» entra con la regla de JavaScript:
+  /// cualquier cadena no vacia es TRUE. Un cliente que serialice
+  /// a texto --y este endpoint es PUBLICO, quien llama no es una
+  /// pantalla nuestra-- hacia que la ficha afirmara que la
+  /// persona YA fue beneficiaria del SENA justo cuando dijo lo
+  /// contrario. Y es columna del F7: el «no» de la persona
+  /// viajaba al SENA convertido en «si».
+  @Transform(({ obj, key }) =>
+    booleanoDeVerdad((obj as Record<string, unknown>)[key]),
+  )
+  @IsOptional()
+  @IsBoolean()
+  beneficiarioPrevio?: boolean;
 
   /** Aceptar la politica: es lo que hay que demostrar. */
   /// El valor CRUDO, igual que en `leads/dto.ts`.
@@ -215,8 +235,12 @@ export class DatosPersonaDto {
   ///
   /// Este endpoint es PUBLICO: quien lo llama no es una pantalla
   /// nuestra, asi que el tipo del JSON no se puede dar por bueno.
-  @Transform(({ obj, key }) => booleanoDeVerdad((obj as Record<string, unknown>)[key]))
-  @IsOptional() @IsBoolean() aceptaPolitica?: boolean;
+  @Transform(({ obj, key }) =>
+    booleanoDeVerdad((obj as Record<string, unknown>)[key]),
+  )
+  @IsOptional()
+  @IsBoolean()
+  aceptaPolitica?: boolean;
 
   /**
    * Poblacion vulnerable, del catalogo del SEP.
@@ -241,8 +265,12 @@ export class DatosPersonaDto {
   /// entonces la ficha diria «se le pregunto y no quiso
   /// responder» de alguien que SI contesto. Es un hecho sobre un
   /// dato sensible, puesto al reves.
-  @Transform(({ obj, key }) => booleanoDeVerdad((obj as Record<string, unknown>)[key]))
-  @IsOptional() @IsBoolean() caracterizacionRechazada?: boolean;
+  @Transform(({ obj, key }) =>
+    booleanoDeVerdad((obj as Record<string, unknown>)[key]),
+  )
+  @IsOptional()
+  @IsBoolean()
+  caracterizacionRechazada?: boolean;
 }
 
 /** Lo que el F7 pide de la organización. */
@@ -269,8 +297,12 @@ export class DatosEmpresaDto {
   /// TRUE, la cedula de la persona se toma como el NIT de su
   /// empresa y se crea una organizacion que no existe -- que
   /// despues viaja al F7.
-  @Transform(({ obj, key }) => booleanoDeVerdad((obj as Record<string, unknown>)[key]))
-  @IsOptional() @IsBoolean() rutPropio?: boolean;
+  @Transform(({ obj, key }) =>
+    booleanoDeVerdad((obj as Record<string, unknown>)[key]),
+  )
+  @IsOptional()
+  @IsBoolean()
+  rutPropio?: boolean;
 
   // solo de quien no vino por una reserva: la suya ya la
   // fijo la empresa que lo nomino y no la cambia el

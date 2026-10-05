@@ -19,7 +19,8 @@ import { CrmService } from './crm.service';
 import { calcularDigitoVerificacion } from '../comun/nit';
 
 function armar() {
-  const upserts: Array<{ where: unknown; create: Record<string, unknown> }> = [];
+  const upserts: Array<{ where: unknown; create: Record<string, unknown> }> =
+    [];
   const participanteUpdates: Array<Record<string, unknown>> = [];
   const empresaUpdates: Array<Record<string, unknown>> = [];
   const auditadas: Array<{ accion: string; resumen?: string }> = [];
@@ -49,9 +50,7 @@ function armar() {
       /// Tras crear, el bloque del NIT relee el nit para comparar:
       /// devuelve el que se acaba de crear, así que no hay «corrección».
       findUnique: (a: { where: { nit?: string } }) =>
-        Promise.resolve(
-          a.where.nit ? null : { nit: '860507033' },
-        ),
+        Promise.resolve(a.where.nit ? null : { nit: '860507033' }),
       update: (a: { data: Record<string, unknown> }) => {
         empresaUpdates.push(a.data);
         return Promise.resolve({});
@@ -109,9 +108,7 @@ function armar() {
 describe('sin NIT no se puede dar de alta', () => {
   it('lo dice, y no crea ni enlaza', async () => {
     const { guardar, upserts, participanteUpdates } = armar();
-    await expect(
-      guardar({ razonSocial: 'Vise LTDA' }),
-    ).rejects.toThrow(/NIT/i);
+    await expect(guardar({ razonSocial: 'Vise LTDA' })).rejects.toThrow(/NIT/i);
     expect(upserts).toHaveLength(0);
     expect(participanteUpdates).toHaveLength(0);
   });

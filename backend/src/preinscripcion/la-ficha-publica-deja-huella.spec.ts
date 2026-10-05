@@ -80,10 +80,14 @@ describe('la ficha que nace en el formulario público', () => {
    */
   it('y en qué acción de formación', () => {
     const t = fuente();
-    expect(t).toContain('Se inscribió por su cuenta en ${oferta.accionFormacion.codigo}');
+    expect(t).toContain(
+      'Se inscribió por su cuenta en ${oferta.accionFormacion.codigo}',
+    );
     /// El código tiene que venir en el `select`, o la plantilla
     /// imprimiría «undefined» sin que nada falle.
-    expect(t).toContain('accionFormacion: { select: { evento: true, codigo: true } }');
+    expect(t).toContain(
+      'accionFormacion: { select: { evento: true, codigo: true } }',
+    );
   });
 });
 

@@ -37,6 +37,9 @@ const CAMPOS = {
   primerNombre: true,
   primerApellido: true,
   accionFormacionId: true,
+  /// El motivo que ya tiene escrito, para no reescribir el MISMO
+  /// cada minuto. Ver `apuntarPorQueSeQueda`.
+  motivo: true,
 } as const;
 
 type LeadParaPasar = {
@@ -52,6 +55,7 @@ type LeadParaPasar = {
   primerNombre: string | null;
   primerApellido: string | null;
   accionFormacionId: string | null;
+  motivo: string | null;
 };
 
 const CADA = 60_000;
@@ -234,6 +238,47 @@ export class ConversionAutomatica implements OnModuleInit, OnModuleDestroy {
     }
   }
 
+  /**
+   * Por qué se quedó, escrito donde alguien lo vea.
+   *
+   * Va al `motivo` del lead --que es la columna que la mesa de
+   * entrada ya enseña-- y al log, pero SOLO SI CAMBIÓ.
+   *
+   * Esa condición es la mitad del arreglo. El barrido pasa cada
+   * minuto por los mismos leads pendientes: escribir el motivo
+   * sin mirar el que ya está deja un UPDATE y una línea de log
+   * por lead y por minuto --1.440 al día por cada lead que
+   * espera-- y un log que se repite mil veces es tan invisible
+   * como no tenerlo, solo que además tapa lo demás.
+   *
+   * Así el primer intento lo apunta, los siguientes callan, y
+   * cuando el motivo CAMBIA --porque el asesor completó el
+   * documento, o porque el fallo es otro-- vuelve a escribirse.
+   *
+   * Que no se pueda escribir el motivo no puede tumbar la
+   * vuelta: el lead sigue pendiente y el barrido volverá. Se
+   * avisa y se sigue con el siguiente.
+   */
+  private async apuntarPorQueSeQueda(
+    lead: LeadParaPasar,
+    porque: string,
+  ): Promise<void> {
+    if (lead.motivo === porque) return;
+
+    this.log.warn(`Lead ${lead.id} se queda: ${porque}`);
+    try {
+      await this.prisma.leadEntrante.update({
+        where: { id: lead.id },
+        data: { motivo: porque },
+      });
+    } catch (e) {
+      this.log.error(
+        `Lead ${lead.id}: no se pudo apuntar el motivo: ` +
+          `${e instanceof Error ? e.message : String(e)}`,
+      );
+    }
+  }
+
   /** Los que están listos, a ficha. Devuelve cuántos. */
   async pasar(): Promise<number> {
     // una vuelta a la vez: dos crearían la misma persona
@@ -263,7 +308,25 @@ export class ConversionAutomatica implements OnModuleInit, OnModuleDestroy {
     for (const lead of leads) {
       // que uno falle no puede parar la vuelta
       const r = await this.conEsteLead(lead);
-      if (r.paso) hechas += 1;
+      if (r.paso) {
+        hechas += 1;
+        continue;
+      }
+      /// Y QUE NO PASE TIENE QUE DEJAR RASTRO.
+      ///
+      /// Antes esta línea era `if (r.paso) hechas += 1;` y
+      /// `r.porque` se iba a la basura ahí mismo: el `catch` de
+      /// `conEsteLead` convertía la excepción en una frase, y la
+      /// frase no la leía nadie.
+      ///
+      /// Lo que eso producía: el lead se reintentaba cada 60 s
+      /// para siempre, el asesor lo veía PENDIENTE sin una línea
+      /// que dijera por qué, y avisos que SÍ importan --«este
+      /// lead se convirtió dos veces a la vez, quedó una ficha
+      /// suelta: únalas»-- no llegaban a ningún sitio. No había
+      /// síntoma: el barrido contestaba «0 pasaron» y eso es
+      /// exactamente lo que contesta una mesa sin nada que hacer.
+      await this.apuntarPorQueSeQueda(lead, r.porque);
     }
 
     if (hechas > 0) {

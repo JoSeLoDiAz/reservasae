@@ -49,7 +49,10 @@ export function sedeQueLeToca(
           tipo: o.ubicacion.tipo,
           departamento: o.ubicacion.departamento ?? null,
         },
-        { departamento: vive.departamento ?? null, ciudad: vive.ciudad ?? null },
+        {
+          departamento: vive.departamento ?? null,
+          ciudad: vive.ciudad ?? null,
+        },
       ),
   );
 

@@ -70,7 +70,10 @@ describe('el último día de la ventana', () => {
     ] as const) {
       const v = rotulo(rango, ahora);
       if (!v.desde || !v.hasta) continue;
-      expect({ rango, bien: v.hasta >= v.desde }).toEqual({ rango, bien: true });
+      expect({ rango, bien: v.hasta >= v.desde }).toEqual({
+        rango,
+        bien: true,
+      });
     }
   });
 
@@ -84,7 +87,8 @@ describe('el último día de la ventana', () => {
   it('la ventana de una semana cubre siete días de Bogotá', () => {
     const v = rotulo('SEMANA', new Date('2026-08-27T19:00:00.000Z'));
     const dias =
-      (Date.parse(`${v.hasta}T00:00:00Z`) - Date.parse(`${v.desde}T00:00:00Z`)) /
+      (Date.parse(`${v.hasta}T00:00:00Z`) -
+        Date.parse(`${v.desde}T00:00:00Z`)) /
         86_400_000 +
       1;
     expect(dias).toBe(7);
@@ -117,7 +121,9 @@ describe('el rótulo del control del CRM: el mismo, y hasta hoy sin test', () =>
   /// el «- DIA»— y se quedó sin arreglar cuando se arregló
   /// aquel; y después se quedó sin test. Lo señaló la revisión.
   function suRotulo(rango: Parameters<typeof resolverVentana>[0], ahora: Date) {
-    return rotuloDelPeriodo(resolverVentana(rango, undefined, undefined, ahora));
+    return rotuloDelPeriodo(
+      resolverVentana(rango, undefined, undefined, ahora),
+    );
   }
 
   it('«Hoy» a las 20:00 de Bogotá es el 27, no el 28 ni el 26', () => {
@@ -128,10 +134,20 @@ describe('el rótulo del control del CRM: el mismo, y hasta hoy sin test', () =>
 
   it('ninguna ventana termina antes de empezar', () => {
     const ahora = new Date('2026-08-27T19:00:00.000Z');
-    for (const rango of ['HOY', 'AYER', 'SEMANA', 'MES', 'TRIMESTRE', 'ANO'] as const) {
+    for (const rango of [
+      'HOY',
+      'AYER',
+      'SEMANA',
+      'MES',
+      'TRIMESTRE',
+      'ANO',
+    ] as const) {
       const v = suRotulo(rango, ahora);
       if (!v.desde || !v.hasta) continue;
-      expect({ rango, bien: v.hasta >= v.desde }).toEqual({ rango, bien: true });
+      expect({ rango, bien: v.hasta >= v.desde }).toEqual({
+        rango,
+        bien: true,
+      });
     }
   });
 

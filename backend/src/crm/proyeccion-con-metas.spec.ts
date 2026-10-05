@@ -35,7 +35,11 @@ function fila(p: {
 
 describe('los días del admin mandan sobre el cronograma', () => {
   it('sin días propios, usa los del cronograma', () => {
-    const f = conMetas(fila({ cupos: 520, inscritos: 71, diasRestantes: 7 }), { asesores: 3, dias: null, cierre: null });
+    const f = conMetas(fila({ cupos: 520, inscritos: 71, diasRestantes: 7 }), {
+      asesores: 3,
+      dias: null,
+      cierre: null,
+    });
     expect(f.diasParaCierre).toBe(7);
     expect(f.diasConfigurados).toBeNull();
     /// 449 / 7 = 64,14 · / 3 = 21,38.
@@ -45,7 +49,11 @@ describe('los días del admin mandan sobre el cronograma', () => {
 
   it('con días propios, manda ESE número, no el del cronograma', () => {
     /// El admin tecleó 5; el cronograma dice 2. Gana el 5.
-    const f = conMetas(fila({ cupos: 520, inscritos: 71, diasRestantes: 2 }), { asesores: 3, dias: 5, cierre: null });
+    const f = conMetas(fila({ cupos: 520, inscritos: 71, diasRestantes: 2 }), {
+      asesores: 3,
+      dias: 5,
+      cierre: null,
+    });
     expect(f.diasParaCierre).toBe(5);
     expect(f.diasConfigurados).toBe(5);
     expect(f.metaDiariaFlotante).toBeCloseTo(449 / 5, 5);
@@ -79,10 +87,11 @@ describe('la fecha de cierre es INDEPENDIENTE de los días', () => {
 
 describe('lo que falta configurar sale NULO, no cero', () => {
   it('sin asesores, la meta por asesor es null', () => {
-    const f = conMetas(
-      fila({ cupos: 520, inscritos: 71, diasRestantes: 7 }),
-      { asesores: null, dias: null, cierre: null },
-    );
+    const f = conMetas(fila({ cupos: 520, inscritos: 71, diasRestantes: 7 }), {
+      asesores: null,
+      dias: null,
+      cierre: null,
+    });
     expect(f.asesores).toBeNull();
     expect(f.metaPorAsesor).toBeNull();
     /// La diaria sí se puede, porque hay días.
@@ -100,10 +109,11 @@ describe('lo que falta configurar sale NULO, no cero', () => {
   });
 
   it('meta ya cubierta: no se debe nada', () => {
-    const f = conMetas(
-      fila({ cupos: 520, inscritos: 600, diasRestantes: 7 }),
-      { asesores: 3, dias: null, cierre: null },
-    );
+    const f = conMetas(fila({ cupos: 520, inscritos: 600, diasRestantes: 7 }), {
+      asesores: 3,
+      dias: null,
+      cierre: null,
+    });
     expect(f.metaDiariaFlotante).toBe(0);
     expect(f.metaPorAsesor).toBe(0);
   });

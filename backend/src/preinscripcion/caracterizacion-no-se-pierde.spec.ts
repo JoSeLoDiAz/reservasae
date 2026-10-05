@@ -102,10 +102,10 @@ function servicio(prisma: ReturnType<typeof prismaFalso>) {
     { registrar: () => Promise.resolve() } as never,
     {} as never,
     {} as never,
-      dobleDeEmbudo(),
+    dobleDeEmbudo(),
     dobleDeColaDeCorreo(),
     dobleDeEnlace(),
-  
+
     { avisar: () => Promise.resolve() } as never,
   );
 }
@@ -150,7 +150,9 @@ describe('la ficha que nadie tocó sigue igual', () => {
     const r = await servicio(prisma).guardarPersona('t', marca);
     expect(r).toEqual({ guardado: true, enEspera: false });
     expect(
-      prisma.escrituras.some((e) => e.tabla === 'propuestaDeDatos' && e.metodo === 'create'),
+      prisma.escrituras.some(
+        (e) => e.tabla === 'propuestaDeDatos' && e.metodo === 'create',
+      ),
     ).toBe(false);
     expect(
       prisma.escrituras.some((e) => e.tabla === 'caracterizacionPersona'),

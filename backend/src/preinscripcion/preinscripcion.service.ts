@@ -49,6 +49,11 @@ import {
 } from '../comun/plazas-de-la-oferta';
 import { DirectorioService } from '../crm/directorio.service';
 import { aQueOrganizacionSeAta } from './organizacion-de-la-ficha';
+import {
+  comoSeCuentanLosChoques,
+  repartirDatosDeLaFicha,
+} from './datos-de-la-participacion';
+import { soloRellenarHuecos } from './solo-se-rellenan-huecos';
 import { entraAlDirectorio } from './entra-al-directorio';
 import { tamanoDeIndependiente } from '../crm/tamano-del-independiente';
 import { faltaDeLaEmpresa } from './empresa-incompleta';
@@ -535,7 +540,9 @@ export class PreinscripcionService {
         },
         select: {
           accionFormacionId: true,
-          accionFormacion: { select: { codigo: true, nombre: true, evento: true } },
+          accionFormacion: {
+            select: { codigo: true, nombre: true, evento: true },
+          },
         },
       });
       const motivo = motivoParaNoInscribir(
@@ -561,25 +568,110 @@ export class PreinscripcionService {
     /// decide si la bitácora dice «nació» o no dice nada.
     const esNueva = !yaEsta;
 
-    const participante =
-      yaEsta ??
-      (await this.prisma.participante.create({
-        data: {
-          personaId: persona.id,
-          convenioId: convenio.id,
-          ofertaId: oferta.id,
-          accionFormacionId: oferta.accionFormacionId,
-          origen: 'AUTOGESTION',
-          etapa: 'INTERESADO',
-          movimientos: {
-            create: {
-              etapaDespues: 'INTERESADO',
-              motivo: 'Se inscribió por su cuenta',
+    /**
+     * EL DOBLE CLIC, que daba un 500 crudo.
+     *
+     * Entre el `findFirst` de `yaEsta` y este `create` hay una
+     * ventana, y `Participante` tiene `@@unique([accionFormacionId,
+     * personaId])`. Dos envíos a la vez --el doble clic del botón,
+     * o el reintento del móvil que pierde la red con la petición
+     * ya hecha-- pasaban los dos por el `findFirst` sin ver nada y
+     * los dos llegaban aquí. El segundo reventaba con un P2002 sin
+     * capturar: 500 sin mensaje, en la última pantalla del
+     * formulario, con la ficha YA creada.
+     *
+     * Y si la base no hubiera parado al segundo habría sido peor:
+     * dos acuses encolados que se contradicen y un
+     * `emitirAlRegistrarse` que ANULA el token que el primero
+     * acababa de entregar --el del botón de la pantalla de
+     * gracias--, así que el enlace dejaba de abrir sin que nadie
+     * supiera por qué.
+     *
+     * MISMA IDEA QUE `leads.service.ts`: se captura el P2002, se
+     * relee al ganador y se devuelve lo suyo. Cualquier otro error
+     * sube tal cual: tragárselos todos convertiría un fallo de base
+     * en una inscripción perdida en silencio.
+     */
+    let perdioLaCarrera = false;
+    let participante = yaEsta;
+
+    if (!participante) {
+      try {
+        participante = await this.prisma.participante.create({
+          data: {
+            personaId: persona.id,
+            convenioId: convenio.id,
+            ofertaId: oferta.id,
+            accionFormacionId: oferta.accionFormacionId,
+            origen: 'AUTOGESTION',
+            etapa: 'INTERESADO',
+            movimientos: {
+              create: {
+                etapaDespues: 'INTERESADO',
+                motivo: 'Se inscribió por su cuenta',
+              },
             },
           },
-        },
-        select: { id: true },
-      }));
+          select: { id: true },
+        });
+      } catch (e) {
+        if (
+          !(e instanceof Prisma.PrismaClientKnownRequestError) ||
+          e.code !== 'P2002'
+        ) {
+          throw e;
+        }
+
+        /// `findFirst` con el MISMO filtro de `yaEsta`, y no
+        /// `findUnique` por la llave compuesta: `accionFormacionId`
+        /// es nulable, así que la llave no sirve para leer cuando
+        /// no hay acción. Con el mismo filtro no hay dos reglas
+        /// que puedan desajustarse.
+        const gano = await this.prisma.participante.findFirst({
+          where: {
+            personaId: persona.id,
+            accionFormacionId: oferta.accionFormacionId,
+          },
+          select: { id: true },
+        });
+        /// Si no aparece, el P2002 era de OTRO único y no de esta
+        /// carrera. Devolver «ya estaba» ahí sería mentir sobre
+        /// una ficha que no entró.
+        if (!gano) throw e;
+
+        this.log.log(
+          `Preinscripción ${documento}: envío simultáneo, la ficha ya estaba.`,
+        );
+        participante = gano;
+        perdioLaCarrera = true;
+      }
+    }
+
+    /**
+     * EL QUE PIERDE LA CARRERA SE VA AQUÍ, y es lo que evita el
+     * daño de verdad.
+     *
+     * Todo lo que viene debajo --cerrar los leads que esperaban,
+     * la constancia, el RUI, la atribución, el acuse-- lo está
+     * haciendo el que ganó, con este mismo cuerpo. Repetirlo
+     * encola el segundo correo y, sobre todo, vuelve a emitir el
+     * enlace, que anula el que el ganador acaba de devolver.
+     *
+     * Se devuelve el enlace VIVO --`emitirOReusar`, que reusa el
+     * del ganador si ya existe-- y no un token nuevo: el doble
+     * clic de una persona legítima tiene que acabar en la pantalla
+     * de gracias con su enlace, no en un 500 ni con un enlace
+     * muerto.
+     */
+    if (perdioLaCarrera) {
+      const enlace = await this.enlaces.emitirOReusar(participante.id, null);
+      return {
+        registrado: true,
+        yaEstaba: false,
+        token: enlace.token,
+        expiraEn: enlace.expiraEn,
+      };
+    }
 
     /**
      * LA HUELLA DE QUE ESTA FICHA NACIÓ, Y POR QUÉ PUERTA.
@@ -645,7 +737,6 @@ export class PreinscripcionService {
       );
     }
 
-
     /// Si trajo datos DISTINTOS de los que ya teníamos, se
     /// deja como PROPUESTA para que un asesor decida.
     ///
@@ -707,7 +798,12 @@ export class PreinscripcionService {
     /// ficha SI se creo. Asi `ENVIO - REGISTRADO` significa de
     /// verdad «el servidor rechazo o nunca llego».
     if (dto.visita)
-      await this.embudo.registrado(dto.visita, slug, convenio.id, Boolean(yaHabiaPersona));
+      await this.embudo.registrado(
+        dto.visita,
+        slug,
+        convenio.id,
+        Boolean(yaHabiaPersona),
+      );
 
     /**
      * DE DÓNDE VINO, y va DESPUÉS de cerrar los leads.
@@ -722,7 +818,9 @@ export class PreinscripcionService {
      * completó su inscripción.
      */
     try {
-      const llegada = dto.visita ? await this.embudo.procedenciaDe(dto.visita) : null;
+      const llegada = dto.visita
+        ? await this.embudo.procedenciaDe(dto.visita)
+        : null;
       const pagada = origenDeLaVisita(llegada);
       const red = redDeLaVisita(llegada);
 
@@ -803,7 +901,8 @@ export class PreinscripcionService {
       if (red) await registrarToqueDeOrigen(this.prisma, participante.id, red);
     } catch (e) {
       this.log.warn(
-        'No se pudo atribuir la llegada: ' + (e instanceof Error ? e.message : String(e)),
+        'No se pudo atribuir la llegada: ' +
+          (e instanceof Error ? e.message : String(e)),
       );
     }
 
@@ -1223,6 +1322,15 @@ export class PreinscripcionService {
       select: {
         personaId: true,
         datosTocadosPorAsesorEn: true,
+        /// Lo de la PARTICIPACION, para poder comparar.
+        ///
+        /// Antes no se leia porque no se comparaba con nada: se
+        /// escribia encima y punto. Ver
+        /// `datos-de-la-participacion.ts`.
+        nivelEducativo: true,
+        cargoEnEmpresa: true,
+        nivelOcupacionalSepId: true,
+        beneficiarioPrevio: true,
         persona: { select: { departamentoSepId: true, municipioSepId: true } },
       },
     });
@@ -1244,15 +1352,29 @@ export class PreinscripcionService {
 
     // el nivel educativo y el cargo son de la participación,
     // no de la persona: cambian entre un curso y el siguiente
-    await this.prisma.participante.update({
-      where: { id: enlace.participanteId },
-      data: {
-        nivelEducativo: dto.nivelEducativo,
-        cargoEnEmpresa: dto.cargoEnEmpresa,
-        nivelOcupacionalSepId: dto.nivelOcupacionalSepId,
-        beneficiarioPrevio: dto.beneficiarioPrevio,
-      },
-    });
+    const deLaFicha = {
+      nivelEducativo: dto.nivelEducativo,
+      cargoEnEmpresa: dto.cargoEnEmpresa,
+      nivelOcupacionalSepId: dto.nivelOcupacionalSepId,
+      beneficiarioPrevio: dto.beneficiarioPrevio,
+    };
+    /**
+     * AQUI YA NO SE ESCRIBE, Y ESE ERA EL DEFECTO.
+     *
+     * Estos cuatro se guardaban en este punto, ANTES del candado
+     * de `datosTocadosPorAsesorEn` que hay mas abajo. Asi que el
+     * asesor corregia el nivel ocupacional desde el panel, la
+     * persona reabria su enlace y reenviaba, y el valor volvia
+     * atras: sin propuesta, sin `ValorAnterior`, y con la
+     * respuesta diciendo `{enEspera: true}` --«no se piso
+     * nada»--, que para estos cuatro era mentira. El nivel
+     * ocupacional es columna del F7.
+     *
+     * El reparto se calcula aqui y se escribe en cada rama: los
+     * huecos siempre --rellenar un vacio no pisa a nadie-- y lo
+     * que choca solo cuando no hay candado.
+     */
+    const reparto = repartirDatosDeLaFicha(deLaFicha, tocada);
 
     // aceptar la politica es lo que hay que poder demostrar:
     // se guarda contra la version exacta que leyo, no como
@@ -1314,6 +1436,17 @@ export class PreinscripcionService {
     // campo. Pisar borraria el trabajo del asesor; tirarlo
     // perderia lo que la persona se molesto en escribir
     if (tocada.datosTocadosPorAsesorEn) {
+      /// Los HUECOS de la participación sí entran, y no rompen el
+      /// candado: un campo vacío no es una corrección del asesor,
+      /// así que escribirlo no le borra el trabajo a nadie. Es la
+      /// misma regla del `update` del `upsert` de `Persona` en el
+      /// registro público.
+      if (Object.keys(reparto.huecos).length > 0) {
+        await this.prisma.participante.update({
+          where: { id: enlace.participanteId },
+          data: reparto.huecos,
+        });
+      }
       await this.dejarPropuesta(enlace.participanteId, p.personaId, suyos);
       /**
        * La caracterización SÍ se guarda, aunque lo demás quede
@@ -1333,23 +1466,51 @@ export class PreinscripcionService {
        * ella misma, y el bloque entero existe para recoger lo
        * que ella dijo. El asesor no tiene un dato mejor.
        */
-      await this.guardarCaracterizaciones(p.personaId, dto, enlace.participanteId);
+      await this.guardarCaracterizaciones(
+        p.personaId,
+        dto,
+        enlace.participanteId,
+      );
       /// La clave es el enlace: reintentar el PATCH no avisa dos
       /// veces, pero un enlace nuevo sí vuelve a avisar.
+      /// Lo que CHOCA con una corrección del asesor se nombra
+      /// aquí, con lo que la persona dijo.
+      ///
+      /// No va a `PropuestaDeDatos`: esa tabla la resuelve el
+      /// panel con un `persona.update` de los campos que el
+      /// asesor acepta, y estos cuatro son de `Participante`.
+      /// Meterlos ahí reventaría justo al aceptarlos. Nombrarlos
+      /// en el aviso no los pierde y no pisa nada.
       await this.notificaciones.avisar({
         participanteId: enlace.participanteId,
         tipo: 'CAMBIOS_PROPUESTOS',
-        detalle: 'Mandó datos distintos de los que usted ya había corregido.',
+        detalle:
+          'Mandó datos distintos de los que usted ya había corregido.' +
+          (reparto.choques.length > 0
+            ? ` Y de su ficha: ${comoSeCuentanLosChoques(reparto.choques)}.`
+            : ''),
         claveEvento: enlace.id,
       });
       return { guardado: true, enEspera: true };
     }
 
+    /// Sin candado se escribe todo lo de la participación, que
+    /// es lo que se hacía siempre. `undefined` lo ignora Prisma,
+    /// así que lo que el formulario no mandó se queda.
+    await this.prisma.participante.update({
+      where: { id: enlace.participanteId },
+      data: deLaFicha,
+    });
+
     await this.prisma.persona.update({
       where: { id: p.personaId },
       data: suyos,
     });
-    await this.guardarCaracterizaciones(p.personaId, dto, enlace.participanteId);
+    await this.guardarCaracterizaciones(
+      p.personaId,
+      dto,
+      enlace.participanteId,
+    );
 
     /// AQUI, y no solo al terminar el paso de la empresa.
     ///
@@ -1763,7 +1924,59 @@ export class PreinscripcionService {
     }
 
     if (suya) {
-      await this.prisma.empresa.update({ where: { id: suya }, data: datos });
+      /**
+       * DE QUIEN ES LA FILA, antes de escribir en ella.
+       *
+       * `suya` puede ser dos cosas muy distintas: la organización
+       * que la NOMINÓ por una reserva --una sola fila compartida
+       * por todos sus nominados-- o la que ella misma dio. Aquí
+       * se escribían las dos igual, con `data: datos`.
+       *
+       * Cómo se veía: una persona del Colegio Benedictino ponía
+       * su propio celular en «teléfono» y su nombre en «persona
+       * de contacto» --lo que pone cualquiera si no le dicen otra
+       * cosa-- y eso pasaba a ser el teléfono y el contacto del
+       * colegio en las 40 fichas. El F7 va por organización, así
+       * que las 40 filas salían al SENA con el teléfono de una
+       * sola persona. Lo tapaba que desde su propia ficha no se
+       * notaba nada: el cambio se veía en las otras 39.
+       *
+       * La NOMINADA solo se rellena por los huecos, con la misma
+       * regla que ya usa el camino de reservas. La SUYA se
+       * escribe entera: no hay nadie detrás y corregirse es para
+       * lo que existe este enlace.
+       */
+      const esNominada = suya === (p.reserva?.empresaId ?? null);
+
+      const guardada = esNominada
+        ? await this.prisma.empresa.findUnique({
+            where: { id: suya },
+            select: {
+              direccion: true,
+              telefono: true,
+              departamentoSepId: true,
+              municipioSepId: true,
+              sectorEconomico: true,
+              numeroTrabajadores: true,
+              contactoNombre: true,
+              contactoCargo: true,
+              contactoCorreo: true,
+            },
+          })
+        : null;
+
+      const aEscribir = guardada ? soloRellenarHuecos(datos, guardada) : datos;
+
+      /// Si no quedaba ningún hueco no se toca la fila. Un
+      /// `update` vacío no cambia nada, pero mueve
+      /// `actualizadoEn` y hace parecer que alguien editó la
+      /// organización del colegio.
+      if (Object.keys(aEscribir).length > 0) {
+        await this.prisma.empresa.update({
+          where: { id: suya },
+          data: aEscribir,
+        });
+      }
       // y se ata al lead, que es lo que faltaba. Esta rama
       // actualizaba la empresa y se iba sin dejar constancia
       // de a quien pertenece: el lead quedaba con empresaId
@@ -2135,11 +2348,7 @@ export class PreinscripcionService {
   /// Sin tildes y en mayusculas: el catalogo del SEP y lo que
   /// llega del formulario no siempre se escriben igual.
   private static clave(t: string): string {
-    return t
-      .normalize('NFD')
-      .replace(/[̀-ͯ]/g, '')
-      .toUpperCase()
-      .trim();
+    return t.normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().trim();
   }
 
   private domicilioSep(departamento?: string, ciudad?: string) {

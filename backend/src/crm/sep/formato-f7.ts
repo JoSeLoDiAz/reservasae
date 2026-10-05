@@ -24,7 +24,11 @@ export const COLUMNAS: Array<{
   { titulo: 'NOMBRE EMPRESA', clave: 'empresa', ancho: 40 },
   { titulo: 'NIT', clave: 'nit', formato: 'entero' },
   { titulo: 'DV', clave: 'dv' },
-  { titulo: 'DEPARTAMENTO SEDE DE LA EMPRESA', clave: 'departamento', ancho: 24 },
+  {
+    titulo: 'DEPARTAMENTO SEDE DE LA EMPRESA',
+    clave: 'departamento',
+    ancho: 24,
+  },
   { titulo: 'MUNICIPIO SEDE DE LA EMPRESA', clave: 'municipio', ancho: 24 },
   { titulo: 'DIRECCIÓN', clave: 'direccion', ancho: 40 },
   { titulo: 'TELÉFONO', clave: 'telefono' },
@@ -141,7 +145,8 @@ export function fila(f: FilaF7, indice: number): CeldasF7 {
 /** Qué le falta a esta organización para poder reportarse. */
 export function faltaEnF7(e: FilaF7['empresa']): string[] {
   const falta: string[] = [];
-  if (!e.departamento || !e.municipio) falta.push('sin departamento o municipio de la sede');
+  if (!e.departamento || !e.municipio)
+    falta.push('sin departamento o municipio de la sede');
   if (!e.direccion) falta.push('sin dirección');
   if (!e.telefono) falta.push('sin teléfono');
   if (!e.contactoNombre) falta.push('sin persona de contacto');

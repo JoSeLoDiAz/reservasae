@@ -98,7 +98,9 @@ function prismaFalso(
       findUnique: () => Promise.resolve(persona),
       update: anota('persona', 'update'),
     },
-    movimientoParticipante: { create: anota('movimientoParticipante', 'create') },
+    movimientoParticipante: {
+      create: anota('movimientoParticipante', 'create'),
+    },
     propuestaDeDatos: {
       deleteMany: anota('propuestaDeDatos', 'deleteMany', { count: 0 }),
       create: anota('propuestaDeDatos', 'create'),
@@ -123,7 +125,7 @@ function servicio(prisma: ReturnType<typeof prismaFalso>) {
     dobleDeEmbudo(),
     dobleDeColaDeCorreo(),
     dobleDeEnlace(),
-  
+
     { avisar: () => Promise.resolve() } as never,
   );
 }
@@ -143,7 +145,9 @@ describe('quien llena sus datos desde el enlace', () => {
   it('pasa a «Datos completos» sin llegar al paso de la empresa', async () => {
     const prisma = prismaFalso(COMPLETA, 2);
 
-    const r = await servicio(prisma).guardarPersona('t', { primerNombre: 'Ana' } as never);
+    const r = await servicio(prisma).guardarPersona('t', {
+      primerNombre: 'Ana',
+    } as never);
 
     expect(r).toMatchObject({ guardado: true, enEspera: false });
     expect(etapaEscrita(prisma)).toBe('DATOS_COMPLETOS');
@@ -152,7 +156,9 @@ describe('quien llena sus datos desde el enlace', () => {
   it('si le falta algo suyo, no se mueve', async () => {
     const prisma = prismaFalso({ ...COMPLETA, barrio: null }, 2);
 
-    await servicio(prisma).guardarPersona('t', { primerNombre: 'Ana' } as never);
+    await servicio(prisma).guardarPersona('t', {
+      primerNombre: 'Ana',
+    } as never);
 
     expect(etapaEscrita(prisma)).toBeNull();
   });
@@ -162,7 +168,9 @@ describe('quien llena sus datos desde el enlace', () => {
   it('tampoco sin nivel ocupacional', async () => {
     const prisma = prismaFalso(COMPLETA, null);
 
-    await servicio(prisma).guardarPersona('t', { primerNombre: 'Ana' } as never);
+    await servicio(prisma).guardarPersona('t', {
+      primerNombre: 'Ana',
+    } as never);
 
     expect(etapaEscrita(prisma)).toBeNull();
   });
@@ -202,7 +210,9 @@ describe('quien llena sus datos desde el enlace', () => {
       contactoCorreo: null,
     });
 
-    await servicio(prisma).guardarPersona('t', { primerNombre: 'Ana' } as never);
+    await servicio(prisma).guardarPersona('t', {
+      primerNombre: 'Ana',
+    } as never);
 
     expect(etapaEscrita(prisma)).toBeNull();
   });

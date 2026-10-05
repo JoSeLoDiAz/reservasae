@@ -93,7 +93,11 @@ type CuerpoDeMeta = {
 };
 
 const texto = (v: unknown): string | null =>
-  typeof v === 'string' && v.trim() ? v.trim() : typeof v === 'number' ? String(v) : null;
+  typeof v === 'string' && v.trim()
+    ? v.trim()
+    : typeof v === 'number'
+      ? String(v)
+      : null;
 
 /**
  * Saca los avisos de lead de lo que mandó Meta.

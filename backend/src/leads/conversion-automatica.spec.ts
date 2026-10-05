@@ -38,10 +38,17 @@ function montar(leads: Lead[], fallan: string[] = []) {
         const w = a.where;
         return Promise.resolve(
           leads.filter(
-            (l) => l.estado === w.estado && l.participanteId === w.participanteId,
+            (l) =>
+              l.estado === w.estado && l.participanteId === w.participanteId,
           ),
         );
       },
+      /// El barrido APUNTA en el lead por qué se queda. Que el
+      /// doble lo tenga es lo que evita que estas pruebas pasen
+      /// por el `catch` de `apuntarPorQueSeQueda` y llenen la
+      /// salida de errores que no son del caso que miran.
+      /// El spec de esa regla es `el-barrido-apunta-por-que-no-paso`.
+      update: () => Promise.resolve({ id: 'l1' }),
     },
     /// El cruce de «una sola accion». Por defecto la persona no
     /// esta en ninguna otra: cada prueba que quiera lo contrario
@@ -67,10 +74,7 @@ function montar(leads: Lead[], fallan: string[] = []) {
     },
   };
 
-  const obrero = new ConversionAutomatica(
-    prisma as never,
-    conversion as never,
-  );
+  const obrero = new ConversionAutomatica(prisma as never, conversion as never);
   return { obrero, convertidos };
 }
 
@@ -117,7 +121,9 @@ describe('se queda el que no está listo', () => {
   it('sin curso tampoco', async () => {
     /// Es lo que hace morder al unique (acción, persona): sin
     /// curso, dos leads de la misma persona darían dos fichas.
-    const { obrero, convertidos } = montar([listo({ accionFormacionId: null })]);
+    const { obrero, convertidos } = montar([
+      listo({ accionFormacionId: null }),
+    ]);
     expect(await obrero.pasar()).toBe(0);
     expect(convertidos).toEqual([]);
   });
@@ -138,7 +144,9 @@ describe('la autorización manda, y es lo que separa esto de un invento', () => 
     /// Un `false` explícito es una negativa. Crearle la ficha
     /// sola es seguir tratando sus datos después de que pidió
     /// que no. Se queda en la mesa para que lo mire alguien.
-    const { obrero, convertidos } = montar([listo({ aceptaHabeasData: false })]);
+    const { obrero, convertidos } = montar([
+      listo({ aceptaHabeasData: false }),
+    ]);
     expect(await obrero.pasar()).toBe(0);
     expect(convertidos).toEqual([]);
   });

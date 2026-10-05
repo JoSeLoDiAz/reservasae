@@ -182,7 +182,9 @@ export class EntraLeadDto {
   /// «false» llegaba como TRUE -- una constancia de autorizacion
   /// que la persona no dio. Comprobado en vivo.
   @IsOptional()
-  @Transform(({ obj, key }) => booleanoDeVerdad((obj as Record<string, unknown>)[key]))
+  @Transform(({ obj, key }) =>
+    booleanoDeVerdad((obj as Record<string, unknown>)[key]),
+  )
   @IsBoolean()
   aceptaHabeasData?: boolean;
 
@@ -363,19 +365,37 @@ export class ArreglarLeadDto {
   @IsOptional() @IsString() accionFormacionId?: string | null;
 
   /// El domicilio, por id del SEP. Igual que en la ficha.
-  @IsOptional() @Transform(aNumeroONulo) @IsInt() departamentoSepId?: number | null;
-  @IsOptional() @Transform(aNumeroONulo) @IsInt() municipioSepId?: number | null;
+  @IsOptional() @Transform(aNumeroONulo) @IsInt() departamentoSepId?:
+    number | null;
+  @IsOptional() @Transform(aNumeroONulo) @IsInt() municipioSepId?:
+    number | null;
   @IsOptional() @Transform(aNumeroONulo) @IsInt() generoSepId?: number | null;
 
   /// El documento, que es lo que le falta al que entró sin él.
-  @IsOptional() @Transform(aNumeroONulo) @IsInt() tipoDocumentoSepId?: number | null;
-  @IsOptional() @Transform(recortar) @IsString() @MaxLength(40) numeroDocumento?: string | null;
+  @IsOptional() @Transform(aNumeroONulo) @IsInt() tipoDocumentoSepId?:
+    number | null;
+  @IsOptional()
+  @Transform(recortar)
+  @IsString()
+  @MaxLength(40)
+  numeroDocumento?: string | null;
 
-  @IsOptional() @Transform(recortar) @IsString() @MaxLength(120) primerNombre?: string | null;
-  @IsOptional() @Transform(recortar) @IsString() @MaxLength(120) primerApellido?: string | null;
-  @IsOptional() @Transform(recortar) @IsString() @MaxLength(120) segundoApellido?: string | null;
-  @IsOptional() @Transform(recortar) @IsString() @MaxLength(160) correo?: string | null;
-  @IsOptional() @Transform(recortar) @IsString() @MaxLength(40) celular?: string | null;
+  @IsOptional() @Transform(recortar) @IsString() @MaxLength(120) primerNombre?:
+    string | null;
+  @IsOptional()
+  @Transform(recortar)
+  @IsString()
+  @MaxLength(120)
+  primerApellido?: string | null;
+  @IsOptional()
+  @Transform(recortar)
+  @IsString()
+  @MaxLength(120)
+  segundoApellido?: string | null;
+  @IsOptional() @Transform(recortar) @IsString() @MaxLength(160) correo?:
+    string | null;
+  @IsOptional() @Transform(recortar) @IsString() @MaxLength(40) celular?:
+    string | null;
 }
 
 /**

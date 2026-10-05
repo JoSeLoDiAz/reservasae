@@ -106,7 +106,11 @@ describe('LIBRE: nadie tiene ese documento', () => {
 
 describe('ES_ELLA: existe y el nombre cuadra', () => {
   it('el nombre completo, igual', async () => {
-    const r = await armar().mirar(1, '1020304050', 'Javier Andrés Rodríguez Gómez');
+    const r = await armar().mirar(
+      1,
+      '1020304050',
+      'Javier Andrés Rodríguez Gómez',
+    );
     expect(r).toEqual({ que: 'ES_ELLA', personaId: 'per-javier' });
   });
 
@@ -119,7 +123,11 @@ describe('ES_ELLA: existe y el nombre cuadra', () => {
     /// Se reutiliza `compararNombres` del RUI justamente para
     /// esto. Una comparación propia aquí acabaría discrepando con
     /// aquella sobre si dos nombres son el mismo.
-    const r = await armar().mirar(1, '1020304050', 'JAVIER ANDRES RODRIGUEZ GOMEZ');
+    const r = await armar().mirar(
+      1,
+      '1020304050',
+      'JAVIER ANDRES RODRIGUEZ GOMEZ',
+    );
     expect(r.que).toBe('ES_ELLA');
   });
 

@@ -37,11 +37,7 @@ export const MICROEMPRESA_COMERCIO = 45;
 /// mayúsculas y las nuevas «Comercio», y del RUES llegan con sus
 /// propias palabras.
 const limpiar = (t: string) =>
-  t
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .toLowerCase()
-    .trim();
+  t.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
 
 export function tamanoDeIndependiente(
   sectorEconomico: string | null | undefined,

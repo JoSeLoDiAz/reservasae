@@ -37,10 +37,14 @@ const laDeBogota = {
 
 describe('el grupo tiene que ser de la sede de la oferta', () => {
   it('el de su misma sede pasa, y devuelve su número', async () => {
-    const r = await exigirCoberturaDeLaOferta(prismaCon(laDeBogota), 'cob-bogota', {
-      accionFormacionId: CURSO,
-      ubicacionId: BOGOTA,
-    });
+    const r = await exigirCoberturaDeLaOferta(
+      prismaCon(laDeBogota),
+      'cob-bogota',
+      {
+        accionFormacionId: CURSO,
+        ubicacionId: BOGOTA,
+      },
+    );
 
     expect(r.numero).toBe(1);
     expect(r.ubicacionId).toBe(BOGOTA);
@@ -78,10 +82,14 @@ describe('el grupo tiene que ser de la sede de la oferta', () => {
   /// comparar. Se juzga solo la acción, que es lo que se hacía siempre:
   /// bloquear aquí dejaría sin grupo a fichas a medio llenar.
   it('sin oferta todavía, se juzga solo la acción', async () => {
-    const r = await exigirCoberturaDeLaOferta(prismaCon(laDeBogota), 'cob-bogota', {
-      accionFormacionId: CURSO,
-      ubicacionId: null,
-    });
+    const r = await exigirCoberturaDeLaOferta(
+      prismaCon(laDeBogota),
+      'cob-bogota',
+      {
+        accionFormacionId: CURSO,
+        ubicacionId: null,
+      },
+    );
 
     expect(r.numero).toBe(1);
   });

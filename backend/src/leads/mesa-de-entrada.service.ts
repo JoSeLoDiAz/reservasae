@@ -23,6 +23,8 @@ import {
   DEPARTAMENTO_POR_ID,
   MUNICIPIO_POR_ID,
 } from '../crm/catalogos-sep';
+import { celularValido, normalizarCelular } from '../comun/celular';
+import { correoValido, normalizarCorreo } from '../comun/correo';
 import { documentoValido, normalizarDocumento } from '../comun/documento';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -34,10 +36,7 @@ import {
 import { puedoContactar } from './puedo-contactar';
 import { sedeQueTendra } from './sede-que-tendra';
 import { ArreglarLeadDto } from './dto';
-import {
-  autorizoAlRegistrarse,
-  loQueLeFaltaAlLead,
-} from './listo-para-ficha';
+import { autorizoAlRegistrarse, loQueLeFaltaAlLead } from './listo-para-ficha';
 
 /// Cuántos por página. La mesa se mira, no se estudia.
 const POR_PAGINA = 50;
@@ -292,7 +291,10 @@ export class MesaDeEntrada {
         /// Y si autorizó al registrarse, porque cambia lo que
         /// pasa al convertirlo: sin esto la ficha nace sin
         /// autorización y no se puede matricular ni reportar.
-        autorizoAlRegistrarse: autorizoAlRegistrarse(l.origen, l.aceptaHabeasData),
+        autorizoAlRegistrarse: autorizoAlRegistrarse(
+          l.origen,
+          l.aceptaHabeasData,
+        ),
         /// De quién es, para poder trabajar la cola propia.
         asesor: l.asesor,
         /// Cuándo se tocó y cuántas veces: es lo que ordena «a
@@ -369,7 +371,12 @@ export class MesaDeEntrada {
     /// Fuera del ámbito la fila NO EXISTE: 404 y no 403.
     const lead = await this.prisma.leadEntrante.findFirst({
       where: { id, convenioId: { in: ambito } },
-      select: { id: true, convenioId: true, estado: true, participanteId: true },
+      select: {
+        id: true,
+        convenioId: true,
+        estado: true,
+        participanteId: true,
+      },
     });
     if (!lead) throw new NotFoundException('Ese lead no existe.');
 
@@ -482,6 +489,71 @@ export class MesaDeEntrada {
       numeroDocumento = limpio;
     }
 
+    /// EL CORREO Y EL CELULAR, IGUAL QUE EN LA PUERTA DE ENTRADA.
+    ///
+    /// Aquí se escribían tal cual —`correo: dto.correo`— mientras
+    /// el webhook (`leads.service.ts`, `limpiar`) los pasa por
+    /// `correoValido`/`normalizarCorreo` y
+    /// `celularValido`/`normalizarCelular`. Dos puertas al mismo
+    /// campo con dos reglas, y la de aquí es la que MÁS se teclea:
+    /// esta pantalla existe para completar a mano el lead al que
+    /// le faltaban los datos.
+    ///
+    /// Lo que costaba: un celular tecleado «+57 300 111 2222»
+    /// dejaba de cruzar con el CRM PARA SIEMPRE, porque
+    /// `cruzar-con-el-crm.ts` compara el número exacto contra lo
+    /// que la ficha tiene ya normalizado —no hay error, no hay
+    /// aviso, simplemente no encuentra a nadie—. Y un «no tiene»
+    /// se guardaba como correo, que luego viaja al reporte del
+    /// SEP y tapa la compuerta de «hay forma de contactarla».
+    ///
+    /// Aquí SÍ se rechaza en vez de guardarlo vacío como hace el
+    /// webhook, y la diferencia es a propósito: allí hay un lead
+    /// pagado en juego y perderlo es peor que guardarlo cojo;
+    /// aquí hay una persona delante del formulario que puede
+    /// corregirlo en el momento. Es lo mismo que ya hace el
+    /// documento dos párrafos arriba.
+    /// Se mira el CRUDO para decidir si rechazar: «no mandó
+    /// nada» y «mandó algo que no sirve» no se arreglan igual.
+    /// Lo primero es borrar el campo a propósito --el asesor
+    /// quita un correo que no era de esa persona-- y lo segundo
+    /// es un dedazo que hay que decirle, porque dejarlo en nulo
+    /// en silencio es lo mismo que no haberlo guardado y él se
+    /// va creyendo que ya está.
+    let correo = dto.correo;
+    if (correo !== undefined) {
+      const crudo = (correo ?? '').trim();
+      if (!crudo) {
+        correo = null;
+      } else {
+        const limpio = normalizarCorreo(crudo);
+        if (!correoValido(limpio)) {
+          throw new BadRequestException('Eso no tiene forma de correo.');
+        }
+        correo = limpio;
+      }
+    }
+
+    let celular = dto.celular;
+    if (celular !== undefined) {
+      const crudo = (celular ?? '').trim();
+      if (!crudo) {
+        celular = null;
+      } else {
+        /// `celularValido` da por bueno lo vacío --el celular es
+        /// opcional-- así que un «no tiene», que se queda sin
+        /// dígitos al normalizar, pasaría por bueno. Por eso se
+        /// comprueba también que quede algo.
+        const limpio = normalizarCelular(crudo);
+        if (!limpio || !celularValido(limpio)) {
+          throw new BadRequestException(
+            'Eso no es un celular: son diez dígitos empezando por 3.',
+          );
+        }
+        celular = limpio;
+      }
+    }
+
     /// ¿DE QUIÉN ES ESA CÉDULA?
     ///
     /// Se avisa AQUÍ, al escribirla, y no al convertir. La que
@@ -504,7 +576,9 @@ export class MesaDeEntrada {
       const nombreFinal = [
         dto.primerNombre === undefined ? antes?.primerNombre : dto.primerNombre,
         antes?.segundoNombre,
-        dto.primerApellido === undefined ? antes?.primerApellido : dto.primerApellido,
+        dto.primerApellido === undefined
+          ? antes?.primerApellido
+          : dto.primerApellido,
         dto.segundoApellido === undefined
           ? antes?.segundoApellido
           : dto.segundoApellido,
@@ -536,8 +610,9 @@ export class MesaDeEntrada {
         primerNombre: dto.primerNombre,
         primerApellido: dto.primerApellido,
         segundoApellido: dto.segundoApellido,
-        correo: dto.correo,
-        celular: dto.celular,
+        /// Ya normalizados y validados arriba, no como llegaron.
+        correo,
+        celular,
       },
       select: { id: true },
     });

@@ -64,7 +64,11 @@ function inicioDeDiaBogota(d: Date): Date {
 
 function sumarMeses(d: Date, n: number): Date {
   const local = new Date(d.getTime() + BOGOTA * 60 * 60 * 1000);
-  const t = Date.UTC(local.getUTCFullYear(), local.getUTCMonth() + n, local.getUTCDate());
+  const t = Date.UTC(
+    local.getUTCFullYear(),
+    local.getUTCMonth() + n,
+    local.getUTCDate(),
+  );
   return new Date(t - BOGOTA * 60 * 60 * 1000);
 }
 
@@ -152,10 +156,16 @@ export function resolverVentana(
       return construir({ desde: new Date(hoy.getTime() - DIA), hasta: hoy });
 
     case 'SEMANA':
-      return construir({ desde: new Date(manana.getTime() - 7 * DIA), hasta: manana });
+      return construir({
+        desde: new Date(manana.getTime() - 7 * DIA),
+        hasta: manana,
+      });
 
     case 'MES':
-      return construir({ desde: new Date(manana.getTime() - 30 * DIA), hasta: manana });
+      return construir({
+        desde: new Date(manana.getTime() - 30 * DIA),
+        hasta: manana,
+      });
 
     case 'MES_PASADO': {
       const inicioEste = inicioDeMesBogota(ahora);
@@ -163,7 +173,8 @@ export function resolverVentana(
       const inicioAntePasado = sumarMeses(inicioEste, -2);
 
       // meses de distinta duracion
-      const dias = (a: Date, b: Date) => Math.round((b.getTime() - a.getTime()) / DIA);
+      const dias = (a: Date, b: Date) =>
+        Math.round((b.getTime() - a.getTime()) / DIA);
       const dA = dias(inicioPasado, inicioEste);
       const dB = dias(inicioAntePasado, inicioPasado);
 
@@ -180,7 +191,10 @@ export function resolverVentana(
     }
 
     case 'TRIMESTRE':
-      return construir({ desde: new Date(manana.getTime() - 90 * DIA), hasta: manana });
+      return construir({
+        desde: new Date(manana.getTime() - 90 * DIA),
+        hasta: manana,
+      });
 
     case 'ANO': {
       const inicio = sumarMeses(manana, -12);
@@ -195,10 +209,13 @@ export function resolverVentana(
 
     case 'PERSONALIZADO': {
       // sin las dos fechas no hay corte
-      if (!desde || !hasta) return resolverVentana('TODO', undefined, undefined, ahora);
+      if (!desde || !hasta)
+        return resolverVentana('TODO', undefined, undefined, ahora);
       const a = inicioDeDiaBogota(new Date(`${desde}T12:00:00Z`));
       // el «hasta» incluye ese dia entero
-      const b = new Date(inicioDeDiaBogota(new Date(`${hasta}T12:00:00Z`)).getTime() + DIA);
+      const b = new Date(
+        inicioDeDiaBogota(new Date(`${hasta}T12:00:00Z`)).getTime() + DIA,
+      );
       if (!(a < b)) return resolverVentana('TODO', undefined, undefined, ahora);
       /// Con SUS fechas: «del 8 al 20 de septiembre» dice lo que
       /// se está mirando sin tener que volver a los desplegables.

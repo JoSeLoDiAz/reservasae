@@ -2,7 +2,9 @@
 
 import { elegirOferta, type OfertaParaCarga } from './accion-de-la-fila';
 
-const oferta = (p: Partial<OfertaParaCarga> & { id: string }): OfertaParaCarga => ({
+const oferta = (
+  p: Partial<OfertaParaCarga> & { id: string },
+): OfertaParaCarga => ({
   accionFormacionId: 'af3',
   codigo: 'AF3',
   etiqueta: 'AF3 · GOBERNANZA',
@@ -16,16 +18,29 @@ const oferta = (p: Partial<OfertaParaCarga> & { id: string }): OfertaParaCarga =
 describe('elegirOferta', () => {
   const medellin = oferta({
     id: 'med',
-    ubicacion: { nombre: 'MEDELLÍN', tipo: 'CIUDAD', departamento: 'ANTIOQUIA' },
+    ubicacion: {
+      nombre: 'MEDELLÍN',
+      tipo: 'CIUDAD',
+      departamento: 'ANTIOQUIA',
+    },
   });
   const antioquia = oferta({ id: 'ant' });
   const valle = oferta({
     id: 'val',
-    ubicacion: { nombre: 'VALLE DEL CAUCA', tipo: 'DEPARTAMENTO', departamento: null },
+    ubicacion: {
+      nombre: 'VALLE DEL CAUCA',
+      tipo: 'DEPARTAMENTO',
+      departamento: null,
+    },
   });
 
   it('sin acción en la fila no elige nada', () => {
-    expect(elegirOferta(null, [medellin], { departamento: 'ANTIOQUIA', ciudad: 'MEDELLÍN' })).toEqual({
+    expect(
+      elegirOferta(null, [medellin], {
+        departamento: 'ANTIOQUIA',
+        ciudad: 'MEDELLÍN',
+      }),
+    ).toEqual({
       accionFormacionId: null,
       ofertaId: null,
       etiqueta: null,
@@ -35,9 +50,14 @@ describe('elegirOferta', () => {
   });
 
   it('un código que no existe en el convenio se dice', () => {
-    const r = elegirOferta('AF9', [medellin], { departamento: null, ciudad: null });
+    const r = elegirOferta('AF9', [medellin], {
+      departamento: null,
+      ciudad: null,
+    });
     expect(r.accionFormacionId).toBeNull();
-    expect(r.problemas[0]).toMatch(/no es una acción de formación de este convenio/);
+    expect(r.problemas[0]).toMatch(
+      /no es una acción de formación de este convenio/,
+    );
   });
 
   it('el grupo de su ciudad gana al departamental', () => {
@@ -60,7 +80,10 @@ describe('elegirOferta', () => {
   });
 
   it('si ningún grupo llega a donde vive, queda en la acción sin grupo', () => {
-    const r = elegirOferta('AF3', [valle], { departamento: 'ANTIOQUIA', ciudad: 'MEDELLÍN' });
+    const r = elegirOferta('AF3', [valle], {
+      departamento: 'ANTIOQUIA',
+      ciudad: 'MEDELLÍN',
+    });
     expect(r.accionFormacionId).toBe('af3');
     expect(r.ofertaId).toBeNull();
     expect(r.problemas[0]).toMatch(/ningún grupo de AF3 llega a MEDELLÍN/);
@@ -78,12 +101,18 @@ describe('elegirOferta', () => {
   it('entre dos del mismo tipo, el que tiene más sitio', () => {
     const lleno = oferta({ id: 'lleno', ocupados: 38 });
     const holgado = oferta({ id: 'holgado', ocupados: 2 });
-    const r = elegirOferta('AF3', [lleno, holgado], { departamento: 'ANTIOQUIA', ciudad: null });
+    const r = elegirOferta('AF3', [lleno, holgado], {
+      departamento: 'ANTIOQUIA',
+      ciudad: null,
+    });
     expect(r.ofertaId).toBe('holgado');
   });
 
   it('sin saber dónde vive, cualquiera de la acción sirve', () => {
-    const r = elegirOferta('AF3', [valle], { departamento: null, ciudad: null });
+    const r = elegirOferta('AF3', [valle], {
+      departamento: null,
+      ciudad: null,
+    });
     expect(r.ofertaId).toBe('val');
     expect(r.problemas).toEqual([]);
   });

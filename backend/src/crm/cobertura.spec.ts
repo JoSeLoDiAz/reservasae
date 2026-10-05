@@ -86,7 +86,10 @@ describe('cuando falta el domicilio', () => {
     // esconder media oferta por un dato que falta es peor que
     // ofrecerla; que falte el domicilio se avisa por otro lado
     expect(
-      cubreA(ciudad('MEDELLÍN', 'ANTIOQUIA'), { departamento: null, ciudad: null }),
+      cubreA(ciudad('MEDELLÍN', 'ANTIOQUIA'), {
+        departamento: null,
+        ciudad: null,
+      }),
     ).toBe(true);
   });
 

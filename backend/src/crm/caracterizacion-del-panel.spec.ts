@@ -23,7 +23,11 @@ type Autorizacion = { id: string; convenioId: string; revocada: boolean };
 
 function armar(autorizaciones: Autorizacion[]) {
   const borrados: string[] = [];
-  const creados: Array<{ personaId: string; caracterizacionSepId: number; autorizacionId: string }> = [];
+  const creados: Array<{
+    personaId: string;
+    caracterizacionSepId: number;
+    autorizacionId: string;
+  }> = [];
   const auditadas: string[] = [];
 
   const tx = {
@@ -62,7 +66,9 @@ function armar(autorizaciones: Autorizacion[]) {
 
   const auditoria = {
     registrar: (a: { camposTocados?: string[]; resumen?: string }) => {
-      auditadas.push((a.camposTocados ?? []).join(',') + '|' + (a.resumen ?? ''));
+      auditadas.push(
+        (a.camposTocados ?? []).join(',') + '|' + (a.resumen ?? ''),
+      );
       return Promise.resolve();
     },
   };
@@ -73,7 +79,7 @@ function armar(autorizaciones: Autorizacion[]) {
     {} as never,
     {} as never,
     {} as never,
-  
+
     { avisar: () => Promise.resolve() } as never,
     /// El catálogo de notas. Devuelve «sin clasificar», que es lo
     /// que anota una pantalla que todavía no ofrece los

@@ -27,6 +27,15 @@ type OfertaBloqueada = {
   cuposMaximos: number;
   cuposOcupados: number;
   abierta: boolean;
+  /// La de la ACCIÓN, que cierra la misma puerta por otro lado.
+  ///
+  /// Cerrar se hace de dos maneras y hay que mirar las dos: se baja
+  /// `Oferta.abierta` para cerrar una sede, o se oculta la acción
+  /// entera con `AccionFormacion.visible`. `crear` ya exigía las dos
+  /// (`:53`); el bloqueo solo traía la primera, así que los caminos
+  /// que escriben desde dentro de la transacción no podían preguntar
+  /// por la segunda aunque quisieran.
+  accionVisible: boolean;
 };
 
 type Contexto = { ip: string; userAgent?: string };
@@ -60,9 +69,12 @@ export class ReservasService {
       );
     }
 
-    // fuera de la transacción
-    const empresa = await this.asegurarEmpresa(nit, dto);
-    const politicaId = await this.politicaVigente(oferta.accionFormacion.convenioId);
+    /// Solo lectura, así que puede ir fuera: si el convenio no tiene
+    /// política publicada no hay nada que aceptar y esto se planta
+    /// antes de escribir la primera fila.
+    const politicaId = await this.politicaVigente(
+      oferta.accionFormacion.convenioId,
+    );
 
     // validar antes de bloquear la oferta
     const delFormulario = dto.formularioSlug
@@ -79,8 +91,40 @@ export class ReservasService {
       async (tx) => {
         const bloqueada = await this.bloquearOferta(tx, oferta.id);
 
+        /// Otra vez, ya con el lock. La comprobación de `:53` se hizo
+        /// sobre una lectura sin bloquear: entre esa lectura y esta
+        /// línea cabe que el administrador cierre el grupo, y la
+        /// reserva entraría igual.
+        this.exigirAbiertaParaEntrar(bloqueada);
+
+        /**
+         * LA ORGANIZACIÓN, YA DENTRO DE LA TRANSACCIÓN.
+         *
+         * Antes se creaba fuera, y después de ella quedaban varios
+         * `throw`: la reserva que ya existe con otra cantidad ---que
+         * es el camino normal del segundo intento--- y los cupos que
+         * cambiaron en `moverContador`. Cuando saltaba cualquiera de
+         * los dos, la respuesta era un 409 y la fila `Empresa` se
+         * quedaba escrita.
+         *
+         * `POST /reservas` es PÚBLICA y sin sesión, así que eso no era
+         * solo basura: con una tanda de NITs inventados se llenaba la
+         * tabla de organizaciones a voluntad, y esa tabla es la que el
+         * analista de información mira para saber con quién se está
+         * hablando.
+         *
+         * VA DESPUÉS DEL BLOQUEO a propósito. Dos envíos del mismo
+         * formulario ---el doble clic de siempre--- van a la misma
+         * oferta, y el `FOR UPDATE` los pone en fila: el segundo entra
+         * cuando el primero ya dejó la organización escrita y se la
+         * encuentra hecha.
+         */
+        const empresa = await this.asegurarEmpresa(tx, nit, dto);
+
         const existente = await tx.reserva.findUnique({
-          where: { empresaId_ofertaId: { empresaId: empresa.id, ofertaId: oferta.id } },
+          where: {
+            empresaId_ofertaId: { empresaId: empresa.id, ofertaId: oferta.id },
+          },
         });
 
         if (existente && existente.estado !== EstadoReserva.CANCELADA) {
@@ -118,7 +162,10 @@ export class ReservasService {
          */
         const ocupadas = await ocupadasDeLaOferta(tx, bloqueada);
         const disponibles = bloqueada.cuposMaximos - ocupadas;
-        const confirmados = Math.min(dto.cuposSolicitados, Math.max(disponibles, 0));
+        const confirmados = Math.min(
+          dto.cuposSolicitados,
+          Math.max(disponibles, 0),
+        );
         const enEspera = dto.cuposSolicitados - confirmados;
 
         await this.moverContador(tx, oferta.id, confirmados);
@@ -128,7 +175,10 @@ export class ReservasService {
           cuposSolicitados: dto.cuposSolicitados,
           cuposConfirmados: confirmados,
           cuposEnEspera: enEspera,
-          estado: confirmados > 0 ? EstadoReserva.CONFIRMADA : EstadoReserva.LISTA_ESPERA,
+          estado:
+            confirmados > 0
+              ? EstadoReserva.CONFIRMADA
+              : EstadoReserva.LISTA_ESPERA,
           contactoNombre: dto.contactoNombre,
           contactoCorreo: dto.contactoCorreo,
           contactoCelular: dto.contactoCelular ?? null,
@@ -142,7 +192,10 @@ export class ReservasService {
 
         const reserva = existente
           ? // se revive la fila cancelada
-            await tx.reserva.update({ where: { id: existente.id }, data: datos })
+            await tx.reserva.update({
+              where: { id: existente.id },
+              data: datos,
+            })
           : await tx.reserva.create({
               data: { empresaId: empresa.id, ofertaId: oferta.id, ...datos },
             });
@@ -191,7 +244,12 @@ export class ReservasService {
 
     return this.prisma.$transaction(
       async (tx) => {
-        const reserva = await this.reservaDeLaEmpresa(tx, reservaId, nit.nit, correo);
+        const reserva = await this.reservaDeLaEmpresa(
+          tx,
+          reservaId,
+          nit.nit,
+          correo,
+        );
 
         if (reserva.estado === EstadoReserva.CANCELADA) {
           throw new ConflictException(
@@ -201,6 +259,14 @@ export class ReservasService {
 
         // lock antes de calcular nada
         const oferta = await this.bloquearOferta(tx, reserva.ofertaId);
+
+        /// Y SOLO SI PIDE MÁS. Lo que el cierre quería evitar es que
+        /// entre gente nueva; bajar la cantidad es media cancelación y
+        /// no puede quedar bloqueada (ver `exigirAbiertaParaEntrar`).
+        if (cantidad > reserva.cuposSolicitados) {
+          this.exigirAbiertaParaEntrar(oferta);
+        }
+
         if (cantidad > oferta.cuposMaximos) {
           throw new BadRequestException(
             `Esta oferta tiene ${oferta.cuposMaximos} cupos en total.`,
@@ -225,7 +291,10 @@ export class ReservasService {
             cuposSolicitados: cantidad,
             cuposConfirmados: confirmados,
             cuposEnEspera: enEspera,
-            estado: confirmados > 0 ? EstadoReserva.CONFIRMADA : EstadoReserva.LISTA_ESPERA,
+            estado:
+              confirmados > 0
+                ? EstadoReserva.CONFIRMADA
+                : EstadoReserva.LISTA_ESPERA,
           },
         });
 
@@ -265,7 +334,12 @@ export class ReservasService {
 
     return this.prisma.$transaction(
       async (tx) => {
-        const reserva = await this.reservaDeLaEmpresa(tx, reservaId, nit.nit, correo);
+        const reserva = await this.reservaDeLaEmpresa(
+          tx,
+          reservaId,
+          nit.nit,
+          correo,
+        );
         if (reserva.estado === EstadoReserva.CANCELADA) {
           return this.vista(tx, reserva.id);
         }
@@ -384,17 +458,47 @@ export class ReservasService {
     tx: Prisma.TransactionClient,
     ofertaId: string,
   ): Promise<OfertaBloqueada> {
+    /// `FOR UPDATE OF o` y no `FOR UPDATE` a secas: lo que hay que
+    /// serializar es la oferta, que es donde vive el contador. Con el
+    /// `FOR UPDATE` suelto el JOIN bloquearía también la fila de la
+    /// acción de formación, y entonces dos reservas a dos sedes
+    /// distintas de la misma acción se estorbarían entre ellas sin
+    /// ninguna razón.
     const filas = await tx.$queryRaw<OfertaBloqueada[]>`
-      SELECT "id", "cuposMaximos", "cuposOcupados", "abierta"
-        FROM "ofertas"
-       WHERE "id" = ${ofertaId}
-         FOR UPDATE`;
+      SELECT o."id", o."cuposMaximos", o."cuposOcupados", o."abierta",
+             a."visible" AS "accionVisible"
+        FROM "ofertas" o
+        JOIN "acciones_formacion" a ON a."id" = o."accionFormacionId"
+       WHERE o."id" = ${ofertaId}
+         FOR UPDATE OF o`;
 
     const oferta = filas[0];
     if (!oferta) {
       throw new NotFoundException('La oferta no existe.');
     }
     return oferta;
+  }
+
+  /**
+   * LA PUERTA DE ENTRAR GENTE NUEVA, UNA SOLA VEZ.
+   *
+   * `crear` lo validaba (`:53`) y `editar` no, y el bloqueo de la
+   * oferta ya devolvía `abierta` sin que nadie lo leyera. Con el grupo
+   * ya cerrado, una organización ampliaba su reserva por
+   * `PATCH /reservas/:id` y metía en el aula exactamente a la gente
+   * que el cierre pretendía dejar fuera. El cierre se veía bien en el
+   * panel y en el sitio público; la que no se enteraba era la API.
+   *
+   * SOLO GUARDA LA ENTRADA. Cancelar y bajar la cantidad liberan
+   * cupos, no los consumen, y tienen que seguir funcionando con la
+   * oferta cerrada: si se cierran también esas dos, quien ya no va a
+   * llevar a su gente se queda con los cupos apartados para siempre y
+   * acaba llamando por teléfono a que alguien lo haga a mano.
+   */
+  private exigirAbiertaParaEntrar(oferta: OfertaBloqueada): void {
+    if (!oferta.abierta || !oferta.accionVisible) {
+      throw new ConflictException('Esta oferta no está abierta para reservas.');
+    }
   }
 
   /** Mueve el contador con la condición en el UPDATE. */
@@ -425,7 +529,30 @@ export class ReservasService {
     ofertaId: string,
     contexto: Contexto,
   ): Promise<void> {
-    const oferta = await tx.oferta.findUniqueOrThrow({ where: { id: ofertaId } });
+    const oferta = await tx.oferta.findUniqueOrThrow({
+      where: { id: ofertaId },
+      include: { accionFormacion: { select: { visible: true } } },
+    });
+
+    /**
+     * CERRADA = NO ENTRA NADIE, Y LA LISTA DE ESPERA ERA UNA PUERTA.
+     *
+     * Esto corre solo y detrás de otra cosa: una cancelación, o una
+     * organización que baja su cantidad. Sobre una oferta ya cerrada
+     * confirmaba automáticamente a quien estaba esperando, o sea que
+     * el cierre se deshacía por los cupos que liberaba el primero que
+     * se iba, sin que nadie lo pidiera y sin quedar más rastro que un
+     * movimiento de «promoción automática».
+     *
+     * SE SALE SIN HACER NADA, no se lanza: quien llamó estaba
+     * cancelando o bajando cupos, y eso ya quedó hecho y bien hecho.
+     * Reventar aquí sería echar atrás una cancelación legítima porque
+     * la oferta está cerrada, que es justo lo contrario de lo que hay
+     * que hacer. La espera se queda en espera, que es lo honesto: si
+     * el grupo se reabre, la siguiente liberación la reparte.
+     */
+    if (!oferta.abierta || !oferta.accionFormacion.visible) return;
+
     /// Y aquí lo mismo, que es donde más duele: promover de la lista
     /// de espera a sillas que ya ocupa gente inscrita es prometerle a
     /// una empresa un cupo que no existe, y hacerlo automáticamente.
@@ -527,13 +654,25 @@ export class ReservasService {
     return reserva;
   }
 
-  private async asegurarEmpresa(nit: NitNormalizado, dto: CrearReservaDto): Promise<Empresa> {
+  /**
+   * La organización del NIT, creándola si hace falta.
+   *
+   * RECIBE EL `tx` Y NO `this.prisma`: lo que se escriba aquí tiene
+   * que desaparecer si la reserva no llega a existir. Ver la llamada
+   * en `crear`.
+   */
+  private async asegurarEmpresa(
+    tx: Prisma.TransactionClient,
+    nit: NitNormalizado,
+    dto: CrearReservaDto,
+  ): Promise<Empresa> {
     const datos = {
       razonSocial: dto.razonSocial,
       numeroColaboradores: dto.numeroColaboradores ?? null,
       redAsociada: dto.redAsociada ?? null,
       // se limpia si ya no es "Otro"
-      redAsociadaOtra: dto.redAsociada === 'Otro' ? (dto.redAsociadaOtra ?? null) : null,
+      redAsociadaOtra:
+        dto.redAsociada === 'Otro' ? (dto.redAsociadaOtra ?? null) : null,
       /// El de la DIAN, aunque el NIT viniera con otro detrás del
       /// guion: `normalizarNit` se quedaba con el tecleado, y un
       /// «900123456-7» dejaba el 7 aunque a ese NIT le toque otro.
@@ -561,9 +700,10 @@ export class ReservasService {
     /// su propia razón social es trabajo del analista de
     /// información, que sabe con quién está hablando; este
     /// formulario no lo sabe.
-    const yaExiste = await this.prisma.empresa.findUnique({
+    const yaExiste = await tx.empresa.findUnique({
       where: { nit: nit.nit },
       select: {
+        id: true,
         razonSocial: true,
         numeroColaboradores: true,
         redAsociada: true,
@@ -586,29 +726,76 @@ export class ReservasService {
         }
       : datos;
 
-    try {
-      return await this.prisma.empresa.upsert({
-        where: { nit: nit.nit },
-        create: { nit: nit.nit, ...datos },
-        update: soloHuecos,
+    if (yaExiste) {
+      return tx.empresa.update({
+        where: { id: yaExiste.id },
+        data: soloHuecos,
       });
+    }
+
+    /**
+     * SE PARTE EN DOS ---buscar y luego crear--- EN VEZ DE UN
+     * `upsert`, y la carrera se devuelve como 409 en lugar de
+     * recuperarse.
+     *
+     * Dentro de una transacción de Postgres, un choque de unicidad
+     * aborta la transacción entera: después de un P2002 no se puede
+     * «volver a buscar la empresa y seguir», porque la siguiente
+     * consulta falla con la transacción ya muerta. Lo que había antes
+     * ---catch del P2002 y releer--- funcionaba precisamente porque
+     * estaba FUERA, que es el agujero que se está cerrando.
+     *
+     * Y la carrera que quedaba es la rara: el `FOR UPDATE` de la
+     * oferta ya puso en fila los envíos repetidos a la misma oferta,
+     * así que para llegar aquí hace falta el MISMO NIT reservando en
+     * DOS ofertas distintas en el mismo instante y además sin existir
+     * todavía. A quien le toque, el mensaje le dice que reintente ---el
+     * mismo de `moverContador`--- y el segundo intento se encuentra la
+     * organización ya creada y pasa.
+     */
+    try {
+      return await tx.empresa.create({ data: { nit: nit.nit, ...datos } });
     } catch (error) {
-      // perdió la carrera del INSERT
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
         error.code === 'P2002'
       ) {
-        return this.prisma.empresa.findUniqueOrThrow({ where: { nit: nit.nit } });
+        throw new ConflictException(
+          'Esta organización se registró mientras se procesaba la solicitud. ' +
+            'Vuelva a intentarlo.',
+        );
       }
       throw error;
     }
   }
 
-  // sin texto no hay nada que aceptar: antes devolvia
-  // null y la casilla no apuntaba a ninguna parte
+  /**
+   * La política que la organización tuvo que aceptar.
+   *
+   * Sin texto no hay nada que aceptar: antes devolvía null y la
+   * casilla no apuntaba a ninguna parte.
+   *
+   * EL MISMO CRITERIO QUE LAS OTRAS DOS PUERTAS ---`vigenteDesde <=
+   * ahora` ordenando por versión---, que es el de
+   * `crm/constancia-de-autorizacion.ts` y el del catálogo de la
+   * preinscripción. Aquí se filtraba por `vigenteHasta: null`, o sea
+   * «la que todavía no se ha cerrado», y no es lo mismo: publicar una
+   * versión nueva deja la anterior con `vigenteHasta` puesto, pero
+   * mientras hubiera dos abiertas ---o una con fecha de inicio por
+   * venir--- esta cuenta se quedaba con la de versión más alta aunque
+   * no estuviera vigente todavía. La pantalla, que sí mira
+   * `vigenteDesde`, le mostraba una y la reserva guardaba el id de
+   * otra: la constancia apuntaba a un texto que la persona no pudo
+   * leer, que es exactamente lo que la constancia existe para poder
+   * demostrar.
+   */
   private async politicaVigente(convenioId: string): Promise<string> {
     const politica = await this.prisma.politicaDatos.findFirst({
-      where: { convenioId, destinatario: 'RESERVA', vigenteHasta: null },
+      where: {
+        convenioId,
+        destinatario: 'RESERVA',
+        vigenteDesde: { lte: new Date() },
+      },
       orderBy: { version: 'desc' },
       select: { id: true },
     });
@@ -628,7 +815,10 @@ export class ReservasService {
       include: {
         empresa: true,
         oferta: {
-          include: { ubicacion: true, accionFormacion: { include: { convenio: true } } },
+          include: {
+            ubicacion: true,
+            accionFormacion: { include: { convenio: true } },
+          },
         },
       },
     });

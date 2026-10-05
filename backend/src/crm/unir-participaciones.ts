@@ -32,7 +32,9 @@
 /// el `tx` de una transacción.
 export type Movedor = {
   notaDeGestion: { updateMany: (a: unknown) => Promise<{ count: number }> };
-  movimientoParticipante: { updateMany: (a: unknown) => Promise<{ count: number }> };
+  movimientoParticipante: {
+    updateMany: (a: unknown) => Promise<{ count: number }>;
+  };
   leadEntrante: { updateMany: (a: unknown) => Promise<{ count: number }> };
   toqueDeOrigen: { updateMany: (a: unknown) => Promise<{ count: number }> };
   valorAnterior: { updateMany: (a: unknown) => Promise<{ count: number }> };
@@ -63,7 +65,10 @@ export async function moverLaGestion(
   aId: string,
   queQueda: Record<string, unknown>,
 ): Promise<LoQueSeMovio> {
-  const donde = { where: { participanteId: deId }, data: { participanteId: aId } };
+  const donde = {
+    where: { participanteId: deId },
+    data: { participanteId: aId },
+  };
 
   const notas = (await db.notaDeGestion.updateMany(donde)).count;
   const movimientos = (await db.movimientoParticipante.updateMany(donde)).count;
@@ -107,7 +112,10 @@ export function enPalabras(m: LoQueSeMovio): string {
     m.enlaces && `${m.enlaces} enlaces de completado`,
   ].filter(Boolean) as string[];
 
-  const movido = partes.length > 0 ? `Se movieron ${partes.join(', ')}.` : 'No había gestión que mover.';
+  const movido =
+    partes.length > 0
+      ? `Se movieron ${partes.join(', ')}.`
+      : 'No había gestión que mover.';
 
   /// LO QUE SE PIERDE VA EN LA MISMA FRASE, no en una nota al pie: es
   /// lo único que esta operación destruye.

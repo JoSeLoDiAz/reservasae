@@ -122,8 +122,12 @@ export function resumenPorAccionSql(
       /// hace `donde()` con `gte`/`lt`. Comparando días de calendario
       /// el último entraba entero y esta tabla contaba un día más que
       /// la tira de arriba.
-      recorte.desde ? Prisma.sql`pa."creadoEn" >= ${recorte.desde}::timestamptz` : null,
-      recorte.hasta ? Prisma.sql`pa."creadoEn" < ${recorte.hasta}::timestamptz` : null,
+      recorte.desde
+        ? Prisma.sql`pa."creadoEn" >= ${recorte.desde}::timestamptz`
+        : null,
+      recorte.hasta
+        ? Prisma.sql`pa."creadoEn" < ${recorte.hasta}::timestamptz`
+        : null,
     ].filter((x): x is Prisma.Sql => x !== null),
     ' AND ',
   );

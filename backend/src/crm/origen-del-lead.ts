@@ -93,7 +93,16 @@ export async function registrarToqueDeOrigen(
     where: { participanteId_origen: { participanteId, origen } },
     /// Volver por el mismo canal no es un origen nuevo: se
     /// cuenta. Dos filas dirian que llego por dos sitios.
-    update: { ultimaVez: new Date(), veces: { increment: 1 }, ...(campana ? { campana } : {}) },
-    create: { participanteId, origen, clase: origenDeLead(origen), campana: campana ?? null },
+    update: {
+      ultimaVez: new Date(),
+      veces: { increment: 1 },
+      ...(campana ? { campana } : {}),
+    },
+    create: {
+      participanteId,
+      origen,
+      clase: origenDeLead(origen),
+      campana: campana ?? null,
+    },
   });
 }

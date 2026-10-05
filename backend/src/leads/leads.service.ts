@@ -117,7 +117,9 @@ export class LeadsService {
     ///
     /// Se admite `CC`, `PPT`, el nombre entero o el numero. Se
     /// resuelve ANTES de limpiar porque de el depende la llave.
-    const tipoDoc = tipoDeDocumento(dto.tipoDocumento ?? dto.tipoDocumentoSepId);
+    const tipoDoc = tipoDeDocumento(
+      dto.tipoDocumento ?? dto.tipoDocumentoSepId,
+    );
     /// Un tipo raro NO tumba el lead: se apunta y entra.
     ///
     /// Antes se rechazaba, y era perder un lead de una pauta
@@ -169,16 +171,58 @@ export class LeadsService {
     /// sirve de llave sin inventar una segunda regla. Va
     /// normalizado: `1.020.304.050` y `1020304050` tienen que
     /// dar la MISMA, o el reintento duplica.
+    ///
+    /// Y EL GREMIO ENTRA EN LA LLAVE. El codigo de la accion no
+    /// lo distingue: `AF1` existe en ADECOPRIA y en BRITCHAM y
+    /// no es el mismo curso. Ver `llave-del-lead.ts`.
     const llave = llaveDelLead(
       { ...dto, tipoDocumentoSepId: tipoDoc },
       pedida?.codigo ?? null,
+      convenio.id,
     );
     if ('falta' in llave) throw new BadRequestException(llave.falta);
     const externoId = llave.llave;
 
-    const ya = await this.prisma.leadEntrante.findUnique({
+    /// REPETIDO ES REPETIDO DENTRO DE SU GREMIO.
+    ///
+    /// Antes era un `findUnique` por `(origenSistema, externoId)`
+    /// a secas --que es el unico que tiene la base, y no lleva
+    /// convenio--. Con la llave vieja, que tampoco lo llevaba,
+    /// la misma persona pidiendo «AF1» en BRITCHAM encontraba su
+    /// lead de ADECOPRIA: no se creaba nada y se le devolvia a
+    /// quien llamaba el `id`, el `estado` y el `participanteId`
+    /// de un lead de OTRO gremio, que es una fuga de datos
+    /// ademas de un lead perdido.
+    ///
+    /// Es `findFirst` y no `findUnique` porque el unico de la
+    /// base no incluye el convenio y no se puede tocar el
+    /// esquema; el acotado va igual, que es lo que importa.
+    /**
+     * Y SE BUSCA TAMBIÉN POR LA LLAVE DE ANTES.
+     *
+     * Esta llave se GUARDA, en `externoId`. Los leads que ya están en
+     * la base llevan la forma vieja ---sin gremio--- así que buscar
+     * solo por la nueva no encontraría ninguno de ellos, y el primer
+     * reintento del emisor crearía un DUPLICADO de un lead que existe.
+     * El arreglo del gremio, solo, habría roto la idempotencia de todo
+     * lo anterior en la puerta por la que entra la pauta pagada.
+     *
+     * Lo que se ESCRIBE es siempre la nueva (`externoId`, abajo), así
+     * que esto se apaga solo según los leads viejos se van gestionando:
+     * no hace falta migrar nada ni elegir un día para el cambio.
+     *
+     * La vieja va acotada al convenio igual que la nueva. No reabre la
+     * fuga: un lead viejo de ADECOPRIA sigue sin aparecerle a BRITCHAM.
+     */
+    const llaves = [
+      externoId,
+      ...('anterior' in llave && llave.anterior ? [llave.anterior] : []),
+    ];
+    const ya = await this.prisma.leadEntrante.findFirst({
       where: {
-        origenSistema_externoId: { origenSistema, externoId },
+        origenSistema,
+        externoId: { in: llaves },
+        convenioId: convenio.id,
       },
       select: { id: true, estado: true, participanteId: true, motivo: true },
     });
@@ -262,12 +306,35 @@ export class LeadsService {
 
       const gano = await this.prisma.leadEntrante.findUnique({
         where: { origenSistema_externoId: { origenSistema, externoId } },
-        select: { id: true, estado: true, participanteId: true, motivo: true },
+        select: {
+          id: true,
+          estado: true,
+          participanteId: true,
+          motivo: true,
+          convenioId: true,
+        },
       });
       /// Si no está, el P2002 era de OTRO único y no de esta carrera.
       /// Devolver «repetido» ahí sería mentir sobre un lead que no
       /// entró.
       if (!gano) throw e;
+
+      /// Y SI EL QUE GANÓ ES DE OTRO GREMIO, NO ES ESTA CARRERA.
+      ///
+      /// Las llaves derivadas ya llevan el convenio, así que por ahí
+      /// no puede pasar; queda la del `externoId` propio del emisor,
+      /// que es global porque el único de la base lo es. Contestar
+      /// «repetido» con ese lead delante sería devolverle a quien
+      /// llama el `id` y el `participanteId` de una persona de otro
+      /// gremio --el mismo defecto que se arregló arriba, solo que
+      /// por la puerta del reintento--.
+      if (gano.convenioId !== convenio.id) {
+        throw new BadRequestException(
+          `El id «${dto.externoId ?? externoId}» ya está usado por un lead de ` +
+            'otro convenio para este mismo origen. Mande un id propio por ' +
+            'gremio: con el mismo no se puede saber de quién es el lead.',
+        );
+      }
 
       this.log.log(`Lead ${externoId}: reintento simultáneo, ya estaba.`);
       return { ...this.vista(gano), repetido: true };
@@ -281,13 +348,13 @@ export class LeadsService {
       numeroDocumento: datos.numeroDocumento,
       correo: datos.correo,
       celular: datos.celular,
-        /// El curso, para elegir CUAL de sus fichas.
-        ///
-        /// Hay una por curso. Sin esto, quien ya esta en AF1 y
-        /// pide AF5 por un anuncio se ataba a la de AF1 --y a esa
-        /// le caian el toque de pauta, el origen y la propuesta--
-        /// porque `findFirst` sin orden devuelve cualquiera.
-        accionFormacionId: pedida?.id ?? null,
+      /// El curso, para elegir CUAL de sus fichas.
+      ///
+      /// Hay una por curso. Sin esto, quien ya esta en AF1 y
+      /// pide AF5 por un anuncio se ataba a la de AF1 --y a esa
+      /// le caian el toque de pauta, el origen y la propuesta--
+      /// porque `findFirst` sin orden devuelve cualquiera.
+      accionFormacionId: pedida?.id ?? null,
     });
 
     if (coincide) {
@@ -323,7 +390,12 @@ export class LeadsService {
     const despues = intento.paso
       ? await this.prisma.leadEntrante.findUnique({
           where: { id: lead.id },
-          select: { id: true, estado: true, participanteId: true, motivo: true },
+          select: {
+            id: true,
+            estado: true,
+            participanteId: true,
+            motivo: true,
+          },
         })
       : null;
 
@@ -731,7 +803,9 @@ export class LeadsService {
           })()
         : null,
       /// Vacio si no es un correo, igual que el celular.
-      correo: correoValido(dto.correo) ? normalizarCorreo(dto.correo) || null : null,
+      correo: correoValido(dto.correo)
+        ? normalizarCorreo(dto.correo) || null
+        : null,
       /// Vacio si no es un celular: guardar «no tiene» seria
       /// guardar algo que no sirve para llamar a nadie.
       celular: celular && celularValido(celular) ? celular : null,

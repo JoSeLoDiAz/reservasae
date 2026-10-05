@@ -48,7 +48,10 @@ const DESCARTADO: EtapaParticipante = 'PERDIDO';
  * contados en «pendientes» y son los que le inflan la antigüedad
  * media--, pero su plazo ya no es una fecha a la que llegar.
  */
-function elLimite(proximo: Date | null, ultimoPasado: Date | null): Date | null {
+function elLimite(
+  proximo: Date | null,
+  ultimoPasado: Date | null,
+): Date | null {
   return proximo ?? ultimoPasado;
 }
 
@@ -158,9 +161,7 @@ export type GrupoConCierre = {
   cierreInscripciones?: Date | null;
 };
 
-export function cierrePorAccion(
-  grupos: GrupoConCierre[],
-): Map<string, Date> {
+export function cierrePorAccion(grupos: GrupoConCierre[]): Map<string, Date> {
   const por = new Map<string, Date>();
   for (const g of grupos) {
     const cierre = cierreDelGrupo({
@@ -206,7 +207,8 @@ export function cierresPorAccion(
     if (!ya.some((d) => d.getTime() === cierre.getTime())) ya.push(cierre);
     por.set(g.accionFormacionId, ya);
   }
-  for (const fechas of por.values()) fechas.sort((a, b) => a.getTime() - b.getTime());
+  for (const fechas of por.values())
+    fechas.sort((a, b) => a.getTime() - b.getTime());
   return por;
 }
 
@@ -244,21 +246,19 @@ export function repartirInscripciones(
     /// los leads que nadie está trabajando, y esconderlos es como se
     /// pierden.
     const llave = l.asesorId ?? 'SIN_ASESOR';
-    const fila =
-      por.get(llave) ??
-      {
-        nombre: l.asesorNombre ?? 'Sin asesor asignado',
-        total: 0,
-        resueltos: 0,
-        inscritos: 0,
-        descartados: 0,
-        gestionados: 0,
-        esperando: [] as Date[],
-        primero: null as Date | null,
-        proximo: null as Date | null,
-        ultimoPasado: null as Date | null,
-        porAccion: new Map<string, CargaEnUnaAccion>(),
-      };
+    const fila = por.get(llave) ?? {
+      nombre: l.asesorNombre ?? 'Sin asesor asignado',
+      total: 0,
+      resueltos: 0,
+      inscritos: 0,
+      descartados: 0,
+      gestionados: 0,
+      esperando: [] as Date[],
+      primero: null as Date | null,
+      proximo: null as Date | null,
+      ultimoPasado: null as Date | null,
+      porAccion: new Map<string, CargaEnUnaAccion>(),
+    };
 
     fila.total += 1;
     if (!fila.primero || l.creadoEn < fila.primero) fila.primero = l.creadoEn;
@@ -284,19 +284,17 @@ export function repartirInscripciones(
     /// nadie ha encaminado todavía, y esconderlos es como se pierden
     /// --la misma razón por la que «sin asesor» es una fila--.
     const suAccion = l.accionFormacionId ?? 'SIN_ACCION';
-    const enLaAccion =
-      fila.porAccion.get(suAccion) ??
-      {
-        accionFormacionId: l.accionFormacionId,
-        codigo: l.accionCodigo,
-        nombre: l.accionNombre,
-        total: 0,
-        gestionados: 0,
-        resueltos: 0,
-        inscritos: 0,
-        descartados: 0,
-        pendientes: 0,
-      };
+    const enLaAccion = fila.porAccion.get(suAccion) ?? {
+      accionFormacionId: l.accionFormacionId,
+      codigo: l.accionCodigo,
+      nombre: l.accionNombre,
+      total: 0,
+      gestionados: 0,
+      resueltos: 0,
+      inscritos: 0,
+      descartados: 0,
+      pendientes: 0,
+    };
     enLaAccion.total += 1;
     if (gestionado) enLaAccion.gestionados += 1;
     if (inscrito) enLaAccion.inscritos += 1;
@@ -322,37 +320,48 @@ export function repartirInscripciones(
     por.set(llave, fila);
   }
 
-  return [...por.entries()]
-    .map(([id, f]) => {
-      const carga: Carga = {
-        total: f.total,
-        resueltos: f.resueltos,
-        gestionados: f.gestionados,
-      };
-      const diasCorridos = f.primero
-        ? Math.max(0, diasDeTrabajoEntre(hoyEnColombia(f.primero), hoyEnColombia(hoy)))
-        : 0;
-      const limite = elLimite(f.proximo, f.ultimoPasado);
-      return {
-        asesorId: id === 'SIN_ASESOR' ? null : id,
-        nombre: f.nombre,
-        carga,
-        inscritos: f.inscritos,
-        descartados: f.descartados,
-        ritmo: ritmoDe({ carga, limite, hoy, diasCorridos }),
-        antiguedadMedia: antiguedadMedia(f.esperando, hoy),
-        limite: limite ? limite.toISOString().slice(0, 10) : null,
-        /// En el mismo orden que la tabla de fuera: los que más
-        /// pendientes tienen, arriba. Quien abre una fila busca dónde
-        /// se le está acumulando, no la lista alfabética.
-        porAccion: [...f.porAccion.values()].sort(
-          (a, b) => b.pendientes - a.pendientes || (a.codigo ?? '').localeCompare(b.codigo ?? ''),
-        ),
-      };
-    })
-    /// Los que peor van, arriba: la pantalla es para decidir a quién
-    /// reforzar, no para pasar lista.
-    .sort((a, b) => b.ritmo.pendientes - a.ritmo.pendientes || a.nombre.localeCompare(b.nombre));
+  return (
+    [...por.entries()]
+      .map(([id, f]) => {
+        const carga: Carga = {
+          total: f.total,
+          resueltos: f.resueltos,
+          gestionados: f.gestionados,
+        };
+        const diasCorridos = f.primero
+          ? Math.max(
+              0,
+              diasDeTrabajoEntre(hoyEnColombia(f.primero), hoyEnColombia(hoy)),
+            )
+          : 0;
+        const limite = elLimite(f.proximo, f.ultimoPasado);
+        return {
+          asesorId: id === 'SIN_ASESOR' ? null : id,
+          nombre: f.nombre,
+          carga,
+          inscritos: f.inscritos,
+          descartados: f.descartados,
+          ritmo: ritmoDe({ carga, limite, hoy, diasCorridos }),
+          antiguedadMedia: antiguedadMedia(f.esperando, hoy),
+          limite: limite ? limite.toISOString().slice(0, 10) : null,
+          /// En el mismo orden que la tabla de fuera: los que más
+          /// pendientes tienen, arriba. Quien abre una fila busca dónde
+          /// se le está acumulando, no la lista alfabética.
+          porAccion: [...f.porAccion.values()].sort(
+            (a, b) =>
+              b.pendientes - a.pendientes ||
+              (a.codigo ?? '').localeCompare(b.codigo ?? ''),
+          ),
+        };
+      })
+      /// Los que peor van, arriba: la pantalla es para decidir a quién
+      /// reforzar, no para pasar lista.
+      .sort(
+        (a, b) =>
+          b.ritmo.pendientes - a.ritmo.pendientes ||
+          a.nombre.localeCompare(b.nombre),
+      )
+  );
 }
 
 // ── académicos ───────────────────────────────────────────────────
@@ -368,7 +377,10 @@ export type PaxDelAsesor = {
 };
 
 /** Una fila por asesor académico. */
-export function repartirAcademicos(pax: PaxDelAsesor[], hoy: Date): FilaDeAsesorAcademico[] {
+export function repartirAcademicos(
+  pax: PaxDelAsesor[],
+  hoy: Date,
+): FilaDeAsesorAcademico[] {
   const por = new Map<
     string,
     {
@@ -385,18 +397,16 @@ export function repartirAcademicos(pax: PaxDelAsesor[], hoy: Date): FilaDeAsesor
 
   for (const p of pax) {
     const llave = p.asesorAcademicoId ?? 'SIN_ASESOR';
-    const fila =
-      por.get(llave) ??
-      {
-        nombre: p.asesorNombre ?? 'Sin asesor asignado',
-        grupos: new Set<string>(),
-        total: 0,
-        certificados: 0,
-        conSeguimiento: 0,
-        proximo: null as Date | null,
-        ultimoPasado: null as Date | null,
-        primero: null as Date | null,
-      };
+    const fila = por.get(llave) ?? {
+      nombre: p.asesorNombre ?? 'Sin asesor asignado',
+      grupos: new Set<string>(),
+      total: 0,
+      certificados: 0,
+      conSeguimiento: 0,
+      proximo: null as Date | null,
+      ultimoPasado: null as Date | null,
+      primero: null as Date | null,
+    };
 
     fila.grupos.add(p.grupoId);
     fila.total += 1;
@@ -408,7 +418,8 @@ export function repartirAcademicos(pax: PaxDelAsesor[], hoy: Date): FilaDeAsesor
     /// que en inscripciones, y por la misma razón: ver `elLimite`.
     if (p.etapa !== 'CERTIFICADO' && p.fechaFin) {
       if (p.fechaFin >= hoy) {
-        if (!fila.proximo || p.fechaFin < fila.proximo) fila.proximo = p.fechaFin;
+        if (!fila.proximo || p.fechaFin < fila.proximo)
+          fila.proximo = p.fechaFin;
       } else if (!fila.ultimoPasado || p.fechaFin > fila.ultimoPasado) {
         fila.ultimoPasado = p.fechaFin;
       }
@@ -431,7 +442,10 @@ export function repartirAcademicos(pax: PaxDelAsesor[], hoy: Date): FilaDeAsesor
       /// asesor cuyo curso arrancó ayer no puede tener el ritmo de uno
       /// que lleva un mes.
       const diasCorridos = f.primero
-        ? Math.max(0, diasDeTrabajoEntre(hoyEnColombia(f.primero), hoyEnColombia(hoy)))
+        ? Math.max(
+            0,
+            diasDeTrabajoEntre(hoyEnColombia(f.primero), hoyEnColombia(hoy)),
+          )
         : 0;
       const limite = elLimite(f.proximo, f.ultimoPasado);
       return {
@@ -448,5 +462,9 @@ export function repartirAcademicos(pax: PaxDelAsesor[], hoy: Date): FilaDeAsesor
         limite: limite ? limite.toISOString().slice(0, 10) : null,
       };
     })
-    .sort((a, b) => b.ritmo.pendientes - a.ritmo.pendientes || a.nombre.localeCompare(b.nombre));
+    .sort(
+      (a, b) =>
+        b.ritmo.pendientes - a.ritmo.pendientes ||
+        a.nombre.localeCompare(b.nombre),
+    );
 }

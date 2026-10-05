@@ -63,7 +63,9 @@ export class DeQuienEsEseDocumento {
     if (tipoDocumentoSepId === null || tipoDocumentoSepId === undefined) {
       return { que: 'LIBRE' };
     }
-    const numero = numeroDocumento ? normalizarDocumento(numeroDocumento) : null;
+    const numero = numeroDocumento
+      ? normalizarDocumento(numeroDocumento)
+      : null;
     if (!numero) return { que: 'LIBRE' };
 
     const persona = await this.prisma.persona.findUnique({

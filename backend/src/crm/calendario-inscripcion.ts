@@ -49,7 +49,8 @@ export type ModalidadDeCierre = 'PRESENCIAL' | 'VIRTUAL' | 'HIBRIDA';
 /// no hay a quien llamar.
 export const HABILES_DE_AVISO = 3;
 
-const ES_FIN_DE_SEMANA = (d: Date) => d.getUTCDay() === 0 || d.getUTCDay() === 6;
+const ES_FIN_DE_SEMANA = (d: Date) =>
+  d.getUTCDay() === 0 || d.getUTCDay() === 6;
 
 /// Colombia va cinco horas detras de UTC, y no mueve el
 /// reloj en todo el año.
@@ -177,7 +178,10 @@ export function avisoDeLiberacion(
 ): Date {
   /// El aviso se cuenta en hábiles en las dos modalidades: son días
   /// de trabajo de quien tiene que llamar, no de calendario.
-  return habilesAtras(cierreDeInscripciones(fechaInicio, modalidad), HABILES_DE_AVISO);
+  return habilesAtras(
+    cierreDeInscripciones(fechaInicio, modalidad),
+    HABILES_DE_AVISO,
+  );
 }
 
 /** En qué punto está la ventana de inscripción de un grupo. */

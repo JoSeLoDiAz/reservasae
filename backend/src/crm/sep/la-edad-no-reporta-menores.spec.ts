@@ -84,6 +84,8 @@ describe('las dos fechas son la misma', () => {
    */
   it('y el archivo sigue congelando contra la matrícula', () => {
     const t = leer('formato-cargue-sep.ts');
-    expect(t).toContain('const corte = p.participante.fechaMatricula ?? new Date();');
+    expect(t).toContain(
+      'const corte = p.participante.fechaMatricula ?? new Date();',
+    );
   });
 });

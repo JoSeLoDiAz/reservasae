@@ -15,14 +15,22 @@ type Entrada = {
   numeroDocumento?: string | null;
 };
 
-const llave = (dto: Entrada, curso?: string | null) => {
-  const r = llaveDelLead(dto, curso);
+/// EL GREMIO va en todas las llaves derivadas, así que las
+/// pruebas lo pasan siempre: el mismo `AF1` de dos convenios no
+/// es el mismo curso, y sin esto en la llave el lead del segundo
+/// gremio volvía como «repetido» del primero.
+/// Que los dos gremios no choquen tiene su propio spec:
+/// `el-segundo-gremio-no-se-traga.spec.ts`.
+const ADECOPRIA = 'cv-adecopria';
+
+const llave = (dto: Entrada, curso?: string | null, convenio = ADECOPRIA) => {
+  const r = llaveDelLead(dto, curso, convenio);
   return 'llave' in r ? r.llave : null;
 };
 
 /** El motivo, cuando no hay llave. */
 const porQueNo = (dto: Entrada) => {
-  const r = llaveDelLead(dto);
+  const r = llaveDelLead(dto, null, ADECOPRIA);
   return 'falta' in r ? r.falta : null;
 };
 
@@ -30,13 +38,13 @@ describe('el documento es la llave', () => {
   it('con tipo, número y curso sale una llave estable', () => {
     expect(
       llave({ tipoDocumentoSepId: 1, numeroDocumento: '1020304050' }, 'AF1'),
-    ).toBe('doc:1-1020304050:AF1');
+    ).toBe(`doc:${ADECOPRIA}:1-1020304050:AF1`);
   });
 
   it('sin curso resuelto, la llave lo dice', () => {
-    expect(llave({ tipoDocumentoSepId: 1, numeroDocumento: '1020304050' })).toBe(
-      'doc:1-1020304050:sin-af',
-    );
+    expect(
+      llave({ tipoDocumentoSepId: 1, numeroDocumento: '1020304050' }),
+    ).toBe(`doc:${ADECOPRIA}:1-1020304050:sin-af`);
   });
 
   it('la misma cédula escrita de seis formas da LA MISMA llave', () => {
@@ -66,9 +74,9 @@ describe('el documento es la llave', () => {
     /// Una cédula 123456 y un pasaporte 123456 no son la misma
     /// persona. `Persona` es única por el par, y la llave
     /// también.
-    expect(llave({ tipoDocumentoSepId: 1, numeroDocumento: '123456' })).not.toBe(
-      llave({ tipoDocumentoSepId: 4, numeroDocumento: '123456' }),
-    );
+    expect(
+      llave({ tipoDocumentoSepId: 1, numeroDocumento: '123456' }),
+    ).not.toBe(llave({ tipoDocumentoSepId: 4, numeroDocumento: '123456' }));
   });
 });
 
@@ -97,7 +105,7 @@ describe('si el emisor trae su propio id, manda ese', () => {
           },
           'AF1',
         ),
-      ).toBe('doc:1-1020304050:AF1');
+      ).toBe(`doc:${ADECOPRIA}:1-1020304050:AF1`);
     }
   });
 });
@@ -153,7 +161,9 @@ describe('sin documento ENTRA IGUAL: la llave sale del contenido', () => {
 
   it('y sigue distinguiendo cursos, como con documento', () => {
     const cuerpo = { correo: 'ana@ejemplo.test', nombres: 'Ana' };
-    expect(llaveDelLead(cuerpo, 'AF1')).not.toEqual(llaveDelLead(cuerpo, 'AF2'));
+    expect(llaveDelLead(cuerpo, 'AF1')).not.toEqual(
+      llaveDelLead(cuerpo, 'AF2'),
+    );
   });
 
   it('con el número pero sin el tipo, cae al contenido', () => {
@@ -174,7 +184,9 @@ describe('sin documento ENTRA IGUAL: la llave sale del contenido', () => {
         numeroDocumento: malo,
         correo: 'x@ejemplo.test',
       });
-      expect((r as { llave?: string }).llave?.startsWith('doc:')).not.toBe(true);
+      expect((r as { llave?: string }).llave?.startsWith('doc:')).not.toBe(
+        true,
+      );
     }
   });
 
@@ -210,7 +222,11 @@ describe('la misma persona puede inscribirse en varios cursos', () => {
     /// Va el codigo ya resuelto y no el texto: «AF1»,
     /// «af 1» y «AF1 - los nuevos metodos» resuelven todas a
     /// AF1, asi que son la misma inscripcion.
-    const tres = new Set([llave(ANA, 'AF1'), llave(ANA, 'AF1'), llave(ANA, 'AF1')]);
+    const tres = new Set([
+      llave(ANA, 'AF1'),
+      llave(ANA, 'AF1'),
+      llave(ANA, 'AF1'),
+    ]);
     expect(tres.size).toBe(1);
   });
 
@@ -220,7 +236,10 @@ describe('la misma persona puede inscribirse en varios cursos', () => {
   });
 
   it('y la misma cedula con OTRO tipo de documento tambien', () => {
-    const conPasaporte = { tipoDocumentoSepId: 41, numeroDocumento: '1020304050' };
+    const conPasaporte = {
+      tipoDocumentoSepId: 41,
+      numeroDocumento: '1020304050',
+    };
     expect(llave(ANA, 'AF1')).not.toBe(llave(conPasaporte, 'AF1'));
   });
 });

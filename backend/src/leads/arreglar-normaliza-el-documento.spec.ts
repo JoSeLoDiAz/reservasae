@@ -47,16 +47,23 @@ function armar() {
     },
   };
 
-  return { s: new MesaDeEntrada(prisma as never, {
-    /// Nadie revoco: es el caso normal y la revocacion tiene su
-    /// propio spec.
-    cualesRevocaron: () => Promise.resolve(new Set<string>()),
-    revoco: () => Promise.resolve(false),
-  } as never, {
-    /// Ese documento no es de nadie mas: caso normal, y el cruce
-    /// tiene su propio spec.
-    mirar: () => Promise.resolve({ que: 'LIBRE' }),
-  } as never), escrituras };
+  return {
+    s: new MesaDeEntrada(
+      prisma as never,
+      {
+        /// Nadie revoco: es el caso normal y la revocacion tiene su
+        /// propio spec.
+        cualesRevocaron: () => Promise.resolve(new Set<string>()),
+        revoco: () => Promise.resolve(false),
+      } as never,
+      {
+        /// Ese documento no es de nadie mas: caso normal, y el cruce
+        /// tiene su propio spec.
+        mirar: () => Promise.resolve({ que: 'LIBRE' }),
+      } as never,
+    ),
+    escrituras,
+  };
 }
 
 describe('arreglar un lead desde la mesa', () => {

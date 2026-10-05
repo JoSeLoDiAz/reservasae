@@ -26,11 +26,7 @@ const ALIAS: Record<string, string> = {
 };
 
 function limpiar(t: string): string {
-  return t
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .toLowerCase()
-    .trim();
+  return t.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
 }
 
 export function generoQueDijo(valor?: string | number | null): number | null {
@@ -40,7 +36,9 @@ export function generoQueDijo(valor?: string | number | null): number | null {
 
   /// Un numero es el id del SEP, para quien lo conozca.
   if (/^\d+$/.test(texto)) {
-    return GENEROS_SEP.some((g) => g.id === Number(texto)) ? Number(texto) : null;
+    return GENEROS_SEP.some((g) => g.id === Number(texto))
+      ? Number(texto)
+      : null;
   }
 
   const buscado = ALIAS[limpiar(texto)] ?? limpiar(texto);

@@ -54,7 +54,8 @@ const UNA = [
   'No',
 ];
 
-const hoja = (...filas: string[][]) => filas.map((f) => f.join('\t')).join('\n');
+const hoja = (...filas: string[][]) =>
+  filas.map((f) => f.join('\t')).join('\n');
 
 describe('la plantilla ancha entra entera', () => {
   const [f] = analizar(hoja(TITULOS, UNA));
@@ -101,7 +102,9 @@ describe('la plantilla ancha entra entera', () => {
   });
 
   it('lo que se pega sin encabezado sigue leyéndose como antes', () => {
-    const [g] = analizar('CC\t1019456782\tLaura\t\tGómez\t\tl@e.com\t3001234567');
+    const [g] = analizar(
+      'CC\t1019456782\tLaura\t\tGómez\t\tl@e.com\t3001234567',
+    );
     expect(g.numeroDocumento).toBe('1019456782');
     expect(g.correo).toBe('l@e.com');
     expect(g.fechaNacimiento).toBeNull();
@@ -153,20 +156,35 @@ describe('lo que la plantilla no puede dejar pasar', () => {
   });
 
   it('un estrato fuera de rango', () => {
-    expect(conCambio('Estrato socioeconómico', '9').problemas[0]).toMatch(/estrato del 1 al 6/);
+    expect(conCambio('Estrato socioeconómico', '9').problemas[0]).toMatch(
+      /estrato del 1 al 6/,
+    );
   });
 
   it('una acción sin código', () => {
-    expect(conCambio('Acción de formación de interés', 'La de neuroeducación').problemas[0]).toMatch(
-      /falta su código/,
-    );
+    expect(
+      conCambio('Acción de formación de interés', 'La de neuroeducación')
+        .problemas[0],
+    ).toMatch(/falta su código/);
   });
 });
 
 describe('las piezas sueltas', () => {
   it('reconoce el encabezado aunque lo reescriban', () => {
-    const c = columnasDelEncabezado(['Documento', 'Nombres', 'Apellidos', 'Celular', 'Curso']);
-    expect(c).toMatchObject({ numeroDocumento: 0, primerNombre: 1, primerApellido: 2, celular: 3, accion: 4 });
+    const c = columnasDelEncabezado([
+      'Documento',
+      'Nombres',
+      'Apellidos',
+      'Celular',
+      'Curso',
+    ]);
+    expect(c).toMatchObject({
+      numeroDocumento: 0,
+      primerNombre: 1,
+      primerApellido: 2,
+      celular: 3,
+      accion: 4,
+    });
   });
 
   it('una fila de datos nunca es un encabezado', () => {

@@ -35,12 +35,7 @@ import { diasDeTrabajoEntre, hoyEnColombia } from './calendario-inscripcion';
  * sabe si va bien, y un verde ahí es una mentira tranquilizadora.
  */
 export type EstadoDeCumplimiento =
-  | 'AL_DIA'
-  | 'AJUSTADO'
-  | 'EN_RIESGO'
-  | 'VENCIDO'
-  | 'SIN_PLAZO'
-  | 'TERMINADO';
+  'AL_DIA' | 'AJUSTADO' | 'EN_RIESGO' | 'VENCIDO' | 'SIN_PLAZO' | 'TERMINADO';
 
 /**
  * A partir de qué relación entre lo exigido y lo que trae se enciende
@@ -110,7 +105,9 @@ export function ritmoDe(entrada: {
   if (pendientes === 0) {
     return {
       pendientes: 0,
-      diasHabiles: limite ? diasDeTrabajoEntre(hoyEnColombia(hoy), limite) : null,
+      diasHabiles: limite
+        ? diasDeTrabajoEntre(hoyEnColombia(hoy), limite)
+        : null,
       exigidoPorDia: 0,
       realPorDia: diasCorridos > 0 ? carga.resueltos / diasCorridos : null,
       estado: 'TERMINADO',
@@ -134,7 +131,13 @@ export function ritmoDe(entrada: {
   /// no se llega, y dividir por cero o por un número negativo daría
   /// una cifra que parecería una meta.
   if (diasHabiles <= 0) {
-    return { pendientes, diasHabiles, exigidoPorDia: null, realPorDia, estado: 'VENCIDO' };
+    return {
+      pendientes,
+      diasHabiles,
+      exigidoPorDia: null,
+      realPorDia,
+      estado: 'VENCIDO',
+    };
   }
 
   const exigidoPorDia = pendientes / diasHabiles;
@@ -156,7 +159,11 @@ export function ritmoDe(entrada: {
   /// «al ritmo de siempre llega»; por encima, tiene que apretar.
   const cuantoMas = exigidoPorDia / realPorDia;
   const estado: EstadoDeCumplimiento =
-    cuantoMas <= 1 ? 'AL_DIA' : cuantoMas <= HOLGURA_AJUSTADO ? 'AJUSTADO' : 'EN_RIESGO';
+    cuantoMas <= 1
+      ? 'AL_DIA'
+      : cuantoMas <= HOLGURA_AJUSTADO
+        ? 'AJUSTADO'
+        : 'EN_RIESGO';
 
   return { pendientes, diasHabiles, exigidoPorDia, realPorDia, estado };
 }
@@ -172,7 +179,10 @@ export function ritmoDe(entrada: {
 export function antiguedadMedia(llegadas: Date[], hoy: Date): number | null {
   if (llegadas.length === 0) return null;
   const dia = 86_400_000;
-  const suma = llegadas.reduce((s, f) => s + Math.max(0, hoy.getTime() - f.getTime()), 0);
+  const suma = llegadas.reduce(
+    (s, f) => s + Math.max(0, hoy.getTime() - f.getTime()),
+    0,
+  );
   return Math.round((suma / llegadas.length / dia) * 10) / 10;
 }
 

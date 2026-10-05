@@ -5,7 +5,16 @@ const fila = (...c: string[]) => c.join('\t');
 describe('analizar', () => {
   it('lee una fila pegada desde Excel', () => {
     const [f] = analizar(
-      fila('CC', '1019456782', 'Laura', 'Camila', 'Gómez', 'Rojas', 'l@e.com', '3001234567'),
+      fila(
+        'CC',
+        '1019456782',
+        'Laura',
+        'Camila',
+        'Gómez',
+        'Rojas',
+        'l@e.com',
+        '3001234567',
+      ),
     );
 
     expect(f.tipoDocumentoSepId).toBe(1);
@@ -58,7 +67,9 @@ describe('analizar', () => {
     const [f] = analizar(fila('XYZ', '1019456782', 'Laura', '', 'Gómez'));
 
     expect(f.tipoDocumentoSepId).toBe(1);
-    expect(f.problemas.join(' ')).toContain('no es un tipo de documento conocido');
+    expect(f.problemas.join(' ')).toContain(
+      'no es un tipo de documento conocido',
+    );
   });
 
   it('reconoce el tipo escrito con palabras, no solo la sigla', () => {
@@ -70,7 +81,9 @@ describe('analizar', () => {
   });
 
   it('no admite tarjeta de identidad: un menor no entra', () => {
-    const [f] = analizar(fila('TI', '1019456782', 'Laura', '', 'Gómez', '', 'l@e.com'));
+    const [f] = analizar(
+      fila('TI', '1019456782', 'Laura', '', 'Gómez', '', 'l@e.com'),
+    );
     expect(f.problemas.join(' ')).toContain('no se admite');
   });
 
@@ -80,7 +93,9 @@ describe('analizar', () => {
   });
 
   it('admite letras en un pasaporte', () => {
-    const [f] = analizar(fila('PA', 'AB1234567', 'John', '', 'Smith', '', 'j@e.com'));
+    const [f] = analizar(
+      fila('PA', 'AB1234567', 'John', '', 'Smith', '', 'j@e.com'),
+    );
     expect(f.problemas).toEqual([]);
   });
 
@@ -109,7 +124,15 @@ describe('analizar', () => {
 
   it('descarta un correo que no lo es', () => {
     const [f] = analizar(
-      fila('CC', '1019456782', 'Laura', '', 'Gómez', '', 'laura arroba empresa'),
+      fila(
+        'CC',
+        '1019456782',
+        'Laura',
+        '',
+        'Gómez',
+        '',
+        'laura arroba empresa',
+      ),
     );
     expect(f.problemas.join(' ')).toContain('no parece un correo');
   });

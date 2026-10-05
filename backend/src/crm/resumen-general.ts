@@ -131,21 +131,19 @@ export function resumenGeneral(filas: FilaCruda[]): FilaResumenGeneral[] {
     const af = f.accionFormacion;
     if (!af) continue;
 
-    const fila =
-      porAccion.get(af.id) ??
-      {
-        accionFormacionId: af.id,
-        codigo: af.codigo,
-        nombre: af.nombre,
-        gremio: f.convenio?.sigla || f.convenio?.nombre || '',
-        leads: 0,
-        datosCompletos: 0,
-        datosParciales: 0,
-        enProceso: 0,
-        sinGestion: 0,
-        inscritos: 0,
-        noInteresados: 0,
-      };
+    const fila = porAccion.get(af.id) ?? {
+      accionFormacionId: af.id,
+      codigo: af.codigo,
+      nombre: af.nombre,
+      gremio: f.convenio?.sigla || f.convenio?.nombre || '',
+      leads: 0,
+      datosCompletos: 0,
+      datosParciales: 0,
+      enProceso: 0,
+      sinGestion: 0,
+      inscritos: 0,
+      noInteresados: 0,
+    };
 
     fila.leads += 1;
 
@@ -172,5 +170,7 @@ export function resumenGeneral(filas: FilaCruda[]): FilaResumenGeneral[] {
     porAccion.set(af.id, fila);
   }
 
-  return [...porAccion.values()].sort((a, b) => a.codigo.localeCompare(b.codigo));
+  return [...porAccion.values()].sort((a, b) =>
+    a.codigo.localeCompare(b.codigo),
+  );
 }

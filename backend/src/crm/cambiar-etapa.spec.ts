@@ -110,7 +110,8 @@ function armar(o: Opciones) {
     /// antes de escribir. Con sitio de sobra: lo que se prueba aqui es
     /// la escalera de etapas, no el lleno.
     grupoCobertura: {
-      findUnique: () => Promise.resolve({ cuposMaximos: 30, grupo: { numero: 1 } }),
+      findUnique: () =>
+        Promise.resolve({ cuposMaximos: 30, grupo: { numero: 1 } }),
     },
     movimientoParticipante: {
       create: () => {
@@ -159,7 +160,10 @@ function armar(o: Opciones) {
             coberturaId: COBERTURA,
             cuposMaximos: o.cuposMaximos ?? 30,
             inscritos: o.inscritos ?? 5,
-            ventana: { estado: o.ventana ?? 'CERRADA', cierre: new Date('2026-08-25') },
+            ventana: {
+              estado: o.ventana ?? 'CERRADA',
+              cierre: new Date('2026-08-25'),
+            },
           },
         ],
         admiteInscripciones: o.motivo === null,
@@ -174,7 +178,9 @@ function armar(o: Opciones) {
     alInscribir: (id: string) => {
       inscritos.push(id);
       return o.disparadorFalla
-        ? Promise.reject(new Error('faltan persona de contacto, cargo y correo'))
+        ? Promise.reject(
+            new Error('faltan persona de contacto, cargo y correo'),
+          )
         : Promise.resolve('ENCOLADO');
     },
   };
@@ -185,7 +191,7 @@ function armar(o: Opciones) {
     { encolarSiHaceFalta: () => Promise.resolve() } as never,
     cupos as never,
     disparador as never,
-  
+
     { avisar: () => Promise.resolve() } as never,
     /// El catálogo de notas. Devuelve «sin clasificar», que es lo
     /// que anota una pantalla que todavía no ofrece los
@@ -197,7 +203,9 @@ function armar(o: Opciones) {
   );
 
   /// Otra cosa, y ya probada en `completitud.spec`.
-  jest.spyOn(s, 'estadoDeDatos').mockResolvedValue({ completo: true, falta: [] });
+  jest
+    .spyOn(s, 'estadoDeDatos')
+    .mockResolvedValue({ completo: true, falta: [] });
   jest
     .spyOn(s, 'faltantesParaMatricular')
     .mockResolvedValue({ bloquean: [], avisan: [], reporte: [] } as never);
@@ -209,10 +217,21 @@ function armar(o: Opciones) {
 const ADMIN = { id: 'a1', nombre: 'Ana Jaramillo' };
 
 /** Lo que contesta el método: el resultado o el mensaje del error. */
-async function pasarA(opciones: Opciones, etapa: string, cierran: string[] = ['c1']) {
+async function pasarA(
+  opciones: Opciones,
+  etapa: string,
+  cierran: string[] = ['c1'],
+) {
   const { s, escrituras, inscritos } = armar(opciones);
   try {
-    await s.cambiarEtapa('p1', { etapa } as never, ADMIN as never, ['c1'], undefined, cierran);
+    await s.cambiarEtapa(
+      'p1',
+      { etapa } as never,
+      ADMIN as never,
+      ['c1'],
+      undefined,
+      cierran,
+    );
     return { ok: true, mensaje: '', escrituras, inscritos };
   } catch (e) {
     return { ok: false, mensaje: (e as Error).message, escrituras, inscritos };
@@ -256,7 +275,10 @@ describe('el cupo y la oferta SIGUEN bloqueando: no son cronograma', () => {
     /// Su silla se liberó al retirarse: volver pide una nueva, y
     /// si no la hay, no la hay. Eximirlo de esto sería
     /// sobrevender sin que nadie lo firme.
-    const r = await pasarA({ etapa: 'RETIRADO', motivo: 'LLENO' }, 'EN_FORMACION');
+    const r = await pasarA(
+      { etapa: 'RETIRADO', motivo: 'LLENO' },
+      'EN_FORMACION',
+    );
 
     expect(r.ok).toBe(false);
     expect(r.mensaje).toMatch(/LLENO/);
@@ -264,7 +286,10 @@ describe('el cupo y la oferta SIGUEN bloqueando: no son cronograma', () => {
   });
 
   it('con la oferta cerrada, también', async () => {
-    const r = await pasarA({ etapa: 'RETIRADO', motivo: 'OFERTA_CERRADA' }, 'EN_FORMACION');
+    const r = await pasarA(
+      { etapa: 'RETIRADO', motivo: 'OFERTA_CERRADA' },
+      'EN_FORMACION',
+    );
     expect(r.ok).toBe(false);
     expect(r.escrituras).toEqual([]);
   });
@@ -317,7 +342,10 @@ describe('el paso imposible se juzga ANTES que el cupo', () => {
     /// (quien vuelve está exento) y los dos órdenes dan el mismo
     /// resultado — o sea que ese escenario no prueba nada, y la
     /// prueba de mutación lo dijo pasando con el orden invertido.
-    const r = await pasarA({ etapa: 'RETIRADO', motivo: 'LLENO' }, 'CERTIFICADO');
+    const r = await pasarA(
+      { etapa: 'RETIRADO', motivo: 'LLENO' },
+      'CERTIFICADO',
+    );
 
     expect(r.ok).toBe(false);
     expect(r.mensaje).toMatch(/En formación/);
@@ -363,7 +391,10 @@ describe('poner la etapa que ya tiene no es un paso', () => {
   it('CERTIFICADO → CERTIFICADO no contesta un error falso', async () => {
     /// Antes daba «alguien que ya salió del aula» a quien está
     /// certificado, que es mentira sobre lo que pasa.
-    const r = await pasarA({ etapa: 'CERTIFICADO', motivo: 'LLENO' }, 'CERTIFICADO');
+    const r = await pasarA(
+      { etapa: 'CERTIFICADO', motivo: 'LLENO' },
+      'CERTIFICADO',
+    );
 
     expect(r.ok).toBe(true);
     expect(r.escrituras).toEqual([]);
@@ -381,7 +412,12 @@ describe('la organización sale de la suya O de la de su reserva', () => {
     /// siempre. Eran tres reglas para la misma pregunta y esta
     /// era la más estrecha.
     const r = await pasarA(
-      { etapa: 'INTERESADO', motivo: null, ventana: 'ABIERTA', empresaPropia: false },
+      {
+        etapa: 'INTERESADO',
+        motivo: null,
+        ventana: 'ABIERTA',
+        empresaPropia: false,
+      },
       'INSCRITO',
     );
 
@@ -400,7 +436,14 @@ describe('la organización sale de la suya O de la de su reserva', () => {
     });
 
     await expect(
-      s.cambiarEtapa('p1', { etapa: 'INSCRITO' } as never, ADMIN as never, ['c1'], undefined, ['c1']),
+      s.cambiarEtapa(
+        'p1',
+        { etapa: 'INSCRITO' } as never,
+        ADMIN as never,
+        ['c1'],
+        undefined,
+        ['c1'],
+      ),
     ).rejects.toThrow(/no tiene organización/i);
   });
 });
@@ -428,25 +471,28 @@ describe('a la organización le faltan datos y la persona SÍ se inscribe', () =
   it.each([
     [['sectorEconomico']],
     [['contactoNombre', 'contactoCargo', 'contactoCorreo']],
-  ])('le falta %j a su organización y pasa a INSCRITO', async (sinEstos: string[]) => {
-    const { s } = armar({
-      etapa: 'INTERESADO',
-      motivo: null,
-      ventana: 'ABIERTA',
-      empresaSinEstos: sinEstos,
-    });
+  ])(
+    'le falta %j a su organización y pasa a INSCRITO',
+    async (sinEstos: string[]) => {
+      const { s } = armar({
+        etapa: 'INTERESADO',
+        motivo: null,
+        ventana: 'ABIERTA',
+        empresaSinEstos: sinEstos,
+      });
 
-    const r = await s.cambiarEtapa(
-      'p1',
-      { etapa: 'INSCRITO' } as never,
-      ADMIN as never,
-      ['c1'],
-      undefined,
-      ['c1'],
-    );
+      const r = await s.cambiarEtapa(
+        'p1',
+        { etapa: 'INSCRITO' } as never,
+        ADMIN as never,
+        ['c1'],
+        undefined,
+        ['c1'],
+      );
 
-    expect(r).toBeTruthy();
-  });
+      expect(r).toBeTruthy();
+    },
+  );
 });
 
 describe('entrar a INSCRITO dispara la validacion de su empresa', () => {
@@ -477,7 +523,12 @@ describe('entrar a INSCRITO dispara la validacion de su empresa', () => {
   /// y la inscripcion tiene que seguir su curso igual.
   it('si el disparador se queja, la etapa cambia de todos modos', async () => {
     const r = await pasarA(
-      { etapa: 'INTERESADO', motivo: null, ventana: 'ABIERTA', disparadorFalla: true },
+      {
+        etapa: 'INTERESADO',
+        motivo: null,
+        ventana: 'ABIERTA',
+        disparadorFalla: true,
+      },
       'INSCRITO',
     );
 

@@ -32,11 +32,7 @@ import { AdminGuard, Requiere } from '../admin/admin.guard';
 import { hostDelGremio } from '../comun/host-del-gremio';
 import { PrismaService } from '../prisma/prisma.service';
 
-import {
-  configDeMeta,
-  loQueFalta,
-  nombreDeVariable,
-} from './meta-por-gremio';
+import { configDeMeta, loQueFalta, nombreDeVariable } from './meta-por-gremio';
 import { esDePrueba, PREFIJO_DE_PRUEBA, simularAviso } from './simulador-meta';
 
 /// El camino público del webhook, con el `/api` que pone
@@ -411,7 +407,10 @@ export class MetaPruebasController {
     }>;
     try {
       filas = await this.prisma.leadEntrante.findMany({
-        where: { origenSistema: 'meta', externoId: { in: simulado.leadgenIds } },
+        where: {
+          origenSistema: 'meta',
+          externoId: { in: simulado.leadgenIds },
+        },
         select: {
           externoId: true,
           estado: true,

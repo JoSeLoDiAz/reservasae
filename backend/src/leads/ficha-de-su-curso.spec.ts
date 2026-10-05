@@ -182,7 +182,11 @@ describe('las OTRAS dos ramas también eligen, no cogen cualquiera', () => {
    * backend.
    */
 
-  const POR_CORREO = { ...LLAVES, numeroDocumento: null, correo: 'casa@x.test' };
+  const POR_CORREO = {
+    ...LLAVES,
+    numeroDocumento: null,
+    correo: 'casa@x.test',
+  };
 
   it('por CORREO elige la ficha de su curso', async () => {
     const r = await cruzarConElCrm(armar(DOS) as never, 'c-1', {

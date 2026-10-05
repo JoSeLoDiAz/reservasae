@@ -20,7 +20,10 @@
  * cierra una acción.
  */
 
-import { cierreDelGrupo, cierreDeInscripciones } from './calendario-inscripcion';
+import {
+  cierreDelGrupo,
+  cierreDeInscripciones,
+} from './calendario-inscripcion';
 import { cierrePorAccion, cierresPorAccion } from './asesores-datos';
 import type { Modalidad } from '../../generated/prisma';
 
@@ -41,7 +44,9 @@ describe('lo fijado manda sobre lo derivado', () => {
     expect(fijado).toEqual(d('2026-10-08'));
 
     /// Y la regla, sola, decía otra cosa.
-    expect(cierreDeInscripciones(d('2026-10-19'), 'VIRTUAL')).toEqual(d('2026-10-05'));
+    expect(cierreDeInscripciones(d('2026-10-19'), 'VIRTUAL')).toEqual(
+      d('2026-10-05'),
+    );
   });
 
   /**
@@ -63,7 +68,10 @@ describe('lo fijado manda sobre lo derivado', () => {
    */
   it('un cierre escrito vale aunque no haya fecha de inicio', () => {
     expect(
-      cierreDelGrupo({ fechaInicio: null, cierreInscripciones: d('2026-10-13') }),
+      cierreDelGrupo({
+        fechaInicio: null,
+        cierreInscripciones: d('2026-10-13'),
+      }),
     ).toEqual(d('2026-10-13'));
   });
 
@@ -74,21 +82,23 @@ describe('lo fijado manda sobre lo derivado', () => {
 
 /// AF1 tal como está en el cronograma: cuatro grupos que cierran el 8
 /// y cuatro que cierran el 16.
-const AF1 = [1, 2, 3, 4].map((n) => ({
-  accionFormacionId: 'af1',
-  fechaInicio: d('2026-10-19'),
-  modalidad: 'VIRTUAL' as Modalidad,
-  cierreInscripciones: d('2026-10-08'),
-  numero: n,
-})).concat(
-  [5, 6, 7, 8].map((n) => ({
+const AF1 = [1, 2, 3, 4]
+  .map((n) => ({
     accionFormacionId: 'af1',
-    fechaInicio: d('2026-10-26'),
+    fechaInicio: d('2026-10-19'),
     modalidad: 'VIRTUAL' as Modalidad,
-    cierreInscripciones: d('2026-10-16'),
+    cierreInscripciones: d('2026-10-08'),
     numero: n,
-  })),
-);
+  }))
+  .concat(
+    [5, 6, 7, 8].map((n) => ({
+      accionFormacionId: 'af1',
+      fechaInicio: d('2026-10-26'),
+      modalidad: 'VIRTUAL' as Modalidad,
+      cierreInscripciones: d('2026-10-16'),
+      numero: n,
+    })),
+  );
 
 describe('cuántas veces cierra una acción', () => {
   it('AF1 cierra dos veces, no una', () => {
@@ -124,14 +134,18 @@ describe('cuántas veces cierra una acción', () => {
    * sola fecha hace más daño.
    */
   it('AF3 cierra cinco veces, una por grupo', () => {
-    const af3 = ['2026-10-13', '2026-10-15', '2026-10-20', '2026-10-22', '2026-10-27'].map(
-      (f) => ({
-        accionFormacionId: 'af3',
-        fechaInicio: null,
-        modalidad: 'PRESENCIAL' as Modalidad,
-        cierreInscripciones: d(f),
-      }),
-    );
+    const af3 = [
+      '2026-10-13',
+      '2026-10-15',
+      '2026-10-20',
+      '2026-10-22',
+      '2026-10-27',
+    ].map((f) => ({
+      accionFormacionId: 'af3',
+      fechaInicio: null,
+      modalidad: 'PRESENCIAL' as Modalidad,
+      cierreInscripciones: d(f),
+    }));
     expect(cierresPorAccion(af3).get('af3')).toHaveLength(5);
     expect(cierrePorAccion(af3).get('af3')).toEqual(d('2026-10-13'));
   });
@@ -152,7 +166,11 @@ describe('cuántas veces cierra una acción', () => {
   /// Un grupo sin fechas no inventa un cierre ni tumba la cuenta.
   it('un grupo sin fechas no aporta cierre', () => {
     const con = [
-      { accionFormacionId: 'af9', fechaInicio: null, modalidad: 'VIRTUAL' as Modalidad },
+      {
+        accionFormacionId: 'af9',
+        fechaInicio: null,
+        modalidad: 'VIRTUAL' as Modalidad,
+      },
       {
         accionFormacionId: 'af9',
         fechaInicio: d('2026-11-03'),

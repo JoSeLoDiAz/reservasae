@@ -26,7 +26,11 @@
  */
 
 import { sedePedida } from './sede-pedida';
-import { sedeQueLeToca, type OfertaCandidata, type Vive } from './sede-que-le-toca';
+import {
+  sedeQueLeToca,
+  type OfertaCandidata,
+  type Vive,
+} from './sede-que-le-toca';
 
 export type LeadConSede = {
   accionFormacionId: string | null;

@@ -52,7 +52,8 @@ function bloque(cupos: number, inscritos: number): BloqueDeCupos {
     cupos,
     inscritos,
     faltan,
-    avance: cupos === 0 ? 0 : Math.min(100, Math.round((inscritos / cupos) * 100)),
+    avance:
+      cupos === 0 ? 0 : Math.min(100, Math.round((inscritos / cupos) * 100)),
   };
 }
 
@@ -82,7 +83,10 @@ export function repartirCupos(entrada: {
   const libres = total - apartados;
 
   // lo que una empresa inscriba de mas cae al comun
-  const dentroDeSuTurno = Math.min(Math.max(0, entrada.inscritosDeReserva), apartados);
+  const dentroDeSuTurno = Math.min(
+    Math.max(0, entrada.inscritosDeReserva),
+    apartados,
+  );
   const seDesbordo = Math.max(0, entrada.inscritosDeReserva) - dentroDeSuTurno;
 
   const enElComun = Math.max(0, entrada.inscritosLibres) + seDesbordo;

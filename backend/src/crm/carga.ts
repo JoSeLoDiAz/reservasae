@@ -1,6 +1,10 @@
 /** Analiza lo que el asesor pega desde Excel, o lo que trae la plantilla. */
 
-import { aCelularGuardable, celularUtil, celularValido } from '../comun/celular';
+import {
+  aCelularGuardable,
+  celularUtil,
+  celularValido,
+} from '../comun/celular';
 import { documentoValido, normalizarDocumento } from '../comun/documento';
 import {
   DOCUMENTOS_DE_PERSONA,
@@ -76,7 +80,11 @@ const CORREO = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 /// Excel copia con tabuladores; los .csv de por aqui
 /// suelen venir con punto y coma por la coma decimal.
 function partir(linea: string): string[] {
-  const separador = linea.includes('\t') ? '\t' : linea.includes(';') ? ';' : ',';
+  const separador = linea.includes('\t')
+    ? '\t'
+    : linea.includes(';')
+      ? ';'
+      : ',';
   return linea.split(separador).map((c) => c.trim().replace(/^"|"$/g, ''));
 }
 
@@ -118,7 +126,9 @@ export function analizar(texto: string): FilaAnalizada[] {
     const reconocido = reconocerTipoDocumento(tipoTexto);
     const tipo = reconocido ?? POR_DEFECTO;
     if (tipoTexto && reconocido === null) {
-      problemas.push(`«${tipoTexto}» no es un tipo de documento conocido; se asume C.C.`);
+      problemas.push(
+        `«${tipoTexto}» no es un tipo de documento conocido; se asume C.C.`,
+      );
     } else if (reconocido !== null && !PERMITIDOS.has(reconocido)) {
       // tarjeta de identidad: un menor no entra
       problemas.push(`no se admite «${tipoTexto}» en esta formación`);
@@ -128,7 +138,9 @@ export function analizar(texto: string): FilaAnalizada[] {
     const numero = normalizarDocumento(numeroTexto);
     if (!numero) problemas.push('falta el número de documento');
     else if (!documentoValido(tipo, numero)) {
-      problemas.push(`«${numeroTexto}» no es válido para ${siglaDocumento(tipo)}`);
+      problemas.push(
+        `«${numeroTexto}» no es válido para ${siglaDocumento(tipo)}`,
+      );
     }
 
     const primerNombre = dato('primerNombre');
@@ -169,7 +181,9 @@ export function analizar(texto: string): FilaAnalizada[] {
     const accionTexto = dato('accion');
     const accionCodigo = codigoDeAccion(accionTexto);
     if (accionTexto && !accionCodigo) {
-      problemas.push(`«${accionTexto}» no dice de qué acción de formación es (falta su código, como «AF3»)`);
+      problemas.push(
+        `«${accionTexto}» no dice de qué acción de formación es (falta su código, como «AF3»)`,
+      );
     }
 
     return {

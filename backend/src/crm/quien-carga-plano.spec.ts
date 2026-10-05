@@ -34,14 +34,18 @@ const peticion = (
 describe('quién carga por plano', () => {
   it('el gestor de inscripciones NO', () => {
     expect(
-      puedeCargarPlano(peticion('GESTOR', { adecopria: ['GESTOR_INSCRIPCION'] })),
+      puedeCargarPlano(
+        peticion('GESTOR', { adecopria: ['GESTOR_INSCRIPCION'] }),
+      ),
     ).toBe(false);
     expect(CARGAN_PLANO).not.toContain('GESTOR_INSCRIPCION');
   });
 
   it('el líder de inscripciones y el de sistemas, sí', () => {
     expect(
-      puedeCargarPlano(peticion('GESTOR', { adecopria: ['LIDER_INSCRIPCION'] })),
+      puedeCargarPlano(
+        peticion('GESTOR', { adecopria: ['LIDER_INSCRIPCION'] }),
+      ),
     ).toBe(true);
     expect(
       puedeCargarPlano(peticion('GESTOR', { adecopria: ['LIDER_SISTEMAS'] })),
@@ -123,7 +127,9 @@ describe('por la puerta general, sin gremio elegido', () => {
     const prisma = {
       adminConvenio: {
         findFirst: ({ where }: { where: { convenioId: string } }) =>
-          Promise.resolve(where.convenioId === 'adecopria' ? { id: 'c1' } : null),
+          Promise.resolve(
+            where.convenioId === 'adecopria' ? { id: 'c1' } : null,
+          ),
       },
     };
     const admin = { id: 'admin-1', rol: 'GESTOR' as const };
@@ -134,8 +140,8 @@ describe('por la puerta general, sin gremio elegido', () => {
 
     await expect(
       exigirQuienCargaPlano(prisma as never, admin, 'britcham'),
-    /// Con tilde: el mensaje dice «líder». Buscarlo sin ella hacía
-    /// fallar la prueba sobre un código correcto.
+      /// Con tilde: el mensaje dice «líder». Buscarlo sin ella hacía
+      /// fallar la prueba sobre un código correcto.
     ).rejects.toThrow(/líder de inscripciones/i);
   });
 
@@ -148,7 +154,11 @@ describe('por la puerta general, sin gremio elegido', () => {
       },
     };
     await expect(
-      exigirQuienCargaPlano(prisma as never, { id: 'a', rol: 'SUPERADMIN' }, 'britcham'),
+      exigirQuienCargaPlano(
+        prisma as never,
+        { id: 'a', rol: 'SUPERADMIN' },
+        'britcham',
+      ),
     ).resolves.toBeUndefined();
   });
 });

@@ -204,7 +204,9 @@ describe('el F7 de empresas', () => {
       expect(String(valor)).not.toContain('[object');
       expect(clave).toBeTruthy();
     }
-    expect(celdas.tamano).toBe('GRANDE - COMERCIO (SUPERIOR A $104.600.300.908)');
+    expect(celdas.tamano).toBe(
+      'GRANDE - COMERCIO (SUPERIOR A $104.600.300.908)',
+    );
   });
 
   it('sin tamaño la celda va vacía, nunca con un id suelto', () => {

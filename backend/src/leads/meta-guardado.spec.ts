@@ -60,7 +60,10 @@ function armar(opciones: { slug?: string; revienta?: string } = {}) {
   const s = new LeadsService(
     prisma as never,
     { encolarSiHaceFalta: () => Promise.resolve() } as never,
-    { intentar: () => Promise.resolve({ paso: false, porque: 'doble', falta: [] }) } as never,
+    {
+      intentar: () =>
+        Promise.resolve({ paso: false, porque: 'doble', falta: [] }),
+    } as never,
   );
 
   /// El gremio entra por PARAMETRO, no por variable de

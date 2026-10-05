@@ -30,6 +30,9 @@ function armar(existente: unknown = null) {
     },
     leadEntrante: {
       findUnique: () => Promise.resolve(existente),
+      /// La comprobacion de repetido va ACOTADA AL GREMIO, asi que
+      /// es un `findFirst`: el unico de la base no lleva convenio.
+      findFirst: () => Promise.resolve(existente),
       create: ({
         data,
         select,

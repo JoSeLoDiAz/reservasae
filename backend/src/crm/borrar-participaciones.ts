@@ -30,7 +30,9 @@ import type { Prisma } from '../../generated/prisma';
 type Borrador = {
   avanceActividad: { deleteMany: (a: unknown) => Promise<{ count: number }> };
   notaDeGestion: { deleteMany: (a: unknown) => Promise<{ count: number }> };
-  movimientoParticipante: { deleteMany: (a: unknown) => Promise<{ count: number }> };
+  movimientoParticipante: {
+    deleteMany: (a: unknown) => Promise<{ count: number }>;
+  };
   participante: {
     findMany: (a: unknown) => Promise<Array<{ id: string }>>;
     deleteMany: (a: unknown) => Promise<{ count: number }>;
@@ -56,12 +58,18 @@ export async function borrarParticipaciones(
   const ids = suyas.map((p) => p.id);
   if (ids.length === 0) return 0;
 
-  await db.avanceActividad.deleteMany({ where: { participanteId: { in: ids } } });
+  await db.avanceActividad.deleteMany({
+    where: { participanteId: { in: ids } },
+  });
   /// Solo las SUYAS: las del lead sobreviven. Ver el docblock.
   await db.notaDeGestion.deleteMany({
     where: { participanteId: { in: ids }, leadId: null },
   });
-  await db.movimientoParticipante.deleteMany({ where: { participanteId: { in: ids } } });
-  const { count } = await db.participante.deleteMany({ where: { id: { in: ids } } });
+  await db.movimientoParticipante.deleteMany({
+    where: { participanteId: { in: ids } },
+  });
+  const { count } = await db.participante.deleteMany({
+    where: { id: { in: ids } },
+  });
   return count;
 }

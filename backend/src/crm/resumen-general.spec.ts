@@ -1,6 +1,10 @@
 /** Las siete cifras macro del Resumen General. */
 
-import { resumenGeneral, fueGestionada, type FilaCruda } from './resumen-general';
+import {
+  resumenGeneral,
+  fueGestionada,
+  type FilaCruda,
+} from './resumen-general';
 
 /// Una persona a la que no le falta nada de lo que pide el reporte.
 const PERSONA_COMPLETA = {
@@ -69,7 +73,10 @@ describe('resumenGeneral', () => {
   });
 
   it('«no interesados» es PERDIDO, que es como se llama en la base', () => {
-    const r = resumenGeneral([fila({ etapa: 'PERDIDO' }), fila({ etapa: 'INTERESADO' })]);
+    const r = resumenGeneral([
+      fila({ etapa: 'PERDIDO' }),
+      fila({ etapa: 'INTERESADO' }),
+    ]);
     expect(r[0].noInteresados).toBe(1);
   });
 
@@ -80,7 +87,9 @@ describe('resumenGeneral', () => {
   });
 
   it('una nota basta para que pase a EN PROCESO', () => {
-    const r = resumenGeneral([fila({ etapa: 'INTERESADO', _count: { notas: 1 } })]);
+    const r = resumenGeneral([
+      fila({ etapa: 'INTERESADO', _count: { notas: 1 } }),
+    ]);
     expect(r[0].enProceso).toBe(1);
     expect(r[0].sinGestion).toBe(0);
   });
@@ -97,13 +106,20 @@ describe('resumenGeneral', () => {
   });
 
   it('un asesor que tocó los datos cuenta como gestión aunque no deje nota', () => {
-    expect(fueGestionada(fila({ datosTocadosPorAsesorEn: new Date() }))).toBe(true);
+    expect(fueGestionada(fila({ datosTocadosPorAsesorEn: new Date() }))).toBe(
+      true,
+    );
   });
 
   it('las salidas del aula no caen en ninguno de los cuatro estados, pero sí en leads', () => {
-    const r = resumenGeneral([fila({ etapa: 'RETIRADO' }), fila({ etapa: 'DESERTO' })]);
+    const r = resumenGeneral([
+      fila({ etapa: 'RETIRADO' }),
+      fila({ etapa: 'DESERTO' }),
+    ]);
     expect(r[0].leads).toBe(2);
-    expect(r[0].enProceso + r[0].sinGestion + r[0].inscritos + r[0].noInteresados).toBe(0);
+    expect(
+      r[0].enProceso + r[0].sinGestion + r[0].inscritos + r[0].noInteresados,
+    ).toBe(0);
   });
 
   it('los cuatro estados reparten a toda la gente viva, sin solapes', () => {
@@ -118,6 +134,8 @@ describe('resumenGeneral', () => {
     expect(f.enProceso).toBe(1);
     expect(f.inscritos).toBe(1);
     expect(f.noInteresados).toBe(1);
-    expect(f.enProceso + f.sinGestion + f.inscritos + f.noInteresados).toBe(f.leads);
+    expect(f.enProceso + f.sinGestion + f.inscritos + f.noInteresados).toBe(
+      f.leads,
+    );
   });
 });

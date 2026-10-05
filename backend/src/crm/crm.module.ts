@@ -61,6 +61,13 @@ import { SepService } from './sep/sep.service';
       useClass: ruiConectado() ? ProveedorRuiVentanilla : ProveedorRuiLocal,
     },
   ],
-  exports: [CrmService, RuiService, DirectorioService, Matricula, PanelDeCupos, VigiaDeCupos],
+  exports: [
+    CrmService,
+    RuiService,
+    DirectorioService,
+    Matricula,
+    PanelDeCupos,
+    VigiaDeCupos,
+  ],
 })
 export class CrmModule {}

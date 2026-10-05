@@ -76,9 +76,29 @@ describe('lo que se exige para tocar una reserva', () => {
     );
   });
 
+  /**
+   * SIN DEPENDER DEL FORMATO, que es como estaba y se rompió sola.
+   *
+   * Buscaba la llamada escrita en una línea; al añadirse un argumento,
+   * prettier la partió en varias y la prueba cayó sin que nada hubiera
+   * dejado de cumplirse. Una prueba que falla por un salto de línea
+   * enseña a ignorarla, y la regla que protege ---que las dos puertas
+   * exijan el correo--- es de las que no se pueden perder.
+   *
+   * Ahora se comprueba sobre el texto con los espacios aplastados: así
+   * da igual cómo quede repartido en líneas.
+   */
   it('las dos puertas lo reciben', () => {
-    const t = servicio();
-    expect(t).toContain('this.reservaDeLaEmpresa(tx, reservaId, nit.nit, correo)');
+    const enUnaLinea = servicio().replace(/\s+/g, ' ');
+    const llamadas = enUnaLinea.split('this.reservaDeLaEmpresa(').slice(1);
+    /// Las dos: `editar` y `cancelar`. Si quedara una, la otra habría
+    /// vuelto a aceptar solo el NIT.
+    expect(llamadas.length).toBeGreaterThanOrEqual(2);
+    for (const l of llamadas) {
+      const argumentos = l.slice(0, l.indexOf(')'));
+      expect(argumentos).toContain('reservaId');
+      expect(argumentos).toContain('correo');
+    }
   });
 });
 
@@ -92,7 +112,9 @@ describe('consultar sigue pidiendo solo el NIT', () => {
     const t = leer('reservas.controller.ts');
     const i = t.indexOf('consultar(');
     expect(i).toBeGreaterThan(-1);
-    expect(t.slice(i, i + 200)).toContain('this.reservas.consultarPorNit(dto.nit)');
+    expect(t.slice(i, i + 200)).toContain(
+      'this.reservas.consultarPorNit(dto.nit)',
+    );
   });
 });
 

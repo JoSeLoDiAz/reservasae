@@ -75,7 +75,9 @@ export class CrearReservaDto {
 
   @IsEmail()
   @MaxLength(200)
-  @Transform(({ value }) => (typeof value === 'string' ? value.trim().toLowerCase() : value))
+  @Transform(({ value }) =>
+    typeof value === 'string' ? value.trim().toLowerCase() : value,
+  )
   contactoCorreo!: string;
 
   /// Diez dígitos y nada más. Sin esto entraban de once y de
@@ -113,7 +115,9 @@ export class CrearReservaDto {
   ///
   /// Este endpoint es PUBLICO: quien lo llama no es una pantalla
   /// nuestra, asi que el tipo del JSON no se puede dar por bueno.
-  @Transform(({ obj, key }) => booleanoDeVerdad((obj as Record<string, unknown>)[key]))
+  @Transform(({ obj, key }) =>
+    booleanoDeVerdad((obj as Record<string, unknown>)[key]),
+  )
   @IsBoolean()
   @Equals(true, { message: 'Debe aceptar los términos de participación.' })
   aceptaTerminos!: boolean;
@@ -128,9 +132,13 @@ export class CrearReservaDto {
   ///
   /// Este endpoint es PUBLICO: quien lo llama no es una pantalla
   /// nuestra, asi que el tipo del JSON no se puede dar por bueno.
-  @Transform(({ obj, key }) => booleanoDeVerdad((obj as Record<string, unknown>)[key]))
+  @Transform(({ obj, key }) =>
+    booleanoDeVerdad((obj as Record<string, unknown>)[key]),
+  )
   @IsBoolean()
-  @Equals(true, { message: 'Debe aceptar la política de tratamiento de datos.' })
+  @Equals(true, {
+    message: 'Debe aceptar la política de tratamiento de datos.',
+  })
   aceptaPoliticaDatos!: boolean;
 
   /** Formulario del que salió el envío. */

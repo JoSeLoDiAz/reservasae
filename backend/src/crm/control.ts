@@ -1152,19 +1152,19 @@ export async function controlDeInscritos(
     porAsesor: porAsesor
       .filter((f) => quienMira.veElEquipo || f.asesorId === quienMira.suId)
       .map((f) => {
-      const asignados = Number(f.asignados);
-      const total = cifra(f);
-      return {
-        asesorId: f.asesorId,
-        etiqueta: f.etiqueta,
-        total,
-        asignados,
-        pendientes: Number(f.pendientes),
-        inscritosSiempre: Number(f.inscritosSiempre),
-        conversion:
-          asignados === 0 ? 0 : Number(f.inscritosSiempre) / asignados,
-      };
-    }),
+        const asignados = Number(f.asignados);
+        const total = cifra(f);
+        return {
+          asesorId: f.asesorId,
+          etiqueta: f.etiqueta,
+          total,
+          asignados,
+          pendientes: Number(f.pendientes),
+          inscritosSiempre: Number(f.inscritosSiempre),
+          conversion:
+            asignados === 0 ? 0 : Number(f.inscritosSiempre) / asignados,
+        };
+      }),
     porOrigen: porOrigen.map((f) => ({
       etiqueta: f.etiqueta,
       total: cifra(f),

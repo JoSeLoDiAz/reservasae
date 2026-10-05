@@ -43,7 +43,7 @@ describe('quién puede cambiar el documento de una persona', () => {
 
   it('y aceptando una propuesta, también solo el administrador', () => {
     const cuerpo = cuerpoDe('resolverPropuesta');
-    expect(cuerpo).toContain("RolAdmin.SUPERADMIN");
+    expect(cuerpo).toContain('RolAdmin.SUPERADMIN');
     expect(cuerpo).toContain(
       'El documento de la persona solo lo puede corregir un administrador.',
     );

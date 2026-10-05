@@ -18,7 +18,9 @@ describe('permiso para consultar el RUI', () => {
   });
 
   it('en produccion consulta, que es su trabajo', () => {
-    expect(permisoDeRui(AJENO, { RUI_PROVEEDOR: 'VENTANILLA' }).real).toBe(true);
+    expect(permisoDeRui(AJENO, { RUI_PROVEEDOR: 'VENTANILLA' }).real).toBe(
+      true,
+    );
   });
 
   it('en pruebas SOLO los documentos autorizados', () => {
@@ -47,7 +49,9 @@ describe('permiso para consultar el RUI', () => {
     expect(
       documentosPermitidos({ RUI_SOLO_ESTOS_DOCUMENTOS: ' 111 , , 222 ' }),
     ).toEqual(['111', '222']);
-    expect(documentosPermitidos({ RUI_SOLO_ESTOS_DOCUMENTOS: ' , ' })).toEqual([]);
+    expect(documentosPermitidos({ RUI_SOLO_ESTOS_DOCUMENTOS: ' , ' })).toEqual(
+      [],
+    );
   });
 
   it('un documento con espacios cuadra igual', () => {

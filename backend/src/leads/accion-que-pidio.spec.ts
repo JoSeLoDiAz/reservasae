@@ -65,7 +65,10 @@ describe('resolver contra el catálogo de SU gremio', () => {
     /// Si no está visible no se está ofreciendo. Apuntar a
     /// alguien ahí desde fuera se salta la decisión de no
     /// ofrecerla al público.
-    const conOculta = [...ADECOPRIA, { id: 'a9', codigo: 'AF9', visible: false }];
+    const conOculta = [
+      ...ADECOPRIA,
+      { id: 'a9', codigo: 'AF9', visible: false },
+    ];
     expect(accionQuePidio('AF9', conOculta)).toBeNull();
   });
 

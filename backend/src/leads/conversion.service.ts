@@ -54,10 +54,7 @@ import { ColaRui } from '../crm/rui/cola-rui';
 import { PrismaService } from '../prisma/prisma.service';
 
 import type { ConvertirLeadDto } from './dto';
-import {
-  autorizoAlRegistrarse,
-  evidenciaDelLead,
-} from './listo-para-ficha';
+import { autorizoAlRegistrarse, evidenciaDelLead } from './listo-para-ficha';
 
 @Injectable()
 export class ConversionDeLeads {
@@ -242,9 +239,7 @@ export class ConversionDeLeads {
     /// Si ninguna sede lo cubre queda en null y la ficha nace
     /// solo con la accion, que es lo correcto: asignarle una
     /// sede donde no puede ir seria peor que dejarla sin sede.
-    const oferta = lead.accionFormacionId
-      ? await this.sedeDelLead(lead)
-      : null;
+    const oferta = lead.accionFormacionId ? await this.sedeDelLead(lead) : null;
 
     /// Se crea con `crm.crear`, no con un `persona.create` de
     /// aquí. Es la MISMA puerta que usa el asesor desde el

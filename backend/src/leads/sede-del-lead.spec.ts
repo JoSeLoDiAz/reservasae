@@ -163,7 +163,9 @@ describe('el nombre que escribió se traduce al catálogo del SEP', () => {
     const r = ubicacionQueDijo('ANTIOQUIA', 'Ciudad Inventada');
     expect(r.departamentoSepId).toBe(5);
     expect(r.municipioSepId).toBeNull();
-    expect(r.noReconocido).toEqual([expect.stringContaining('Ciudad Inventada')]);
+    expect(r.noReconocido).toEqual([
+      expect.stringContaining('Ciudad Inventada'),
+    ]);
   });
 
   it('vacío no es un error: es que no lo mandó', () => {

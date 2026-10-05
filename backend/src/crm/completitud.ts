@@ -228,9 +228,7 @@ export function faltaDeLaFicha(p: {
  * SENA, y perderlos de vista sería peor--- sino que se dice PARA QUÉ.
  * Quien ya está dentro no tiene nada pendiente para entrar.
  */
-export function paraQueFalta(
-  etapa: string,
-): 'INSCRIBIR' | 'REPORTE' {
+export function paraQueFalta(etapa: string): 'INSCRIBIR' | 'REPORTE' {
   /// Las tres que ocupan silla: ya entró. De aquí en adelante lo que
   /// falte es del reporte, no de la puerta.
   const YA_ENTRO = ['INSCRITO', 'EN_FORMACION', 'CERTIFICADO'];
@@ -269,8 +267,8 @@ export function revisar(p: ParaRevisar): Revision {
     matricula.push(
       p.accionFormacionId
         ? 'falta la sede: se sabe qué curso quiere, pero no dónde lo va a tomar. ' +
-          'Sale del departamento y la ciudad de la persona — y si su ' +
-          'departamento no tiene ese curso, no se la puede inscribir.'
+            'Sale del departamento y la ciudad de la persona — y si su ' +
+            'departamento no tiene ese curso, no se la puede inscribir.'
         : 'falta asignarle una acción de formación',
     );
   }
@@ -282,7 +280,9 @@ export function revisar(p: ParaRevisar): Revision {
     matricula.push('no hay forma de contactarla: falta correo o celular');
   }
   if (!p.tieneAutorizacion) {
-    matricula.push('no ha autorizado el tratamiento de sus datos para este convenio');
+    matricula.push(
+      'no ha autorizado el tratamiento de sus datos para este convenio',
+    );
   }
 
   // ── reporte al SENA ──
@@ -317,11 +317,14 @@ export function revisar(p: ParaRevisar): Revision {
   }
   if (persona.generoSepId === null) reporte.push('falta el género');
   if (persona.estrato === null) reporte.push('falta el estrato');
-  if (persona.departamentoSepId === null) reporte.push('falta el departamento de domicilio');
-  if (persona.municipioSepId === null) reporte.push('falta el municipio de domicilio');
+  if (persona.departamentoSepId === null)
+    reporte.push('falta el departamento de domicilio');
+  if (persona.municipioSepId === null)
+    reporte.push('falta el municipio de domicilio');
   if (!persona.direccion?.trim()) reporte.push('falta la dirección');
   if (!persona.barrio?.trim()) reporte.push('falta el barrio o vereda');
-  if (p.nivelOcupacionalSepId === null) reporte.push('falta el nivel ocupacional');
+  if (p.nivelOcupacionalSepId === null)
+    reporte.push('falta el nivel ocupacional');
   if (p.beneficiarioPrevio === null) {
     reporte.push('falta decir si se benefició anteriormente');
   }

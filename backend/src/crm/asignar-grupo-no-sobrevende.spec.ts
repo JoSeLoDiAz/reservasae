@@ -113,10 +113,18 @@ function armar(
 
   const prisma = {
     grupoCobertura: {
-      findFirst: (q: { where: { grupo?: { accionFormacion?: { convenioId?: { in: string[] } } } } }) => {
+      findFirst: (q: {
+        where: {
+          grupo?: { accionFormacion?: { convenioId?: { in: string[] } } };
+        };
+      }) => {
         /// El ÁMBITO de verdad: fuera de él, la celda no existe.
         const amb = q.where.grupo?.accionFormacion?.convenioId?.in;
-        if (celda && amb && !amb.includes(celda.grupo.accionFormacion.convenioId)) {
+        if (
+          celda &&
+          amb &&
+          !amb.includes(celda.grupo.accionFormacion.convenioId)
+        ) {
           return Promise.resolve(null);
         }
         return Promise.resolve(celda);
@@ -153,7 +161,11 @@ function cumpleLaEtapa(etapa: string, filtro: unknown): boolean {
 /// SUPERADMIN a proposito: el candado del grupo sale antes de
 /// consultar la base para un superadmin, asi que estas pruebas
 /// siguen midiendo lo suyo --que no se sobrevenda-- y no el permiso.
-const ADMIN = { id: 'a-1', nombre: 'Ana Jaramillo', rol: 'SUPERADMIN' as const };
+const ADMIN = {
+  id: 'a-1',
+  nombre: 'Ana Jaramillo',
+  rol: 'SUPERADMIN' as const,
+};
 
 /// Cinco esperando, la celda admite 3.
 const CINCO: Ficha[] = [1, 2, 3, 4, 5].map((n) => ({
@@ -169,7 +181,12 @@ describe('no sobrevende', () => {
   it('con 3 sillas y 5 marcados, entran 3 y se dice cuántos no', async () => {
     const { s, asignados } = armar(CINCO);
 
-    const r = await s.asignar('cel-1', CINCO.map((f) => f.id), ADMIN, ['c-1']);
+    const r = await s.asignar(
+      'cel-1',
+      CINCO.map((f) => f.id),
+      ADMIN,
+      ['c-1'],
+    );
 
     expect(r.asignadas).toBe(3);
     expect(r.sinCupo).toBe(2);
@@ -185,12 +202,29 @@ describe('no sobrevende', () => {
       /// grupo de a uno, y entonces RETIENEN el asiento aunque el
       /// lote no los ofrezca. Es justo la distincion que sostiene
       /// las dos listas.
-      { id: 'x1', convenioId: 'c-1', ofertaId: 'of-1', coberturaId: 'cel-1', etapa: 'INTERESADO' },
-      { id: 'x2', convenioId: 'c-1', ofertaId: 'of-1', coberturaId: 'cel-1', etapa: 'CONTACTADO' },
+      {
+        id: 'x1',
+        convenioId: 'c-1',
+        ofertaId: 'of-1',
+        coberturaId: 'cel-1',
+        etapa: 'INTERESADO',
+      },
+      {
+        id: 'x2',
+        convenioId: 'c-1',
+        ofertaId: 'of-1',
+        coberturaId: 'cel-1',
+        etapa: 'CONTACTADO',
+      },
     ];
     const { s } = armar([...yaDentro, ...CINCO]);
 
-    const r = await s.asignar('cel-1', CINCO.map((f) => f.id), ADMIN, ['c-1']);
+    const r = await s.asignar(
+      'cel-1',
+      CINCO.map((f) => f.id),
+      ADMIN,
+      ['c-1'],
+    );
 
     expect(r.asignadas).toBe(1);
     expect(r.sinCupo).toBe(4);
@@ -199,11 +233,22 @@ describe('no sobrevende', () => {
   it('quien se retiró de esa celda libera su asiento', async () => {
     /// Su etapa no está en RETIENEN_ASIENTO, así que no cuenta.
     const salido: Ficha[] = [
-      { id: 'x1', convenioId: 'c-1', ofertaId: 'of-1', coberturaId: 'cel-1', etapa: 'RETIRADO' },
+      {
+        id: 'x1',
+        convenioId: 'c-1',
+        ofertaId: 'of-1',
+        coberturaId: 'cel-1',
+        etapa: 'RETIRADO',
+      },
     ];
     const { s } = armar([...salido, ...CINCO]);
 
-    const r = await s.asignar('cel-1', CINCO.map((f) => f.id), ADMIN, ['c-1']);
+    const r = await s.asignar(
+      'cel-1',
+      CINCO.map((f) => f.id),
+      ADMIN,
+      ['c-1'],
+    );
     expect(r.asignadas).toBe(3);
   });
 });
@@ -301,7 +346,12 @@ describe('el aserto que protege del arreglo excesivo', () => {
     const holgada = { ...CELDA, cuposMaximos: 50 };
     const { s } = armar(CINCO, { celda: holgada });
 
-    const r = await s.asignar('cel-1', CINCO.map((f) => f.id), ADMIN, ['c-1']);
+    const r = await s.asignar(
+      'cel-1',
+      CINCO.map((f) => f.id),
+      ADMIN,
+      ['c-1'],
+    );
     expect(r.asignadas).toBe(5);
     expect(r.sinCupo).toBe(0);
     expect(RETIENEN_ASIENTO).toContain('INTERESADO');

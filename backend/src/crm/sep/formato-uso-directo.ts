@@ -24,7 +24,11 @@ export const COLUMNAS: Array<{
   { titulo: 'AF', clave: 'af' },
   { titulo: 'Nombre AF', clave: 'nombreAf', ancho: 60 },
   { titulo: 'Grupo', clave: 'grupo' },
-  { titulo: 'Tipo de identificación del Beneficiario', clave: 'tipoDocumento', ancho: 32 },
+  {
+    titulo: 'Tipo de identificación del Beneficiario',
+    clave: 'tipoDocumento',
+    ancho: 32,
+  },
   { titulo: 'Número de identificación', clave: 'documento', formato: 'entero' },
   { titulo: 'Nombres', clave: 'nombres' },
   { titulo: '1 Apellidos', clave: 'primerApellido' },
@@ -60,7 +64,9 @@ const digitos = (v: string | null) => (v ?? '').replace(/\D/g, '');
 /// Un numero si son solo digitos, y texto si no: un
 /// pasaporte con letras en una celda numerica se pierde.
 const documentoParaExcel = (numero: string): string | number =>
-  /^\d{1,15}$/.test(numero) && !numero.startsWith('0') ? Number(numero) : numero;
+  /^\d{1,15}$/.test(numero) && !numero.startsWith('0')
+    ? Number(numero)
+    : numero;
 
 export function fila(p: FilaSep): Record<string, unknown> {
   const municipio = p.persona.municipioSepId
@@ -72,9 +78,12 @@ export function fila(p: FilaSep): Record<string, unknown> {
     af: p.accion.codigo,
     nombreAf: p.accion.nombre,
     grupo: `${p.accion.codigo}.G${p.grupo.numero}`,
-    tipoDocumento: TIPO_DOCUMENTO_POR_ID.get(p.persona.tipoDocumentoSepId)?.etiqueta ?? '',
+    tipoDocumento:
+      TIPO_DOCUMENTO_POR_ID.get(p.persona.tipoDocumentoSepId)?.etiqueta ?? '',
     documento: documentoParaExcel(p.persona.numeroDocumento),
-    nombres: [p.persona.primerNombre, p.persona.segundoNombre].filter(Boolean).join(' '),
+    nombres: [p.persona.primerNombre, p.persona.segundoNombre]
+      .filter(Boolean)
+      .join(' '),
     primerApellido: p.persona.primerApellido,
     segundoApellido: p.persona.segundoApellido ?? '',
     genero: p.genero,
@@ -82,7 +91,8 @@ export function fila(p: FilaSep): Record<string, unknown> {
     fechaNacimiento: soloFecha(p.persona.fechaNacimiento),
     celular: celular.length === 10 ? Number(celular) : celular,
     departamento:
-      DEPARTAMENTO_POR_ID.get(p.persona.departamentoSepId ?? -1)?.etiqueta ?? '',
+      DEPARTAMENTO_POR_ID.get(p.persona.departamentoSepId ?? -1)?.etiqueta ??
+      '',
     ciudad: municipio?.[2] ?? '',
     correo: p.persona.correo ?? '',
     barrio: p.persona.barrio ?? '',
@@ -91,7 +101,9 @@ export function fila(p: FilaSep): Record<string, unknown> {
     /// Ver `identificadorParaExcel`: con `Number()` se perdían los
     /// ceros de la izquierda.
     nit: p.empresa ? identificadorParaExcel(p.empresa.nit) : '',
-    dv: p.empresa?.digitoVerificacion ? Number(p.empresa.digitoVerificacion) : '',
+    dv: p.empresa?.digitoVerificacion
+      ? Number(p.empresa.digitoVerificacion)
+      : '',
     empresa: p.empresa?.razonSocial ?? '',
     tamanoEmpresa: p.empresa?.tamanoSepId
       ? (TAMANO_EMPRESA_POR_ID.get(p.empresa.tamanoSepId)?.etiqueta ?? '')
@@ -102,8 +114,8 @@ export function fila(p: FilaSep): Record<string, unknown> {
       ? (CARACTERIZACION_POR_ID.get(p.caracterizacionSepId)?.etiqueta ?? '')
       : '',
     nivelOcupacional:
-      NIVEL_OCUPACIONAL_POR_ID.get(p.participante.nivelOcupacionalSepId ?? -1)?.etiqueta ??
-      '',
+      NIVEL_OCUPACIONAL_POR_ID.get(p.participante.nivelOcupacionalSepId ?? -1)
+        ?.etiqueta ?? '',
     cargo: p.participante.cargoEnEmpresa ?? '',
     transferencia: 'NO',
     perfilTransferencia: 'NO APLICA',

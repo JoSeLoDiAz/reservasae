@@ -52,7 +52,8 @@ function prismaFalso(yaHabiaPersona: boolean, yaEstaEnLaAccion: boolean) {
     },
     participante: {
       /// La misma cedula en la misma accion de formacion.
-      findFirst: () => Promise.resolve(yaEstaEnLaAccion ? { id: 'viejo1' } : null),
+      findFirst: () =>
+        Promise.resolve(yaEstaEnLaAccion ? { id: 'viejo1' } : null),
       findMany: () => Promise.resolve([]),
       create: () => Promise.resolve({ id: 'par1' }),
     },
@@ -103,7 +104,7 @@ function servicio(
     dobleDeEmbudo(),
     cola,
     enlace,
-  
+
     { avisar: () => Promise.resolve() } as never,
   );
   return { s, cola };

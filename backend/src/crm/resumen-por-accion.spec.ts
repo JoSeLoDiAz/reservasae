@@ -1,6 +1,10 @@
 /** Las cuentas de la tabla del comité, contra su propio Excel. */
 
-import { completarFila, resumenPorAccionSql, type FilaDeAccion } from './resumen-por-accion';
+import {
+  completarFila,
+  resumenPorAccionSql,
+  type FilaDeAccion,
+} from './resumen-por-accion';
 
 const cruda = (p: Partial<Parameters<typeof completarFila>[0]> = {}) => ({
   accionFormacionId: 'af',
@@ -39,7 +43,12 @@ describe('la tabla por acción de formación', () => {
 
     it('AF4: 163 de meta, 68 inscritos y 95 disponibles', () => {
       const f = completarFila(
-        cruda({ codigo: 'AF4', meta: 163, campanaDigital: 96, inscritosCampana: 68 }),
+        cruda({
+          codigo: 'AF4',
+          meta: 163,
+          campanaDigital: 96,
+          inscritosCampana: 68,
+        }),
       );
       expect(f.cuposDisponibles).toBe(95);
       expect(f.estado).toBe('ABIERTO');
@@ -64,7 +73,9 @@ describe('la tabla por acción de formación', () => {
   /// Marketing: una reserva es una intención, y el cupo se consume
   /// cuando la persona queda inscrita.
   it('los cupos reservados NO descuentan disponibles', () => {
-    const f = completarFila(cruda({ meta: 100, cuposReservados: 40, inscritosCampana: 10 }));
+    const f = completarFila(
+      cruda({ meta: 100, cuposReservados: 40, inscritosCampana: 10 }),
+    );
     expect(f.cuposDisponibles).toBe(90);
   });
 
@@ -147,7 +158,10 @@ describe('el recorte llega a la consulta', () => {
     // igual que `donde()` con gte/lt: con `<=` sobre días de calendario
     // el último día entraba entero y esta tabla contaba uno más que la
     // tira de arriba
-    const q = sql({ desde: '2026-09-01T05:00:00.000Z', hasta: '2026-09-24T05:00:00.000Z' });
+    const q = sql({
+      desde: '2026-09-01T05:00:00.000Z',
+      hasta: '2026-09-24T05:00:00.000Z',
+    });
     expect(q).toContain('pa."creadoEn" >=');
     expect(q).toContain('pa."creadoEn" <');
     expect(q).not.toContain('pa."creadoEn" <=');
@@ -155,7 +169,10 @@ describe('el recorte llega a la consulta', () => {
 
   it('LA META NO SE RECORTA: los cupos comprometidos son los mismos hoy que ayer', () => {
     const q = sql({ desde: '2026-09-01T05:00:00.000Z' });
-    const meta = q.slice(q.indexOf('LA META'), q.indexOf('LOS CUPOS APARTADOS'));
+    const meta = q.slice(
+      q.indexOf('LA META'),
+      q.indexOf('LOS CUPOS APARTADOS'),
+    );
     expect(meta).not.toContain('creadoEn');
   });
 });

@@ -35,9 +35,7 @@ function cumple(n: Nota, where: Record<string, unknown>): boolean {
   }
 
   const r = where.resultado as
-    | { not?: null; in?: string[] }
-    | string
-    | undefined;
+    { not?: null; in?: string[] } | string | undefined;
   if (typeof r === 'string' && n.resultado !== r) return false;
   if (r && typeof r === 'object') {
     if ('not' in r && r.not === null && n.resultado === null) return false;
@@ -80,7 +78,7 @@ function armar(notas: Nota[]) {
     {} as never,
     {} as never,
     { alInscribir: () => Promise.resolve() } as never,
-  
+
     { avisar: () => Promise.resolve() } as never,
     /// El catálogo de notas. Devuelve «sin clasificar», que es lo
     /// que anota una pantalla que todavía no ofrece los

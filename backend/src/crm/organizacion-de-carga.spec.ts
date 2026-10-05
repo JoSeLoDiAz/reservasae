@@ -27,21 +27,33 @@ describe('leer la organización', () => {
     expect(leerOrganizacion({ razonSocial: 'X' }).problemas).toEqual([
       'Falta el NIT de la organización.',
     ]);
-    expect(leerOrganizacion({ nit: '12' , razonSocial: 'X' }).problemas[0]).toMatch(/no es válido/);
+    expect(
+      leerOrganizacion({ nit: '12', razonSocial: 'X' }).problemas[0],
+    ).toMatch(/no es válido/);
     expect(leerOrganizacion({ nit: '900123456' }).problemas).toEqual([
       'Falta el nombre (razón social) de la organización.',
     ]);
   });
 
   it('un correo del jefe mal escrito impide importar', () => {
-    const o = leerOrganizacion({ nit: '900123456', razonSocial: 'X', jefeCorreo: 'marta@' });
+    const o = leerOrganizacion({
+      nit: '900123456',
+      razonSocial: 'X',
+      jefeCorreo: 'marta@',
+    });
     expect(o.problemas).toEqual(['El correo del jefe inmediato no es válido.']);
   });
 
   it('sin los datos del jefe se importa, pero se avisa qué falta', () => {
-    const o = leerOrganizacion({ nit: '900123456', razonSocial: 'X', jefeNombre: 'Marta' });
+    const o = leerOrganizacion({
+      nit: '900123456',
+      razonSocial: 'X',
+      jefeNombre: 'Marta',
+    });
     expect(o.problemas).toEqual([]);
-    expect(o.avisos[0]).toMatch(/^Falta el cargo y el correo del jefe inmediato/);
+    expect(o.avisos[0]).toMatch(
+      /^Falta el cargo y el correo del jefe inmediato/,
+    );
   });
 });
 
@@ -56,7 +68,12 @@ describe('qué se escribe en una organización que ya existe', () => {
 
   it('llena lo vacío', () => {
     const r = queSeEscribe(
-      { razonSocial: 'Lacteos San Rafael', contactoNombre: null, contactoCargo: null, contactoCorreo: null },
+      {
+        razonSocial: 'Lacteos San Rafael',
+        contactoNombre: null,
+        contactoCargo: null,
+        contactoCorreo: null,
+      },
       leida,
     );
     expect(r.datos).toEqual({
@@ -86,7 +103,10 @@ describe('qué se escribe en una organización que ya existe', () => {
 });
 
 describe('la plantilla y su hoja «Organización»', () => {
-  async function libroCon(organizacion: Array<[string, string]>, primeraOrganizacion = false) {
+  async function libroCon(
+    organizacion: Array<[string, string]>,
+    primeraOrganizacion = false,
+  ) {
     const libro = new ExcelJS.Workbook();
     const agregarOrg = () => {
       const h = libro.addWorksheet('Organización');
@@ -95,7 +115,16 @@ describe('la plantilla y su hoja «Organización»', () => {
     };
     if (primeraOrganizacion) agregarOrg();
     const p = libro.addWorksheet('Participantes');
-    p.addRow(['CC', '1019456782', 'Laura', '', 'Gomez', '', 'laura@x.com', '3001234567']);
+    p.addRow([
+      'CC',
+      '1019456782',
+      'Laura',
+      '',
+      'Gomez',
+      '',
+      'laura@x.com',
+      '3001234567',
+    ]);
     if (!primeraOrganizacion) agregarOrg();
     return Buffer.from(await libro.xlsx.writeBuffer());
   }
@@ -108,9 +137,15 @@ describe('la plantilla y su hoja «Organización»', () => {
     const libro = new ExcelJS.Workbook();
     await libro.xlsx.load(plantilla as unknown as ExcelJS.Buffer);
     /// «Listas» va oculta: es de donde salen los desplegables.
-    expect(libro.worksheets.map((h) => h.name)).toEqual(['Participantes', 'Organización', 'Listas']);
+    expect(libro.worksheets.map((h) => h.name)).toEqual([
+      'Participantes',
+      'Organización',
+      'Listas',
+    ]);
     /// En blanco: un NIT de ejemplo olvidado vincularía toda la carga.
-    expect(await organizacionDelArchivo(plantilla, 'plantilla.xlsx')).toBeNull();
+    expect(
+      await organizacionDelArchivo(plantilla, 'plantilla.xlsx'),
+    ).toBeNull();
   });
 
   it('lee la organización por el rótulo, aunque cambien el orden', async () => {
@@ -138,6 +173,8 @@ describe('la plantilla y su hoja «Organización»', () => {
   });
 
   it('un .csv no tiene hoja de organización', async () => {
-    expect(await organizacionDelArchivo(Buffer.from('CC;1;A;;B;;;'), 'lista.csv')).toBeNull();
+    expect(
+      await organizacionDelArchivo(Buffer.from('CC;1;A;;B;;;'), 'lista.csv'),
+    ).toBeNull();
   });
 });

@@ -14,7 +14,8 @@
 /// cuatro fichas marcadas «No se pudo consultar» sin mas.
 
 /// El portal no contesto o cambio de pantalla.
-const NO_CONTESTO = /timeout|timed out|net::|ERR_|navigation|ECONNRESET|ETIMEDOUT/i;
+const NO_CONTESTO =
+  /timeout|timed out|net::|ERR_|navigation|ECONNRESET|ETIMEDOUT/i;
 
 /// El navegador ni siquiera arranco.
 const SIN_NAVEGADOR = /executable|browser|chromium|launch/i;
