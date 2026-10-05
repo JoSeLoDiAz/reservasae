@@ -254,13 +254,65 @@ export class CorreoService implements OnModuleInit, OnModuleDestroy {
   private explicar(e: unknown): string {
     const bruto = e instanceof Error ? e.message : String(e);
 
+    /**
+     * EL CONSEJO, SEGÚN QUIÉN SEA EL SERVIDOR.
+     *
+     * Esto decía siempre lo de Google: «cree una contraseña de
+     * aplicación en myaccount.google.com». Buen consejo con Gmail y
+     * **una pérdida de media hora con cualquier otro**, porque manda a
+     * buscar una pantalla que en SendGrid no existe. Y el mensaje sale
+     * en el panel, donde lo lee quien está intentando arreglarlo.
+     *
+     * El transporte nunca estuvo atado a Gmail ---es SMTP genérico de
+     * nodemailer--- así que cambiar de proveedor no toca código: toca
+     * las variables. Lo único que estaba atado era este texto.
+     */
     if (/535|EAUTH|not accepted|BadCredentials/i.test(bruto)) {
+      const servidor = (process.env.SMTP_SERVIDOR ?? '').toLowerCase();
+
+      if (servidor.includes('sendgrid')) {
+        return (
+          'SendGrid no aceptó usuario y contraseña. El usuario es la palabra ' +
+          '«apikey», literalmente, igual para todos; y la contraseña es la ' +
+          'API key entera, la que empieza por «SG.» y solo se enseña una vez ' +
+          `al crearla. (${bruto.slice(0, 120)})`
+        );
+      }
+
+      if (servidor.includes('google') || servidor.includes('gmail')) {
+        return (
+          'El servidor no aceptó usuario y contraseña. Con Google Workspace la ' +
+          'contraseña normal de la cuenta NO sirve para SMTP: hay que crear una ' +
+          '«contraseña de aplicación» en myaccount.google.com > Seguridad > ' +
+          'Verificación en dos pasos > Contraseñas de aplicaciones, y poner esas ' +
+          `16 letras en SMTP_CLAVE. (${bruto.slice(0, 120)})`
+        );
+      }
+
       return (
-        'El servidor no aceptó usuario y contraseña. Con Google Workspace la ' +
-        'contraseña normal de la cuenta NO sirve para SMTP: hay que crear una ' +
-        '«contraseña de aplicación» en myaccount.google.com > Seguridad > ' +
-        'Verificación en dos pasos > Contraseñas de aplicaciones, y poner esas ' +
-        `16 letras en SMTP_CLAVE. (${bruto.slice(0, 120)})`
+        'El servidor de correo no aceptó usuario y contraseña. Revise ' +
+        `SMTP_USUARIO y SMTP_CLAVE. (${bruto.slice(0, 120)})`
+      );
+    }
+
+    /**
+     * Y EL REMITENTE SIN VERIFICAR, que es el tropiezo propio de
+     * SendGrid y no se parece a un fallo de clave: la conexión entra,
+     * la autenticación pasa, y el correo se rechaza igual.
+     *
+     * Pasa porque SendGrid no deja mandar «desde» una dirección que no
+     * se haya verificado antes, ni aunque el buzón sea suyo. Sin esto,
+     * el panel enseñaría un 403 pelado.
+     */
+    if (
+      /does not match a verified Sender Identity|Sender Identity/i.test(bruto)
+    ) {
+      const desde = process.env.SMTP_DESDE ?? process.env.SMTP_USUARIO ?? '';
+      return (
+        `SendGrid no deja mandar desde «${desde}» porque esa dirección no está ` +
+        'verificada. Se verifica en SendGrid > Settings > Sender Authentication, ' +
+        'por dirección (Single Sender) o por dominio entero. La cuenta y la clave ' +
+        `están bien: lo que falta es el permiso del remitente. (${bruto.slice(0, 120)})`
       );
     }
 
