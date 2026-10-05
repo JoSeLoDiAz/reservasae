@@ -1,178 +1,193 @@
-# `jose/dv-tecleado` · qué entra y qué hay que mirar al desplegar
+# `jose/dv-tecleado` · lista para validar y desplegar
 
-Josse: esto sustituye al documento anterior. Tus seis están cerradas, tu
-`v0.19.0` ya está fundida aquí, y lo que queda son **20 commits** que el corte de
-la 0.19.0 dejó fuera. Ahí está casi todo lo que el cliente lleva pidiendo.
+Josse: esto sustituye a todo lo anterior. Tus seis están cerradas, tu `v0.19.0` está
+fundida aquí y verde, y encima van **25 commits** que el corte de la 0.19.0 dejó fuera
+más la auditoría completa.
 
 | | |
 |---|---|
 | Rama | `jose/dv-tecleado`, subida |
-| Desplegado hoy | `v0.19.0-JD` |
-| Sin desplegar | **20 commits** |
-| De lo tuyo que falte traer | **nada** — `9abe344` está fundido y verde aquí |
-| Línea base | `tsc` limpio en backend y frontend · **232 suites, 2.534 pruebas** |
+| Desplegado hoy | `v0.19.0-JD` (2 oct) |
+| Sin desplegar | **25 commits** |
+| De lo tuyo que falte traer | **nada** |
+| Línea base | `tsc` limpio en backend y frontend · **249 suites, 2.664 pruebas** |
 | Migraciones nuevas | **1** — `20261002160000_cierre_de_inscripciones_por_grupo` |
 
 ---
 
-## 1 · Antes de nada: el bloqueante que encontraste era mío
+## 1 · Tres cosas que mirar al desplegar
 
-`crear()` dejó de deducir el asesor y pasó a recibirlo con valor por defecto
-`false`; actualicé el llamador del panel y **no los otros dos**, así que al
-convertir un lead y al subir una lista la ficha nacía sin dueño. Tenías razón en
-las tres partes: en el diagnóstico, en que no lo cazaba nada, y en que el
-`spec` que escribí leía la llamada del panel y de las otras dos no decía nada.
+### a) Una migración, compatible hacia atrás
 
-Tu `quien-crea-se-queda-la-ficha` ---que recorre la superficie y exige que cada
-llamada lo diga explícitamente--- está fundido aquí y en verde. No lo he tocado.
+`Grupo.cierreInscripciones DateTime?`, nulo por defecto. **Nulo = el comportamiento de
+siempre**: el cierre se sigue derivando de `fechaInicio`. Nada cambia hasta que alguien
+corra el importador del cronograma, que es un comando aparte y no corre solo.
 
----
-
-## 2 · ⚠ Lo que hay que mirar al desplegar
-
-### a) Una migración, y es compatible hacia atrás
-
-`Grupo.cierreInscripciones DateTime?`, nulo por defecto. **Nulo = el
-comportamiento de siempre**: el cierre se sigue derivando de `fechaInicio` con
-la regla de 14 días / 5 hábiles. Nada cambia hasta que alguien importe el
-cronograma, y eso es un comando aparte que no corre solo.
-
-### b) Hay UN commit de solo frontend
+### b) Un commit de solo frontend
 
 ```
 996e33f  Reservas: cupos reservados, el total de inscritos, y fuera el punto
 ```
 
-Lo digo porque el del Excel en hora de Bogotá era igual y se quedó fuera dos
-veces. Este es menos grave ---una etiqueta, una tarjeta y un placeholder--- pero
-el cliente lo pidió hoy y lo va a buscar.
+Lo digo porque el del Excel en hora de Bogotá era igual y se quedó fuera dos veces. El
+cliente pidió estos tres el 2 oct y los va a buscar.
 
 ### c) El informe de brechas da `EXPORT-UTC` por abierta y **no lo está**
 
-El detector busca que `valor` devuelva la fecha de Bogotá; el arreglo vive en
-`exporta` (`columnas-participante.tsx`). Es el detector el que mira donde no es.
-Pendiente de corregir; que no te frene.
+El detector busca que `valor` devuelva la fecha de Bogotá; el arreglo vive en `exporta`.
+Es el detector el que mira donde no es. Pendiente de corregir; que no te frene.
 
 ---
 
-## 3 · Qué entra, por riesgo
+## 2 · Lo que entra, por riesgo
 
-### Al SENA — lo que se entrega, y por tanto lo que más cuesta si sale mal
+### Al SENA — lo que se entrega
 
-- **Se podía reportar a un menor de edad.** La compuerta miraba la edad de hoy y
-  el archivo la del arranque del curso: dos fechas para el mismo dato. Una
-  nacida en may-2008 con el grupo arrancando en ene-2026 salía con rango 1, que
-  es el de los menores de 18, y el programa no admite menores.
-- **El NIT perdía los ceros de la izquierda** en los tres formatos. Excel se los
-  come, el F7 se arma concatenando celdas y por eso el error no se ve en casa:
-  sale un cargue contra otra organización, o contra ninguna.
-- **La caracterización salía al azar.** Las marcas de un envío se escriben en un
-  `createMany` dentro de una transacción y `creadoEn` es la hora de la
-  transacción, idéntica para todas: `orderBy: creadoEn` no desempataba nada.
-  Quien marcó dos cosas podía salir el lunes con una y el martes con la otra, y
-  es un dato sensible. El segundo criterio es el id del catálogo: arbitrario
-  pero **estable**, que es lo único que hace falta.
+- **El F7 contaba beneficiarios que el cargue excluye.** Tenía su propia consulta y
+  filtraba distinto: solo por autorización revocada, mientras el cargue descarta además
+  por completitud. Los dos archivos que se entregan **juntos** se contradecían. Ahora el
+  F7 se construye sobre las filas que de verdad salen en el cargue — ya no es que los
+  filtros coincidan hoy, es que no pueden dejar de coincidir. Como eso podía dejar una
+  empresa fuera en silencio, el aviso dice ahora cuánta gente se quedó.
+- **El orden del F7 no desempataba.** Sin `orderBy` y con un `sort` solo por razón social,
+  la misma empresa con filas en dos acciones podía numerarse distinto entre dos
+  exportaciones del mismo día. Orden total: razón social → acción → NIT → grupo.
+- **El año de postulación entraba sin validar**: `?ano=12` ponía 12 en las 800 filas.
+- **`TOTAL DE HORAS EVENTO` podía salir vacía** sin que nada avisara. Ahora la fila sale en
+  «No exportados» con su motivo, agrupado por acción.
+- Y de antes: **se podía reportar a un menor** (dos fechas para el mismo dato), **el NIT
+  perdía los ceros de la izquierda**, y **la caracterización salía al azar** (las marcas de
+  un envío empatan en `creadoEn` porque es la hora de la transacción).
+
+### Datos personales
+
+- **La puerta pública resucitaba autorizaciones revocadas.** `dejarConstancia` solo miraba
+  las vivas, así que ante una revocada caía al `create`. Ruta **anónima y sin sesión**: un
+  tercero reactivaba el tratamiento de datos de alguien que pidió que pararan. La
+  conversión de un lead ya lo comprobaba; la pública no. Cerrado en `dejarConstancia`, que
+  es el único sitio que escribe esa fila, y buscando por **convenio** y no por versión del
+  texto.
+
+### Permisos y gremios
+
+- **`asignar-lote` repartía leads sin el candado de «quién reparte».** En ese mismo
+  controlador `convertir-lote` ya lo tenía, y el gemelo de fichas también. Un gestor podía
+  pasarle sus leads a otro o, con `asesorId: null`, vaciarle la cola a una compañera. Lo
+  tapaba que el panel no pinta el botón: el candado vivía en la pantalla.
+- **La llave de idempotencia de los leads no llevaba el gremio.** La misma persona pidiendo
+  «AF1» en BRITCHAM encontraba su lead de ADECOPRIA: no se creaba nada y se devolvía el
+  `id` y el `participanteId` de otro gremio.
+- **La regla de «una sola acción» cruzaba gremios** en la conversión automática: un lead de
+  BRITCHAM no se convertía nunca si esa persona ya estaba en ADECOPRIA, y el barrido lo
+  rechazaba cada minuto sin síntoma.
+
+> **Ojo con esto al revisar el diff de leads.** La llave **se guarda** en
+> `LeadEntrante.externoId`. Cambiarle el formato, sin más, habría hecho que los leads ya
+> guardados dejaran de reconocerse y el primer reintento del emisor los **duplicara** —en
+> la puerta por la que entra la pauta pagada—. Por eso se buscan **las dos**, la nueva y la
+> de antes; se escribe siempre la nueva, así que se apaga sola sin migración.
 
 ### Cupos y organizaciones
 
-- **El sitio público prometía plazas que no existían.** `cuposOcupados` solo lo
-  mueve `reservas.service.ts`: quien se inscribe por su cuenta no estaba en
-  ningún contador. La cuenta estaba copiada en **siete** sitios; ahora vive en
-  `comun/plazas-de-la-oferta.ts`. Lo vio el cliente comparando dos pantallas:
-  520 − 98 = 422, exacto en las cuatro acciones.
-- **Las organizaciones que el dígito pegado partió en dos** ---Benedictino entre
-  ellas---: cerradas las tres puertas que no llamaban a `normalizarNit`, y el
-  guion `db:nit-pegado` para las de antes. Sin el DV en `RELLENABLES`, como
-  dijiste.
-- **El listado de organizaciones no enseñaba las que no han reservado.** Filtraba
-  por «tiene al menos una reserva», y quien entra por el formulario ---una
-  persona natural con RUT, por ejemplo--- no reserva: se inscribe. En pruebas,
-  ADECOPRIA pasa de 13 a 18. No toqué `empresaDeConvenio`: sus otros dos usos
-  viven entre cifras de reservas. Va en `organizacionDeConvenio`, aparte.
-  - Y el filtro de búsqueda pasó a `AND`: la regla nueva trae un `OR` suyo y con
-    el spread de antes el del buscador lo **pisaba**, así que al escribir en la
-    barra el listado habría enseñado los dos gremios. Fallo de ámbito que solo
-    aparecía al buscar.
+- **El sitio público prometía plazas que no existían**: `cuposOcupados` solo cuenta lo que
+  aparta una empresa. La cuenta estaba copiada en siete sitios; ahora vive en
+  `comun/plazas-de-la-oferta.ts`.
+- **La organización se creaba aunque la reserva fallara**: `POST /reservas` público con un
+  NIT inventado devolvía 409 y dejaba la fila. Ahora va dentro de la transacción.
+- **`editar()` no comprobaba que la oferta siguiera abierta** y `crear()` sí: con el grupo
+  cerrado se ampliaba una reserva y entraba gente que el cierre excluía. Bajar la cantidad
+  sigue permitido y **cancelar nunca se bloquea**.
+- **Las que el dígito pegado partió en dos** —Benedictino entre ellas—: cerradas las tres
+  puertas y el guion `db:nit-pegado` para las de antes.
+- **El listado de organizaciones no enseñaba las que no han reservado.** Quien entra por el
+  formulario —una persona natural con RUT— no reserva: se inscribe. En pruebas, ADECOPRIA
+  pasa de 13 a 18. Y el buscador rompía el ámbito: al escribir, el listado habría enseñado
+  los dos gremios.
 
-### Seguridad
+### Formulario público
 
-- **Cancelar una reserva pedía solo el NIT**, que es público y está impreso en
-  la propia pantalla. Ahora pide también el correo, con el mismo mensaje para
-  los tres modos de fallo.
+- **Pisaba las correcciones del asesor** en cuatro campos escritos antes del candado —uno
+  es columna del F7—, y la respuesta decía «en espera», que era mentira para esos cuatro.
+- **Reescribía los datos de la organización que nominó**, compartida por todos sus
+  nominados: una persona del Benedictino cambiaba el teléfono y el contacto de las 40
+  fichas del colegio. Ahora, si la organización es suya escribe entera; si está nominada,
+  solo rellena huecos.
+- **`beneficiarioPrevio` aceptaba la cadena `"false"` como `true`**. Era el único booleano
+  del módulo sin el `@Transform`; sus cuatro hermanos ya lo llevaban.
+- **El doble clic daba un 500 crudo y anulaba el enlace** que el primero ya tenía en
+  pantalla.
 
-### Gestión de leads
+### Trazabilidad
 
-- **NIT, nombre de empresa y formulario de entrada.** El cliente las pidió
-  varias veces. Van **encendidas** (`nueva: true`) para quien ya tenga vistas
-  guardadas.
-  - Aviso honesto: hoy se llenan poco ---84 de 1.480 para empresa, 79 para
-    formulario--- porque **el formulario público no pregunta la empresa**: se
-    pide en el segundo paso, el del enlace de completado, y de esos solo se han
-    emitido 116 y usado 55. El cliente sabe el dato y aun así las quiere
-    visibles, que es lo correcto: una columna vacía se llena, una que no existe
-    no se puede llenar nunca.
+- **El cronograma no podía auditarse aunque se quisiera**: `entidad` va tipada contra el
+  catálogo y no existían `GRUPO` ni `COBERTURA`, así que no compilaba. Ampliado, y los tres
+  caminos que escriben dejan huella.
+- **De las 23 escrituras de `admin.service.ts`, ninguna dejaba rastro.** Quién crea una
+  cuenta, quién cambia un rol, quién reparte concesiones y **quién le reinicia la
+  contraseña a quién** —que es una toma de control— no constaba en ninguna parte.
 
-### El cronograma — lo nuevo
+### Gestión de leads y pantallas
 
-Lee la hoja de Drive del cliente ---colores incluidos--- y lleva a cada grupo su
-fecha de inicio, de fin y **su propia fecha de cierre**.
+- **NIT, nombre de empresa y formulario de entrada**, encendidas de entrada.
+- **«Falta 1» decía lo que no era**, y el cliente lo señaló tres veces. La compuerta para
+  inscribir pide tres cosas —curso con sede, un contacto y la autorización— y **no pide la
+  organización ni los campos del SEP**; la columna contaba justo eso. Así que alguien
+  inscrito, formándose o **certificado** arrastraba un «Falta 1» que nunca le impidió nada:
+  18 de 18 inscritas, 24 de 24 certificadas y 93 de 95 fichas en etapa DATOS_COMPLETOS. No
+  se deja de contar —hace falta para el SENA— pero ahora dice **para qué**: de 1.476 filas
+  que decían «Falta N», 1.302 pasan a «para el SENA» y quedan 174 que un asesor sí tiene
+  que trabajar.
 
-Una AF no cierra entera: seis de las siete cierran en dos o más fechas y AF3 en
-cinco, una por grupo. La pantalla enseñaba una sola por acción, y de ella salen
-«días para el cierre» y la meta diaria de los asesores. Ahora sigue mandando la
-más próxima ---que es lo correcto, es la primera puerta que se cierra--- pero
-debajo avisa «cierra por partes: 8 oct · 16 oct». Con una sola fecha se calla.
+### El cronograma
 
-`pnpm db:cronograma` **no escribe sin `--aplicar`**, no crea grupos, no borra lo
-que la hoja no menciona, y además del código y el número comprueba la ciudad
----ADECOPRIA y BRITCHAM-ADEE tienen los dos un AF1 con ocho grupos numerados
-igual---. La guardia de base solo muerde al escribir: pedirla para una vista
-previa haría que se saltara por costumbre.
+Lee la hoja de Drive del cliente —colores incluidos— y lleva a cada grupo su inicio, su fin
+y **su propia fecha de cierre**. Una AF no cierra entera: seis de las siete cierran en dos o
+más fechas y AF3 en cinco. La pantalla sigue mandando la más próxima y avisa «cierra por
+partes».
 
----
-
-## 4 · Tres decisiones, y las dejo para ti
-
-El cliente dijo explícitamente que las decida quien tenga que decidirlas y que
-mañana se ven. No las he tocado.
-
-### a) `AF2.G5` y `AF2.G6` están cruzados
-
-El cronograma dice que el G5 es **Córdoba y Huila** y el G6 **Cauca y
-Santander**; la base los tiene al revés. El importador los detectó y **no los
-escribió** ---es justo para lo que está el control de ciudad---. O se renumeran
-los dos grupos, o se corrige la hoja. No es trabajo de un guion.
-
-### b) El formulario público deja sumar el foro a las presenciales
-
-Hay **dos reglas para la misma pregunta**:
-
-- el panel exige que las dos acciones estén emparejadas en
-  `combinaConAccionId` ---solo AF1 y AF2 con AF7---;
-- la puerta pública solo mira si el evento dice `FORO`, así que deja que alguien
-  de AF3, AF4, AF5 o AF6 ---las presenciales, que no combinan con nada--- se
-  sume al foro.
-
-Catalina dijo «**si es de las virtuales** se puede inscribir al foro… para las
-demás solamente que escoja una». Lo cerré, vi que `segunda-inscripcion.ts` dice
-que la puerta pública «se decide aparte porque es un cambio para el ciudadano»,
-y **lo deshice**. Queda como está hasta que alguien lo decida.
-
-### c) La credencial del cronograma
-
-Para que se lea solo hace falta `GOOGLE_CUENTA_DE_SERVICIO` y
-`CRONOGRAMA_DRIVE_ID` en el servidor. Sin ellas funciona igual pasando
-`CRONOGRAMA_ARCHIVO` con el .xlsx. El archivo **no está en el repositorio** a
-propósito: es el documento del cliente, con sus sedes y sus fechas de
-desembolso.
+`pnpm db:cronograma` **no escribe sin `--aplicar`**, no crea grupos, no borra lo que la hoja
+no menciona, y comprueba la ciudad además del código y el número.
 
 ---
 
-## 5 · Lo que sigue bloqueado, y no es código
+## 3 · Cuatro decisiones, y no son mías
 
-- **El LMS.** Nadie escribe el avance del aula y sin él `cambiarEtapa` impide
-  certificar a cualquiera ---que es lo que paga el SENA---. Una sola pregunta:
-  ¿pueden mandar, por persona y actividad, si está completada y cuándo?
-- **El SENA.** Quien se retira desaparece del cargue en vez de reportarse. El
-  código ya dice dónde se añade; falta saber qué valor espera la columna ESTADO
-  para un retiro. Poner cualquier cosa arriesga el rechazo del cargue entero.
+1. **`AF2.G5` y `AF2.G6` están cruzados.** El cronograma dice que el G5 es Córdoba y Huila y
+   el G6 Cauca y Santander; la base los tiene al revés. El importador lo detectó y **no los
+   escribió**. O se renumeran los grupos, o se corrige la hoja.
+2. **El formulario público deja sumar el foro a las presenciales** (AF3–AF6), cosa que el
+   panel no permite. Catalina dijo «si es de las virtuales se puede inscribir al foro». Lo
+   cerré, vi que `segunda-inscripcion.ts` dice que la puerta pública «se decide aparte
+   porque es un cambio para el ciudadano», y **lo deshice**.
+3. **La propuesta no admite campos de la participación.** Para que los cuatro campos del
+   candado lleguen a la bandeja del asesor como propuesta decidible hay que tocar
+   `ETIQUETA_CAMPO` y `resolverPropuesta`; hoy meterlos ahí **reventaría al aceptarla**.
+   Descrito, no hecho.
+4. **La credencial del cronograma.** Para que se lea solo hacen falta
+   `GOOGLE_CUENTA_DE_SERVICIO` y `CRONOGRAMA_DRIVE_ID` en el servidor. Sin ellas funciona
+   igual pasando `CRONOGRAMA_ARCHIVO`. El archivo **no está en el repositorio** a propósito.
+
+---
+
+## 4 · Lo que sigue bloqueado, y no es código
+
+- **El LMS.** Nadie escribe el avance del aula y sin él `cambiarEtapa` impide certificar a
+  cualquiera, que es lo que paga el SENA. La pregunta es una: ¿pueden mandar, por persona y
+  actividad, si está completada y cuándo?
+- **El SENA.** Quien se retira desaparece del cargue en vez de reportarse. El código ya dice
+  dónde se añade; falta saber qué valor espera la columna ESTADO para un retiro.
+
+---
+
+## 5 · Lo que queda abierto de la auditoría
+
+De los 23 hallazgos del 2 oct quedan **cinco**, todos de riesgo bajo o medio y ninguno
+bloqueante:
+
+- `PATCH /admin/tableros/empresas/:id` **no recalcula el dígito de verificación** al cambiar
+  el NIT, ni valida los ids del SEP contra catálogo. La puerta gemela del CRM sí.
+- Una **revocación en un gremio vacía la caracterización** del reporte del otro.
+- El **alistamiento devuelve hasta 300 cédulas con permiso de solo VER**.
+- **Cancelar una reserva** desde tableros pasa con nivel `VER`.
+- `papelEnConvenio`, `clasificacion` y `sectorEconomico` son **globales de la empresa** pero
+  el F7 es por convenio.
