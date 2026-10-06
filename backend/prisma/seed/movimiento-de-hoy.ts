@@ -22,6 +22,8 @@
 
 import { PrismaClient } from '../../generated/prisma';
 
+import { exigirBaseSegura } from '../guardia-de-base';
+
 const prisma = new PrismaClient();
 
 /// El rango de documentos de esta semilla. Suyo y de nadie más.
@@ -52,6 +54,18 @@ function aLoLargoDelDia(dia: Date, i: number): Date {
 }
 
 async function main() {
+  /**
+   * EL GUARDIA, ADEMÁS DEL NOMBRE. Esta semilla BORRA antes de
+   * sembrar, y tenía solo lo segundo.
+   *
+   * Hacen falta los dos porque ninguno basta solo: el guardia mira el
+   * PUERTO ---el 5433 es el túnel a producción, y desde la cadena de
+   * conexión el túnel y la base local son las dos `reservasae` en
+   * `localhost`--- y el nombre atrapa lo que el guardia da por bueno,
+   * que es cualquier otro puerto.
+   */
+  exigirBaseSegura('La semilla de movimiento de hoy');
+
   const url = process.env.DATABASE_URL ?? '';
   if (!/prueba/i.test(url)) {
     throw new Error(
@@ -140,16 +154,48 @@ async function main() {
     creados += 1;
 
     if (certifica) {
-      /// El movimiento es lo que fecha la certificación: la etapa de
-      /// hoy no lleva fecha pegada, y de aquí come el «ritmo» de las
-      /// dos proyecciones.
-      await prisma.movimientoParticipante.create({
-        data: {
-          participanteId: participante.id,
-          etapaAntes: 'EN_FORMACION',
-          etapaDespues: 'CERTIFICADO',
-          creadoEn: cuando,
-        },
+      /**
+       * LA ESCALERA COMPLETA, no solo el último escalón.
+       *
+       * El movimiento es lo que fecha cada cosa: la etapa de hoy no
+       * lleva fecha pegada, y de aquí come el «ritmo» de las dos
+       * proyecciones.
+       *
+       * ESCRIBÍA SOLO EL DE CERTIFICADO, y eso dejaba fichas
+       * certificadas SIN el movimiento que las inscribe. Desde que la
+       * tabla del comité cuenta las inscripciones por ese movimiento
+       * ---6 oct 2026--- esas fichas no caen en ninguna ventana: eran
+       * 12 de 1.304 en la base de pruebas, y el sondeo de integridad
+       * las avisaba cada vez. Una siembra que crea datos imposibles
+       * ---certificado sin haberse inscrito nunca--- enseña a no
+       * creerle al aviso.
+       *
+       * Un minuto entre uno y otro para que el orden sea el mismo en
+       * cada corrida: con el mismo instante, quién va antes lo decide
+       * el motor.
+       */
+      const MINUTO = 60 * 1000;
+      await prisma.movimientoParticipante.createMany({
+        data: [
+          {
+            participanteId: participante.id,
+            etapaAntes: 'DATOS_COMPLETOS',
+            etapaDespues: 'INSCRITO',
+            creadoEn: cuando,
+          },
+          {
+            participanteId: participante.id,
+            etapaAntes: 'INSCRITO',
+            etapaDespues: 'EN_FORMACION',
+            creadoEn: new Date(cuando.getTime() + MINUTO),
+          },
+          {
+            participanteId: participante.id,
+            etapaAntes: 'EN_FORMACION',
+            etapaDespues: 'CERTIFICADO',
+            creadoEn: new Date(cuando.getTime() + 2 * MINUTO),
+          },
+        ],
       });
       certificados += 1;
     }

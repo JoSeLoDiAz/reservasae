@@ -468,6 +468,82 @@ async function dosGremiosConGente(): Promise<Hallazgo> {
       'Atar la caracterización al convenio donde se capturó, y sacar papelEnConvenio, clasificacion y sectorEconomico de la organización a una fila por convenio. Las dos piden migración: es decisión de Josse cuándo entran.',
   };
 }
+/**
+ * INSCRITOS SIN EL MOVIMIENTO QUE LOS FECHA.
+ *
+ * Desde el 6 oct 2026 la tabla del comité cuenta las inscripciones por
+ * el ANCLA ---la primera vez que la ficha llegó a INSCRITO, que es un
+ * movimiento y no se reescribe nunca--- y no por cuándo se creó la
+ * ficha. Es lo que arregla «no tengo certeza de inscripciones
+ * realizadas en control de inscritos» (cliente, 5 oct 2026).
+ *
+ * El precio es este: una ficha que esté inscrita SIN ese movimiento no
+ * tiene fecha de inscripción, así que no cae en ninguna ventana y no
+ * se cuenta en ningún periodo. En el total sin ventana tampoco.
+ *
+ * En la base de pruebas son 12 de 1.304, y son de la siembra: nacen
+ * CERTIFICADO de un salto. En producción no se sabe cuántas hay ---no
+ * se mira producción--- y de ahí este control: lo dice el despliegue,
+ * con nombre y apellido, en vez de que la cifra salga baja y nadie
+ * sepa por qué.
+ *
+ * NO SE INVENTA EL MOVIMIENTO QUE FALTA. Escribir uno con una fecha
+ * supuesta es meter en el registro de auditoría un hecho que no
+ * consta, y el día que alguien lo audite no habrá forma de saber
+ * cuáles eran de verdad. Lo que se hace es moverlas a mano desde el
+ * panel ---eso sí deja movimiento--- o dejarlas como están sabiendo
+ * que no entran en los conteos por periodo.
+ */
+async function inscritosSinAncla(): Promise<Hallazgo> {
+  const YA_PASARON = [
+    'INSCRITO',
+    'EN_FORMACION',
+    'CERTIFICADO',
+    'NO_APROBO',
+    'DESERTO',
+    'ABANDONO',
+    'RETIRADO',
+  ];
+
+  const filas: Array<{
+    id: string;
+    etapa: string;
+    creadoEn: Date;
+    codigo: string | null;
+    nombre: string | null;
+  }> = await prisma.$queryRawUnsafe(
+    `SELECT pa."id", pa."etapa"::text AS etapa, pa."creadoEn",
+            af."codigo", concat_ws(' ', p."primerNombre", p."primerApellido") AS nombre
+       FROM "participantes" pa
+       LEFT JOIN "acciones_formacion" af ON af."id" = pa."accionFormacionId"
+       LEFT JOIN "personas" p ON p."id" = pa."personaId"
+      WHERE pa."etapa"::text = ANY($1)
+        AND NOT EXISTS (
+          SELECT 1 FROM "movimientos_participante" m
+           WHERE m."participanteId" = pa."id"
+             AND m."etapaDespues" = 'INSCRITO'::"EtapaParticipante"
+             AND m."etapaAntes" IS DISTINCT FROM m."etapaDespues")
+      ORDER BY pa."creadoEn" DESC`,
+    YA_PASARON,
+  );
+
+  const dia = (d: Date) => d.toISOString().slice(0, 10);
+
+  return {
+    titulo:
+      'Fichas inscritas sin el movimiento que las fecha: no entran en ningún periodo',
+    cuantos: filas.length,
+    ejemplos: filas
+      .slice(0, EJEMPLOS)
+      .map(
+        (f) =>
+          `${f.codigo ?? 'sin AF'}  ${f.etapa}  creada ${dia(f.creadoEn)}  ${f.nombre ?? f.id}`,
+      ),
+    comoSeArregla:
+      'Moverlas de etapa a mano desde el panel, que es lo unico que deja movimiento con fecha cierta. Inventarle la fecha a un movimiento de auditoria no: el dia que alguien lo audite no habra forma de saber cuales eran de verdad.',
+  };
+}
+
 async function main() {
   console.log('\n═══ SONDEO DE LOS DATOS ═══\n');
 
@@ -479,12 +555,13 @@ async function main() {
     await ciudadesSinDepartamento(),
     await sinSedeEnSuDepartamento(),
     await dosGremiosConGente(),
+    await inscritosSinAncla(),
   ];
 
   const conCasos = hallazgos.filter((h) => h.cuantos > 0);
 
   if (conCasos.length === 0) {
-    console.log('  Nada que reportar: los seis controles salen en cero.\n');
+    console.log('  Nada que reportar: los ocho controles salen en cero.\n');
     return;
   }
 

@@ -6,17 +6,31 @@ import {
   type FilaDeAccion,
 } from './resumen-por-accion';
 
-const cruda = (p: Partial<Parameters<typeof completarFila>[0]> = {}) => ({
-  accionFormacionId: 'af',
-  codigo: 'AF1',
-  nombre: 'Una acción',
-  meta: 0,
-  cuposReservados: 0,
-  campanaDigital: 0,
-  inscritosReservas: 0,
-  inscritosCampana: 0,
-  ...p,
-});
+/**
+ * `inscritosVigentes` ---los que ocupan silla hoy--- vale por defecto
+ * lo mismo que los inscritos del periodo, que es lo que pasa cuando no
+ * hay ventana puesta y nadie ha desertado: así las cifras del Excel
+ * siguen diciendo lo que decían. Los casos donde las dos cuentas se
+ * separan lo pasan a mano.
+ */
+const cruda = (p: Partial<Parameters<typeof completarFila>[0]> = {}) => {
+  const base = {
+    accionFormacionId: 'af',
+    codigo: 'AF1',
+    nombre: 'Una acción',
+    meta: 0,
+    cuposReservados: 0,
+    campanaDigital: 0,
+    inscritosReservas: 0,
+    inscritosCampana: 0,
+    ...p,
+  };
+  return {
+    ...base,
+    inscritosVigentes:
+      p.inscritosVigentes ?? base.inscritosReservas + base.inscritosCampana,
+  };
+};
 
 describe('la tabla por acción de formación', () => {
   /// Las cifras son las de su hoja del 23 de septiembre de 2026, para
@@ -86,6 +100,44 @@ describe('la tabla por acción de formación', () => {
     expect(completarFila(cruda({ meta: 52 })).conversion).toBeNull();
   });
 
+  /**
+   * LOS CUPOS SALEN DE QUIEN OCUPA SILLA HOY, no de las inscripciones
+   * del periodo.
+   *
+   * Es la diferencia que trae el contar por el ancla: mirando «Hoy»,
+   * los inscritos del periodo son dos y los que ocupan silla
+   * cuatrocientos. Antes esta columna enseñaba 518 cupos libres en una
+   * acción que está llena.
+   */
+  it('los cupos disponibles no dependen del periodo que se mire', () => {
+    const f = completarFila(
+      cruda({
+        meta: 520,
+        campanaDigital: 3,
+        inscritosCampana: 2,
+        inscritosVigentes: 400,
+      }),
+    );
+    expect(f.totalInscritos).toBe(2);
+    expect(f.cuposDisponibles).toBe(120);
+    expect(f.estado).toBe('ABIERTO');
+  });
+
+  it('y una acción llena sigue CERRADA aunque hoy no se inscribiera nadie', () => {
+    const f = completarFila(
+      cruda({ meta: 100, inscritosCampana: 0, inscritosVigentes: 100 }),
+    );
+    expect(f.totalInscritos).toBe(0);
+    expect(f.cuposDisponibles).toBe(0);
+    expect(f.estado).toBe('CERRADO');
+  });
+
+  /// Y no sale a la pantalla: dos columnas de inscritos en la misma
+  /// tabla dejan sin respuesta buena la pregunta «¿cuántos son?».
+  it('el conteo de sillas no viaja en la fila', () => {
+    expect('inscritosVigentes' in completarFila(cruda())).toBe(false);
+  });
+
   it('una acción sin grupos todavía tiene meta cero, y es cierto', () => {
     const f = completarFila(cruda({ campanaDigital: 10, inscritosCampana: 3 }));
     expect(f.meta).toBe(0);
@@ -152,6 +204,62 @@ describe('el recorte llega a la consulta', () => {
 
   it('el departamento se busca en la persona, no en la ficha', () => {
     expect(sql({ departamentoSepId: 5 })).toContain('"personas"');
+  });
+
+  /**
+   * LOS INSCRITOS NO SE CUENTAN POR CUANDO LLEGO LA PERSONA.
+   *
+   * «No tengo certeza de inscripciones realizadas en control de
+   * inscritos» (cliente, 5 oct 2026). Esta tabla contaba como inscrito
+   * del periodo a quien LLEGÓ en el periodo y está inscrito HOY, así
+   * que quien llegó en agosto y se inscribió hoy no contaba hoy.
+   */
+  it('los inscritos van por el ancla de la matrícula, no por `creadoEn`', () => {
+    const q = sql({
+      desde: '2026-10-01T05:00:00.000Z',
+      hasta: '2026-10-02T05:00:00.000Z',
+    });
+    /// El ancla está en la consulta y se une a la ficha.
+    expect(q).toContain('primera_matricula');
+    expect(q).toContain('an."pid" = pa."id"');
+    /// Y es ella la que lleva la ventana de los inscritos.
+    expect(q).toContain('an."momento" >=');
+    expect(q).toContain('an."momento" <');
+  });
+
+  /**
+   * Y LA ETAPA DE HOY NO DECIDE SI HUBO INSCRIPCIÓN. Mirándola, una
+   * inscripción de septiembre desaparecía del comité de septiembre en
+   * cuanto la persona desertaba en octubre.
+   */
+  it('los dos conteos de inscritos no miran la etapa de hoy', () => {
+    const q = sql({});
+    const bloque = q.slice(
+      q.indexOf('LOS INSCRITOS'),
+      q.indexOf('LOS QUE OCUPAN SILLA'),
+    );
+    expect(bloque).toContain('inscritosReserva');
+    expect(bloque).toContain('inscritosCampana');
+    expect(bloque).not.toContain('pa."etapa"');
+  });
+
+  /**
+   * LOS CUPOS, EN CAMBIO, SÍ son los de hoy y sin ventana: salían de
+   * `meta - inscritos del periodo`, y como la meta no se recorta, con
+   * «Hoy» arriba una acción llena enseñaba sus 520 cupos libres.
+   */
+  it('los que ocupan silla se cuentan por la etapa y sin ventana', () => {
+    const q = sql({
+      desde: '2026-10-01T05:00:00.000Z',
+      hasta: '2026-10-02T05:00:00.000Z',
+    });
+    const bloque = q.slice(
+      q.indexOf('LOS QUE OCUPAN SILLA'),
+      q.indexOf('FROM "participantes" pa'),
+    );
+    expect(bloque).toContain('pa."etapa"');
+    expect(bloque).not.toContain('creadoEn');
+    expect(bloque).not.toContain('an."momento"');
   });
 
   it('la ventana va por instantes y el tope es EXCLUSIVO', () => {

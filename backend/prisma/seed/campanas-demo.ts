@@ -24,6 +24,8 @@ import {
   PrismaClient,
 } from '../../generated/prisma';
 
+import { exigirBaseSegura } from '../guardia-de-base';
+
 const prisma = new PrismaClient();
 
 /// Solo contra la base de pruebas. La misma guarda que el
@@ -32,6 +34,18 @@ const prisma = new PrismaClient();
 function comprobarQueEsPruebas() {
   const url = process.env.DATABASE_URL ?? '';
   const nombreBase = url.split('/').pop()?.split('?')[0] ?? '';
+
+  /**
+   * EL GUARDIA, ADEMÁS DE LOS DOS DE ABAJO. Faltaba, y hace lo que
+   * los otros no pueden: mira el PUERTO, y el 5433 es el túnel a
+   * producción. Desde la cadena de conexión, la base local y el túnel
+   * son las dos `reservasae` en `localhost`, así que el nombre no los
+   * distingue.
+   *
+   * Y los de abajo se quedan, porque el guardia da por bueno
+   * cualquier otro puerto: una base de verdad en el 5432 pasaba.
+   */
+  exigirBaseSegura('La siembra de campañas de demostración');
 
   const problemas: string[] = [];
   if (process.env.ENTORNO !== 'prueba') {
