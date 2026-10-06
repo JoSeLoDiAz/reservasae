@@ -334,8 +334,21 @@ export function completarFila(f: Cruda): FilaDeAccion {
      * entró y cuánto se inscribió este mes», que es la cuenta con la
      * que se trabaja en el comité. Sin ventana, las dos son de todo
      * el histórico y la división vuelve a ser la de siempre.
+     *
+     * Y POR ESO MISMO PUEDE PASARSE, así que cuando se pasa no se
+     * imprime. Antes era aritméticamente imposible ---los inscritos
+     * eran un subconjunto de los llegados---; desde que son dos
+     * poblaciones, un día de dos leads y veinte inscripciones da
+     * «1.000 %» en una columna que se llama Conversión. Medido contra
+     * producción: 20 celdas acción-día en los últimos siete. Sale
+     * nulo, que la pantalla ya pinta como «—», porque la cifra que
+     * habría que imprimir no existe: recortarla a 100 % sería inventar
+     * una que sí parece cierta.
      */
-    conversion: totalLeads > 0 ? totalInscritos / totalLeads : null,
+    conversion:
+      totalLeads > 0 && totalInscritos <= totalLeads
+        ? totalInscritos / totalLeads
+        : null,
     cuposDisponibles,
     /// Cerrada cuando no queda cupo. Sin fecha de por medio: una acción
     /// con cupos y sin grupos abiertos sigue admitiendo gente, y las
