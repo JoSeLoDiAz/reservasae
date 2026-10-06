@@ -18,6 +18,9 @@ export const ORIGEN_DEL_CARGUE = "cargue-masivo";
 export type QueLePasoALaFila =
   | "NUEVA"
   | "YA_ESTABA"
+  /// Ya tiene ficha en Gestion de leads: no se crea lead ni se le
+  /// toca nada. Llego el 6 oct 2026.
+  | "YA_TIENE_FICHA"
   | "REPETIDA_EN_EL_ARCHIVO"
   | "NO_SE_RECONOCE"
   | "FALLO";
@@ -74,6 +77,10 @@ export type ResultadoDelCargue = {
   leidas: number;
   nuevas: number;
   yaEstaban: number;
+  /// Cuantas ya estaban en Gestion de leads, no en la mesa.
+  /// Opcional: un backend sin reiniciar no la manda, y entonces la
+  /// tarjeta sale en cero en vez de romper la pantalla.
+  yaTienenFicha?: number;
   seRellenan: number;
   camposQueSeRellenan: number;
   conChoques: number;
@@ -87,6 +94,10 @@ export type ResultadoDelCargue = {
 export const ETIQUETA_QUE_PASO: Record<QueLePasoALaFila, string> = {
   NUEVA: "Nueva",
   YA_ESTABA: "Ya estaba",
+  /// En Gestión de leads, no en la mesa: son dos poblaciones y
+  /// casi no se solapan. El rótulo lo dice entero porque la
+  /// diferencia es lo que explica que no se le tocara nada.
+  YA_TIENE_FICHA: "Ya está en Gestión de leads",
   REPETIDA_EN_EL_ARCHIVO: "Repetida en el archivo",
   NO_SE_RECONOCE: "No se reconoce",
   FALLO: "Falló",
@@ -99,6 +110,10 @@ export const ETIQUETA_QUE_PASO: Record<QueLePasoALaFila, string> = {
 export const TONO_QUE_PASO: Record<QueLePasoALaFila, string> = {
   NUEVA: "text-exito",
   YA_ESTABA: "text-texto-suave",
+  /// En el color de aviso: no es un fallo ---no se duplicó a
+  /// nadie, que es lo que se quería--- pero sí es algo que mirar,
+  /// porque esa persona ya está siendo trabajada por alguien.
+  YA_TIENE_FICHA: "text-aviso",
   REPETIDA_EN_EL_ARCHIVO: "text-aviso",
   NO_SE_RECONOCE: "text-aviso",
   FALLO: "text-error",

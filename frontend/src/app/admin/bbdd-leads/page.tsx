@@ -104,8 +104,11 @@ const PESO_DE_LA_FILA: Record<FilaDelInforme["que"], number> = {
   FALLO: 0,
   NO_SE_RECONOCE: 1,
   REPETIDA_EN_EL_ARCHIVO: 2,
-  YA_ESTABA: 3,
-  NUEVA: 4,
+  /// Antes que «ya estaba»: esa persona la esta trabajando alguien
+  /// en Gestion de leads, y es lo que hay que ir a mirar.
+  YA_TIENE_FICHA: 3,
+  YA_ESTABA: 4,
+  NUEVA: 5,
 };
 
 function loQuePideAlgoPrimero(filas: FilaDelInforme[]): FilaDelInforme[] {
@@ -554,6 +557,20 @@ export default function PaginaBbddLeads() {
                 etiqueta="Ya estaban"
                 valor={informe.yaEstaban}
                 pie="se reconocieron en la base"
+              />
+              {/* ENTRE «ya estaban» Y «se rellenan», que es donde se
+                  lee: las tres contestan «de lo que subí, qué ya
+                  teníamos». Esta es la que el cliente preguntó el 6
+                  oct 2026 ---«¿pero con Gestión de leads?»---: el
+                  cruce miraba la mesa y no las fichas, así que esta
+                  gente entraba otra vez como nueva. */}
+              <Cifra
+                etiqueta="Ya en Gestión de leads"
+                valor={informe.yaTienenFicha ?? 0}
+                pie="no se crean ni se les toca la ficha"
+                color={
+                  (informe.yaTienenFicha ?? 0) > 0 ? "var(--aviso)" : undefined
+                }
               />
               <Cifra
                 etiqueta="Se rellenan"
