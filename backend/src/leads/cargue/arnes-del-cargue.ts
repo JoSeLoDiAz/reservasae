@@ -109,6 +109,19 @@ export type BaseDeMentira = {
  * veces lo mismo y taparía un cruce mal escrito. El acotado al
  * convenio tiene su propia prueba, que mira el `where`.
  */
+/**
+ * UNA FICHA DE GESTIÓN DE LEADS, para el cruce del 6 oct 2026.
+ *
+ * Lo mínimo que mira el cargue: la etapa y los tres datos por los
+ * que se reconoce a una persona.
+ */
+export type FichaDeMentira = {
+  etapa: string;
+  numeroDocumento: string | null;
+  correo: string | null;
+  celular: string | null;
+};
+
 export function baseDeMentira(
   yaEstan: LeadDeMentira[],
   opciones: {
@@ -119,6 +132,10 @@ export function baseDeMentira(
     /// Para probar la carrera: la fila en la que `create` lanza un
     /// P2002 porque otro cargue se adelantó.
     seAdelantanEnLaFila?: number;
+    /// Quién ya tiene FICHA en Gestión de leads. Son otra
+    /// población que la mesa: quien llega por el formulario
+    /// público nace ficha y no deja fila en la mesa.
+    fichas?: FichaDeMentira[];
   } = {},
 ): BaseDeMentira {
   const creados: Array<Record<string, unknown>> = [];
@@ -190,6 +207,34 @@ export function baseDeMentira(
       },
     },
     leadEntrante,
+    participante: {
+      findMany: (a: { where?: Record<string, unknown> }) => {
+        dondes.push(a.where);
+        const fichas = opciones.fichas ?? [];
+        const persona = (a.where?.persona ?? {}) as {
+          OR?: Array<Record<string, { in?: string[] }>>;
+        };
+        const ramas = persona.OR ?? [];
+        /// Sin ramas no hay a quién buscar, igual que en la base.
+        if (ramas.length === 0) return Promise.resolve([]);
+        const casa = (f: FichaDeMentira) =>
+          ramas.some((rama) => {
+            const [campo, cond] = Object.entries(rama)[0] ?? [];
+            const valor = f[campo as keyof FichaDeMentira];
+            return Boolean(valor) && (cond?.in ?? []).includes(String(valor));
+          });
+        return Promise.resolve(
+          fichas.filter(casa).map((f) => ({
+            etapa: f.etapa,
+            persona: {
+              numeroDocumento: f.numeroDocumento,
+              correo: f.correo,
+              celular: f.celular,
+            },
+          })),
+        );
+      },
+    },
     notaDeGestion: {
       create: (a: { data: Record<string, unknown> }) => {
         notas.push(a.data);

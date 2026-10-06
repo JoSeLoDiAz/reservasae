@@ -37,7 +37,26 @@ const ETAPAS = Object.keys(ETIQUETA_ETAPA);
 /// la pantalla, no la persona. Y `convenioId` menos: ese sale
 /// del gremio de la sesión, y aceptarlo por la URL sería dejar
 /// que se pida el gremio ajeno escribiéndolo a mano.
-const TEXTO = ["asesorId", "accionFormacionId", "grupoId", "buscar"] as const;
+/**
+ * Y DESDE EL 6 OCT, POR DÓNDE ENTRÓ.
+ *
+ * «Si o sí el sistema debe decirme de qué link de formulario entró»
+ * y «delicado, porque si creo un formulario con una utm especial o
+ * un link personalizado, ¿cómo lo trazo?» (cliente, 5 oct 2026).
+ *
+ * Van aquí ---y no solo en el panel de filtros--- porque la gracia
+ * es poder MANDAR el enlace: `?enlace=lanzamiento-oct` se pega en un
+ * chat y lleva a la lista de quienes entraron por ahí. Es lo mismo
+ * que ya se hizo con el asesor y el curso.
+ */
+const TEXTO = [
+  "asesorId",
+  "accionFormacionId",
+  "grupoId",
+  "buscar",
+  "enlaceDeEntrada",
+  "formularioDeEntrada",
+] as const;
 
 type LlaveTexto = (typeof TEXTO)[number];
 
@@ -52,6 +71,8 @@ const CORTO: Record<LlaveTexto, string> = {
   accionFormacionId: "curso",
   grupoId: "grupo",
   buscar: "q",
+  enlaceDeEntrada: "enlace",
+  formularioDeEntrada: "formulario",
 };
 
 const ESTADOS = ["COMPLETO", "PARCIAL"] as const;
@@ -117,6 +138,10 @@ export type Cambio = Partial<
     | "departamentoSepId"
     | "buscar"
     | "cola"
+    /// Por dónde entró: el enlace corto y el formulario. Desde el
+    /// 6 oct 2026.
+    | "enlaceDeEntrada"
+    | "formularioDeEntrada"
   >
 > & {
   /// Días esperando sin contactar. NO es un campo de `Filtros`:

@@ -426,8 +426,13 @@ function ListaParticipantes({
         /// donde lo pone el prototipo: primero se decide qué se
         /// mira, y luego se resume lo que hay.
         resumen={resumen}
-        /// EL ID CAMBIA CADA VEZ QUE CAMBIAN LAS COLUMNAS, y esta
-        /// vez es por «Estado de importación» (1 oct 2026).
+        /// EL ID CAMBIA CUANDO CAMBIA EL ORDEN, no cuando se añade
+        /// una columna: para eso está `nueva: true`, que se la añade a
+        /// quien ya tenía las suyas elegidas sin tirarle su seleccion.
+        /// Lo aprendi al reves el 6 oct 2026 ---renombre la tabla por
+        /// añadir «Enlace de entrada»--- y Josse lo corrigio: renombrar
+        /// le cuesta a todos los anchos que hubieran ajustado a mano, y
+        /// no hacia falta.
         ///
         /// El navegador guarda en `localStorage` la clave
         /// `tabla:<id>` con el orden, los anchos y las columnas
