@@ -22,6 +22,9 @@ import {
 
 // el color sale del token de la etapa que le corresponde
 const COLOR: Record<EstadoAcademico, string> = {
+  /// Gris y no rojo: «no se sabe» no es un peligro, y el rojo es
+  /// justo el juicio que sobra cuando lo que falta son los datos.
+  SIN_DATOS_DEL_AULA: "var(--texto-suave)",
   SIN_INGRESO: colorEtapa("PERDIDO"),
   SIN_EMPEZAR: colorEtapa("CONTACTADO"),
   ATRASADO: colorEtapa("EN_FORMACION"),
@@ -178,6 +181,7 @@ function Seguimiento() {
 
 
   const cuenta: Record<EstadoAcademico, number> = {
+    SIN_DATOS_DEL_AULA: resumen.sinDatosDelAula ?? 0,
     SIN_INGRESO: resumen.sinIngreso,
     SIN_EMPEZAR: resumen.sinEmpezar,
     ATRASADO: resumen.atrasados,

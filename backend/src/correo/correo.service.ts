@@ -21,6 +21,7 @@ import {
 import { createTransport, type Transporter } from 'nodemailer';
 import type SMTPPool from 'nodemailer/lib/smtp-pool';
 
+import { PrismaService } from '../prisma/prisma.service';
 import { desvioConfigurado, etiquetaDeReales, resolverDestino } from './desvio';
 import { escaparHtml } from './escapar';
 import { limpiarNombre, nombreGeneral } from './quien-firma';
@@ -67,6 +68,10 @@ export function correoConectado(): boolean {
 export class CorreoService implements OnModuleInit, OnModuleDestroy {
   private readonly log = new Logger('Correo');
   private transporte: TransporteSmtp | null = null;
+
+  /// Para dejar constancia en la ficha de que a esa dirección no se
+  /// pudo. `PrismaModule` es @Global: no hay que importarlo.
+  constructor(private readonly prisma: PrismaService) {}
 
   /**
    * Decir al arrancar si hay correo o no.
@@ -206,6 +211,40 @@ export class CorreoService implements OnModuleInit, OnModuleDestroy {
         ? `${destino.para.join(', ')} (iba a ${etiquetaDeReales(destino.reales)})`
         : String(destino.para.length);
       this.log.log(`Enviado «${c.asunto}» a ${a}: ${r.messageId}`);
+
+      /**
+       * UN ENVÍO BUENO PUEDE TRAER DIRECCIONES RECHAZADAS.
+       *
+       * `sendMail` no lanza si el servidor aceptó el mensaje para
+       * ALGUNO de los destinatarios: las que rechazó vienen en
+       * `rejected` y hasta hoy se tiraban. Mandar a tres y que una
+       * rebote es el caso corriente de una lista, y era justo el que
+       * no dejaba rastro.
+       */
+      /**
+       * CON DESVÍO PUESTO NO SE APUNTA NADA, y esto lo cazó una
+       * prueba antes de salir.
+       *
+       * En pruebas y en preproducción todo el correo se desvía a un
+       * buzón del equipo. Lo que el servidor aceptó o rechazó es ESA
+       * dirección, así que apuntarlo marcaría el correo del operador
+       * como malo ---y, peor, dejaría la dirección de la persona sin
+       * marcar diciendo que está bien---.
+       */
+      if (destino.reales === null) {
+        const rechazadas = (r.rejected ?? []).map(comoTexto).filter(Boolean);
+        await this.apuntarLoQueNoSalio(
+          rechazadas,
+          'el servidor de correo rechazó la dirección',
+        );
+        /// Y lo que sí salió se limpia: una marca que no se quita se
+        /// convierte en una lista de direcciones malas que hace años
+        /// que son buenas.
+        await this.olvidarElFallo(
+          (r.accepted ?? []).map(comoTexto).filter(Boolean),
+        );
+      }
+
       return {
         estado: 'ENVIADO',
         id: r.messageId,
@@ -215,7 +254,80 @@ export class CorreoService implements OnModuleInit, OnModuleDestroy {
     } catch (e) {
       const error = this.explicar(e);
       this.log.error(`No salió «${c.asunto}»: ${error}`);
+      /**
+       * Falló el envío entero: las de este correo quedan marcadas. Si
+       * el fallo era del servidor y no de la dirección, el siguiente
+       * envío que salga lo limpia solo.
+       *
+       * TAMPOCO CON DESVÍO PUESTO. El mensaje iba al buzón del
+       * equipo, así que un fallo aquí no dice nada de la dirección de
+       * la persona: marcarla pondría a media base con el correo malo
+       * cada vez que el SMTP de pruebas tosa.
+       */
+      if (destino.reales === null) {
+        await this.apuntarLoQueNoSalio(destino.para, error);
+      }
       return { estado: 'FALLO', error };
+    }
+  }
+
+  /**
+   * DEJA CONSTANCIA EN LA FICHA DE QUE A ESA DIRECCIÓN NO SE PUDO.
+   *
+   * «No hay un criterio para ver si el correo está bien o no»
+   * (cliente, 5 oct 2026). No lo había: el rechazo quedaba en el
+   * registro del servidor, que es donde no mira quien trabaja la
+   * ficha.
+   *
+   * POR DIRECCIÓN Y NO POR PERSONA, que es lo que la hace barata y
+   * correcta: es la dirección la que está mal, y si dos fichas
+   * comparten correo las dos tienen el mismo problema. Una sola
+   * consulta por envío, sin que quien manda el correo tenga que saber
+   * de quién es.
+   *
+   * NO ROMPE EL ENVÍO. Si esto falla, el correo ya salió o ya falló,
+   * y lo que está en juego es una marca de ayuda: tumbar por ella la
+   * respuesta de un formulario público sería cambiar un aviso por una
+   * caída.
+   *
+   * Y NO ES EL REBOTE. El de verdad llega minutos después de que el
+   * servidor aceptó el mensaje y solo lo sabe el proveedor ---hace
+   * falta el webhook de SendGrid---. Esto es lo que se sabe EN EL
+   * ENVÍO.
+   */
+  private async apuntarLoQueNoSalio(
+    direcciones: string[],
+    motivo: string,
+  ): Promise<void> {
+    const limpias = normalizar(direcciones);
+    if (limpias.length === 0) return;
+    try {
+      await this.prisma.persona.updateMany({
+        where: { correo: { in: limpias } },
+        data: { correoFallaEn: new Date(), correoFalloMotivo: motivo },
+      });
+    } catch (e) {
+      this.log.warn(
+        `No se pudo apuntar el fallo de correo: ${e instanceof Error ? e.message : e}`,
+      );
+    }
+  }
+
+  /// Y se quita en cuanto vuelve a salir uno.
+  private async olvidarElFallo(direcciones: string[]): Promise<void> {
+    const limpias = normalizar(direcciones);
+    if (limpias.length === 0) return;
+    try {
+      await this.prisma.persona.updateMany({
+        /// Solo las que estaban marcadas: sin esto, cada correo que
+        /// sale reescribe la fila de todo el que lo recibe.
+        where: { correo: { in: limpias }, correoFallaEn: { not: null } },
+        data: { correoFallaEn: null, correoFalloMotivo: null },
+      });
+    } catch (e) {
+      this.log.warn(
+        `No se pudo limpiar la marca de correo: ${e instanceof Error ? e.message : e}`,
+      );
     }
   }
 
@@ -325,4 +437,32 @@ export class CorreoService implements OnModuleInit, OnModuleDestroy {
 
     return bruto.slice(0, 300);
   }
+}
+
+/**
+ * Una dirección tal como la devuelve nodemailer.
+ *
+ * `accepted` y `rejected` traen cadenas, pero con algunas opciones
+ * traen objetos `{address, name}`. Leerlo sin mirar guardaría
+ * «[object Object]» como correo, y entonces la marca no casaría con
+ * nadie y nadie se enteraría de que no casa.
+ */
+function comoTexto(x: unknown): string {
+  if (typeof x === 'string') return x;
+  if (x && typeof x === 'object' && 'address' in x) {
+    const a = (x as { address?: unknown }).address;
+    return typeof a === 'string' ? a : '';
+  }
+  return '';
+}
+
+/// En minúsculas y sin repetidos, como se guardan en `personas`:
+/// comparando el texto crudo, «Ana@Ejemplo.test» no casaría con la
+/// fila y la marca se perdería en silencio.
+function normalizar(direcciones: string[]): string[] {
+  return [
+    ...new Set(
+      direcciones.map((d) => d.trim().toLowerCase()).filter((d) => d.includes('@')),
+    ),
+  ];
 }

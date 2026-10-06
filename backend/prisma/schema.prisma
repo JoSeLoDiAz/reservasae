@@ -1023,6 +1023,30 @@ model Persona {
   correo          String?
   celular         String?
 
+  /// CUÁNDO FALLÓ EL ÚLTIMO CORREO A ESA DIRECCIÓN, y por qué.
+  ///
+  /// «No hay un criterio para ver si el correo está bien o no»
+  /// (cliente, 5 oct 2026). No lo había: cuando el servidor rechaza
+  /// una dirección, eso quedaba en el registro del servidor y en
+  /// ningún sitio que mire quien trabaja la ficha.
+  ///
+  /// Lo escribe `CorreoService` por DIRECCIÓN, no por persona: es la
+  /// dirección la que está mal, y si dos fichas comparten correo las
+  /// dos tienen el mismo problema.
+  ///
+  /// Se BORRA solo en cuanto un correo a esa dirección vuelve a
+  /// salir: una marca que no se limpia se convierte en una lista de
+  /// direcciones malas que hace años que son buenas.
+  ///
+  /// NO ES EL REBOTE. El rebote de verdad llega minutos después de
+  /// que el servidor aceptó el mensaje, y para saberlo hace falta el
+  /// webhook de SendGrid. Esto es lo que se sabe EN EL ENVÍO, que es
+  /// la mitad de los casos y no costaba una integración.
+  correoFallaEn      DateTime?
+  correoFalloMotivo  String?
+
+  @@index([correoFallaEn])
+
   /// Lo que escribió cuando el género es "Otro". Se
   /// muestra tal cual, pero al SEP viaja NO BINARIO:
   /// su catálogo solo admite tres valores.

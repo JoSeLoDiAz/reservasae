@@ -62,6 +62,9 @@ import {
 } from "@/lib/crm-api";
 
 const COLOR: Record<EstadoAcademico, string> = {
+  /// Gris y no rojo: «no se sabe» no es un peligro, y el rojo es
+  /// justo el juicio que sobra cuando lo que falta son los datos.
+  SIN_DATOS_DEL_AULA: "var(--texto-suave)",
   SIN_INGRESO: colorEtapa("PERDIDO"),
   SIN_EMPEZAR: colorEtapa("CONTACTADO"),
   ATRASADO: colorEtapa("EN_FORMACION"),

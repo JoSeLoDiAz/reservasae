@@ -262,6 +262,41 @@ export function columnasDeParticipante(): Columna<FilaParticipante>[] {
       ancho: "215px",
       titulo: "Correo",
       valor: (f) => f.correo,
+      /**
+       * Y SI NO SALIÓ, SE DICE AQUÍ MISMO.
+       *
+       * «No hay un criterio para ver si el correo está bien o no»
+       * (cliente, 5 oct 2026). El rechazo quedaba en el registro
+       * del servidor ---donde no mira quien trabaja la ficha--- y
+       * la columna seguía enseñando esa dirección como si
+       * sirviera.
+       *
+       * EN ESTA COLUMNA Y NO EN UNA APARTE: una columna «¿el
+       * correo sirve?» al lado de otra con el correo obliga a
+       * mirar dos sitios para una sola pregunta, y la de al lado
+       * se puede esconder ---entonces el aviso desaparece y la
+       * dirección mala se queda con cara de buena---.
+       */
+      pinta: (f) =>
+        f.correo ? (
+          <span className="block leading-tight">
+            <span className="block truncate">{f.correo}</span>
+            {f.correoFallaEn && (
+              <span
+                className="block truncate text-xs"
+                style={{ color: "var(--aviso)" }}
+                /// El motivo entero en el `title`: no cabe en la
+                /// celda y es lo que distingue «esa dirección no
+                /// existe» de «el servidor estaba caído».
+                title={f.correoFalloMotivo ?? undefined}
+              >
+                no salió el {new Date(f.correoFallaEn).toLocaleDateString("es-CO")}
+              </span>
+            )}
+          </span>
+        ) : (
+          <span className="text-texto-suave">—</span>
+        ),
       filtro: "texto",
     },
     {

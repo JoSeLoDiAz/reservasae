@@ -79,6 +79,7 @@ const TODOS = "";
  * ya terminó, para que la fila se lea como un camino.
  */
 const ESTADOS: Array<{ clave: keyof Academico["resumen"]; estado: EstadoAcademico }> = [
+  { clave: "sinDatosDelAula", estado: "SIN_DATOS_DEL_AULA" },
   { clave: "sinIngreso", estado: "SIN_INGRESO" },
   { clave: "sinEmpezar", estado: "SIN_EMPEZAR" },
   { clave: "atrasados", estado: "ATRASADO" },
@@ -102,6 +103,9 @@ const ESTADOS: Array<{ clave: keyof Academico["resumen"]; estado: EstadoAcademic
 const CICLO = [SERIE.uno, SERIE.dos, SERIE.tres];
 
 const COLOR_ESTADO: Record<EstadoAcademico, string> = {
+  /// Gris y no rojo: «no se sabe» no es un peligro, y el rojo es
+  /// justo el juicio que sobra cuando lo que falta son los datos.
+  SIN_DATOS_DEL_AULA: "var(--texto-suave)",
   SIN_INGRESO: colorEtapa("PERDIDO"),
   SIN_EMPEZAR: colorEtapa("CONTACTADO"),
   ATRASADO: colorEtapa("EN_FORMACION"),
@@ -693,13 +697,16 @@ function Cuerpo({
           estados salió del aula. Catorce cifras para decir eso es lo
           que hacía que no se leyera ninguna. */}
       <Bloque titulo="Resumen general">
-        <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-6">
+        <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-7">
           {ESTADOS.map((e) => (
             <TarjetaDeEstado
               key={e.clave}
               estado={e.estado}
-              valor={r[e.clave]}
-              antes={resumenAntes ? resumenAntes[e.clave] : null}
+              /// `?? 0`: `sinDatosDelAula` es opcional ---un backend
+              /// sin reiniciar no lo manda--- y una tarjeta vacia
+              /// confunde mas que una en cero.
+              valor={r[e.clave] ?? 0}
+              antes={resumenAntes ? (resumenAntes[e.clave] ?? 0) : null}
             />
           ))}
         </div>
