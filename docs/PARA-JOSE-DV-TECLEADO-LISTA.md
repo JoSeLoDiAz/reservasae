@@ -1,68 +1,85 @@
-# `jose/dv-tecleado` · lo que queda tras la 0.22.0
+# `jose/dv-tecleado` · dos commits, y uno es para antes del 13
 
-Josse: cuatro despliegues en una mañana. Las dos de la ronda anterior ---el cargue que
-duplicaba y las columnas de entrada--- ya están en la 0.22.0. Queda **uno**.
+Josse: aceptadas las dos peticiones de proceso, y van arriba porque son las que
+cambian cómo trabajamos.
+
+**La rama queda CONGELADA desde este documento.** No empujo nada más hasta que
+digas. Si hace falta algo urgente, lo digo antes de subirlo.
+
+**Y el aviso de migraciones va en la tabla de aquí abajo, siempre**, en la misma
+línea que el recuento. Esta ronda trae una: es lo que decide si el despliegue
+necesita copia previa.
 
 | | |
 |---|---|
-| Rama | `jose/dv-tecleado`, subida |
+| Rama | `jose/dv-tecleado`, subida y **congelada** |
 | Desplegado | `v0.22.0-JD` (6 oct, 11:10) |
-| Sin desplegar | **2 commits**: 1 de contenido y este documento |
+| Sin desplegar | **4 commits**: 2 de contenido, un merge y este documento |
+| **Migraciones** | **1** — `20261006120000_cuando_el_correo_no_sale`. **Pide copia previa.** |
 | De lo tuyo que falte traer | **nada**: `origin/dev` fundida |
-| Línea base | `tsc` limpio en backend y frontend · **268 suites, 2.841 pruebas**, verde |
-| Migraciones nuevas | **1**, dos columnas nulables y un índice |
+| Línea base | `tsc` limpio en backend y frontend · **269 suites, 2.847 pruebas**, verde |
 
 ---
 
-## 0 · El último de la lista del 5 de octubre
+## 0 · Lo que entra
 
-`5fb727b` · **Cuando un correo no sale, queda constancia en la ficha.**
+### a) El 13 de octubre, y por eso va primero
 
-Cierra «no hay un criterio para ver si el correo está bien o no; correos rebotados»
-(cliente, 5 oct). El rechazo quedaba en el registro del servidor ---donde no mira quien
-trabaja la ficha--- y el panel seguía enseñando esa dirección como si sirviera.
+`968e738` · **«No entró» y «no se sabe» ya no se dicen igual en el aula.**
 
-**Dos casos, y el segundo era el invisible:** el envío que falla entero y lanza, y el
-envío que SALE BIEN y trae direcciones en `rejected`. Mandar a tres y que una rebote es
-el caso corriente de una lista, y el código solo miraba la excepción.
+Tu aviso era bueno y el defecto era real: el tablero decía las dos cosas con la misma
+palabra ---«Sin ingreso»--- y pintaba la segunda del rojo de PERDIDO. El día que
+arranquen los cuatro grupos de AF1, sus 116 personas salían señaladas por algo que no
+han hecho.
 
-### La migración
+El aula alimenta las dos cosas que esa pantalla mide: las actividades y los accesos. Si
+de una acción no hay NI UNA actividad publicada NI UN acceso de nadie, lo que falta son
+los datos. Ahora se dice así, en gris y con su propia tarjeta.
 
-`20261006120000_cuando_el_correo_no_sale`: `personas.correoFallaEn` y
-`personas.correoFalloMotivo`, nulables, **sin relleno** ---no se les inventa un estado a
-las direcciones de antes--- más un índice.
+**Se apaga solo** en cuanto llegue la primera actividad o el primer acceso: nadie tiene
+que acordarse de quitarlo.
 
-El índice va declarado también en el schema, y **sin `WHERE`** aunque parcial ocuparía
-menos: Prisma no sabe declarar índices parciales, así que el schema no podría decir lo
-mismo y el primer `migrate dev` de alguien propondría borrarlo. Es tu corrección de la
-mañana aplicada aquí.
+**Sin migración**, y **la regla vive en su propio fichero** con prueba que la ejercita
+---tu corrección de `acreditar-gestion.ts` aplicada antes de que me lo tuvieras que
+decir dos veces---.
 
-Rollback: soltar las dos columnas y el índice.
+### b) Cuando un correo no sale, queda constancia
 
-### Lo que mirarías tú
+`5fb727b`. El último de la lista del 5 de octubre, y el que **trae la migración**.
 
-- **No tumba el envío.** Si apuntar falla, el correo ya salió o ya falló: lo que está en
-  juego es una marca de ayuda, y tumbar por ella la respuesta de un formulario público
-  sería cambiar un aviso por una caída.
-- **Con el correo desviado no se apunta nada**, y esto lo cazó una prueba antes de
-  salir. En pruebas y preproducción todo va al buzón del equipo: lo que el servidor
-  acepta o rechaza es ESA dirección. La primera versión marcaba
-  `proyectosena@grupo-ae.com.co` como dirección mala y dejaba la de la persona sin
-  marcar. El fallo era del código, no de la prueba.
-- **La marca se borra sola** cuando un correo a esa dirección vuelve a salir. Si no, en
-  seis meses es una lista de direcciones malas que hace tiempo son buenas.
-- Va **por dirección y no por persona**: es la dirección la que está mal, y si dos
-  fichas comparten correo las dos tienen el mismo problema.
+Lo tuyo de los 88 acuses quemados es exactamente lo que esto registra: 67 del domingo y
+21 del lunes agotaron sus cinco intentos y no hubo constancia en ninguna ficha.
 
-### Y lo que NO es, para que no lo vendamos de más
+**La migración**: `personas.correoFallaEn` y `personas.correoFalloMotivo`, nulables,
+**sin relleno** ---no se les inventa un estado a las direcciones de antes--- más un
+índice, declarado también en el schema y sin `WHERE` porque Prisma no sabe declarar
+índices parciales. Rollback: soltar las dos columnas y el índice.
 
-**No es el rebote de verdad.** El rebote llega minutos después de que el servidor aceptó
-el mensaje y solo lo sabe el proveedor: hace falta el webhook de SendGrid, y eso depende
-de que lo montes en producción. Esto es lo que se sabe EN EL ENVÍO, que es la mitad de
-los casos y no costaba una integración.
+Lo que mirarías tú: no tumba el envío; **con el correo desviado no se apunta nada**
+---lo cazó una prueba: la primera versión marcaba `proyectosena@grupo-ae.com.co` como
+dirección mala--- y la marca se borra sola cuando un correo a esa dirección vuelve a
+salir.
 
-Cuando quieras montar SendGrid, dime y lo escribo: son ~20 horas y el grueso es tuyo
----la cuenta, el dominio verificado y la URL del webhook---.
+**No es el rebote de verdad**, y conviene que el cliente lo oiga de los dos: eso pide el
+webhook de SendGrid y el grueso es tuyo ---cuenta, dominio verificado y URL---. Son unas
+20 horas mías cuando lo tengas.
+
+---
+
+## 0.bis · Respuesta a lo que me contaste
+
+- **Producción limpia**: 0 de 319 sin el movimiento que las fecha. Entonces no hay nada
+  que mover a mano y las cifras de octubre están completas. Gracias por correr la
+  consulta literal.
+- **Tus cuatro correcciones, todas buenas.** La de «Gestionados en el periodo» era un
+  defecto de verdad: acreditar al dueño actual habría sumado 83 a quien recibe un
+  reparto. Tu `acreditar-gestion.ts` acredita a quien tocó, cuenta fichas distintas y
+  deja claro por qué `datos` es la excepción. No la toco.
+- **Lo de los índices en el schema**: tercera vez, y la tuya. El de esta ronda va
+  declarado.
+- **Los 100 minutos sin Docker del domingo** no los sabía, y explican por qué el
+  diagnóstico del correo tardó: estuve mirando credenciales mientras la máquina iba y
+  venía.
 
 ---
 
