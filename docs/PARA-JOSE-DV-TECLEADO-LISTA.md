@@ -1,87 +1,94 @@
-# `jose/dv-tecleado` · lista para validar y desplegar
+# `jose/dv-tecleado` · la segunda ronda
 
-Josse: esto sustituye a todo lo anterior. Tus seis están cerradas, tu `v0.19.0` está
-fundida aquí y verde, y encima van **25 commits** que el corte de la 0.19.0 dejó fuera
-más la auditoría completa.
+Josse: gracias por la 0.20.0 ---entró en el mismo día y con seis arreglos tuyos
+encima, dos de ellos de seguridad---. Esto es lo que queda, y **lo de abajo ya
+incorpora tus correcciones**: tu `dev` está fundida aquí y verde.
 
 | | |
 |---|---|
 | Rama | `jose/dv-tecleado`, subida |
-| Desplegado | `v0.19.0-JD` (2 oct) — **hace cuatro días** |
-| Sin desplegar | **42 commits** |
-| De lo tuyo que falte traer | **nada** |
-| Línea base | `tsc` limpio en backend y frontend · **265 suites, 2.807 pruebas**, verde |
-| Migraciones nuevas | **3** — ver §1a |
+| Desplegado | `v0.20.0-JD` (6 oct) |
+| Sin desplegar | **5 commits** (3 de contenido, 1 merge, 1 revert) |
+| De lo tuyo que falte traer | **nada**: `origin/dev` fundida |
+| Línea base | `tsc` limpio en backend y frontend · **266 suites, 2.826 pruebas**, verde |
+| Migraciones nuevas | **ninguna** |
 
 ---
 
-## 0 · Las siete del 6 de octubre — las cifras del comité
+## 0 · Lo que el cliente pide en esta ronda
 
-Siete commits del 6 de octubre, y son **las que el cliente está
-esperando**. Todas nacen de lo que reportó el 5 de octubre. Van primero porque dos de
-ellas cambian
-**números que él lee en comité**, y conviene que sepas qué va a cambiar antes de que
-te lo pregunte.
+**Mauricio pide que esta ronda entre COMPLETA.** Su instrucción, textual: que no se
+saque nada, y que lo que se vaya a dejar fuera se analice y se consulte antes, no
+después. Si algo de aquí no te cuadra, dímelo y lo discutimos; lo que no quiere es
+enterarse de que falta cuando abre el CRM y no lo ve.
 
-| | Commit | Qué arregla |
-|---|---|---|
-| 1 | `8a5d819` | El **«25»**: con «Hoy» arriba salía el histórico completo. Los tres bloques no preguntan hasta que la cabecera resuelve el periodo. Y la **AF se quedaba pegada en AF3**: elegir AF4 arriba no bajaba. |
-| 2 | `f76ce9d` | El **scroll de Gestión de leads**. Solo CSS. |
-| 3 | `1a36c43` | Las **inscripciones se cuentan por cuándo se inscribió** la persona, no por cuándo llegó la ficha. **Cambia cifras.** |
-| 4 | `cf6b1cd` | El **detalle por grupos** obedece los filtros y el periodo. No obedecía a ninguno. **Cambia cifras.** |
-| 5 | `f5b08e0` | Cambiar un filtro **mientras carga** ya no pierde la pedida ni pinta la respuesta vieja. |
-| 6 | `4ade9b8` | El **límite de peticiones** contaba por IP: toda la oficina compartía 60 por minuto. Ahora cuenta por sesión. |
-| 7 | `28083cf` | **«Gestionados en el periodo»**: una columna nueva en Seguimiento de asesores. La de siempre no podía decir lo gestionado el viernes contra lo de hoy. **Sin migración.** |
+### a) BBDD Leads vuelve, y es lo primero
 
-**El cliente está pidiendo este despliegue hoy.** Sigo trabajando sobre esta misma rama,
-así que vuelve a mirar `git log origin/dev..jose/dv-tecleado` antes de desplegar: puede
-que haya más commits que cuando leas esto. Los de hoy van todos en esta sección.
+Tu `b9a2e40` la sacó del corte y **borró sus 26 ficheros en `dev`**. Está revertido
+aquí (`2fe02e5`): la pantalla y su cargue vuelven enteros.
 
-### Lo que va a cambiar a la vista, y hay que decirlo
+Tu razón era buena ---capacidad nueva, 5.331 líneas, y no estaba en el documento de
+esa entrega--- y por eso quedó fuera sin discusión. Pero el cliente la pidió el 5 de
+octubre por su nombre: «una visual como mesa de entrada que diga BBDD Leads
+Adecopria». Hoy entró al CRM, no la encontró, y lo primero que preguntó fue por qué.
 
-Dos columnas de la tabla del comité van a dar **otros números**, y es el arreglo, no un
-fallo:
+Si hay algo concreto que no te convence ---el tamaño del diff, el cargue sin
+restricciones, la séptima entrada de menú--- dímelo y lo arreglo. Pero no la saques
+otra vez sin avisar.
 
-- **Inscritos del periodo.** Antes contaba a quien LLEGÓ en el periodo y está inscrito
-  HOY. Así que un día de veinte inscripciones podía salir en cero —si esa gente llegó
-  en agosto— y una inscripción se borraba del pasado cuando la persona desertaba. Ahora
-  va por el movimiento a INSCRITO, que no se reescribe nunca. Con ventana puesta,
-  arriba van las inscripciones **hechas** en el periodo y abajo los leads **llegados**:
-  la conversión es «cuánto entró y cuánto se inscribió este mes», no la de una cohorte.
-- **Cupos disponibles.** Salían de `meta − inscritos del periodo`, y la meta no se
-  recorta: con «Hoy» arriba, una AF llena enseñaba sus 519 cupos libres y estado
-  ABIERTO. Ahora se restan los que **ocupan silla hoy**, sin ventana y sin los cinco
-  filtros.
+### b) La bandeja de Conversaciones de Lucid
 
-### La columna nueva pide un detalle que es fácil pasar por alto
+`64414c7` (servidor) y `a1a3c27` (pantalla). Resuelve «no está llegando las
+conversaciones de Lucid, llega 200 pero no queda» (cliente, 5 oct).
 
-La tabla de Seguimiento de asesores pasa de `asesores-inscripciones-v2` a `-v3`. Es a
-propósito y la regla ya estaba escrita ahí: lo que cada quien acomodó de sus columnas
-vive en su navegador y **gana al código**, así que sin renombrar la tabla, la columna
-nueva solo la verían las cuentas que nunca entraron. El precio es que se pierden los
-anchos que alguien hubiera ajustado a mano, y es barato al lado de una columna invisible.
+**No era un fallo de la integración.** El webhook las guarda bien; lo que pasa es que
+cuando el número no casa con nadie del gremio ---o casa con más de uno--- la
+conversación queda en `SIN_DUENO` o `AMBIGUA`, y **ninguna pantalla leía esa tabla**.
+Guardado donde nadie lo ve es indistinguible de perdido, y el olvidador borra las sin
+dueño a los 60 días, así que acababa siéndolo de verdad.
 
-### Una cosa que te va a saltar en el despliegue, y no es un error nuevo
+La bandeja es la cola: lo que espera dueño, con botón para pegarlo a su ficha o a su
+lead. Controlador aparte del webhook ---a este lo guarda una sesión del panel y al
+otro una llave de proveedor---, y la nota se escribe igual que en el camino
+automático, para que una pegada a mano y otra pegada sola sean indistinguibles en la
+ficha.
 
-`pnpm db:integridad` tiene **un control más**: fichas inscritas **sin el movimiento que
-las fecha**. Esas no caen en ninguna ventana, así que no se cuentan en ningún periodo.
-En la base de pruebas son 12 de 1.304 y son de la siembra; **en producción no sé cuántas
-hay, porque no miro producción**. El informe las lista con nombre y AF.
+Lo que mirarías tú primero: **no se mezclan gremios**. Pegar en una ficha de otro
+convenio se rechaza, y hay prueba con un doble que contesta al `where` igual que la
+base ---uno que ignorara el filtro daría por buena una consulta que no filtra---.
 
-No se les inventa el movimiento: escribir uno con fecha supuesta mete en el registro de
-auditoría un hecho que no consta. Se arreglan moviéndolas de etapa a mano desde el
-panel, que sí deja movimiento.
+### c) Por dónde entró cada persona, en columnas separadas
 
-### Orden y variables
+`7b67734`. Cierra «si o sí el sistema debe decirme de qué link de formulario entró,
+porque es imposible que no se pueda, o sea es una falacia» (cliente, 5 oct), y lo que
+dijo hoy viendo la 0.20.0 ya desplegada: «¿se debe separar, ejemplo el Eduteka, para
+otra columna, porque no tengo opción de saber qué formulario?».
 
-- **Backend primero, frontend después.** El endpoint de grupos acepta parámetros nuevos
-  (`grupoId`, `asesorId`, `departamentoSepId`, `desde`, `hasta`). Con el frontend
-  nuevo contra el backend viejo, los ignora **en silencio** y los filtros vuelven a no
-  aplicarse: el mismo fallo, sin aviso.
-- **Ninguna migración nueva** en estas siete.
-- `ADMIN_JWT_SECRET` ahora también lo usa `AppModule`, para que el límite pueda
-  verificar la cookie. Es **la misma variable** que ya firma la sesión; no hay que
-  añadir nada. Si faltara, el límite no se cae: vuelve a contar por IP sin decirlo.
+Tenía razón en la lectura: «Orgánico / eduteka» encima de «Formulario: Preinscripción
+pública» hace pensar que *eduteka* es el formulario. No lo es ---es la campaña--- y
+eran tres preguntas apretadas en dos columnas. Ahora son cuatro columnas pegadas:
+canal, campaña, formulario y **enlace de entrada**, que es la que faltaba: el mismo
+formulario se reparte por varios enlaces y «cuántos trajo este enlace» no se contesta
+con el formulario.
+
+Con filtro en el servidor y en la dirección: `?enlace=` y `?formulario=` se pegan en
+un chat y llevan a la lista, como ya hacen `?asesor=` y `?curso=`. Y `SIN_DATO` pide
+las que no lo tienen, que es como se mide cuánto falta por saberse.
+
+Endpoint nuevo: `GET /admin/participantes/por-donde-entraron`, que da los enlaces y
+formularios que **de verdad trajeron a alguien**, con su recuento.
+
+### d) Tus seis correcciones: las seis se quedan
+
+Las revisé una a una y están bien. Dos las apunto porque me enseñaron algo:
+
+- **La IP en rutas públicas.** Tenías razón y era un agujero mío: con el límite por
+  sesión, el cubo de `POST /admin/sesion` lo elegía quien llamara, así que se podían
+  probar 8 claves por minuto **por cada cookie** que se tuviera. Tu `handleRequest` lo
+  cierra.
+- **La tabla de asesores en v2.** También tenías razón: para eso está `nueva: true`, y
+  renombrar le cuesta a todos los anchos ajustados a mano. Lo apliqué al revés en
+  Gestión de leads y lo deshice; queda escrito en el código, donde estaba el error.
 
 ---
 
