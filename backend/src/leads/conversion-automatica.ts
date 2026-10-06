@@ -1,6 +1,11 @@
 /** El lead que llega completo pasa solo a Gestión de leads. */
 
-import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  OnModuleDestroy,
+  OnModuleInit,
+} from '@nestjs/common';
 
 import type { OrigenParticipante } from '../../generated/prisma';
 import { PrismaService } from '../prisma/prisma.service';
@@ -32,6 +37,9 @@ const CAMPOS = {
   primerNombre: true,
   primerApellido: true,
   accionFormacionId: true,
+  /// El motivo que ya tiene escrito, para no reescribir el MISMO
+  /// cada minuto. Ver `apuntarPorQueSeQueda`.
+  motivo: true,
 } as const;
 
 type LeadParaPasar = {
@@ -47,6 +55,7 @@ type LeadParaPasar = {
   primerNombre: string | null;
   primerApellido: string | null;
   accionFormacionId: string | null;
+  motivo: string | null;
 };
 
 const CADA = 60_000;
@@ -89,7 +98,8 @@ export class ConversionAutomatica implements OnModuleInit, OnModuleDestroy {
       where: { id: leadId },
       select: CAMPOS,
     });
-    if (!lead) return { paso: false, porque: 'Ese lead ya no está.', falta: [] };
+    if (!lead)
+      return { paso: false, porque: 'Ese lead ya no está.', falta: [] };
     return this.conEsteLead(lead);
   }
 
@@ -120,10 +130,35 @@ export class ConversionAutomatica implements OnModuleInit, OnModuleDestroy {
       },
       select: {
         participaciones: {
-          where: { accionFormacionId: { not: null } },
+          /**
+           * DENTRO DE SU MISMO GREMIO, y esto no es un detalle.
+           *
+           * «Una sola acción de formación» es una regla DEL CONVENIO:
+           * cada gremio tiene su oferta, su cupo y su reporte al SENA.
+           * La misma persona puede estar en ADECOPRIA y en BRITCHAM, y
+           * eso es legítimo.
+           *
+           * Sin el filtro, un lead de BRITCHAM no se convertía nunca
+           * porque esa persona ya estaba en una acción de ADECOPRIA.
+           * Y NO SE VEÍA: el lead se queda en la mesa, que es el
+           * comportamiento normal para los demás rechazos, así que el
+           * barrido lo volvía a rechazar cada minuto, para siempre,
+           * sin síntoma.
+           *
+           * Es el mismo arreglo que `preinscripcion.service.ts` lleva
+           * desde el 1 oct 2026, con su comentario de quince líneas.
+           * Se aplicó allí y no se barrió el patrón; esta era la otra
+           * puerta.
+           */
+          where: {
+            accionFormacionId: { not: null },
+            convenioId: lead.convenioId,
+          },
           select: {
             accionFormacionId: true,
-            accionFormacion: { select: { codigo: true, nombre: true, evento: true } },
+            accionFormacion: {
+              select: { codigo: true, nombre: true, evento: true },
+            },
           },
         },
       },
@@ -195,7 +230,52 @@ export class ConversionAutomatica implements OnModuleInit, OnModuleDestroy {
       };
     } catch (e) {
       const porque = e instanceof Error ? e.message : String(e);
-      return { paso: false, porque: `Se queda en la mesa: ${porque}`, falta: [] };
+      return {
+        paso: false,
+        porque: `Se queda en la mesa: ${porque}`,
+        falta: [],
+      };
+    }
+  }
+
+  /**
+   * Por qué se quedó, escrito donde alguien lo vea.
+   *
+   * Va al `motivo` del lead --que es la columna que la mesa de
+   * entrada ya enseña-- y al log, pero SOLO SI CAMBIÓ.
+   *
+   * Esa condición es la mitad del arreglo. El barrido pasa cada
+   * minuto por los mismos leads pendientes: escribir el motivo
+   * sin mirar el que ya está deja un UPDATE y una línea de log
+   * por lead y por minuto --1.440 al día por cada lead que
+   * espera-- y un log que se repite mil veces es tan invisible
+   * como no tenerlo, solo que además tapa lo demás.
+   *
+   * Así el primer intento lo apunta, los siguientes callan, y
+   * cuando el motivo CAMBIA --porque el asesor completó el
+   * documento, o porque el fallo es otro-- vuelve a escribirse.
+   *
+   * Que no se pueda escribir el motivo no puede tumbar la
+   * vuelta: el lead sigue pendiente y el barrido volverá. Se
+   * avisa y se sigue con el siguiente.
+   */
+  private async apuntarPorQueSeQueda(
+    lead: LeadParaPasar,
+    porque: string,
+  ): Promise<void> {
+    if (lead.motivo === porque) return;
+
+    this.log.warn(`Lead ${lead.id} se queda: ${porque}`);
+    try {
+      await this.prisma.leadEntrante.update({
+        where: { id: lead.id },
+        data: { motivo: porque },
+      });
+    } catch (e) {
+      this.log.error(
+        `Lead ${lead.id}: no se pudo apuntar el motivo: ` +
+          `${e instanceof Error ? e.message : String(e)}`,
+      );
     }
   }
 
@@ -228,7 +308,25 @@ export class ConversionAutomatica implements OnModuleInit, OnModuleDestroy {
     for (const lead of leads) {
       // que uno falle no puede parar la vuelta
       const r = await this.conEsteLead(lead);
-      if (r.paso) hechas += 1;
+      if (r.paso) {
+        hechas += 1;
+        continue;
+      }
+      /// Y QUE NO PASE TIENE QUE DEJAR RASTRO.
+      ///
+      /// Antes esta línea era `if (r.paso) hechas += 1;` y
+      /// `r.porque` se iba a la basura ahí mismo: el `catch` de
+      /// `conEsteLead` convertía la excepción en una frase, y la
+      /// frase no la leía nadie.
+      ///
+      /// Lo que eso producía: el lead se reintentaba cada 60 s
+      /// para siempre, el asesor lo veía PENDIENTE sin una línea
+      /// que dijera por qué, y avisos que SÍ importan --«este
+      /// lead se convirtió dos veces a la vez, quedó una ficha
+      /// suelta: únalas»-- no llegaban a ningún sitio. No había
+      /// síntoma: el barrido contestaba «0 pasaron» y eso es
+      /// exactamente lo que contesta una mesa sin nada que hacer.
+      await this.apuntarPorQueSeQueda(lead, r.porque);
     }
 
     if (hechas > 0) {

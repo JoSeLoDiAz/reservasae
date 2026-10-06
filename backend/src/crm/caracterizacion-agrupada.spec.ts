@@ -41,7 +41,9 @@ describe('los grupos cubren el catálogo entero', () => {
   });
 
   it('el cajón de reserva es un grupo de verdad', () => {
-    expect(GRUPOS_DE_CARACTERIZACION.map((g) => g.clave)).toContain(GRUPO_DE_RESERVA);
+    expect(GRUPOS_DE_CARACTERIZACION.map((g) => g.clave)).toContain(
+      GRUPO_DE_RESERVA,
+    );
   });
 });
 
@@ -70,6 +72,7 @@ describe('los grupos no se pisan ni inventan', () => {
   });
 
   it('todos los grupos tienen al menos una opción', () => {
-    for (const g of GRUPOS_DE_CARACTERIZACION) expect(g.ids.length).toBeGreaterThan(0);
+    for (const g of GRUPOS_DE_CARACTERIZACION)
+      expect(g.ids.length).toBeGreaterThan(0);
   });
 });

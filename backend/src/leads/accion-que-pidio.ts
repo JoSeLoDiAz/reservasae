@@ -27,7 +27,9 @@
 const CODIGO = /\bAF\s*0*(\d{1,2})\b/i;
 
 /** El código normalizado —`AF1`— o null si no nombra ninguno. */
-export function codigoQuePidio(texto: string | null | undefined): string | null {
+export function codigoQuePidio(
+  texto: string | null | undefined,
+): string | null {
   if (!texto) return null;
   const m = CODIGO.exec(texto);
   if (!m) return null;
@@ -38,7 +40,11 @@ export function codigoQuePidio(texto: string | null | undefined): string | null 
   return `AF${numero}`;
 }
 
-export type AccionDelCatalogo = { id: string; codigo: string; visible: boolean };
+export type AccionDelCatalogo = {
+  id: string;
+  codigo: string;
+  visible: boolean;
+};
 
 /**
  * La acción de ESE convenio que nombra el texto, o null.

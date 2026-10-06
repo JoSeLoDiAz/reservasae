@@ -42,11 +42,19 @@ function armar(filas: Fila[] = []) {
         const hay = tabla.find((f) => f.nit === a.where.nit);
         if (hay) {
           if (a.update.razonSocial) hay.razonSocial = a.update.razonSocial;
-          return Promise.resolve({ ...hay, digitoDeclarado: null, fuente: 'HUMANO' });
+          return Promise.resolve({
+            ...hay,
+            digitoDeclarado: null,
+            fuente: 'HUMANO',
+          });
         }
         const nueva = { id: `i${tabla.length + 1}`, ...a.create };
         tabla.push(nueva);
-        return Promise.resolve({ ...nueva, digitoDeclarado: null, fuente: 'HUMANO' });
+        return Promise.resolve({
+          ...nueva,
+          digitoDeclarado: null,
+          fuente: 'HUMANO',
+        });
       },
       findMany: (a: { where: { nit: string } }) =>
         Promise.resolve(tabla.filter((f) => f.nit === a.where.nit)),

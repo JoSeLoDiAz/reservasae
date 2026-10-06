@@ -487,7 +487,7 @@ export default function PaginaReservas() {
               una de otra.
 
               Manda la unidad de al lado: si la tarjeta vecina dice
-              «Cupos apartados», esta cuenta CUPOS, y las reservas van
+              «Cupos reservados», esta cuenta CUPOS, y las reservas van
               al pie. */}
           <Cifra
             etiqueta="Organizaciones"
@@ -503,8 +503,14 @@ export default function PaginaReservas() {
                 : "confirmadas, en espera y canceladas"
             }
           />
+          {/* «Cupos apartados pasa a ser: cupos reservados»
+              (cliente, 2 oct 2026). Cambiado EN LAS DOS VISTAS: la
+              regla de esta pantalla es que digan lo mismo con las
+              mismas palabras, y una sola renombrada sería
+              exactamente la clase de diferencia que ya costó una
+              queja el 25 sep. */}
           <Cifra
-            etiqueta="Cupos apartados"
+            etiqueta="Cupos reservados"
             valor={cuposApartados}
             pie="en reservas confirmadas"
             color={cuposApartados > 0 ? "var(--exito)" : undefined}

@@ -106,6 +106,23 @@ function cuantoFalta(f: FilaParticipante): number {
   return f.faltaDeLaPersona.length + (f.faltaDeLaEmpresa?.length ?? 0);
 }
 
+/**
+ * Lo que falta, DICIENDO PARA QUÉ.
+ *
+ * «Tengo personas inscritas y realmente no falta ningún dato»
+ * (cliente, 5 oct 2026). Tenía razón, y la causa son dos listas
+ * distintas que esta celda enseñaba como una sola.
+ *
+ * La compuerta para inscribir pide tres cosas ---curso con sede, un
+ * contacto y la autorización de datos--- y NO pide la organización
+ * ni los campos del SEP. Esta columna cuenta justo eso otro. Así que
+ * alguien se inscribe, se forma, se CERTIFICA, y la celda le sigue
+ * diciendo «Falta 1»: se le reprocha lo que nunca se le exigió para
+ * entrar. Medido: 18 de 18 inscritas y 24 de 24 certificadas.
+ *
+ * No se deja de contar ---esos datos sí hacen falta para el SENA y
+ * perderlos de vista sería peor--- se dice PARA QUÉ faltan.
+ */
 function pendientes(f: FilaParticipante): string {
   if (f.datos === "COMPLETOS") return "Sin pendientes";
   const n = cuantoFalta(f);
@@ -113,7 +130,9 @@ function pendientes(f: FilaParticipante): string {
   /// es viejo y no manda la de la empresa: se dice que falta algo
   /// sin inventarse un numero.
   if (n === 0) return "Falta algún dato";
-  return n === 1 ? "Falta 1" : `Faltan ${n}`;
+  /// Quien ya entró no tiene NADA pendiente para entrar.
+  const paraQue = f.paraQueFalta === "REPORTE" ? " para el SENA" : "";
+  return n === 1 ? `Falta 1${paraQue}` : `Faltan ${n}${paraQue}`;
 }
 
 /// Lo que falta, diciendo DE QUIEN es cada cosa.
@@ -414,6 +433,23 @@ export function columnasDeParticipante(): Columna<FilaParticipante>[] {
       filtro: "opciones",
     },
     {
+      /// POR QUÉ FORMULARIO ENTRÓ, que no es lo mismo que por qué
+      /// canal. Va pegada a «Fuente formulario» porque se leen
+      /// juntas: el canal dice cómo llegó y esta, a qué llegó.
+      clave: "formularioDeEntrada",
+      nueva: true,
+      ancho: "190px",
+      titulo: "Formulario",
+      valor: (f) => f.formularioDeEntrada ?? "",
+      pinta: (f) =>
+        f.formularioDeEntrada ? (
+          <span className="block truncate">{f.formularioDeEntrada}</span>
+        ) : (
+          <span className="text-texto-suave">—</span>
+        ),
+      filtro: "opciones",
+    },
+    {
       /// El filtro va por la fuente y no por la campaña: con
       /// cada mailing un nombre nuevo, filtrar por nombre daria
       /// una opcion por envio y ninguna por «Mailing».
@@ -511,6 +547,46 @@ export function columnasDeParticipante(): Columna<FilaParticipante>[] {
       numerica: true,
       valor: (f) => f.cambios,
       filtro: "numero",
+    },
+    {
+      /**
+       * EL NIT DE LA ORGANIZACIÓN.
+       *
+       * Va ANTES que el nombre y que «Datos de empresa» porque es la
+       * llave: es lo que se busca, lo que se pega en el reporte y lo
+       * que distingue a dos colegios que se llaman parecido.
+       */
+      clave: "empresaNit",
+      nueva: true,
+      ancho: "140px",
+      titulo: "NIT empresa",
+      valor: (f) => f.empresaNit ?? "",
+      pinta: (f) =>
+        f.empresaNit ? (
+          <span className="whitespace-nowrap font-mono text-xs">
+            {f.empresaNit}
+          </span>
+        ) : (
+          <span className="text-texto-suave">—</span>
+        ),
+      filtro: "texto",
+    },
+    {
+      /// El nombre, al lado de su NIT. Separados y no en una sola
+      /// celda: se filtran por cosas distintas ---el NIT exacto, el
+      /// nombre por un trozo--- y juntos no se puede.
+      clave: "empresaNombre",
+      nueva: true,
+      ancho: "230px",
+      titulo: "Empresa",
+      valor: (f) => f.empresaNombre ?? "",
+      pinta: (f) =>
+        f.empresaNombre ? (
+          <span className="block truncate">{f.empresaNombre}</span>
+        ) : (
+          <span className="text-texto-suave">—</span>
+        ),
+      filtro: "texto",
     },
     {
       clave: "datosEmpresa",

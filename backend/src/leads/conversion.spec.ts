@@ -31,6 +31,8 @@ type Opciones = {
   lead?: Partial<typeof LEAD> | null;
   hayPolitica?: boolean;
   yaAutorizada?: boolean;
+  /// Ya había revocado: entonces no se escribe ninguna constancia.
+  revocada?: boolean;
 };
 
 function armar(o: Opciones = {}) {
@@ -52,6 +54,29 @@ function armar(o: Opciones = {}) {
       update: () => {
         hecho.push('lead.update');
         return Promise.resolve({ id: 'l1' });
+      },
+      /**
+       * LA ATADURA, QUE AHORA ES CONDICIONAL.
+       *
+       * El lead se ata con `updateMany … where { participanteId: null }`
+       * para que dos conversiones a la vez no se pisen: la segunda no
+       * escribe y se entera. Este doble devuelve `count: 1` ---nadie se
+       * adelantó--- que es el camino normal.
+       *
+       * APLICA EL FILTRO DE VERDAD y no devuelve 1 a ciegas: si el
+       * `where` no trae `participanteId: null`, la condición se perdió
+       * y el doble lo dice fallando. Un doble que contesta que sí a
+       * todo deja pasar justo el fallo que esto evita.
+       */
+      updateMany: ({ where }: { where: Record<string, unknown> }) => {
+        hecho.push('lead.update');
+        if (!('participanteId' in where) || where.participanteId !== null) {
+          throw new Error(
+            'la atadura del lead perdió su condición: sin ' +
+              '`participanteId: null` dos conversiones se pisan',
+          );
+        }
+        return Promise.resolve({ count: 1 });
       },
     },
     /// Las notas del lead que pasan a la ficha.
@@ -86,8 +111,24 @@ function armar(o: Opciones = {}) {
         ),
     },
     autorizacionDatos: {
-      findFirst: () =>
-        Promise.resolve(o.yaAutorizada ? { id: 'a-vieja' } : null),
+      /**
+       * DISTINGUE LAS DOS CONSULTAS, que antes no.
+       *
+       * `dejarConstancia` hace dos: una por la REVOCADA
+       * ---`revocadaEn: { not: null }`--- y otra por la VIVA
+       * ---`revocadaEn: null`---. Este doble devolvía lo mismo a las
+       * dos, así que con `yaAutorizada` daba por revocada a quien solo
+       * tenía una autorización viva. Un doble que responde menos que
+       * la consulta real deja pasar código roto; uno que responde a
+       * todo por igual, rompe código sano.
+       */
+      findFirst: ({ where }: { where: Record<string, unknown> }) => {
+        const pideRevocada =
+          typeof where.revocadaEn === 'object' && where.revocadaEn !== null;
+        if (pideRevocada)
+          return Promise.resolve(o.revocada ? { id: 'a-rev' } : null);
+        return Promise.resolve(o.yaAutorizada ? { id: 'a-vieja' } : null);
+      },
       create: () => {
         hecho.push('autorizacion.create');
         orden.push('AUTORIZACION');

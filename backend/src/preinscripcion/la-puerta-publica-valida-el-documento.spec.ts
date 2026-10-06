@@ -93,7 +93,8 @@ describe('la comprobación está puesta en la puerta pública', () => {
    * teléfono acaba inventándose una explicación para cada uno.
    */
   it('con el mismo mensaje que las otras puertas', () => {
-    const texto = 'El número de documento no tiene un formato válido para ese tipo.';
+    const texto =
+      'El número de documento no tiene un formato válido para ese tipo.';
     expect(fuente()).toContain(texto);
 
     const crm = require('fs').readFileSync(

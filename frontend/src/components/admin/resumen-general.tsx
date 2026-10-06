@@ -96,16 +96,61 @@ const CIFRAS: Array<{
   },
 ];
 
-export function ResumenGeneral({ filtros }: { filtros?: Filtros }) {
+/**
+ * EL PERIODO LLEGA TARDE, Y SIN EL NO SE PREGUNTA.
+ *
+ * «Ayer hago 5 inscripciones y hoy 20, pero me cuentan como si
+ * fueran 25» (cliente, 5 oct 2026).
+ *
+ * La ventana del periodo la resuelve la cabecera y llega por una
+ * respuesta APARTE. En el primer render todavía no está, así que
+ * este bloque preguntaba con `desde` y `hasta` vacíos ---y el
+ * servidor, sin ventana, NO FILTRA NADA---. Resultado: el histórico
+ * completo pintado bajo el rótulo «Hoy». Y permanente si la segunda
+ * petición se pierde, que con el limitador de 60 por minuto pasa.
+ *
+ * `activo` espera a que la ventana exista. Vale `undefined` cuando
+ * de verdad no hay recorte ---la pantalla sin periodo--- y por eso
+ * se mira si la PROPIEDAD está, no si tiene valor.
+ */
+export function ResumenGeneral({
+  filtros,
+  ventanaResuelta = true,
+}: {
+  /// Los cinco filtros Y la ventana: `desde`/`hasta` no están en
+  /// `Filtros` porque ese tipo es el del listado, que no lleva
+  /// periodo.
+  filtros?: Filtros & { desde?: string; hasta?: string };
+  /**
+   * SI LA CABECERA YA RESOLVIO EL PERIODO.
+   *
+   * Falso = todavia no ha contestado, y entonces este bloque NO
+   * pregunta: el servidor, sin ventana, no filtra, y salia el
+   * historico completo bajo el rotulo «Hoy» ---el «25» que reporto
+   * el cliente el 5 oct 2026---.
+   *
+   * Y es «ya contesto», no «hay dos fechas»: con el periodo en
+   * «Desde el principio» la respuesta es que NO hay ventana, y eso
+   * es una respuesta. Mirando las fechas, la pantalla se quedaba en
+   * esqueleto para siempre.
+   */
+  ventanaResuelta?: boolean;
+}) {
   /// La clave lleva los filtros: sin ella, cambiar de departamento
   /// dejaba las barras del corte anterior hasta que volviera la
   /// respuesta, que es el «no concuerda» que el cliente ya señaló
   /// una vez en Tráfico.
   const clave = useMemo(() => JSON.stringify(filtros ?? {}), [filtros]);
   const cargar = useCallback(() => crmApi.resumenGeneral(filtros ?? {}), [clave]); // eslint-disable-line react-hooks/exhaustive-deps
+  const listo = ventanaResuelta;
   const vivos = useDatosVivos<FilaResumenGeneral[]>(cargar, {
     clave: `resumen-general:${clave}`,
+    activo: listo,
   });
+
+  /// Mientras no hay ventana se enseña el esqueleto, no un cero ni
+  /// una cifra vieja: las dos se leen como un dato.
+  if (!listo) return <Esqueleto />;
 
   if (vivos.error) return <Aviso tipo="error">{vivos.error}</Aviso>;
   if (!vivos.datos) return <Esqueleto />;

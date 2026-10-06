@@ -111,6 +111,19 @@ function TarjetaReserva({
 }) {
   const [editando, setEditando] = useState(false);
   const [cantidad, setCantidad] = useState(String(reserva.cuposSolicitados));
+  /**
+   * EL CORREO CON EL QUE SE RESERVÓ.
+   *
+   * No se pide para BUSCAR ---ver los propios cupos no rompe nada---
+   * sino para cambiar o cancelar. El NIT está en el RUES y en
+   * cualquier factura: con él solo, cualquiera podía liberarle los
+   * cupos a otra organización desde aquí, y la lista de espera los
+   * repartía en el acto.
+   *
+   * Va en cada tarjeta y no arriba porque una misma empresa puede
+   * haber reservado con correos distintos en cursos distintos.
+   */
+  const [correo, setCorreo] = useState("");
   const [ocupado, setOcupado] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -121,7 +134,7 @@ function TarjetaReserva({
     setError(null);
     setOcupado(true);
     try {
-      await api.editarReserva(reserva.id, nit, Number(cantidad));
+      await api.editarReserva(reserva.id, nit, correo, Number(cantidad));
       setEditando(false);
       alCambiar();
     } catch (e) {
@@ -144,7 +157,7 @@ function TarjetaReserva({
     setError(null);
     setOcupado(true);
     try {
-      await api.cancelarReserva(reserva.id, nit);
+      await api.cancelarReserva(reserva.id, nit, correo);
       alCambiar();
     } catch (e) {
       setError((e as ErrorApi).message);
@@ -178,6 +191,36 @@ function TarjetaReserva({
         </p>
       )}
 
+      {/* EL CORREO CON EL QUE SE RESERVÓ.
+
+          Va aquí, encima de las dos acciones que escriben, y no en la
+          búsqueda de arriba: mirar los propios cupos no rompe nada y
+          pedirlo para mirar dejaría sin salida a quien lo olvidó.
+
+          El NIT no sirve de contraseña ---está en el RUES y en
+          cualquier factura--- y hasta ahora era lo único que se pedía
+          para cancelar. Los cupos se liberaban, la lista de espera los
+          repartía en el acto y nadie avisaba a quien reservó. */}
+      {!cancelada && (
+        <label className="mt-4 block text-sm">
+          <span className="mb-1 block text-texto-suave">
+            Correo con el que hizo la reserva
+          </span>
+          <input
+            type="email"
+            value={correo}
+            onChange={(e) => setCorreo(e.target.value)}
+            placeholder="compras@sucolegio.edu.co"
+            autoComplete="email"
+            className="w-full max-w-sm rounded-lg border border-campo-borde bg-campo-fondo px-3 py-2 outline-none focus:border-campo-foco focus:ring-2 focus:ring-campo-foco/25"
+          />
+          <span className="mt-1 block text-xs text-texto-suave">
+            Es el correo al que le llegó la confirmación. Hace falta para
+            cambiar o cancelar, no para consultar.
+          </span>
+        </label>
+      )}
+
       {editando ? (
         <div className="mt-4 flex flex-wrap items-center gap-3">
           <input
@@ -189,7 +232,10 @@ function TarjetaReserva({
           />
           <button
             onClick={guardar}
-            disabled={ocupado}
+            /// Sin correo no se puede: el servidor lo rechaza, y
+            /// dejar pulsar para recibir un error es hacerle perder
+            /// el viaje a quien no sabe por qué.
+            disabled={ocupado || !correo.trim()}
             className="rounded-lg bg-marca px-4 py-1.5 text-sm font-medium text-marca-texto transition hover:bg-marca-fuerte disabled:opacity-50"
           >
             Guardar
@@ -214,7 +260,11 @@ function TarjetaReserva({
             >
               Cambiar cantidad de cupos
             </button>
-            <button onClick={cancelar} disabled={ocupado} className="text-error underline">
+            <button
+              onClick={cancelar}
+              disabled={ocupado || !correo.trim()}
+              className="text-error underline disabled:opacity-50 disabled:no-underline"
+            >
               Cancelar la reserva
             </button>
           </div>

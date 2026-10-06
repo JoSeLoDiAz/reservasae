@@ -15,7 +15,10 @@ import {
 const contexto = (peticion: unknown) =>
   ({ switchToHttp: () => ({ getRequest: () => peticion }) }) as never;
 
-function conRoles(rol: string, roles: Record<string, string[]>): PeticionConAdmin {
+function conRoles(
+  rol: string,
+  roles: Record<string, string[]>,
+): PeticionConAdmin {
   return {
     admin: { rol },
     ambito: { roles },
@@ -27,24 +30,24 @@ describe('quién asigna grupo', () => {
     it('el asesor de inscripciones NO puede', () => {
       const peticion = conRoles('GESTOR', { ade: ['GESTOR_INSCRIPCION'] });
       expect(puedeAsignarGrupo(peticion)).toBe(false);
-      expect(() => new AsignaGrupoGuard().canActivate(contexto(peticion))).toThrow(
-        MENSAJE_SOLO_ANALISTA,
-      );
+      expect(() =>
+        new AsignaGrupoGuard().canActivate(contexto(peticion)),
+      ).toThrow(MENSAJE_SOLO_ANALISTA);
     });
 
     /// El líder de inscripciones tampoco: el cliente nombró «líder de
     /// sistemas y los admin», y ampliarlo por nuestra cuenta sería
     /// abrir una puerta que nadie pidió.
     it('el líder de inscripciones tampoco', () => {
-      expect(puedeAsignarGrupo(conRoles('GESTOR', { ade: ['LIDER_INSCRIPCION'] }))).toBe(
-        false,
-      );
+      expect(
+        puedeAsignarGrupo(conRoles('GESTOR', { ade: ['LIDER_INSCRIPCION'] })),
+      ).toBe(false);
     });
 
     it('el líder de sistemas sí', () => {
-      expect(puedeAsignarGrupo(conRoles('GESTOR', { ade: [ROL_QUE_ASIGNA_GRUPO] }))).toBe(
-        true,
-      );
+      expect(
+        puedeAsignarGrupo(conRoles('GESTOR', { ade: [ROL_QUE_ASIGNA_GRUPO] })),
+      ).toBe(true);
     });
 
     it('un superadministrador sí, aunque no lleve el rol en ningún convenio', () => {
@@ -118,7 +121,10 @@ describe('quién asigna grupo', () => {
 
     it('con la concesión de líder de sistemas, pasa', async () => {
       await expect(
-        exigirQuienAsignaGrupo(prismaCon({ id: 'c1' }), { id: 'a2', rol: 'GESTOR' }),
+        exigirQuienAsignaGrupo(prismaCon({ id: 'c1' }), {
+          id: 'a2',
+          rol: 'GESTOR',
+        }),
       ).resolves.toBeUndefined();
     });
 
@@ -153,7 +159,11 @@ describe('quién asigna grupo', () => {
      */
     it('la consulta filtra también por el convenio de la ficha', async () => {
       const prisma = prismaCon({ id: 'c1' });
-      await exigirQuienAsignaGrupo(prisma, { id: 'a5', rol: 'GESTOR' }, 'cv-britcham');
+      await exigirQuienAsignaGrupo(
+        prisma,
+        { id: 'a5', rol: 'GESTOR' },
+        'cv-britcham',
+      );
       expect(prisma.adminConvenio.findFirst).toHaveBeenCalledWith(
         expect.objectContaining({
           where: {

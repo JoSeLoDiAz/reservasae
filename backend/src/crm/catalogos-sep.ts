@@ -15,7 +15,8 @@ import {
 
 export * from './catalogos-sep.generado';
 
-const porId = <T extends ValorSep>(lista: T[]) => new Map(lista.map((v) => [v.id, v]));
+const porId = <T extends ValorSep>(lista: T[]) =>
+  new Map(lista.map((v) => [v.id, v]));
 
 export const TIPO_DOCUMENTO_POR_ID = porId(TIPOS_DOCUMENTO_SEP);
 export const GENERO_POR_ID = porId(GENEROS_SEP);
@@ -40,7 +41,9 @@ export const DOCUMENTOS_DE_PERSONA = TIPOS_DOCUMENTO_SEP.filter(
 );
 
 /** Los que puede llevar la empresa donde labora. */
-export const DOCUMENTOS_DE_EMPRESA = TIPOS_DOCUMENTO_SEP.filter((t) => t.empresa);
+export const DOCUMENTOS_DE_EMPRESA = TIPOS_DOCUMENTO_SEP.filter(
+  (t) => t.empresa,
+);
 
 /**
  * Los seis que se le ensenan a quien se inscribe.
@@ -62,8 +65,8 @@ const ORDEN_DEL_FORMULARIO = [
   5, // Otro
 ];
 
-export const DOCUMENTOS_DEL_FORMULARIO = ORDEN_DEL_FORMULARIO.map(
-  (id) => TIPOS_DOCUMENTO_SEP.find((t) => t.id === id)!,
+export const DOCUMENTOS_DEL_FORMULARIO = ORDEN_DEL_FORMULARIO.map((id) =>
+  TIPOS_DOCUMENTO_SEP.find((t) => t.id === id)!,
 ).filter(Boolean);
 
 /// La cedula es numerica y de diez digitos como maximo.
@@ -159,7 +162,8 @@ export const EDAD_MINIMA = 18;
 export function edadCumplida(nacimiento: Date, ahora = new Date()): number {
   let edad = ahora.getUTCFullYear() - nacimiento.getUTCFullYear();
   const mes = ahora.getUTCMonth() - nacimiento.getUTCMonth();
-  if (mes < 0 || (mes === 0 && ahora.getUTCDate() < nacimiento.getUTCDate())) edad -= 1;
+  if (mes < 0 || (mes === 0 && ahora.getUTCDate() < nacimiento.getUTCDate()))
+    edad -= 1;
   return edad;
 }
 
@@ -204,7 +208,11 @@ export const CARACTERIZACION_NINGUNA = 35;
  * victimizante.
  */
 export const GRUPOS_DE_CARACTERIZACION = [
-  { clave: 'ETNIA', etiqueta: 'Pertenencia étnica', ids: [20, 24, 30, 32, 33, 34, 61] },
+  {
+    clave: 'ETNIA',
+    etiqueta: 'Pertenencia étnica',
+    ids: [20, 24, 30, 32, 33, 34, 61],
+  },
   {
     clave: 'DISCAPACIDAD',
     etiqueta: 'Discapacidad',
@@ -242,7 +250,9 @@ export const GRUPO_DE_RESERVA = 'OTRAS';
 export type ClaveDeGrupo = (typeof GRUPOS_DE_CARACTERIZACION)[number]['clave'];
 
 const GRUPO_POR_CARACTERIZACION = new Map<number, ClaveDeGrupo>(
-  GRUPOS_DE_CARACTERIZACION.flatMap((g) => g.ids.map((id) => [id, g.clave] as const)),
+  GRUPOS_DE_CARACTERIZACION.flatMap((g) =>
+    g.ids.map((id) => [id, g.clave] as const),
+  ),
 );
 
 /**
@@ -266,7 +276,10 @@ export const ESTRATO_MAXIMO = 6;
 // validación
 
 /** Que el id exista en el catálogo. Nulo se admite. */
-export function esValorValido(lista: ValorSep[], id: number | null | undefined): boolean {
+export function esValorValido(
+  lista: ValorSep[],
+  id: number | null | undefined,
+): boolean {
   if (id === null || id === undefined) return true;
   return lista.some((v) => v.id === id);
 }
@@ -309,7 +322,10 @@ export type IdsDePersona = {
  */
 export function motivoDeIdInvalido(
   dto: IdsDePersona,
-  guardado?: { departamentoSepId?: number | null; municipioSepId?: number | null },
+  guardado?: {
+    departamentoSepId?: number | null;
+    municipioSepId?: number | null;
+  },
 ): string | null {
   for (const [lista, valor, que] of [
     [GENEROS_SEP, dto.generoSepId, 'género'],
@@ -344,7 +360,9 @@ export function motivoDeIdInvalido(
       ? dto.departamentoSepId
       : guardado?.departamentoSepId;
   const municipio =
-    dto.municipioSepId !== undefined ? dto.municipioSepId : guardado?.municipioSepId;
+    dto.municipioSepId !== undefined
+      ? dto.municipioSepId
+      : guardado?.municipioSepId;
   if (!municipioCuadra(departamento, municipio)) {
     return dto.municipioSepId === undefined
       ? 'El municipio que ya tiene no es de ese departamento. Cambie también el municipio.'
@@ -356,8 +374,8 @@ export function motivoDeIdInvalido(
 
 /** Los de un departamento, en orden alfabético. */
 export function municipiosDe(departamentoId: number): MunicipioSep[] {
-  return MUNICIPIOS_SEP.filter((m) => m[1] === departamentoId && m[3]).sort((a, b) =>
-    a[2].localeCompare(b[2], 'es'),
+  return MUNICIPIOS_SEP.filter((m) => m[1] === departamentoId && m[3]).sort(
+    (a, b) => a[2].localeCompare(b[2], 'es'),
   );
 }
 
@@ -429,11 +447,19 @@ export function tallaDeOrganizacion(empresa: {
   /// El id del SEP manda cuando esta: es el que el cliente
   /// declaro y el que viaja en el reporte, asi que la pantalla
   /// tiene que contar lo mismo que el archivo.
-  const delSep = empresa.tamanoSepId ? TALLA_POR_ID.get(empresa.tamanoSepId) : undefined;
+  const delSep = empresa.tamanoSepId
+    ? TALLA_POR_ID.get(empresa.tamanoSepId)
+    : undefined;
   if (delSep) return { talla: delSep, origen: 'DECRETO_957' };
 
-  if (empresa.numeroColaboradores !== null && empresa.numeroColaboradores !== undefined) {
-    return { talla: porEmpleados(empresa.numeroColaboradores), origen: 'EMPLEADOS' };
+  if (
+    empresa.numeroColaboradores !== null &&
+    empresa.numeroColaboradores !== undefined
+  ) {
+    return {
+      talla: porEmpleados(empresa.numeroColaboradores),
+      origen: 'EMPLEADOS',
+    };
   }
 
   return { talla: null, origen: 'SIN_DATO' };

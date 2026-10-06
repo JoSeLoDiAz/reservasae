@@ -70,7 +70,7 @@ function servicio() {
     dobleDeEmbudo(),
     dobleDeColaDeCorreo(),
     dobleDeEnlace('NO-SALE'),
-  
+
     { avisar: () => Promise.resolve() } as never,
   );
   return { s, prisma };

@@ -19,7 +19,11 @@ import { entraAlDirectorio } from './entra-al-directorio';
 describe('lo que se apunta en el directorio', () => {
   it('una organización con NIT y nombre, sí', () => {
     expect(
-      entraAlDirectorio({ nit: '860507033', razonSocial: 'Vise LTDA', esRutPropio: false }),
+      entraAlDirectorio({
+        nit: '860507033',
+        razonSocial: 'Vise LTDA',
+        esRutPropio: false,
+      }),
     ).toBe(true);
   });
 
@@ -28,16 +32,28 @@ describe('lo que se apunta en el directorio', () => {
     /// NIT?». Una fila sin nombre no responde nada y ensucia
     /// las búsquedas de todos los gremios.
     expect(
-      entraAlDirectorio({ nit: '860507033', razonSocial: '', esRutPropio: false }),
+      entraAlDirectorio({
+        nit: '860507033',
+        razonSocial: '',
+        esRutPropio: false,
+      }),
     ).toBe(false);
     expect(
-      entraAlDirectorio({ nit: '860507033', razonSocial: '   ', esRutPropio: false }),
+      entraAlDirectorio({
+        nit: '860507033',
+        razonSocial: '   ',
+        esRutPropio: false,
+      }),
     ).toBe(false);
   });
 
   it('sin NIT, no hay nada que apuntar', () => {
     expect(
-      entraAlDirectorio({ nit: '', razonSocial: 'Vise LTDA', esRutPropio: false }),
+      entraAlDirectorio({
+        nit: '',
+        razonSocial: 'Vise LTDA',
+        esRutPropio: false,
+      }),
     ).toBe(false);
   });
 });
@@ -75,13 +91,25 @@ describe('el independiente con RUT entra, como cualquier otra', () => {
     /// Ser independiente no lo exime: sin nombre o sin número no hay
     /// qué apuntar, igual que para una empresa.
     expect(
-      entraAlDirectorio({ nit: '52123456', razonSocial: '', esRutPropio: true }),
+      entraAlDirectorio({
+        nit: '52123456',
+        razonSocial: '',
+        esRutPropio: true,
+      }),
     ).toBe(false);
     expect(
-      entraAlDirectorio({ nit: '', razonSocial: 'Ana Gómez', esRutPropio: true }),
+      entraAlDirectorio({
+        nit: '',
+        razonSocial: 'Ana Gómez',
+        esRutPropio: true,
+      }),
     ).toBe(false);
     expect(
-      entraAlDirectorio({ nit: '52123456', razonSocial: 'Ana Gómez', esRutPropio: true }),
+      entraAlDirectorio({
+        nit: '52123456',
+        razonSocial: 'Ana Gómez',
+        esRutPropio: true,
+      }),
     ).toBe(true);
   });
 });

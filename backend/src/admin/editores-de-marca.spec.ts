@@ -18,10 +18,9 @@ import {
 
 describe('la lista de editores de marca', () => {
   it('lee correos separados por comas, sin espacios y en minúsculas', () => {
-    expect(editoresDeMarca(' Jose@Grupo-AE.com.co , diana@grupo-ae.com.co,,')).toEqual([
-      'jose@grupo-ae.com.co',
-      'diana@grupo-ae.com.co',
-    ]);
+    expect(
+      editoresDeMarca(' Jose@Grupo-AE.com.co , diana@grupo-ae.com.co,,'),
+    ).toEqual(['jose@grupo-ae.com.co', 'diana@grupo-ae.com.co']);
   });
 
   it('sin lista, nadie', () => {
@@ -53,22 +52,32 @@ describe('la cerradura', () => {
 
   it('deja pasar a quien está en la lista', () => {
     process.env.EDITORES_DE_MARCA = 'diana@grupo-ae.com.co';
-    expect(guardia.canActivate(conCuenta({ correo: 'diana@grupo-ae.com.co', rol: 'ADMIN' }))).toBe(true);
+    expect(
+      guardia.canActivate(
+        conCuenta({ correo: 'diana@grupo-ae.com.co', rol: 'ADMIN' }),
+      ),
+    ).toBe(true);
   });
 
   it('un superadministrador que no está, no pasa', () => {
     process.env.EDITORES_DE_MARCA = 'diana@grupo-ae.com.co';
     expect(() =>
-      guardia.canActivate(conCuenta({ correo: 'proyectos@grupo-ae.com.co', rol: 'SUPERADMIN' })),
+      guardia.canActivate(
+        conCuenta({ correo: 'proyectos@grupo-ae.com.co', rol: 'SUPERADMIN' }),
+      ),
     ).toThrow(ForbiddenException);
   });
 
   it('sin la variable, no pasa nadie', () => {
     delete process.env.EDITORES_DE_MARCA;
     expect(() =>
-      guardia.canActivate(conCuenta({ correo: 'diana@grupo-ae.com.co', rol: 'SUPERADMIN' })),
+      guardia.canActivate(
+        conCuenta({ correo: 'diana@grupo-ae.com.co', rol: 'SUPERADMIN' }),
+      ),
     ).toThrow(ForbiddenException);
-    expect(() => guardia.canActivate(conCuenta(undefined))).toThrow(ForbiddenException);
+    expect(() => guardia.canActivate(conCuenta(undefined))).toThrow(
+      ForbiddenException,
+    );
   });
 });
 
@@ -89,25 +98,36 @@ describe('qué rutas cierra', () => {
   /// Y lo que no: los colores propios los cambia cualquiera.
   const ABIERTAS = ['miTema', 'guardarMiTema', 'restablecerMiTema'];
 
-  const guardias = (metodo: string, clase: object = AdminController.prototype) =>
-    ((Reflect.getMetadata('__guards__', (clase as Record<string, object>)[metodo]) ??
-      []) as Array<{ name?: string }>).map((g) => g?.name);
+  const guardias = (
+    metodo: string,
+    clase: object = AdminController.prototype,
+  ) =>
+    (
+      (Reflect.getMetadata(
+        '__guards__',
+        (clase as Record<string, object>)[metodo],
+      ) ?? []) as Array<{ name?: string }>
+    ).map((g) => g?.name);
 
   it.each(CERRADAS)('%s pide ser editor de marca', (metodo) => {
     expect(guardias(metodo)).toContain('EditoresDeMarcaGuard');
   });
 
   it('los colores del formulario de un gremio, también', () => {
-    expect(guardias('actualizarApariencia', FormulariosAdminController.prototype)).toContain(
-      'EditoresDeMarcaGuard',
-    );
+    expect(
+      guardias('actualizarApariencia', FormulariosAdminController.prototype),
+    ).toContain('EditoresDeMarcaGuard');
     /// Y sin rol: un superadministrador que no está no pasa, y quien
     /// está no necesita serlo.
     expect(
       Reflect.getMetadata(
         ROLES,
-        (FormulariosAdminController.prototype as unknown as Record<string, object>)
-          .actualizarApariencia,
+        (
+          FormulariosAdminController.prototype as unknown as Record<
+            string,
+            object
+          >
+        ).actualizarApariencia,
       ),
     ).toEqual([]);
   });

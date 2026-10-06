@@ -107,12 +107,12 @@ function servicio(conPolitica = true) {
     auditoria as never,
     correo as never,
     { agregarManual: () => Promise.resolve(null) } as never,
-      dobleDeEmbudo(),
+    dobleDeEmbudo(),
     dobleDeColaDeCorreo(),
     /// Con el token centinela: el spec comprueba que sale
     /// para una cedula nueva y que NO sale para una ajena.
     dobleDeEnlace('ESTE-TOKEN-NO-PUEDE-SALIR'),
-  
+
     { avisar: () => Promise.resolve() } as never,
   );
   return { s, prisma };
@@ -207,13 +207,13 @@ describe('el enlace no se le entrega a quien solo sabe una cédula', () => {
       cola as never,
       auditoria as never,
       correo as never,
-    { agregarManual: () => Promise.resolve(null) } as never,
+      { agregarManual: () => Promise.resolve(null) } as never,
       dobleDeEmbudo(),
-    dobleDeColaDeCorreo(),
-    /// Con el token centinela: el spec comprueba que sale
-    /// para una cedula nueva y que NO sale para una ajena.
-    dobleDeEnlace('ESTE-TOKEN-NO-PUEDE-SALIR'),
-    
+      dobleDeColaDeCorreo(),
+      /// Con el token centinela: el spec comprueba que sale
+      /// para una cedula nueva y que NO sale para una ajena.
+      dobleDeEnlace('ESTE-TOKEN-NO-PUEDE-SALIR'),
+
       { avisar: () => Promise.resolve() } as never,
     );
 
@@ -248,13 +248,13 @@ describe('el enlace no se le entrega a quien solo sabe una cédula', () => {
       { encolarSiHaceFalta: () => Promise.resolve() } as never,
       { registrar: () => Promise.resolve() } as never,
       { enviar: () => Promise.resolve({ estado: 'ENVIADO' }) } as never,
-        { agregarManual: () => Promise.resolve(null) } as never,
+      { agregarManual: () => Promise.resolve(null) } as never,
       dobleDeEmbudo(),
-    dobleDeColaDeCorreo(),
-    /// Con el token centinela: el spec comprueba que sale
-    /// para una cedula nueva y que NO sale para una ajena.
-    dobleDeEnlace('ESTE-TOKEN-NO-PUEDE-SALIR'),
-    
+      dobleDeColaDeCorreo(),
+      /// Con el token centinela: el spec comprueba que sale
+      /// para una cedula nueva y que NO sale para una ajena.
+      dobleDeEnlace('ESTE-TOKEN-NO-PUEDE-SALIR'),
+
       { avisar: () => Promise.resolve() } as never,
     );
 
@@ -304,13 +304,13 @@ describe('la misma cédula que vuelve con otro correo', () => {
       { encolarSiHaceFalta: () => Promise.resolve() } as never,
       { registrar: () => Promise.resolve() } as never,
       { enviar: () => Promise.resolve({ estado: 'ENVIADO' }) } as never,
-        { agregarManual: () => Promise.resolve(null) } as never,
+      { agregarManual: () => Promise.resolve(null) } as never,
       dobleDeEmbudo(),
-    dobleDeColaDeCorreo(),
-    /// Con el token centinela: el spec comprueba que sale
-    /// para una cedula nueva y que NO sale para una ajena.
-    dobleDeEnlace('ESTE-TOKEN-NO-PUEDE-SALIR'),
-    
+      dobleDeColaDeCorreo(),
+      /// Con el token centinela: el spec comprueba que sale
+      /// para una cedula nueva y que NO sale para una ajena.
+      dobleDeEnlace('ESTE-TOKEN-NO-PUEDE-SALIR'),
+
       { avisar: () => Promise.resolve() } as never,
     );
     return { s, prisma };

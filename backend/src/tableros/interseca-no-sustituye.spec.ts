@@ -53,7 +53,11 @@ function restringeDeVerdad(where: unknown, ambito: string[]): boolean {
     // `convenioId: { in: [...] }` es la hoja que buscamos
     if (clave === 'convenioId' && esElAmbito(valor, ambito)) return true;
 
-    if (valor && typeof valor === 'object' && restringeDeVerdad(valor, ambito)) {
+    if (
+      valor &&
+      typeof valor === 'object' &&
+      restringeDeVerdad(valor, ambito)
+    ) {
       return true;
     }
   }
@@ -93,14 +97,19 @@ describe('el ayudante del propio test distingue dónde filtra', () => {
   /// exactamente el defecto de la primera versión.
   it('en la raíz, sí', () => {
     expect(
-      restringeDeVerdad({ accionFormacion: { convenioId: { in: AMBITO } } }, AMBITO),
+      restringeDeVerdad(
+        { accionFormacion: { convenioId: { in: AMBITO } } },
+        AMBITO,
+      ),
     ).toBe(true);
   });
 
   it('dentro de un AND, sí', () => {
     expect(
       restringeDeVerdad(
-        { AND: [{ accionFormacion: { convenioId: { in: AMBITO } } }, { x: 1 }] },
+        {
+          AND: [{ accionFormacion: { convenioId: { in: AMBITO } } }, { x: 1 }],
+        },
         AMBITO,
       ),
     ).toBe(true);

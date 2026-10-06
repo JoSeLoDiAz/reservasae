@@ -183,9 +183,23 @@ function ListaDeContacto({
  */
 function Celda({ celda }: { celda: CeldaReserva | undefined }) {
   if (!celda) {
-    /// Ni un hueco en blanco ni un cero: no reservó esta acción, y un
-    /// cero se lee como «reservó y le dieron ninguno».
-    return <span className="text-texto-suave">·</span>;
+    /**
+     * EN BLANCO, NO UN PUNTO.
+     *
+     * «Usa o ceros o vacíos en AF1 AF2 AF3 AF4 AF5 AF6 AF7, o sea el
+     * detalle» (cliente, 2 oct 2026). La fila traía TRES símbolos
+     * ---`7`, `0` y `·`--- y de un vistazo no se sabía que el punto
+     * y el cero querían decir cosas distintas: parecía suciedad.
+     *
+     * La distinción se queda, porque es verdad y porque sin ella se
+     * pierde: `0` es «reservó esta acción y no tiene cupos
+     * confirmados» y el blanco es «no reservó esta acción». Lo que
+     * se va es el punto, que no era ninguna de las dos cosas.
+     *
+     * `valor` sigue devolviendo `null` aquí, no cero: al ordenar,
+     * quien no reservó no se mezcla entre los que reservaron cero.
+     */
+    return null;
   }
 
   const cancelada = celda.estado === "CANCELADA";
@@ -744,6 +758,17 @@ export function ReservasUnificadas({
   const cuposEnEspera = cargadas.reduce((t, f) => t + f.cuposEnEspera, 0);
   const reservas = cargadas.reduce((t, f) => t + f.totalReservas, 0);
   const canceladas = cargadas.reduce((t, f) => t + f.reservasCanceladas, 0);
+  /// LOS INSCRITOS, SUMADOS. «Falta también la tarjeta de Total
+  /// Inscritos» (cliente, 2 oct 2026): la columna «Cuantos
+  /// inscritos» estaba en la tabla desde el principio, pero para
+  /// saber cuántos van en total había que sumar a mano quince
+  /// filas ---y con la tabla paginada, ni eso---.
+  ///
+  /// Por `leadsDe` y no por `f.leads` directo: un backend anterior
+  /// a `CifrasDeLeads` no manda el bloque, y leerle un campo a
+  /// `undefined` tumba la pantalla entera. La misma razón por la
+  /// que lo usa la columna.
+  const inscritos = cargadas.reduce((t, f) => t + leadsDe(f).inscritos, 0);
   /// Cuántas reservas están esperando, para el pie de su tarjeta. Se
   /// cuentan reservas y no filas: una organización puede tener una
   /// acción confirmada y otra en espera.
@@ -794,11 +819,30 @@ export function ReservasUnificadas({
             }
           />
           <Cifra etiqueta="Reservas" valor={reservas} pie="repartidas entre ellas" />
+          {/* «Cupos apartados pasa a ser: cupos reservados»
+              (cliente, 2 oct 2026). La pantalla se llama «Gestión y
+              seguimiento de RESERVAS» y el botón público dice
+              «reservar»: «apartados» era vocabulario de dentro. */}
           <Cifra
-            etiqueta="Cupos apartados"
+            etiqueta="Cupos reservados"
             valor={cuposApartados}
             pie="en reservas confirmadas"
             color={cuposApartados > 0 ? "var(--exito)" : undefined}
+          />
+          <Cifra
+            etiqueta="Total inscritos"
+            valor={inscritos}
+            /// CUPOS RESERVADOS NO SON INSCRITOS, y es la
+            /// confusión que esta pantalla arrastra: la
+            /// organización aparta 40 cupos y lleva 3 personas.
+            /// El pie lo dice para que las dos tarjetas vecinas no
+            /// se lean como la misma cifra contada dos veces.
+            pie={
+              cuposApartados > 0
+                ? `de ${cuposApartados} cupos reservados`
+                : "nadie inscrito todavía"
+            }
+            color={inscritos > 0 ? "var(--exito)" : undefined}
           />
           <Cifra
             etiqueta="Cupos en espera"
@@ -827,7 +871,7 @@ export function ReservasUnificadas({
       {datos?.truncado && (
         <Aviso tipo="error">
           Hay más organizaciones de las que caben en esta vista. Se están enseñando las{" "}
-          {cargadas.length} con más cupos apartados; para verlas todas, use el listado por
+          {cargadas.length} con más cupos reservados; para verlas todas, use el listado por
           reserva o la descarga en Excel.
         </Aviso>
       )}

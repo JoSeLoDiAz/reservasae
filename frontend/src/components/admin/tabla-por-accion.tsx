@@ -86,6 +86,7 @@ const tasa = (v: number | null) => (v === null ? "—" : `${Math.round(v * 100)}
 export function TablaPorAccion({
   alElegir,
   elegida,
+  ventanaResuelta = true,
   recorte,
   recorteAnterior,
   rotuloAnterior,
@@ -104,6 +105,20 @@ export function TablaPorAccion({
    * Nulo = no hay comparación puesta, y la tabla sale como siempre.
    */
   recorteAnterior?: Record<string, unknown> | null;
+  /**
+   * SI LA CABECERA YA RESOLVIO EL PERIODO.
+   *
+   * Falso = todavia no ha contestado, y entonces este bloque NO
+   * pregunta: el servidor, sin ventana, no filtra, y salia el
+   * historico completo bajo el rotulo «Hoy» ---el «25» que reporto
+   * el cliente el 5 oct 2026---.
+   *
+   * Y es «ya contesto», no «hay dos fechas»: con el periodo en
+   * «Desde el principio» la respuesta es que NO hay ventana, y eso
+   * es una respuesta. Mirando las fechas, la pantalla se quedaba en
+   * esqueleto para siempre.
+   */
+  ventanaResuelta?: boolean;
   /// Cómo se llama ese periodo, para poder decirlo en la cabecera.
   rotuloAnterior?: string | null;
   /// La pantalla la usa para abrir el detalle por grupos: la fila
@@ -128,9 +143,10 @@ export function TablaPorAccion({
     },
     [clave, claveAntes], // eslint-disable-line react-hooks/exhaustive-deps
   );
+  const listo = ventanaResuelta;
   const vivos = useDatosVivos<{ ahora: FilaDeAccion[]; antes: FilaDeAccion[] | null }>(
     cargar,
-    { clave: `resumen-por-accion:${clave}:${claveAntes}` },
+    { clave: `resumen-por-accion:${clave}:${claveAntes}`, activo: listo },
   );
 
   if (vivos.error) return <Aviso tipo="error">{vivos.error}</Aviso>;

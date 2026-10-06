@@ -65,7 +65,13 @@ describe('se cuenta a quien RETIENE el asiento, no a quien ocupa silla', () => {
   });
 
   it('quien salió NO retiene: su asiento se liberó', () => {
-    for (const e of ['RETIRADO', 'DESERTO', 'ABANDONO', 'NO_APROBO', 'PERDIDO'] as const) {
+    for (const e of [
+      'RETIRADO',
+      'DESERTO',
+      'ABANDONO',
+      'NO_APROBO',
+      'PERDIDO',
+    ] as const) {
       expect(RETIENEN_ASIENTO).not.toContain(e);
     }
   });

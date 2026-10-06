@@ -41,7 +41,9 @@ function comoLlega(celular?: unknown): CrearReservaDto {
 }
 
 function fallaEnCelular(celular: unknown): boolean {
-  return validateSync(comoLlega(celular)).some((e) => e.property === 'contactoCelular');
+  return validateSync(comoLlega(celular)).some(
+    (e) => e.property === 'contactoCelular',
+  );
 }
 
 describe('el celular de la reserva', () => {

@@ -8,7 +8,11 @@
  */
 
 import { diaBogotaHace } from '../comun/dia-bogota';
-import { calcularProyeccion, cierreDeLaAccion, type PuntoNeto } from './proyeccion';
+import {
+  calcularProyeccion,
+  cierreDeLaAccion,
+  type PuntoNeto,
+} from './proyeccion';
 
 /// Mediodia de Bogota, igual que en `proyeccion.spec.ts`.
 const HOY = new Date('2026-08-10T17:00:00.000Z');

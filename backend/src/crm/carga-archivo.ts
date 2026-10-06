@@ -53,11 +53,7 @@ export const ROTULOS_DE_ORGANIZACION = [
 /// Sin tildes ni mayúsculas, para casar el rótulo aunque lo hayan
 /// reescrito a mano.
 function llano(s: string): string {
-  return s
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .toLowerCase()
-    .trim();
+  return s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
 }
 
 /**
@@ -76,7 +72,9 @@ export async function organizacionDelArchivo(
   if (!/\.xlsx$/i.test(nombre)) return null;
   const libro = new ExcelJS.Workbook();
   await libro.xlsx.load(datos as unknown as ExcelJS.Buffer);
-  const hoja = libro.worksheets.find((h) => ES_HOJA_DE_ORGANIZACION.test(h.name));
+  const hoja = libro.worksheets.find((h) =>
+    ES_HOJA_DE_ORGANIZACION.test(h.name),
+  );
   if (!hoja) return null;
 
   const leida: OrganizacionCruda = {};
@@ -85,18 +83,28 @@ export async function organizacionDelArchivo(
     const valor = textoDeCelda(fila.getCell(2).value);
     if (!rotulo || !valor) return;
     if (rotulo === 'nit' || rotulo.startsWith('nit ')) leida.nit = valor;
-    else if (rotulo.includes('razon social') || rotulo === 'nombre' || rotulo.includes('nombre de la organizacion')) {
+    else if (
+      rotulo.includes('razon social') ||
+      rotulo === 'nombre' ||
+      rotulo.includes('nombre de la organizacion')
+    ) {
       leida.razonSocial = valor;
-    } else if (rotulo.includes('jefe') && rotulo.includes('nombre')) leida.jefeNombre = valor;
-    else if (rotulo.includes('jefe') && rotulo.includes('cargo')) leida.jefeCargo = valor;
-    else if (rotulo.includes('jefe') && rotulo.includes('correo')) leida.jefeCorreo = valor;
+    } else if (rotulo.includes('jefe') && rotulo.includes('nombre'))
+      leida.jefeNombre = valor;
+    else if (rotulo.includes('jefe') && rotulo.includes('cargo'))
+      leida.jefeCargo = valor;
+    else if (rotulo.includes('jefe') && rotulo.includes('correo'))
+      leida.jefeCorreo = valor;
   });
 
   return Object.values(leida).some(Boolean) ? leida : null;
 }
 
 /** Un .xlsx o un .csv, vuelto el texto que se pegaria a mano. */
-export async function textoDelArchivo(datos: Buffer, nombre: string): Promise<string> {
+export async function textoDelArchivo(
+  datos: Buffer,
+  nombre: string,
+): Promise<string> {
   const libro = new ExcelJS.Workbook();
   if (/\.csv$/i.test(nombre)) {
     // la marca de orden de Excel la quita exceljs: se probo
@@ -110,7 +118,9 @@ export async function textoDelArchivo(datos: Buffer, nombre: string): Promise<st
   /// La plantilla trae «Organización» de segunda, pero quien reordena
   /// las pestañas en Excel no puede acabar importando el NIT y el
   /// jefe como si fueran personas.
-  const hoja = libro.worksheets.find((h) => !ES_HOJA_DE_ORGANIZACION.test(h.name));
+  const hoja = libro.worksheets.find(
+    (h) => !ES_HOJA_DE_ORGANIZACION.test(h.name),
+  );
   if (!hoja) return '';
 
   const lineas: string[] = [];

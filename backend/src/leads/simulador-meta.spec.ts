@@ -63,16 +63,16 @@ describe('varios en un mismo POST, que es como agrupa Meta', () => {
 describe('la firma, que es lo que de verdad se esta probando', () => {
   it('nuestro verificador la acepta', () => {
     const s = simularAviso({ cuantos: 1, ahora: AHORA }, SECRETO)!;
-    expect(
-      firmaDeMeta(Buffer.from(s.cuerpo, 'utf8'), s.firma, SECRETO),
-    ).toBe(true);
+    expect(firmaDeMeta(Buffer.from(s.cuerpo, 'utf8'), s.firma, SECRETO)).toBe(
+      true,
+    );
   });
 
   it('con otro secreto NO', () => {
     const s = simularAviso({ cuantos: 1, ahora: AHORA }, SECRETO)!;
-    expect(
-      firmaDeMeta(Buffer.from(s.cuerpo, 'utf8'), s.firma, 'otro'),
-    ).toBe(false);
+    expect(firmaDeMeta(Buffer.from(s.cuerpo, 'utf8'), s.firma, 'otro')).toBe(
+      false,
+    );
   });
 
   it('si se toca un byte del cuerpo, deja de valer', () => {

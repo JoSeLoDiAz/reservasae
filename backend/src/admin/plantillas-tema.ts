@@ -92,7 +92,8 @@ export const PLANTILLAS: PlantillaTema[] = [
   {
     clave: 'ambar',
     nombre: 'Ámbar',
-    descripcion: 'Cálido y visible. Sale bastante oscuro: es lo que exige el contraste.',
+    descripcion:
+      'Cálido y visible. Sale bastante oscuro: es lo que exige el contraste.',
     principal: '#b45309',
     encabezadoDeColor: false,
   },
@@ -113,7 +114,8 @@ export const PLANTILLAS: PlantillaTema[] = [
   {
     clave: 'carbon',
     nombre: 'Carbón',
-    descripcion: 'Barra gris pizarra y acentos azulados. El más neutro de todos.',
+    descripcion:
+      'Barra gris pizarra y acentos azulados. El más neutro de todos.',
     principal: '#334155',
     encabezadoDeColor: true,
   },
@@ -127,7 +129,8 @@ export const PLANTILLAS: PlantillaTema[] = [
   {
     clave: 'papel',
     nombre: 'Papel',
-    descripcion: 'Fondo hueso y tinta azul oscura. Cansa menos en jornadas largas.',
+    descripcion:
+      'Fondo hueso y tinta azul oscura. Cansa menos en jornadas largas.',
     principal: '#1e2a3e',
     encabezadoDeColor: false,
     // los neutros derivados salen blancos: aqui el

@@ -84,16 +84,22 @@ export class AQuienSeParece {
     /// Todo lo que hay que buscar, de una vez.
     const correos = new Set<string>();
     const celulares = new Set<string>();
-    const docs: Array<{ tipoDocumentoSepId: number; numeroDocumento: string }> = [];
+    const docs: Array<{ tipoDocumentoSepId: number; numeroDocumento: string }> =
+      [];
 
     for (const l of leads) {
       const c = (l.correo ?? '').trim().toLowerCase();
       if (c) correos.add(c);
       const cel = l.celular ? normalizarCelular(l.celular) : '';
       if (cel) celulares.add(cel);
-      const num = l.numeroDocumento ? normalizarDocumento(l.numeroDocumento) : null;
+      const num = l.numeroDocumento
+        ? normalizarDocumento(l.numeroDocumento)
+        : null;
       if (num && l.tipoDocumentoSepId !== null) {
-        docs.push({ tipoDocumentoSepId: l.tipoDocumentoSepId, numeroDocumento: num });
+        docs.push({
+          tipoDocumentoSepId: l.tipoDocumentoSepId,
+          numeroDocumento: num,
+        });
       }
     }
 
@@ -124,10 +130,14 @@ export class AQuienSeParece {
     if (!revocadas.length) return fuera;
 
     const correosMalos = new Set(
-      revocadas.map((r) => (r.correo ?? '').trim().toLowerCase()).filter(Boolean),
+      revocadas
+        .map((r) => (r.correo ?? '').trim().toLowerCase())
+        .filter(Boolean),
     );
     const celularesMalos = new Set(
-      revocadas.map((r) => (r.celular ? normalizarCelular(r.celular) : '')).filter(Boolean),
+      revocadas
+        .map((r) => (r.celular ? normalizarCelular(r.celular) : ''))
+        .filter(Boolean),
     );
     const docsMalos = new Set(
       revocadas.map((r) => `${r.tipoDocumentoSepId}-${r.numeroDocumento}`),
@@ -136,13 +146,19 @@ export class AQuienSeParece {
     for (const l of leads) {
       const c = (l.correo ?? '').trim().toLowerCase();
       const cel = l.celular ? normalizarCelular(l.celular) : '';
-      const num = l.numeroDocumento ? normalizarDocumento(l.numeroDocumento) : null;
+      const num = l.numeroDocumento
+        ? normalizarDocumento(l.numeroDocumento)
+        : null;
       const doc =
         num && l.tipoDocumentoSepId !== null
           ? `${l.tipoDocumentoSepId}-${num}`
           : null;
 
-      if ((c && correosMalos.has(c)) || (cel && celularesMalos.has(cel)) || (doc && docsMalos.has(doc))) {
+      if (
+        (c && correosMalos.has(c)) ||
+        (cel && celularesMalos.has(cel)) ||
+        (doc && docsMalos.has(doc))
+      ) {
         fuera.add(l.id);
       }
     }
@@ -153,9 +169,14 @@ export class AQuienSeParece {
   private async personas(s: SenasDelLead): Promise<string[]> {
     const donde: Array<Record<string, unknown>> = [];
 
-    const numero = s.numeroDocumento ? normalizarDocumento(s.numeroDocumento) : null;
+    const numero = s.numeroDocumento
+      ? normalizarDocumento(s.numeroDocumento)
+      : null;
     if (numero && s.tipoDocumentoSepId !== null) {
-      donde.push({ tipoDocumentoSepId: s.tipoDocumentoSepId, numeroDocumento: numero });
+      donde.push({
+        tipoDocumentoSepId: s.tipoDocumentoSepId,
+        numeroDocumento: numero,
+      });
     }
 
     const correo = (s.correo ?? '').trim().toLowerCase();

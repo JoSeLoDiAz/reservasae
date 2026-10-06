@@ -130,9 +130,18 @@ export type TipoDocumentoSep = {
 };
 
 export type Origen =
-  | "EMPRESA" | "ASESOR" | "AUTOGESTION" | "REFERIDO" | "REDES"
-  | "INSTAGRAM" | "FACEBOOK" | "LINKEDIN" | "WHATSAPP" | "CORREO"
-  | "EVENTO" | "OTRO";
+  | "EMPRESA"
+  | "ASESOR"
+  | "AUTOGESTION"
+  | "REFERIDO"
+  | "REDES"
+  | "INSTAGRAM"
+  | "FACEBOOK"
+  | "LINKEDIN"
+  | "WHATSAPP"
+  | "CORREO"
+  | "EVENTO"
+  | "OTRO";
 
 /** En orden de avance. Las salidas van aparte. */
 export const ETAPAS_AVANCE: Etapa[] = [
@@ -391,6 +400,14 @@ export type FilaParticipante = {
    * lee siempre con `?? []`.
    */
   faltaDeLaEmpresa?: string[];
+  /**
+   * Si lo que falta le impide ENTRAR o solo le falta para que se la
+   * pueda REPORTAR al SENA.
+   *
+   * Opcional porque un backend sin reiniciar no la manda; sin ella
+   * la pantalla se comporta como antes.
+   */
+  paraQueFalta?: "INSCRIBIR" | "REPORTE";
   creadoEn: string;
   documento: string;
   nombre: string;
@@ -427,6 +444,28 @@ export type FilaParticipante = {
   /** Cuántas veces se le movió la etapa. */
   cambios: number;
   datosEmpresa: "SIN" | "PARCIAL" | "COMPLETA";
+  /**
+   * De QUÉ organización es esta persona, no solo si está completa.
+   *
+   * El NIT viene con su dígito cuando lo tiene ---«890982209-4»---,
+   * que es como se escribe y como se busca en Empresas registradas.
+   *
+   * Opcionales porque un backend viejo no los manda: la columna
+   * enseña un guion y no rompe nada.
+   */
+  empresaNit?: string | null;
+  /**
+   * Por qué formulario entró, cuando se sabe.
+   *
+   * El título del formulario si vino por una reserva ---es el único
+   * sitio donde se guarda--- y «Preinscripción pública» si se
+   * inscribió sola. Nulo para el resto.
+   *
+   * Distinta de `fuenteFormulario`, que dice el CANAL: una persona
+   * puede llegar por Instagram a la preinscripción pública.
+   */
+  formularioDeEntrada?: string | null;
+  empresaNombre?: string | null;
   antiguedadDias: number;
 
   /**
@@ -494,7 +533,8 @@ export function fuenteDelFormulario(f: FilaParticipante): string {
   /// «Orgánico» ahí hacía creer que la pauta no traía a nadie.
   if (f.origen === "AUTOGESTION" && !f.campanaDeEntrada) return "Sin etiqueta";
   /// El QR no tiene palabra en la ficha: se sabe por su enlace.
-  if (f.origen === "AUTOGESTION" && f.campanaDeEntrada?.startsWith("qr")) return "QR impreso";
+  if (f.origen === "AUTOGESTION" && f.campanaDeEntrada?.startsWith("qr"))
+    return "QR impreso";
   return ETIQUETA_ORIGEN_LEAD[f.origenLead];
 }
 
@@ -548,7 +588,12 @@ export type Resumen = {
    * recupera.
    */
   asesoresAsignables?: Array<{ id: string; nombre: string }>;
-  acciones: Array<{ id: string; codigo: string; nombre: string; total: number }>;
+  acciones: Array<{
+    id: string;
+    codigo: string;
+    nombre: string;
+    total: number;
+  }>;
   /// Para el filtro de grupo. `accion` es el codigo de su acción
   /// de formación: «Grupo 1» existe en las quince y sin él no se
   /// distinguen.
@@ -639,7 +684,11 @@ export type Ficha = {
   };
   convenio: { id: string; sigla: string | null; nombre: string };
   accionFormacion: { id: string; codigo: string; nombre: string } | null;
-  oferta: { id: string; cuposMaximos: number; ubicacion: { nombre: string } } | null;
+  oferta: {
+    id: string;
+    cuposMaximos: number;
+    ubicacion: { nombre: string };
+  } | null;
   cobertura: {
     id: string;
     grupo: {
@@ -1015,7 +1064,11 @@ export type Control = CabeceraControl & {
   cuposConNombre?: number;
   cuposSinNombre?: number;
   nombresDeMas?: number;
-  empresaQueMasDebe?: { razonSocial: string; sinNombre: number; cupos: number } | null;
+  empresaQueMasDebe?: {
+    razonSocial: string;
+    sinNombre: number;
+    cupos: number;
+  } | null;
   /// Las siglas de los gremios que entraron en los cupos.
   gremios?: string[];
   /** El día ya viene yyyy-mm-dd de Bogotá. */
@@ -1234,9 +1287,12 @@ function consulta(filtros: Filtros | FiltroVentana): string {
   return s ? `?${s}` : "";
 }
 
-
 export type Canal =
-  | "FORMULARIO_WEB" | "CARGA_EMPRESA" | "VERBAL_ASESOR" | "CORREO" | "PRESENCIAL";
+  | "FORMULARIO_WEB"
+  | "CARGA_EMPRESA"
+  | "VERBAL_ASESOR"
+  | "CORREO"
+  | "PRESENCIAL";
 
 export const ETIQUETA_CANAL: Record<Canal, string> = {
   FORMULARIO_WEB: "Lo aceptó en el formulario web",
@@ -1486,7 +1542,8 @@ export type RitmoDeAsesor = {
   diasHabiles: number | null;
   exigidoPorDia: number | null;
   realPorDia: number | null;
-  estado: "AL_DIA" | "AJUSTADO" | "EN_RIESGO" | "VENCIDO" | "SIN_PLAZO" | "TERMINADO";
+  estado:
+    "AL_DIA" | "AJUSTADO" | "EN_RIESGO" | "VENCIDO" | "SIN_PLAZO" | "TERMINADO";
 };
 
 /**
@@ -1541,6 +1598,19 @@ export type FilaDeAsesor = {
   descartados?: number;
   ritmo: RitmoDeAsesor;
   antiguedadMedia: number | null;
+  /**
+   * A CUÁNTAS FICHAS TOCÓ DENTRO DEL PERIODO.
+   *
+   * «No me está mostrando lo gestionado el viernes y lo gestionado
+   * hoy» (cliente, 5 oct 2026). `carga.gestionados` no lo podía
+   * decir: cuenta, de los leads que LLEGARON en el periodo, a
+   * cuántos se ha tocado alguna vez, y eso no cambia de un día a
+   * otro si los leads llegaron en agosto.
+   *
+   * Nulo = sin periodo puesto. Opcional porque un backend sin
+   * reiniciar no lo manda.
+   */
+  gestionadosEnElPeriodo?: number | null;
   limite: string | null;
   /// SU CARGA REPARTIDA POR ACCIÓN, que es el desglose que se abre al
   /// pulsar la fila: «con al menos dos métricas, y como la tablita
@@ -1569,12 +1639,7 @@ export type VentanaDeLlegada = { llegoDesde?: string; llegoHasta?: string };
 
 /** Si una acción llega a sus cupos antes de cerrar, y con qué holgura. */
 export type Veredicto =
-  | "SIN_FECHA"
-  | "CERRADO"
-  | "CUBIERTO"
-  | "LLEGA"
-  | "APRETADO"
-  | "NO_LLEGA";
+  "SIN_FECHA" | "CERRADO" | "CUBIERTO" | "LLEGA" | "APRETADO" | "NO_LLEGA";
 
 /** Una acción de formación, proyectada hasta su cierre. */
 export type FilaDeProyeccion = {
@@ -1611,6 +1676,14 @@ export type FilaDeProyeccion = {
   /// La fecha de cierre que el admin fijó (ISO), o null. Editable e
   /// independiente; de referencia, no manda sobre los días.
   cierreProyeccion: string | null;
+  /**
+   * TODAS las fechas en que cierra esta accion, en orden.
+   *
+   * Una sola = la accion cierra entera. Dos o mas = cierra POR
+   * PARTES, y entonces `cierre` ---la que manda en los dias y en la
+   * meta diaria--- es solo la primera de ellas.
+   */
+  cierresDeLosGrupos: string[];
   /// Los días EFECTIVOS --los del admin si los puso, si no los del
   /// cronograma--. Nulo si no hay ninguno.
   diasParaCierre: number | null;
@@ -1770,15 +1843,25 @@ export const crmApi = {
 
   /// EL RESUMEN GENERAL: siete cifras macro por acción de formación.
   /// Toma los mismos cortes que el resto de la pantalla.
-  resumenGeneral: (filtros: Filtros = {}) =>
+  resumenGeneral: (filtros: Filtros & { desde?: string; hasta?: string } = {}) =>
     pedir<FilaResumenGeneral[]>(
       `/admin/participantes/control/resumen-general${consulta(filtros)}`,
     ),
 
   /// EL DETALLE POR GRUPOS de una acción (Bloque 3).
-  resumenPorGrupo: (accionFormacionId: string) =>
+  ///
+  /// CON EL MISMO RECORTE QUE LA TABLA DE ARRIBA, desde el 6 oct
+  /// 2026: este bloque no obedecía a ninguno, y se abre pulsando
+  /// una fila de esa tabla, que sí los obedece. Los dos, pegados en
+  /// la misma pantalla, contaban gente distinta para la misma
+  /// acción: con una asesora filtrada, su fila decía 12 inscritos y
+  /// sus grupos sumaban 85.
+  resumenPorGrupo: (
+    accionFormacionId: string,
+    recorte: Filtros & { desde?: string; hasta?: string } = {},
+  ) =>
     pedir<FilaDeGrupo[]>(
-      `/admin/participantes/resumen-por-accion/${accionFormacionId}/grupos`,
+      `/admin/participantes/resumen-por-accion/${accionFormacionId}/grupos${consulta(recorte)}`,
     ),
 
   /// LA TABLA DEL COMITÉ: una fila por acción de formación. Es el
@@ -1786,11 +1869,17 @@ export const crmApi = {
   /// Con el MISMO recorte que el resto de la pantalla: los cinco
   /// filtros y la ventana. Sin ellos, con «Hoy» arriba decía una
   /// persona y esta tabla doscientas siete.
-  resumenPorAccion: (recorte: Filtros & { desde?: string; hasta?: string } = {}) =>
-    pedir<FilaDeAccion[]>(`/admin/participantes/resumen-por-accion${consulta(recorte)}`),
+  resumenPorAccion: (
+    recorte: Filtros & { desde?: string; hasta?: string } = {},
+  ) =>
+    pedir<FilaDeAccion[]>(
+      `/admin/participantes/resumen-por-accion${consulta(recorte)}`,
+    ),
 
   tableroAcademico: (ventana: FiltroVentana = {}) =>
-    pedir<TableroAcademico>(`/admin/participantes/academico/tablero${consulta(ventana)}`),
+    pedir<TableroAcademico>(
+      `/admin/participantes/academico/tablero${consulta(ventana)}`,
+    ),
 
   /// Con , los grupos vienen recortados a los
   /// que cubren donde vive esa persona.
@@ -1806,10 +1895,14 @@ export const crmApi = {
   /// oferta, y abriendo grupo por grupo se verian los mismos
   /// candidatos dos veces.
   gruposPendientes: () =>
-    pedir<{ ofertas: OfertaSinGrupo[] }>("/admin/participantes/grupos/pendientes"),
+    pedir<{ ofertas: OfertaSinGrupo[] }>(
+      "/admin/participantes/grupos/pendientes",
+    ),
 
   candidatosDeGrupo: (ofertaId: string) =>
-    pedir<CandidatosDeGrupo>(`/admin/participantes/grupos/candidatos/${ofertaId}`),
+    pedir<CandidatosDeGrupo>(
+      `/admin/participantes/grupos/candidatos/${ofertaId}`,
+    ),
 
   asignarGrupoEnLote: (coberturaId: string, ids: string[]) =>
     pedir<{
@@ -1840,8 +1933,7 @@ export const crmApi = {
    * asesora y cuánta gestión lleva encima. Con eso se decide a cuál va
    * de verdad, que es la pregunta que la pantalla hace.
    */
-  repetidas: () =>
-    pedir<PersonaRepetida[]>("/admin/participantes/repetidas"),
+  repetidas: () => pedir<PersonaRepetida[]>("/admin/participantes/repetidas"),
 
   /**
    * Une dos fichas de la misma persona.
@@ -1873,7 +1965,12 @@ export const crmApi = {
       { method: "PATCH", body: JSON.stringify({ ids, asesorId }) },
     ),
 
-  asignar: (id: string, ofertaId: string, coberturaId?: string, sobrecupoMotivo?: string) =>
+  asignar: (
+    id: string,
+    ofertaId: string,
+    coberturaId?: string,
+    sobrecupoMotivo?: string,
+  ) =>
     pedir<Ficha>(`/admin/participantes/${id}/formacion`, {
       method: "PATCH",
       body: JSON.stringify({ ofertaId, coberturaId, sobrecupoMotivo }),
@@ -1891,7 +1988,9 @@ export const crmApi = {
   catalogos: () => pedir<CatalogosSep>("/admin/participantes/catalogos"),
 
   metricas: (filtros: Filtros = {}) =>
-    pedir<MetricasInscripciones>(`/admin/participantes/metricas${consulta(filtros)}`),
+    pedir<MetricasInscripciones>(
+      `/admin/participantes/metricas${consulta(filtros)}`,
+    ),
 
   /// El embudo del formulario publico. Una sola llamada.
   /// Con `contraDesde` y `contraHasta` compara dos periodos
@@ -1972,7 +2071,10 @@ export const crmApi = {
     id: string,
     texto: string,
     canales: CanalContacto[],
-    clasificacion?: { categoriaId: string | null; subcategoriaId: string | null },
+    clasificacion?: {
+      categoriaId: string | null;
+      subcategoriaId: string | null;
+    },
   ) =>
     pedir<Record<string, unknown>>(`/admin/participantes/${id}/notas`, {
       method: "POST",
@@ -1993,7 +2095,9 @@ export const crmApi = {
 
   /** Lo que mandó el interesado, si hay algo pendiente. */
   propuesta: (id: string) =>
-    pedir<PropuestaDelInteresado | null>(`/admin/participantes/${id}/propuesta`),
+    pedir<PropuestaDelInteresado | null>(
+      `/admin/participantes/${id}/propuesta`,
+    ),
 
   /** Qué campos del interesado se aceptan. */
   resolverPropuesta: (id: string, aceptados: string[]) =>
@@ -2012,7 +2116,9 @@ export const crmApi = {
 
   /** Se queda con el nombre que devolvió el RUI. */
   tomarNombreDelRui: (id: string) =>
-    pedir<Ficha>(`/admin/participantes/${id}/rui/tomar-nombre`, { method: "POST" }),
+    pedir<Ficha>(`/admin/participantes/${id}/rui/tomar-nombre`, {
+      method: "POST",
+    }),
 
   /**
    * Revoca la autorización de tratamiento de datos.

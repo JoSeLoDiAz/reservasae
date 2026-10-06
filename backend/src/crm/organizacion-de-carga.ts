@@ -74,7 +74,8 @@ export function leerOrganizacion(o: OrganizacionCruda): OrganizacionLeida {
   }
 
   const razonSocial = limpio(o.razonSocial);
-  if (!razonSocial) problemas.push('Falta el nombre (razón social) de la organización.');
+  if (!razonSocial)
+    problemas.push('Falta el nombre (razón social) de la organización.');
 
   const jefeNombre = limpio(o.jefeNombre) || null;
   const jefeCargo = limpio(o.jefeCargo) || null;
@@ -127,10 +128,18 @@ export function queSeEscribe(
   guardada: EmpresaGuardada,
   leida: OrganizacionLeida,
 ): {
-  datos: { contactoNombre?: string; contactoCargo?: string; contactoCorreo?: string };
+  datos: {
+    contactoNombre?: string;
+    contactoCargo?: string;
+    contactoCorreo?: string;
+  };
   seQuedan: string[];
 } {
-  const datos: { contactoNombre?: string; contactoCargo?: string; contactoCorreo?: string } = {};
+  const datos: {
+    contactoNombre?: string;
+    contactoCargo?: string;
+    contactoCorreo?: string;
+  } = {};
   const seQuedan: string[] = [];
 
   const campos = [
@@ -150,7 +159,8 @@ export function queSeEscribe(
 
   if (
     leida.razonSocial &&
-    guardada.razonSocial.trim().toLowerCase() !== leida.razonSocial.toLowerCase()
+    guardada.razonSocial.trim().toLowerCase() !==
+      leida.razonSocial.toLowerCase()
   ) {
     seQuedan.push(`la razón social («${guardada.razonSocial}»)`);
   }

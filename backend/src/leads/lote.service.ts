@@ -10,7 +10,12 @@
  * lead de un anuncio no trae.
  */
 
-import { HttpException, BadRequestException, Injectable, Logger } from '@nestjs/common';
+import {
+  HttpException,
+  BadRequestException,
+  Injectable,
+  Logger,
+} from '@nestjs/common';
 
 import type { Admin } from '../../generated/prisma';
 import { PrismaService } from '../prisma/prisma.service';
@@ -20,8 +25,6 @@ import { CrmService } from '../crm/crm.service';
 import { ConversionDeLeads } from './conversion.service';
 import { TOPE_DEL_LOTE_DE_LEADS } from './dto';
 import { loQueLeFaltaAlLead } from './listo-para-ficha';
-
-
 
 type Fila = {
   leadId: string;
@@ -205,7 +208,9 @@ export class LoteDeLeads {
     }
 
     const convertidos = filas.filter((f) => f.ok).length;
-    const conAutorizacion = filas.filter((f) => f.ok && f.conAutorizacion).length;
+    const conAutorizacion = filas.filter(
+      (f) => f.ok && f.conAutorizacion,
+    ).length;
     const fallaron = filas.filter((f) => !f.ok).length;
 
     this.log.log(

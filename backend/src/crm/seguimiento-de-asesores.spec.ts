@@ -30,7 +30,12 @@ describe('ritmoDe', () => {
   });
 
   it('sin fecha límite queda SIN_PLAZO, que NO es verde', () => {
-    const r = ritmoDe({ carga: carga(), limite: null, hoy: d('2026-09-23'), diasCorridos: 10 });
+    const r = ritmoDe({
+      carga: carga(),
+      limite: null,
+      hoy: d('2026-09-23'),
+      diasCorridos: 10,
+    });
     expect(r.estado).toBe('SIN_PLAZO');
     expect(r.exigidoPorDia).toBeNull();
   });
@@ -190,7 +195,10 @@ describe('antiguedadMedia', () => {
   it('promedia los días que llevan esperando', () => {
     const hoy = new Date('2026-09-23T00:00:00.000Z');
     const media = antiguedadMedia(
-      [new Date('2026-09-13T00:00:00.000Z'), new Date('2026-09-03T00:00:00.000Z')],
+      [
+        new Date('2026-09-13T00:00:00.000Z'),
+        new Date('2026-09-03T00:00:00.000Z'),
+      ],
       hoy,
     );
     expect(media).toBe(15);
@@ -198,13 +206,15 @@ describe('antiguedadMedia', () => {
 
   it('una fecha futura no resta: cuenta como cero días esperando', () => {
     const hoy = new Date('2026-09-23T00:00:00.000Z');
-    expect(
-      antiguedadMedia([new Date('2026-09-30T00:00:00.000Z')], hoy),
-    ).toBe(0);
+    expect(antiguedadMedia([new Date('2026-09-30T00:00:00.000Z')], hoy)).toBe(
+      0,
+    );
   });
 
   it('da un decimal, que es lo que se lee en la tarjeta', () => {
     const hoy = new Date('2026-09-23T12:00:00.000Z');
-    expect(antiguedadMedia([new Date('2026-09-22T00:00:00.000Z')], hoy)).toBe(1.5);
+    expect(antiguedadMedia([new Date('2026-09-22T00:00:00.000Z')], hoy)).toBe(
+      1.5,
+    );
   });
 });

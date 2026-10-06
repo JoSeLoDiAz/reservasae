@@ -119,16 +119,31 @@ export const api = {
   consultarPorNit: (nit: string) =>
     pedir<ConsultaPorNit>(`/reservas?nit=${encodeURIComponent(nit)}`),
 
-  editarReserva: (id: string, nit: string, cuposSolicitados: number) =>
+  /**
+   * EL CORREO, ADEMÁS DEL NIT.
+   *
+   * El NIT no es una credencial: está en el RUES y en cualquier
+   * factura. Hasta el 2 oct 2026 bastaba para CANCELARLE los cupos a
+   * otra organización desde esta misma pantalla.
+   *
+   * Consultar sigue pidiendo solo el NIT: mirar los propios cupos no
+   * destruye nada.
+   */
+  editarReserva: (
+    id: string,
+    nit: string,
+    correo: string,
+    cuposSolicitados: number,
+  ) =>
     pedir<Reserva>(`/reservas/${id}`, {
       method: "PATCH",
-      body: JSON.stringify({ nit, cuposSolicitados }),
+      body: JSON.stringify({ nit, correo, cuposSolicitados }),
     }),
 
-  cancelarReserva: (id: string, nit: string) =>
+  cancelarReserva: (id: string, nit: string, correo: string) =>
     pedir<Reserva>(`/reservas/${id}/cancelar`, {
       method: "POST",
-      body: JSON.stringify({ nit }),
+      body: JSON.stringify({ nit, correo }),
     }),
 };
 

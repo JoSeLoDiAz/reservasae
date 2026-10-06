@@ -66,8 +66,16 @@ function armar(empresas: FilaEmpresa[]) {
 
 const ACTOR = { id: 'ana', nombre: 'Ana Jaramillo' };
 
-const UNA: FilaEmpresa = { id: 'e1', nit: '900111222', razonSocial: 'Colegio Uno' };
-const OTRA: FilaEmpresa = { id: 'e2', nit: '900333444', razonSocial: 'Colegio Dos' };
+const UNA: FilaEmpresa = {
+  id: 'e1',
+  nit: '900111222',
+  razonSocial: 'Colegio Uno',
+};
+const OTRA: FilaEmpresa = {
+  id: 'e2',
+  nit: '900333444',
+  razonSocial: 'Colegio Dos',
+};
 
 describe('corregir una organización', () => {
   it('deja corregir el NIT, que es lo que no se podía', async () => {
@@ -84,7 +92,11 @@ describe('corregir una organización', () => {
   it('no toca los campos que no vienen', async () => {
     const { servicio, escrito } = armar([UNA]);
 
-    await servicio.editarEmpresa('e1', { razonSocial: 'Colegio Uno S.A.S.' }, ACTOR);
+    await servicio.editarEmpresa(
+      'e1',
+      { razonSocial: 'Colegio Uno S.A.S.' },
+      ACTOR,
+    );
 
     expect(Object.keys(escrito.data as object)).toEqual(['razonSocial']);
   });

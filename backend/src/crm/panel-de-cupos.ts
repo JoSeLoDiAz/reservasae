@@ -52,7 +52,10 @@ export type MotivoSinInscripciones =
 export class PanelDeCupos {
   constructor(private readonly prisma: PrismaService) {}
 
-  async deLaOferta(ofertaId: string, hoy = new Date()): Promise<PanelDeOferta | null> {
+  async deLaOferta(
+    ofertaId: string,
+    hoy = new Date(),
+  ): Promise<PanelDeOferta | null> {
     const oferta = await this.prisma.oferta.findUnique({
       where: { id: ofertaId },
       select: {
@@ -73,12 +76,19 @@ export class PanelDeCupos {
     if (!oferta) return null;
 
     // lo apartado y vivo
-    const apartados = oferta.reservas.reduce((s, r) => s + r.cuposSolicitados, 0);
+    const apartados = oferta.reservas.reduce(
+      (s, r) => s + r.cuposSolicitados,
+      0,
+    );
 
     // los inscritos, separando quien vino por una reserva
     const [deReserva, libres] = await Promise.all([
       this.prisma.participante.count({
-        where: { ofertaId, etapa: { in: [...OCUPAN_SILLA] }, reservaId: { not: null } },
+        where: {
+          ofertaId,
+          etapa: { in: [...OCUPAN_SILLA] },
+          reservaId: { not: null },
+        },
       }),
       this.prisma.participante.count({
         where: { ofertaId, etapa: { in: [...OCUPAN_SILLA] }, reservaId: null },
@@ -116,7 +126,9 @@ export class PanelDeCupos {
         cuposMaximos: true,
         grupo: { select: { id: true, numero: true, fechaInicio: true } },
         _count: {
-          select: { participantes: { where: { etapa: { in: [...OCUPAN_SILLA] } } } },
+          select: {
+            participantes: { where: { etapa: { in: [...OCUPAN_SILLA] } } },
+          },
         },
       },
       orderBy: { grupo: { numero: 'asc' } },
@@ -214,7 +226,12 @@ export class PanelDeCupos {
             numero: true,
             fechaInicio: true,
             accionFormacion: {
-              select: { id: true, codigo: true, nombre: true, convenioId: true },
+              select: {
+                id: true,
+                codigo: true,
+                nombre: true,
+                convenioId: true,
+              },
             },
           },
         },
@@ -224,7 +241,9 @@ export class PanelDeCupos {
         /// filtro de abajo y NUNCA se mandaba el aviso que libera los
         /// turnos preferentes que la empresa no usó.
         _count: {
-          select: { participantes: { where: { etapa: { in: [...OCUPAN_SILLA] } } } },
+          select: {
+            participantes: { where: { etapa: { in: [...OCUPAN_SILLA] } } },
+          },
         },
       },
     });

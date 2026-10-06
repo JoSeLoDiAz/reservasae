@@ -4,6 +4,7 @@ import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 
 import { ENTIDADES, AuditoriaService, type Actor } from '../comun/auditoria.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { normalizarNit } from '../comun/nit';
 import { CATALOGO, type Entidad } from './catalogo';
 import { construirFormato, leerPlantilla, type Reparo } from './plantillas';
 
@@ -468,7 +469,25 @@ export class PlantillasService {
     return datos;
   }
 
+  /**
+   * EL NIT, CON LA MISMA REGLA QUE EL RESTO DEL SISTEMA.
+   *
+   * Era `replace(/\D/g, '')`, que es una SEGUNDA normalización ---y
+   * dos normalizaciones del mismo dato son dos llaves distintas---.
+   * Con una celda «890.982.209-4» salía «8909822094»: el `findMany`
+   * de más arriba no encontraba la fila real «890982209», la daba
+   * por nueva y la creaba. Un archivo de 200 filas duplica en bloque
+   * y en silencio, porque el resultado dice «creadas», que es lo que
+   * el operador espera leer.
+   *
+   * Es el mismo mecanismo que partió al Colegio Benedictino por el
+   * formulario público. Lo localizó una auditoría del 2 oct 2026.
+   *
+   * Devuelve cadena vacía si no tiene forma de NIT, y quien llama lo
+   * trata como fila sin pareja ---que es lo que ya hacía con un NIT
+   * vacío---.
+   */
   private soloDigitos(v: string): string {
-    return (v ?? '').replace(/\D/g, '');
+    return normalizarNit(v ?? '')?.nit ?? '';
   }
 }

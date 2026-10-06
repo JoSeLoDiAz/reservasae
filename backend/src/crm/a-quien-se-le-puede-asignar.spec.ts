@@ -43,11 +43,7 @@ describe('quién puede llevar fichas', () => {
   });
 
   it('ni los académicos ni los de consulta', () => {
-    for (const r of [
-      'GESTOR_ACADEMICO',
-      'LIDER_ACADEMICO',
-      'CONSULTA',
-    ]) {
+    for (const r of ['GESTOR_ACADEMICO', 'LIDER_ACADEMICO', 'CONSULTA']) {
       expect(PUEDEN_LLEVAR_FICHAS).not.toContain(r);
     }
   });
@@ -109,7 +105,12 @@ describe('las dos listas de la pantalla de leads', () => {
   it('la ficha individual y la mesa usan la misma', () => {
     expect(fuente()).toContain('where: llevanFichasEn(convenioId)');
     const mesa = require('fs').readFileSync(
-      require('path').join(__dirname, '..', 'leads', 'mesa-de-entrada.service.ts'),
+      require('path').join(
+        __dirname,
+        '..',
+        'leads',
+        'mesa-de-entrada.service.ts',
+      ),
       'utf8',
     ) as string;
     expect(mesa).toContain('llevanFichasEn(ambito)');
@@ -188,7 +189,9 @@ describe('la regla se aplica tambien por la API', () => {
    */
   it('el superadministrador sigue saliendo antes, y queda escrito', () => {
     const cuerpo = cuerpoDeExigir();
-    const sale = cuerpo.indexOf("if (asesor.rol === 'SUPERADMIN') return asesor;");
+    const sale = cuerpo.indexOf(
+      "if (asesor.rol === 'SUPERADMIN') return asesor;",
+    );
     const mira = cuerpo.indexOf('PUEDEN_LLEVAR_FICHAS.includes(c.rol)');
     expect(sale).toBeGreaterThan(-1);
     expect(sale).toBeLessThan(mira);

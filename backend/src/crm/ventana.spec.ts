@@ -1,10 +1,19 @@
-import { compararDos, resolverVentana, variacion, type Ventana } from './ventana';
+import {
+  compararDos,
+  resolverVentana,
+  variacion,
+  type Ventana,
+} from './ventana';
 
 // el instante, en hora de Bogota
 const enBogota = (d: Date) =>
-  new Date(d.getTime() - 5 * 60 * 60 * 1000).toISOString().slice(0, 19).replace('T', ' ');
+  new Date(d.getTime() - 5 * 60 * 60 * 1000)
+    .toISOString()
+    .slice(0, 19)
+    .replace('T', ' ');
 
-const dias = (v: Ventana) => (v.hasta.getTime() - v.desde.getTime()) / 86_400_000;
+const dias = (v: Ventana) =>
+  (v.hasta.getTime() - v.desde.getTime()) / 86_400_000;
 
 describe('el corte del día va en hora de Bogotá', () => {
   // en Bogota son las 21:00 del 20
@@ -32,8 +41,18 @@ describe('el corte del día va en hora de Bogotá', () => {
   });
 
   it('da lo mismo en dos instantes del mismo día de Bogotá', () => {
-    const manana = resolverVentana('AYER', undefined, undefined, new Date('2026-08-20T13:00:00Z'));
-    const noche = resolverVentana('AYER', undefined, undefined, casiMedianocheUtc);
+    const manana = resolverVentana(
+      'AYER',
+      undefined,
+      undefined,
+      new Date('2026-08-20T13:00:00Z'),
+    );
+    const noche = resolverVentana(
+      'AYER',
+      undefined,
+      undefined,
+      casiMedianocheUtc,
+    );
 
     expect(manana.actual!.desde).toEqual(noche.actual!.desde);
     expect(manana.actual!.hasta).toEqual(noche.actual!.hasta);
@@ -84,7 +103,9 @@ describe('un periodo en curso se compara con el mismo tramo del anterior', () =>
     const c = resolverVentana('SEMANA', undefined, undefined, ahora);
     const semana = 7 * 86_400_000;
 
-    expect(c.anterior!.desde.getTime()).toBe(c.actual!.desde.getTime() - semana);
+    expect(c.anterior!.desde.getTime()).toBe(
+      c.actual!.desde.getTime() - semana,
+    );
     // no acaba donde empieza el actual
     expect(c.anterior!.hasta.getTime()).toBeLessThan(c.actual!.desde.getTime());
   });
@@ -143,7 +164,9 @@ describe('el mes pasado', () => {
     const c = resolverVentana('MES_PASADO', undefined, undefined, enMarzo);
 
     expect(c.etiqueta).toBe('El mes pasado');
-    expect(c.etiquetaAnterior).toBe('el mes anterior a ese (31 días contra 28)');
+    expect(c.etiquetaAnterior).toBe(
+      'el mes anterior a ese (31 días contra 28)',
+    );
   });
 
   it('y se calla cuando sí duran igual', () => {
@@ -159,7 +182,12 @@ describe('entre dos fechas', () => {
   const ahora = new Date('2026-08-21T02:00:00Z');
 
   it('incluye entero el día del «hasta», no lo corta a medianoche', () => {
-    const c = resolverVentana('PERSONALIZADO', '2026-03-01', '2026-03-31', ahora);
+    const c = resolverVentana(
+      'PERSONALIZADO',
+      '2026-03-01',
+      '2026-03-31',
+      ahora,
+    );
 
     expect(enBogota(c.actual!.desde)).toBe('2026-03-01 00:00:00');
     expect(enBogota(c.actual!.hasta)).toBe('2026-04-01 00:00:00');
@@ -167,13 +195,23 @@ describe('entre dos fechas', () => {
   });
 
   it('un solo día es un día, no cero', () => {
-    const c = resolverVentana('PERSONALIZADO', '2026-03-01', '2026-03-01', ahora);
+    const c = resolverVentana(
+      'PERSONALIZADO',
+      '2026-03-01',
+      '2026-03-01',
+      ahora,
+    );
 
     expect(dias(c.actual!)).toBe(1);
   });
 
   it('se compara con los mismos días de antes', () => {
-    const c = resolverVentana('PERSONALIZADO', '2026-03-01', '2026-03-31', ahora);
+    const c = resolverVentana(
+      'PERSONALIZADO',
+      '2026-03-01',
+      '2026-03-31',
+      ahora,
+    );
 
     expect(dias(c.anterior!)).toBe(31);
     expect(enBogota(c.anterior!.desde)).toBe('2026-01-29 00:00:00');
@@ -181,7 +219,12 @@ describe('entre dos fechas', () => {
   });
 
   it('cae a TODO si las fechas vienen al revés', () => {
-    const c = resolverVentana('PERSONALIZADO', '2026-03-31', '2026-03-01', ahora);
+    const c = resolverVentana(
+      'PERSONALIZADO',
+      '2026-03-31',
+      '2026-03-01',
+      ahora,
+    );
 
     expect(c.rango).toBe('TODO');
     expect(c.actual).toBeNull();
@@ -200,14 +243,23 @@ describe('entre dos fechas', () => {
   });
 
   it('cae a TODO si falta una de las dos fechas', () => {
-    expect(resolverVentana('PERSONALIZADO', '2026-03-01', undefined, ahora).rango).toBe('TODO');
-    expect(resolverVentana('PERSONALIZADO', undefined, '2026-03-31', ahora).rango).toBe('TODO');
+    expect(
+      resolverVentana('PERSONALIZADO', '2026-03-01', undefined, ahora).rango,
+    ).toBe('TODO');
+    expect(
+      resolverVentana('PERSONALIZADO', undefined, '2026-03-31', ahora).rango,
+    ).toBe('TODO');
   });
 });
 
 describe('sin corte de tiempo', () => {
   it('TODO no tiene ventana ni con qué compararse', () => {
-    const c = resolverVentana('TODO', undefined, undefined, new Date('2026-08-21T02:00:00Z'));
+    const c = resolverVentana(
+      'TODO',
+      undefined,
+      undefined,
+      new Date('2026-08-21T02:00:00Z'),
+    );
 
     expect(c.actual).toBeNull();
     expect(c.anterior).toBeNull();

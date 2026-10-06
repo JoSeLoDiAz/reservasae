@@ -199,7 +199,9 @@ export async function planeacionDePauta(
 
   /// Por cupos, de mayor a menor: la tabla se lee para saber
   /// dónde hay más que llenar.
-  const filas = [...porDepto.values()].sort((a, b) => b.totalCupos - a.totalCupos);
+  const filas = [...porDepto.values()].sort(
+    (a, b) => b.totalCupos - a.totalCupos,
+  );
 
   const totales = filas.reduce(
     (t, f) => ({

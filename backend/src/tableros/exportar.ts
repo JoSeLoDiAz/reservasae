@@ -213,7 +213,10 @@ export function enviarLibro(res: Response, libro: Buffer, base: string) {
     'Content-Type',
     'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   );
-  res.setHeader('Content-Disposition', `attachment; filename="${nombreArchivo(base)}"`);
+  res.setHeader(
+    'Content-Disposition',
+    `attachment; filename="${nombreArchivo(base)}"`,
+  );
   res.send(libro);
 }
 

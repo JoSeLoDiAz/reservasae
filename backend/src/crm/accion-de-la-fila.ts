@@ -77,9 +77,18 @@ export function elegirOferta(
   ofertas: OfertaParaCarga[],
   vive: DondeVive,
 ): EleccionDeAccion {
-  if (!codigo) return { accionFormacionId: null, ofertaId: null, etiqueta: null, grupo: null, problemas: [] };
+  if (!codigo)
+    return {
+      accionFormacionId: null,
+      ofertaId: null,
+      etiqueta: null,
+      grupo: null,
+      problemas: [],
+    };
 
-  const suyas = ofertas.filter((o) => o.codigo.toUpperCase() === codigo.toUpperCase());
+  const suyas = ofertas.filter(
+    (o) => o.codigo.toUpperCase() === codigo.toUpperCase(),
+  );
   if (suyas.length === 0) {
     return {
       accionFormacionId: null,
@@ -98,7 +107,9 @@ export function elegirOferta(
       ofertaId: null,
       etiqueta: suyas[0].etiqueta,
       grupo: null,
-      problemas: [`los grupos de ${codigo} están cerrados: queda en la acción, sin grupo`],
+      problemas: [
+        `los grupos de ${codigo} están cerrados: queda en la acción, sin grupo`,
+      ],
     };
   }
 
@@ -110,7 +121,9 @@ export function elegirOferta(
       ofertaId: null,
       etiqueta: suyas[0].etiqueta,
       grupo: null,
-      problemas: [`ningún grupo de ${codigo} llega a ${donde}: queda en la acción, sin grupo`],
+      problemas: [
+        `ningún grupo de ${codigo} llega a ${donde}: queda en la acción, sin grupo`,
+      ],
     };
   }
 

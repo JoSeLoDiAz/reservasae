@@ -7,7 +7,10 @@ import {
   type FichaParaFusionar,
 } from './fusionar-participaciones';
 
-const ficha = (id: string, x: Partial<FichaParaFusionar> = {}): FichaParaFusionar => ({
+const ficha = (
+  id: string,
+  x: Partial<FichaParaFusionar> = {},
+): FichaParaFusionar => ({
   id,
   etapa: 'INTERESADO' as never,
   asesorId: null,
@@ -125,7 +128,11 @@ describe('qué parejas no se pueden unir', () => {
 
   it('dos personas distintas', () => {
     expect(
-      porQueNoSePuedenUnir(a, { id: 'af6', personaId: 'p2', convenioId: 'adecopria' }),
+      porQueNoSePuedenUnir(a, {
+        id: 'af6',
+        personaId: 'p2',
+        convenioId: 'adecopria',
+      }),
     ).toMatch(/dos personas distintas/i);
   });
 
@@ -133,13 +140,21 @@ describe('qué parejas no se pueden unir', () => {
     /// El gremio es lo que se le reporta al SENA: moverlo de callada
     /// dentro de una fusión cambia a quién se le factura la formación.
     expect(
-      porQueNoSePuedenUnir(a, { id: 'af6', personaId: 'p1', convenioId: 'britcham' }),
+      porQueNoSePuedenUnir(a, {
+        id: 'af6',
+        personaId: 'p1',
+        convenioId: 'britcham',
+      }),
     ).toMatch(/gremios distintos/i);
   });
 
   it('la misma persona en el mismo gremio, sí', () => {
     expect(
-      porQueNoSePuedenUnir(a, { id: 'af6', personaId: 'p1', convenioId: 'adecopria' }),
+      porQueNoSePuedenUnir(a, {
+        id: 'af6',
+        personaId: 'p1',
+        convenioId: 'adecopria',
+      }),
     ).toBeNull();
   });
 });

@@ -36,6 +36,8 @@ import {
   PrismaClient,
 } from '../../generated/prisma';
 
+import { exigirBaseSegura } from '../guardia-de-base';
+
 const prisma = new PrismaClient();
 
 const GRUPOS_POR_ACCION = 8;
@@ -63,9 +65,26 @@ const sinTildes = (t: string) =>
     .toLowerCase();
 
 async function main() {
-  /// LA GUARDIA, PRIMERO. Esta siembra crea cientos de personas: en
-  /// una base que no sea la de pruebas eso es un destrozo, y el
-  /// nombre de la base es lo único que hay para distinguirlas.
+  /**
+   * LA GUARDIA, PRIMERO. Esta siembra crea cientos de personas: en una
+   * base que no sea la de pruebas eso es un destrozo.
+   *
+   * Y SON DOS CONTROLES, porque ninguno de los dos basta solo. Tenía
+   * el segundo nada más.
+   *
+   *   - el guardia mira el PUERTO, y el 5433 es el túnel a
+   *     producción. Eso el nombre no lo ve: desde la cadena de
+   *     conexión, la base local y el túnel son las dos `reservasae`
+   *     en `localhost`;
+   *   - el nombre atrapa lo que el guardia no mira: cualquier otro
+   *     puerto le parece bien, así que una base de verdad en el 5432
+   *     pasaba.
+   *
+   * Los dos son burdos a propósito. Juntos no hay forma de
+   * equivocarse sin querer, que es para lo que están.
+   */
+  exigirBaseSegura('La siembra de aula llena');
+
   const url = process.env.DATABASE_URL ?? '';
   if (!/prueba/i.test(url)) {
     console.error(

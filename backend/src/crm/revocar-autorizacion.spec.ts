@@ -63,7 +63,7 @@ function servicio(vivas: string[]) {
     { encolarSiHaceFalta: () => Promise.resolve() } as never,
     {} as never,
     { alInscribir: () => Promise.resolve() } as never,
-  
+
     { avisar: () => Promise.resolve() } as never,
     /// El catálogo de notas. Devuelve «sin clasificar», que es lo
     /// que anota una pantalla que todavía no ofrece los
@@ -91,7 +91,10 @@ describe('revocar la autorización', () => {
 
     const marca = prisma.hecho.find((h) => h.que === 'autorizacion.updateMany');
     expect(marca).toBeDefined();
-    const args = marca!.datos as { where: { id: { in: string[] } }; data: { revocadaEn: Date } };
+    const args = marca!.datos as {
+      where: { id: { in: string[] } };
+      data: { revocadaEn: Date };
+    };
     expect(args.where.id.in).toEqual(['au1', 'au2']);
     expect(args.data.revocadaEn).toBeInstanceOf(Date);
   });
@@ -103,13 +106,21 @@ describe('revocar la autorización', () => {
 
     await s.revocarAutorizacion('p1', DTO as never, ADMIN as never, ['c1']);
 
-    expect(prisma.hecho.map((h) => h.que)).not.toContain('autorizacion.deleteMany');
+    expect(prisma.hecho.map((h) => h.que)).not.toContain(
+      'autorizacion.deleteMany',
+    );
   });
 
   it('deja movimiento con quién lo hizo y por dónde', async () => {
     const { s, prisma } = servicio(['au1']);
 
-    await s.revocarAutorizacion('p1', DTO as never, ADMIN as never, ['c1'], '1.2.3.4');
+    await s.revocarAutorizacion(
+      'p1',
+      DTO as never,
+      ADMIN as never,
+      ['c1'],
+      '1.2.3.4',
+    );
 
     const mov = prisma.hecho.find((h) => h.que === 'movimiento.create');
     const datos = (mov!.datos as { data: Record<string, unknown> }).data;

@@ -14,6 +14,7 @@ import {
   TIPO_DOCUMENTO_POR_ID,
 } from '../catalogos-sep';
 import type { FilaSep } from './datos';
+import { identificadorParaExcel } from './numero-para-excel';
 
 export const COLUMNAS: Array<{
   titulo: string;
@@ -46,13 +47,25 @@ export const COLUMNAS: Array<{
   { titulo: 'RANGO DE EDAD', clave: 'rango', ancho: 24 },
   { titulo: 'NUMERODECELULAR', clave: 'celular', formato: 'entero' },
   { titulo: 'CORREO', clave: 'correo', ancho: 32 },
-  { titulo: 'CÓDIGO DEPARTAMENTO DE DOMICILIO', clave: 'departamentoId', formato: 'entero' },
+  {
+    titulo: 'CÓDIGO DEPARTAMENTO DE DOMICILIO',
+    clave: 'departamentoId',
+    formato: 'entero',
+  },
   { titulo: 'DEPARTAMENTO DE DOMICILIO', clave: 'departamento', ancho: 28 },
-  { titulo: 'CÓDIGO MUNICIPIO DOMICILIO', clave: 'municipioId', formato: 'entero' },
+  {
+    titulo: 'CÓDIGO MUNICIPIO DOMICILIO',
+    clave: 'municipioId',
+    formato: 'entero',
+  },
   { titulo: 'MUNICIPIO DOMICILIO', clave: 'municipio', ancho: 28 },
   { titulo: 'BARRIO/VEREDA', clave: 'barrio', ancho: 28 },
   { titulo: 'DIRECCION DOMICILIO', clave: 'direccion', ancho: 28 },
-  { titulo: 'CÓDIGO CARACTERIZACION', clave: 'caracterizacionId', formato: 'entero' },
+  {
+    titulo: 'CÓDIGO CARACTERIZACION',
+    clave: 'caracterizacionId',
+    formato: 'entero',
+  },
   { titulo: 'CARACTERIZACION', clave: 'caracterizacion', ancho: 36 },
   { titulo: 'TRANSFERENCIA', clave: 'transferencia' },
   { titulo: 'PERFIL DE TRANSFERENCIA', clave: 'perfil' },
@@ -72,21 +85,34 @@ export const COLUMNAS: Array<{
   { titulo: 'SE HA BENEFICIADO ANTERIORMENTE', clave: 'beneficiarioPrevio' },
   { titulo: 'CERTIFICA', clave: 'certifica' },
   { titulo: 'ESTADO INTERVENTORIA', clave: 'interventoria', ancho: 20 },
-  { titulo: 'HORAS PRESENCIALES', clave: 'horasPresenciales', formato: 'entero' },
+  {
+    titulo: 'HORAS PRESENCIALES',
+    clave: 'horasPresenciales',
+    formato: 'entero',
+  },
   { titulo: 'HORAS PAT', clave: 'horasPat', formato: 'entero' },
   { titulo: 'HORAS VIRTUALES', clave: 'horasVirtuales', formato: 'entero' },
   { titulo: 'HORAS HIBRIDAS', clave: 'horasHibridas', formato: 'entero' },
-  { titulo: 'PORCENTAJE DE CUMPLIMIENTO', clave: 'cumplimiento', formato: 'entero' },
+  {
+    titulo: 'PORCENTAJE DE CUMPLIMIENTO',
+    clave: 'cumplimiento',
+    formato: 'entero',
+  },
   { titulo: 'OBSERVACIONES', clave: 'observaciones', ancho: 30 },
   { titulo: 'ESTADO', clave: 'estado' },
 ];
 
 const digitos = (v: string | null) => (v ?? '').replace(/\D/g, '');
 
-const documentoParaExcel = (numero: string): string | number =>
-  /^\d{1,15}$/.test(numero) && !numero.startsWith('0') ? Number(numero) : numero;
+/// La regla se mudó a `numero-para-excel.ts` para que el NIT la use
+/// también: iba con un `Number()` a secas y perdía sus ceros.
+const documentoParaExcel = identificadorParaExcel;
 
-export function fila(p: FilaSep, indice: number, ano: number): Record<string, unknown> {
+export function fila(
+  p: FilaSep,
+  indice: number,
+  ano: number,
+): Record<string, unknown> {
   const municipio = p.persona.municipioSepId
     ? MUNICIPIO_POR_ID.get(p.persona.municipioSepId)
     : null;
@@ -110,14 +136,22 @@ export function fila(p: FilaSep, indice: number, ano: number): Record<string, un
     accion: p.accion.nombre,
     grupoId: p.grupo.sepGrupoId,
     grupo: p.grupo.numero,
-    horas: p.accion.horas,
+    /// VACÍA, nunca un `null` suelto en la celda. Quien no entra
+    /// aquí es quien no tiene horas: `preparar` lo saca del reporte
+    /// y lo dice en la hoja de los no exportados, porque antes la
+    /// columna salía en blanco en las 800 filas y nada avisaba.
+    /// Esto es el cinturón, no el arreglo.
+    horas: p.accion.horas ?? '',
     // los pone el cliente a mano despues de cargar
     personaId: '',
     postulacion: ano,
-    tipoDocumento: TIPO_DOCUMENTO_POR_ID.get(p.persona.tipoDocumentoSepId)?.etiqueta ?? '',
+    tipoDocumento:
+      TIPO_DOCUMENTO_POR_ID.get(p.persona.tipoDocumentoSepId)?.etiqueta ?? '',
     tipoDocumentoId: p.persona.tipoDocumentoSepId,
     documento: documentoParaExcel(p.persona.numeroDocumento),
-    nombres: [p.persona.primerNombre, p.persona.segundoNombre].filter(Boolean).join(' '),
+    nombres: [p.persona.primerNombre, p.persona.segundoNombre]
+      .filter(Boolean)
+      .join(' '),
     primerApellido: p.persona.primerApellido,
     segundoApellido: p.persona.segundoApellido ?? '',
     genero: p.genero,
@@ -131,7 +165,8 @@ export function fila(p: FilaSep, indice: number, ano: number): Record<string, un
     correo: p.persona.correo ?? '',
     departamentoId: p.persona.departamentoSepId,
     departamento:
-      DEPARTAMENTO_POR_ID.get(p.persona.departamentoSepId ?? -1)?.etiqueta ?? '',
+      DEPARTAMENTO_POR_ID.get(p.persona.departamentoSepId ?? -1)?.etiqueta ??
+      '',
     municipioId: p.persona.municipioSepId,
     municipio: municipio?.[2] ?? '',
     barrio: p.persona.barrio ?? '',
@@ -146,16 +181,21 @@ export function fila(p: FilaSep, indice: number, ano: number): Record<string, un
     perfil: 'NO APLICA',
     perfilId: 4,
     empresaId: '',
-    nitEmpresa: p.empresa ? Number(p.empresa.nit) : '',
-    dv: p.empresa?.digitoVerificacion ? Number(p.empresa.digitoVerificacion) : '',
+    /// CON LA MISMA PROTECCIÓN QUE EL DOCUMENTO DE LA PERSONA. Iba
+    /// con `Number()` a secas, así que un NIT que empiece por cero
+    /// llegaba al SENA sin él: otra organización, o ninguna.
+    nitEmpresa: p.empresa ? identificadorParaExcel(p.empresa.nit) : '',
+    dv: p.empresa?.digitoVerificacion
+      ? Number(p.empresa.digitoVerificacion)
+      : '',
     empresa: p.empresa?.razonSocial ?? '',
     tamano: p.empresa?.tamanoSepId
       ? (TAMANO_EMPRESA_POR_ID.get(p.empresa.tamanoSepId)?.etiqueta ?? '')
       : '',
     tamanoId: p.empresa?.tamanoSepId ?? '',
     nivelOcupacional:
-      NIVEL_OCUPACIONAL_POR_ID.get(p.participante.nivelOcupacionalSepId ?? -1)?.etiqueta ??
-      '',
+      NIVEL_OCUPACIONAL_POR_ID.get(p.participante.nivelOcupacionalSepId ?? -1)
+        ?.etiqueta ?? '',
     nivelId: p.participante.nivelOcupacionalSepId ?? '',
     beneficiarioPrevio: p.participante.beneficiarioPrevio ? 'S' : 'N',
     // el cierre es otro cargue: certificar aqui daria una

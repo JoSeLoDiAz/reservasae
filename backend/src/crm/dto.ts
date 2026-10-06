@@ -35,7 +35,6 @@ import { aNumeroONulo as aNumero } from '../comun/campo-vacio';
 const recortar = ({ value }: { value: unknown }) =>
   typeof value === 'string' ? value.trim() : value;
 
-
 export class CrearParticipanteDto {
   // el id del catalogo del SEP, validado en el servicio
   @Transform(({ value }) => Number(value))
@@ -161,14 +160,19 @@ export class CrearParticipanteDto {
   /// `completitud.faltaDeLaPersona` exige para entrar al
   /// reporte no habia forma de escribirlos al crear: habia
   /// que guardar, abrir la ficha y volver a editar.
-  @IsOptional() @Transform(aNumero) @IsInt() @Min(1) @Max(6) estrato?: number | null;
+  @IsOptional() @Transform(aNumero) @IsInt() @Min(1) @Max(6) estrato?:
+    number | null;
 
   @IsOptional()
   @Transform(aNumero)
   @IsInt()
   nivelOcupacionalSepId?: number | null;
 
-  @IsOptional() @Transform(recortar) @IsString() @MaxLength(120) barrio?: string;
+  @IsOptional()
+  @Transform(recortar)
+  @IsString()
+  @MaxLength(120)
+  barrio?: string;
 
   @IsOptional()
   @Transform(recortar)
@@ -265,10 +269,19 @@ export class ActualizarParticipanteDto {
   @IsOptional() @Transform(aNumero) @IsInt() departamentoSepId?: number | null;
   @IsOptional() @Transform(aNumero) @IsInt() municipioSepId?: number | null;
 
-  @IsOptional() @Transform(recortar) @IsString() @MaxLength(120) barrio?: string;
-  @IsOptional() @Transform(recortar) @IsString() @MaxLength(200) direccion?: string;
+  @IsOptional()
+  @Transform(recortar)
+  @IsString()
+  @MaxLength(120)
+  barrio?: string;
+  @IsOptional()
+  @Transform(recortar)
+  @IsString()
+  @MaxLength(200)
+  direccion?: string;
 
-  @IsOptional() @Transform(aNumero) @IsInt() nivelOcupacionalSepId?: number | null;
+  @IsOptional() @Transform(aNumero) @IsInt() nivelOcupacionalSepId?:
+    number | null;
   @IsOptional() @IsBoolean() beneficiarioPrevio?: boolean;
   /// CARACTERIZACION DE POBLACION. Datos SENSIBLES.
   ///
@@ -606,19 +619,29 @@ export class RegistrarAutorizacionDto {
 /// devuelve el motivo en palabras y no el «must be a string» de la
 /// validación.
 export class OrganizacionDeCargaDto {
-  @IsOptional() @IsString() @MaxLength(30)
+  @IsOptional()
+  @IsString()
+  @MaxLength(30)
   nit?: string;
 
-  @IsOptional() @IsString() @MaxLength(250)
+  @IsOptional()
+  @IsString()
+  @MaxLength(250)
   razonSocial?: string;
 
-  @IsOptional() @IsString() @MaxLength(150)
+  @IsOptional()
+  @IsString()
+  @MaxLength(150)
   jefeNombre?: string;
 
-  @IsOptional() @IsString() @MaxLength(150)
+  @IsOptional()
+  @IsString()
+  @MaxLength(150)
   jefeCargo?: string;
 
-  @IsOptional() @IsString() @MaxLength(200)
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
   jefeCorreo?: string;
 }
 
@@ -775,7 +798,10 @@ export class DatosDeLaEmpresaDto {
 
   @IsOptional()
   @Transform(recortar)
-  @IsEmail({}, { message: 'El correo del contacto no tiene un formato válido.' })
+  @IsEmail(
+    {},
+    { message: 'El correo del contacto no tiene un formato válido.' },
+  )
   contactoCorreo?: string;
 }
 

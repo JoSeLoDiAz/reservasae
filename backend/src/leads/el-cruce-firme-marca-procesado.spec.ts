@@ -58,7 +58,10 @@ describe('quién marca procesadoEn al dejar un lead en CONVERTIDO', () => {
     const t = leer('leads.service.ts');
     const i = t.indexOf('data: coincide.firme');
     /// Desde donde empieza la rama de abajo hasta que cierra el update.
-    const floja = t.slice(t.indexOf('estado: \'PENDIENTE\'', i), t.indexOf('});', i));
+    const floja = t.slice(
+      t.indexOf("estado: 'PENDIENTE'", i),
+      t.indexOf('});', i),
+    );
     expect(floja).toContain("estado: 'PENDIENTE'");
     expect(floja).not.toContain('procesadoEn');
   });

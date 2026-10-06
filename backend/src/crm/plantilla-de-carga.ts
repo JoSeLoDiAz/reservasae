@@ -48,7 +48,6 @@ export type DatosDePlantilla = {
 /** El género, tal como lo pidió el cliente: tres opciones y «Otro». */
 export const GENEROS_DE_PLANTILLA = ['MASCULINO', 'FEMENINO', 'OTRO'];
 
-
 /// El código de la acción, que es lo que ata su lista de departamentos:
 /// «AF3 · NOMBRE» -> «AF3».
 function codigo(etiqueta: string): string {
@@ -92,8 +91,11 @@ export const COLUMNAS_DE_CARGA: Columna[] = [
 /// Cuántas filas llevan lista y formato. 500: una reserva grande son
 /// decenas, y el tope de la importación son 1.000 por tanda.
 /// `dataValidations` existe en exceljs pero no en sus tipos.
-type ConReglas = { dataValidations: { add(rango: string, regla: unknown): void } };
-const reglas = (h: ExcelJS.Worksheet) => (h as unknown as ConReglas).dataValidations;
+type ConReglas = {
+  dataValidations: { add(rango: string, regla: unknown): void };
+};
+const reglas = (h: ExcelJS.Worksheet) =>
+  (h as unknown as ConReglas).dataValidations;
 
 const FILAS = 500;
 const VERDE = 'FF0B5D55';
@@ -107,7 +109,9 @@ export function lugarDeUbicacion(
   const porNombre = (d: { etiqueta: string }) => llano(d.etiqueta);
   const depto =
     DEPARTAMENTOS_SEP.find((d) => porNombre(d) === u) ??
-    DEPARTAMENTOS_SEP.find((d) => porNombre(d).startsWith(u) || u.startsWith(porNombre(d)));
+    DEPARTAMENTOS_SEP.find(
+      (d) => porNombre(d).startsWith(u) || u.startsWith(porNombre(d)),
+    );
   if (depto) return { departamentoSepId: depto.id, municipioSepId: null };
 
   const candidatos = MUNICIPIOS_SEP.filter((m) => llano(m[2]) === u);
@@ -121,20 +125,30 @@ export function lugarDeUbicacion(
   return m ? { departamentoSepId: m[1], municipioSepId: m[0] } : null;
 }
 
-export async function libroDePlantilla(datos: DatosDePlantilla): Promise<Buffer> {
+export async function libroDePlantilla(
+  datos: DatosDePlantilla,
+): Promise<Buffer> {
   const libro = new ExcelJS.Workbook();
-  const hp = libro.addWorksheet('Participantes', { views: [{ state: 'frozen', ySplit: 1 }] });
+  const hp = libro.addWorksheet('Participantes', {
+    views: [{ state: 'frozen', ySplit: 1 }],
+  });
   const org = libro.addWorksheet('Organización');
   /// `veryHidden`: las listas no son para mirarlas, y una hoja oculta a
   /// medias invita a escribir en ella.
   const li = libro.addWorksheet('Listas', { state: 'veryHidden' });
 
-  const orden = (a: string, b: string) => a.localeCompare(b, 'es', { numeric: true });
-  const acciones = [...datos.acciones].sort((a, b) => orden(a.etiqueta, b.etiqueta));
+  const orden = (a: string, b: string) =>
+    a.localeCompare(b, 'es', { numeric: true });
+  const acciones = [...datos.acciones].sort((a, b) =>
+    orden(a.etiqueta, b.etiqueta),
+  );
   const conAula = new Set(datos.municipiosConAula);
   const deptosUsados = [...new Set(acciones.flatMap((a) => a.departamentos))]
     .map((id) => DEPARTAMENTO_POR_ID.get(id))
-    .filter((d): d is { id: number; etiqueta: string; seleccionable: boolean } => Boolean(d))
+    .filter(
+      (d): d is { id: number; etiqueta: string; seleccionable: boolean } =>
+        Boolean(d),
+    )
     .sort((a, b) => orden(a.etiqueta, b.etiqueta));
 
   // ── las listas ──────────────────────────────────────────
@@ -143,7 +157,11 @@ export async function libroDePlantilla(datos: DatosDePlantilla): Promise<Buffer>
     valores.forEach((v, i) => (li.getCell(`${letra}${i + 2}`).value = v));
     return `Listas!$${letra}$2:$${letra}$${Math.max(valores.length + 1, 2)}`;
   };
-  const rAcciones = columna('A', 'Acciones', acciones.map((a) => a.etiqueta));
+  const rAcciones = columna(
+    'A',
+    'Acciones',
+    acciones.map((a) => a.etiqueta),
+  );
 
   li.getCell('B1').value = 'Departamentos por acción';
   let fila = 2;
@@ -155,7 +173,10 @@ export async function libroDePlantilla(datos: DatosDePlantilla): Promise<Buffer>
     if (nombres.length === 0) continue;
     const desde = fila;
     for (const nombre of nombres) li.getCell(`B${fila++}`).value = nombre;
-    libro.definedNames.add(`Listas!$B$${desde}:$B$${fila - 1}`, `DEP_${codigo(a.etiqueta)}`);
+    libro.definedNames.add(
+      `Listas!$B$${desde}:$B$${fila - 1}`,
+      `DEP_${codigo(a.etiqueta)}`,
+    );
   }
 
   li.getCell('D1').value = 'Departamento';
@@ -170,11 +191,22 @@ export async function libroDePlantilla(datos: DatosDePlantilla): Promise<Buffer>
   fila = 2;
   for (const d of deptosUsados) {
     const todos = MUNICIPIOS_SEP.filter((m) => m[1] === d.id);
-    const conSede = todos.filter((m) => conAula.has(m[0])).map((m) => m[2]).sort(orden);
-    const resto = todos.filter((m) => !conAula.has(m[0])).map((m) => m[2]).sort(orden);
+    const conSede = todos
+      .filter((m) => conAula.has(m[0]))
+      .map((m) => m[2])
+      .sort(orden);
+    const resto = todos
+      .filter((m) => !conAula.has(m[0]))
+      .map((m) => m[2])
+      .sort(orden);
     const desde = fila;
-    for (const nombre of [...conSede, ...resto]) li.getCell(`F${fila++}`).value = nombre;
-    if (fila > desde) libro.definedNames.add(`Listas!$F$${desde}:$F$${fila - 1}`, `MUN_${d.id}`);
+    for (const nombre of [...conSede, ...resto])
+      li.getCell(`F${fila++}`).value = nombre;
+    if (fila > desde)
+      libro.definedNames.add(
+        `Listas!$F$${desde}:$F$${fila - 1}`,
+        `MUN_${d.id}`,
+      );
   }
 
   /// Lo que dice el desplegable cuando todavía no hay de dónde sacar la
@@ -186,15 +218,25 @@ export async function libroDePlantilla(datos: DatosDePlantilla): Promise<Buffer>
   libro.definedNames.add('Listas!$N$2', 'DEP_');
   libro.definedNames.add('Listas!$N$3', 'MUN_');
 
-  const rDoc = columna('H', 'Documento', DOCUMENTOS_DE_PERSONA.map((t) => t.etiqueta));
+  const rDoc = columna(
+    'H',
+    'Documento',
+    DOCUMENTOS_DE_PERSONA.map((t) => t.etiqueta),
+  );
   const rGen = columna('I', 'Genero', GENEROS_DE_PLANTILLA);
-  const rNiv = columna('J', 'Nivel', NIVELES_OCUPACIONALES_SEP.map((n) => n.etiqueta));
+  const rNiv = columna(
+    'J',
+    'Nivel',
+    NIVELES_OCUPACIONALES_SEP.map((n) => n.etiqueta),
+  );
   const rEst = columna('K', 'Estrato', ['1', '2', '3', '4', '5', '6']);
   const rSiNo = columna('L', 'SiNo', ['Sí', 'No']);
 
   // ── la hoja de participantes ────────────────────────────
   const LETRA: Record<string, string> = {};
-  COLUMNAS_DE_CARGA.forEach((c, i) => (LETRA[c.t] = String.fromCharCode(65 + i)));
+  COLUMNAS_DE_CARGA.forEach(
+    (c, i) => (LETRA[c.t] = String.fromCharCode(65 + i)),
+  );
   hp.addRow(COLUMNAS_DE_CARGA.map((c) => c.t));
 
   COLUMNAS_DE_CARGA.forEach((col, i) => {
@@ -216,7 +258,12 @@ export async function libroDePlantilla(datos: DatosDePlantilla): Promise<Buffer>
   });
   hp.getRow(1).height = 24;
 
-  const lista = (titulo: string, formula: string, rotulo: string, texto: string) => {
+  const lista = (
+    titulo: string,
+    formula: string,
+    rotulo: string,
+    texto: string,
+  ) => {
     const letra = LETRA[titulo];
     reglas(hp).add(`${letra}2:${letra}${FILAS + 1}`, {
       type: 'list',
@@ -232,9 +279,19 @@ export async function libroDePlantilla(datos: DatosDePlantilla): Promise<Buffer>
   const D = LETRA.Departamento;
   const F = LETRA['Fecha de nacimiento'];
 
-  lista('Tipo de documento', rDoc, 'Tipo de documento', 'Elija un tipo de documento de la lista.');
+  lista(
+    'Tipo de documento',
+    rDoc,
+    'Tipo de documento',
+    'Elija un tipo de documento de la lista.',
+  );
   lista('Género', rGen, 'Género', 'Elija Masculino, Femenino u Otro.');
-  lista('Acción de formación de interés', rAcciones, 'Acción de formación', 'Elija una acción de formación de la lista.');
+  lista(
+    'Acción de formación de interés',
+    rAcciones,
+    'Acción de formación',
+    'Elija una acción de formación de la lista.',
+  );
   lista(
     'Departamento',
     `INDIRECT(IFERROR("DEP_"&LEFT($${A}2,FIND(" ",$${A}2&" ")-1),"DEP_"))`,
@@ -248,8 +305,18 @@ export async function libroDePlantilla(datos: DatosDePlantilla): Promise<Buffer>
     'Elija primero el departamento: aquí salen solo sus ciudades y municipios.',
   );
   lista('Estrato socioeconómico', rEst, 'Estrato', 'El estrato va de 1 a 6.');
-  lista('Nivel ocupacional', rNiv, 'Nivel ocupacional', 'Elija un valor de la lista.');
-  lista('¿Se ha beneficiado antes?', rSiNo, '¿Se ha beneficiado antes?', 'Responda Sí o No.');
+  lista(
+    'Nivel ocupacional',
+    rNiv,
+    'Nivel ocupacional',
+    'Elija un valor de la lista.',
+  );
+  lista(
+    '¿Se ha beneficiado antes?',
+    rSiNo,
+    '¿Se ha beneficiado antes?',
+    'Responda Sí o No.',
+  );
 
   /// MAYOR DE EDAD: hasta hoy menos los años que exige el programa. Sin
   /// tope se escribía el año en curso por descuido y la persona salía
@@ -259,7 +326,9 @@ export async function libroDePlantilla(datos: DatosDePlantilla): Promise<Buffer>
   reglas(hp).add(`${F}2:${F}${FILAS + 1}`, {
     type: 'custom',
     allowBlank: true,
-    formulae: [`AND(ISNUMBER(${F}2),${F}2>=DATE(1930,1,1),${F}2<=EDATE(TODAY(),-${EDAD_MINIMA * 12}))`],
+    formulae: [
+      `AND(ISNUMBER(${F}2),${F}2>=DATE(1930,1,1),${F}2<=EDATE(TODAY(),-${EDAD_MINIMA * 12}))`,
+    ],
     showErrorMessage: true,
     errorStyle: 'stop',
     errorTitle: 'Fecha de nacimiento',

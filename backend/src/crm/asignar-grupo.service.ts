@@ -78,7 +78,9 @@ export class AsignarGrupo {
         /// Y «esperando» son los YA INSCRITOS, la misma regla que
         /// `elegiblesDelGrupo`. Si aquí se contara a los interesados,
         /// la fila diría «120 sin grupo» y al abrirla saldrían ocho.
-        participantes: { some: { coberturaId: null, etapa: { in: OCUPAN_SILLA } } },
+        participantes: {
+          some: { coberturaId: null, etapa: { in: OCUPAN_SILLA } },
+        },
       },
       select: {
         id: true,
@@ -90,7 +92,9 @@ export class AsignarGrupo {
         },
         _count: {
           select: {
-            participantes: { where: { coberturaId: null, etapa: { in: OCUPAN_SILLA } } },
+            participantes: {
+              where: { coberturaId: null, etapa: { in: OCUPAN_SILLA } },
+            },
           },
         },
       },
@@ -193,7 +197,10 @@ export class AsignarGrupo {
     const oferta = await this.exigirOferta(ofertaId, ambito);
 
     const filas = await this.prisma.participante.findMany({
-      where: elegiblesDelGrupo({ ofertaId, convenioId: oferta.accionFormacion.convenioId }),
+      where: elegiblesDelGrupo({
+        ofertaId,
+        convenioId: oferta.accionFormacion.convenioId,
+      }),
       /// POR ORDEN DE LLEGADA, el más viejo primero.
       ///
       /// Al revés que la bandeja: aquí se reparte una cohorte, y quien
@@ -335,7 +342,10 @@ export class AsignarGrupo {
       const apuntados = await tx.participante.count({
         where: { coberturaId: celda.id, etapa: { in: RETIENEN_ASIENTO } },
       });
-      const caben = cuantosCaben({ cuposMaximos: celda.cuposMaximos, apuntados });
+      const caben = cuantosCaben({
+        cuposMaximos: celda.cuposMaximos,
+        apuntados,
+      });
 
       const entran = suyos.slice(0, caben);
       const sinCupo = suyos.length - entran.length;
@@ -400,7 +410,9 @@ export class AsignarGrupo {
         id: true,
         modalidad: true,
         ubicacion: { select: { nombre: true } },
-        accionFormacion: { select: { codigo: true, nombre: true, convenioId: true } },
+        accionFormacion: {
+          select: { codigo: true, nombre: true, convenioId: true },
+        },
       },
     });
     if (!oferta) throw new NotFoundException('Esa oferta no existe.');

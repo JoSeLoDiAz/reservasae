@@ -34,9 +34,7 @@ export type SedeCandidata = {
 };
 
 export type QueSede<T> =
-  | { sede: T }
-  | { ninguna: string[] }
-  | { ambigua: string[] };
+  { sede: T } | { ninguna: string[] } | { ambigua: string[] };
 
 /// «BOGOTÁ D.C» y «BOGOTÁ» son el mismo sitio.
 ///

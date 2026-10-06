@@ -20,7 +20,8 @@ import { RolAdmin, type Admin } from '../../generated/prisma';
 import { AdminActual, AmbitoActual } from '../admin/admin-actual.decorator';
 import { AdminGuard, Requiere, Roles, type Ambito } from '../admin/admin.guard';
 import {
-  conveniosQueCierran, conveniosQueMuevenInscrito,
+  conveniosQueCierran,
+  conveniosQueMuevenInscrito,
   conveniosQueReparten,
   conveniosQueVenElEquipo,
 } from '../admin/permisos';
@@ -226,7 +227,9 @@ export class CrmController {
       accionFormacionId: accionFormacionId || undefined,
       grupoId: grupoId || undefined,
       asesorId: asesorId || undefined,
-      departamentoSepId: departamentoSepId ? Number(departamentoSepId) : undefined,
+      departamentoSepId: departamentoSepId
+        ? Number(departamentoSepId)
+        : undefined,
       desde: desde || undefined,
       hasta: hasta || undefined,
     });
@@ -260,18 +263,44 @@ export class CrmController {
       accionFormacionId: accionFormacionId || undefined,
       grupoId: grupoId || undefined,
       asesorId: asesorId || undefined,
-      departamentoSepId: departamentoSepId ? Number(departamentoSepId) : undefined,
+      departamentoSepId: departamentoSepId
+        ? Number(departamentoSepId)
+        : undefined,
     });
   }
 
-  /** El Bloque 3: los grupos de una acción, con las mismas columnas. */
+  /**
+   * El Bloque 3: los grupos de una acción, con las mismas columnas.
+   *
+   * CON EL MISMO RECORTE QUE LA TABLA DE ARRIBA, desde el 6 oct 2026.
+   * No obedecía a nada ---ni al periodo ni a los cinco filtros--- y se
+   * abre pulsando una fila de esa tabla, que sí los obedece: los dos
+   * bloques, pegados en la misma pantalla, contaban gente distinta
+   * para la misma acción.
+   *
+   * Los cortes van uno a uno y no con un DTO, por lo mismo que arriba:
+   * el ValidationPipe global lleva `forbidNonWhitelisted`.
+   */
   @Get('resumen-por-accion/:accionFormacionId/grupos')
   @Requiere('inscritos')
   resumenPorGrupo(
     @AmbitoActual() ambito: Ambito,
     @Param('accionFormacionId') accionFormacionId: string,
+    @Query('grupoId') grupoId?: string,
+    @Query('asesorId') asesorId?: string,
+    @Query('departamentoSepId') departamentoSepId?: string,
+    @Query('desde') desde?: string,
+    @Query('hasta') hasta?: string,
   ) {
-    return this.crm.resumenPorGrupo(ambito, accionFormacionId);
+    return this.crm.resumenPorGrupo(ambito, accionFormacionId, {
+      grupoId: grupoId || undefined,
+      asesorId: asesorId || undefined,
+      departamentoSepId: departamentoSepId
+        ? Number(departamentoSepId)
+        : undefined,
+      desde: desde || undefined,
+      hasta: hasta || undefined,
+    });
   }
 
   /**
@@ -344,7 +373,10 @@ export class CrmController {
     @Query('llegoDesde') llegoDesde?: string,
     @Query('llegoHasta') llegoHasta?: string,
   ) {
-    return this.crm.proyeccionDeInscripciones(ambito, { llegoDesde, llegoHasta });
+    return this.crm.proyeccionDeInscripciones(ambito, {
+      llegoDesde,
+      llegoHasta,
+    });
   }
 
   /**
@@ -595,11 +627,18 @@ export class CrmController {
     /// la columna del curso va con `errorStyle: 'stop'` y ninguna
     /// acción se repite entre convenios. Es la regla del webhook de
     /// leads: adivinar el gremio es peor que no contestar.
-    const elegido = convenioId ?? (ambito.convenios.length === 1 ? ambito.convenios[0] : undefined);
+    const elegido =
+      convenioId ??
+      (ambito.convenios.length === 1 ? ambito.convenios[0] : undefined);
     if (!elegido) {
-      throw new BadRequestException('Elija el convenio antes de descargar la plantilla.');
+      throw new BadRequestException(
+        'Elija el convenio antes de descargar la plantilla.',
+      );
     }
-    const datos = await this.crm.datosDePlantillaDeCarga(elegido, ambito.convenios);
+    const datos = await this.crm.datosDePlantillaDeCarga(
+      elegido,
+      ambito.convenios,
+    );
     enviarLibro(res, await libroDePlantilla(datos), 'plantilla-participantes');
   }
 
@@ -622,7 +661,9 @@ export class CrmController {
       );
     }
     if (!/\.(xlsx|csv)$/i.test(nombre)) {
-      throw new BadRequestException('Solo se pueden subir archivos .xlsx o .csv.');
+      throw new BadRequestException(
+        'Solo se pueden subir archivos .xlsx o .csv.',
+      );
     }
 
     let texto: string;
@@ -635,7 +676,9 @@ export class CrmController {
     }
 
     if (!texto) {
-      throw new BadRequestException('El archivo no tiene ninguna fila con datos.');
+      throw new BadRequestException(
+        'El archivo no tiene ninguna fila con datos.',
+      );
     }
     if (texto.length > 200_000) {
       throw new BadRequestException(
@@ -646,7 +689,10 @@ export class CrmController {
     /// La hoja «Organización», si viene llena. Que no se pueda leer no
     /// tumba la carga: las filas ya se leyeron, y la organización se
     /// puede escribir a mano en la pantalla.
-    const organizacion = await organizacionDelArchivo(archivo.buffer, nombre).catch(() => null);
+    const organizacion = await organizacionDelArchivo(
+      archivo.buffer,
+      nombre,
+    ).catch(() => null);
 
     return { texto, filas: texto.split('\n').length, organizacion };
   }
@@ -839,7 +885,14 @@ export class CrmController {
     @AmbitoActual() ambito: Ambito,
     @IpReal() ip: string,
   ) {
-    return this.crm.actualizar(id, dto, admin, ambito.convenios, ambito.roles, ip);
+    return this.crm.actualizar(
+      id,
+      dto,
+      admin,
+      ambito.convenios,
+      ambito.roles,
+      ip,
+    );
   }
 
   /** Quita a la persona de este curso. No la borra. */
@@ -913,10 +966,7 @@ export class CrmController {
    * ciegas.
    */
   @Get(':id/correo/plantillas')
-  plantillasParaEste(
-    @Param('id') id: string,
-    @AmbitoActual() ambito: Ambito,
-  ) {
+  plantillasParaEste(@Param('id') id: string, @AmbitoActual() ambito: Ambito) {
     /// Con el id de la ficha: la lista viene con el motivo
     /// por el que cada una no se le puede mandar a ESTA
     /// persona. Antes se devolvia el catalogo entero, igual

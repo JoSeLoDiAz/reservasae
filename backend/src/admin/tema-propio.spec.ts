@@ -43,7 +43,9 @@ describe('guardar suma, restablecer quita', () => {
 
   it('restablecer un esquema no toca el otro', () => {
     const antes = { CLARO: { marca: '#1d4ed8' }, OSCURO: { marca: '#93c5fd' } };
-    expect(sinEsquema(antes, 'CLARO')).toEqual({ OSCURO: { marca: '#93c5fd' } });
+    expect(sinEsquema(antes, 'CLARO')).toEqual({
+      OSCURO: { marca: '#93c5fd' },
+    });
   });
 });
 
@@ -74,7 +76,9 @@ describe('guardar mis colores NO cambia los de los demás', () => {
 
   it('guardar escribe en SU cuenta y nunca en la paleta de todos', async () => {
     const { s, escrituras } = armar(null);
-    const r = await s.guardarMiTema(ANA, 'CLARO', { colores: { marca: '#7f1d1d' } });
+    const r = await s.guardarMiTema(ANA, 'CLARO', {
+      colores: { marca: '#7f1d1d' },
+    });
     expect(r).toEqual({ CLARO: { marca: '#7f1d1d' } });
     expect(escrituras).toEqual(['admin.update:ana']);
   });

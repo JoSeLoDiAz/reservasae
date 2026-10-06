@@ -21,7 +21,11 @@ import { JwtService } from '@nestjs/jwt';
 import { Throttle } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
 
-import { RolAdmin, type Admin, type EsquemaColor } from '../../generated/prisma';
+import {
+  RolAdmin,
+  type Admin,
+  type EsquemaColor,
+} from '../../generated/prisma';
 import {
   ERROR_TAMANO_LOGO,
   ERROR_TIPO_LOGO,
@@ -96,7 +100,10 @@ export class AdminController {
 
     // la dirección decide en qué gremio se trabaja, así que
     // una cuenta que no lo tiene no llega a tener sesión
-    const motivo = await this.admin.motivoParaNoEntrarPor(admin, peticion.headers.host);
+    const motivo = await this.admin.motivoParaNoEntrarPor(
+      admin,
+      peticion.headers.host,
+    );
     if (motivo) throw new ForbiddenException(motivo);
 
     const token = this.jwt.sign({ sub: admin.id });
@@ -212,7 +219,10 @@ export class AdminController {
   }
 
   @Patch('perfil')
-  actualizarPerfil(@AdminActual() admin: Admin, @Body() dto: ActualizarPerfilDto) {
+  actualizarPerfil(
+    @AdminActual() admin: Admin,
+    @Body() dto: ActualizarPerfilDto,
+  ) {
     return this.admin.actualizarPerfil(admin, dto);
   }
 
@@ -235,7 +245,10 @@ export class AdminController {
 
   @Post('perfil/tema/:esquema/restablecer')
   @HttpCode(200)
-  restablecerMiTema(@AdminActual() admin: Admin, @Param('esquema') esquema: string) {
+  restablecerMiTema(
+    @AdminActual() admin: Admin,
+    @Param('esquema') esquema: string,
+  ) {
     return this.admin.restablecerMiTema(admin, this.exigirEsquema(esquema));
   }
 
@@ -263,8 +276,11 @@ export class AdminController {
 
   @Post('usuarios')
   @Roles(RolAdmin.SUPERADMIN)
-  async crearUsuario(@Body() dto: CrearAdminDto) {
-    const creada = await this.admin.crearAdmin(dto);
+  async crearUsuario(@AdminActual() admin: Admin, @Body() dto: CrearAdminDto) {
+    const creada = await this.admin.crearAdmin(dto, {
+      id: admin.id,
+      nombre: admin.nombre,
+    });
 
     /// Avisar va DESPUES y no puede tumbar la creacion: la
     /// clave temporal se sigue viendo en pantalla.
@@ -341,7 +357,10 @@ export class AdminController {
   @Patch('marca')
   @Requiere('configuracion', 'ESCRIBIR')
   @SoloEditoresDeMarca()
-  actualizarMarca(@AdminActual() admin: Admin, @Body() dto: ActualizarMarcaDto) {
+  actualizarMarca(
+    @AdminActual() admin: Admin,
+    @Body() dto: ActualizarMarcaDto,
+  ) {
     return this.admin.actualizarMarca(admin, dto);
   }
 
@@ -400,7 +419,10 @@ export class AdminController {
   @Requiere('configuracion', 'ESCRIBIR')
   @SoloEditoresDeMarca()
   @HttpCode(200)
-  restablecerTema(@AdminActual() admin: Admin, @Param('esquema') esquema: string) {
+  restablecerTema(
+    @AdminActual() admin: Admin,
+    @Param('esquema') esquema: string,
+  ) {
     return this.admin.restablecerTema(admin, this.exigirEsquema(esquema));
   }
 
@@ -431,16 +453,24 @@ export class AdminController {
   @Post('logos')
   @Requiere('configuracion', 'ESCRIBIR')
   @SoloEditoresDeMarca()
-  @UseInterceptors(FileInterceptor('logo', { limits: { fileSize: MAXIMO_LOGO } }))
+  @UseInterceptors(
+    FileInterceptor('logo', { limits: { fileSize: MAXIMO_LOGO } }),
+  )
   subirLogo(
     @AmbitoActual() ambito: Ambito,
     @Body()
-    cuerpo: { formularioId?: string; etiqueta?: string; esquema?: EsquemaDeLogo },
+    cuerpo: {
+      formularioId?: string;
+      etiqueta?: string;
+      esquema?: EsquemaDeLogo;
+    },
     @UploadedFile() archivo?: Express.Multer.File,
   ) {
     if (!archivo) throw new BadRequestException('No llegó ningún archivo.');
-    if (!TIPOS_LOGO.includes(archivo.mimetype)) throw new BadRequestException(ERROR_TIPO_LOGO);
-    if (archivo.size > MAXIMO_LOGO) throw new BadRequestException(ERROR_TAMANO_LOGO);
+    if (!TIPOS_LOGO.includes(archivo.mimetype))
+      throw new BadRequestException(ERROR_TIPO_LOGO);
+    if (archivo.size > MAXIMO_LOGO)
+      throw new BadRequestException(ERROR_TAMANO_LOGO);
 
     return this.admin.agregarLogo(
       ambito,

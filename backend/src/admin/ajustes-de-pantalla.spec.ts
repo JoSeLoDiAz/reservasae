@@ -42,14 +42,24 @@ describe('ajustes de pantalla', () => {
     });
 
     it('las dos ayudas solo se leen si son sí o no', () => {
-      expect(leerAjustesDePantalla({ sinMovimiento: true }).sinMovimiento).toBe(true);
-      expect(leerAjustesDePantalla({ sinMovimiento: 'si' }).sinMovimiento).toBe(false);
-      expect(leerAjustesDePantalla({ enlacesSubrayados: true }).enlacesSubrayados).toBe(true);
-      expect(leerAjustesDePantalla({ enlacesSubrayados: 1 }).enlacesSubrayados).toBe(false);
+      expect(leerAjustesDePantalla({ sinMovimiento: true }).sinMovimiento).toBe(
+        true,
+      );
+      expect(leerAjustesDePantalla({ sinMovimiento: 'si' }).sinMovimiento).toBe(
+        false,
+      );
+      expect(
+        leerAjustesDePantalla({ enlacesSubrayados: true }).enlacesSubrayados,
+      ).toBe(true);
+      expect(
+        leerAjustesDePantalla({ enlacesSubrayados: 1 }).enlacesSubrayados,
+      ).toBe(false);
     });
 
     it('un campo roto no se lleva a los demás', () => {
-      expect(leerAjustesDePantalla({ texto: 999, sinMovimiento: true })).toEqual({
+      expect(
+        leerAjustesDePantalla({ texto: 999, sinMovimiento: true }),
+      ).toEqual({
         texto: 100,
         sinMovimiento: true,
         enlacesSubrayados: false,
@@ -61,7 +71,11 @@ describe('ajustes de pantalla', () => {
     /// Es lo que evita que mover la escala apague las dos ayudas que
     /// esa persona tenía encendidas.
     it('suma, no reemplaza', () => {
-      const tenia = { texto: 120, sinMovimiento: true, enlacesSubrayados: true };
+      const tenia = {
+        texto: 120,
+        sinMovimiento: true,
+        enlacesSubrayados: true,
+      };
       expect(conAjustes(tenia, { texto: 110 })).toEqual({
         texto: 110,
         sinMovimiento: true,
@@ -70,7 +84,11 @@ describe('ajustes de pantalla', () => {
     });
 
     it('apagar una ayuda no toca la escala', () => {
-      const tenia = { texto: 120, sinMovimiento: true, enlacesSubrayados: false };
+      const tenia = {
+        texto: 120,
+        sinMovimiento: true,
+        enlacesSubrayados: false,
+      };
       expect(conAjustes(tenia, { sinMovimiento: false })).toEqual({
         texto: 120,
         sinMovimiento: false,
@@ -79,7 +97,11 @@ describe('ajustes de pantalla', () => {
     });
 
     it('lo que llega roto no ensucia lo guardado', () => {
-      const tenia = { texto: 110, sinMovimiento: false, enlacesSubrayados: false };
+      const tenia = {
+        texto: 110,
+        sinMovimiento: false,
+        enlacesSubrayados: false,
+      };
       expect(conAjustes(tenia, { texto: 999 } as never).texto).toBe(100);
     });
   });

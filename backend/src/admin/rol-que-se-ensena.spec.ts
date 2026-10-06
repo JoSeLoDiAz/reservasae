@@ -38,10 +38,16 @@ describe('con qué rol se presenta la cuenta', () => {
     };
     const concedidos = [ADECO, BRIT];
     expect(
-      rolQueSeEnsena(RolAdmin.GESTOR, ambito({ roles, concedidos, gremioElegido: ADECO })),
+      rolQueSeEnsena(
+        RolAdmin.GESTOR,
+        ambito({ roles, concedidos, gremioElegido: ADECO }),
+      ),
     ).toBe(RolConvenio.CONSULTA);
     expect(
-      rolQueSeEnsena(RolAdmin.GESTOR, ambito({ roles, concedidos, gremioElegido: BRIT })),
+      rolQueSeEnsena(
+        RolAdmin.GESTOR,
+        ambito({ roles, concedidos, gremioElegido: BRIT }),
+      ),
     ).toBe(RolConvenio.LIDER_INSCRIPCION);
   });
 
@@ -92,7 +98,10 @@ describe('con qué rol se presenta la cuenta', () => {
   it('sin concesión no se inventa ninguna', () => {
     expect(rolQueSeEnsena(RolAdmin.GESTOR, ambito({}))).toBeNull();
     expect(
-      rolQueSeEnsena(RolAdmin.GESTOR, ambito({ gremioElegido: ADECO, concedidos: [ADECO] })),
+      rolQueSeEnsena(
+        RolAdmin.GESTOR,
+        ambito({ gremioElegido: ADECO, concedidos: [ADECO] }),
+      ),
     ).toBeNull();
   });
 
@@ -104,7 +113,11 @@ describe('con qué rol se presenta la cuenta', () => {
       expect(
         rolQueSeEnsena(
           RolAdmin.GESTOR,
-          ambito({ roles: { [ADECO]: [rol] }, gremioElegido: ADECO, concedidos: [ADECO] }),
+          ambito({
+            roles: { [ADECO]: [rol] },
+            gremioElegido: ADECO,
+            concedidos: [ADECO],
+          }),
         ),
       ).toBe(rol);
     }

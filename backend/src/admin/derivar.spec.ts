@@ -55,9 +55,17 @@ describe('derivarTemas', () => {
             // los pares entre estados van por distancia de
             // color, no por WCAG: aqui no aplican
             if (par.entreEstados) continue;
-            const razon = contraste(temas[esquema][par.frente], temas[esquema][par.fondo]);
-            expect({ principal, encabezadoDeColor, esquema, par: par.descripcion, razon })
-              .toMatchObject({ razon: expect.any(Number) });
+            const razon = contraste(
+              temas[esquema][par.frente],
+              temas[esquema][par.fondo],
+            );
+            expect({
+              principal,
+              encabezadoDeColor,
+              esquema,
+              par: par.descripcion,
+              razon,
+            }).toMatchObject({ razon: expect.any(Number) });
             expect(razon!).toBeGreaterThanOrEqual(minimoExigido(par.grande));
           }
         }
@@ -68,7 +76,9 @@ describe('derivarTemas', () => {
   it('el amarillo puro saca texto oscuro en los botones', () => {
     const temas = derivarTemas({ principal: '#ffd400' });
     const claro = temas.CLARO;
-    expect(contraste(claro.marcaTexto, claro.marca)!).toBeGreaterThanOrEqual(4.5);
+    expect(contraste(claro.marcaTexto, claro.marca)!).toBeGreaterThanOrEqual(
+      4.5,
+    );
   });
 
   it('el oscuro no es el claro invertido: la marca baja de saturacion', () => {
@@ -113,7 +123,10 @@ describe('plantillas', () => {
           // los pares entre estados van por distancia de
           // color, no por WCAG: aqui no aplican
           if (par.entreEstados) continue;
-          const razon = contraste(temas[esquema][par.frente], temas[esquema][par.fondo]);
+          const razon = contraste(
+            temas[esquema][par.frente],
+            temas[esquema][par.fondo],
+          );
           expect(
             `${plantilla.clave} ${esquema} ${par.descripcion}: ${razon?.toFixed(2)}`,
           ).toBe(

@@ -77,10 +77,12 @@ function armar(opciones: { rol: string; otraPersona?: unknown }) {
 
   const s = new CrmService(
     prisma as never,
-    { registrar: (a: { accion: string }) => {
+    {
+      registrar: (a: { accion: string }) => {
         auditadas.push(a);
         return Promise.resolve();
-      } } as never,
+      },
+    } as never,
     {} as never,
     {} as never,
     {} as never,
@@ -177,9 +179,9 @@ describe('cambiarlo de verdad es solo del administrador', () => {
   it('y cambiar solo el TIPO también pide ser administrador', async () => {
     const { actualizar } = armar({ rol: 'GESTOR' });
 
-    await expect(
-      actualizar({ tipoDocumentoSepId: 4 }),
-    ).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(actualizar({ tipoDocumentoSepId: 4 })).rejects.toBeInstanceOf(
+      ForbiddenException,
+    );
   });
 });
 

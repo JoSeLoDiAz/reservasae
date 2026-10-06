@@ -64,7 +64,10 @@ export const ORDEN_ANTIGUO: Campo[] = [
 /// municipio» antes que «municipio», que también aparece en otras.
 const PISTAS: Array<[Campo, RegExp]> = [
   ['tipoDocumento', /^tipo/],
-  ['numeroDocumento', /^(numero|nro|no|num)\b|^documento|^cedula|^identificacion/],
+  [
+    'numeroDocumento',
+    /^(numero|nro|no|num)\b|^documento|^cedula|^identificacion/,
+  ],
   ['segundoNombre', /segundo nombre/],
   ['primerNombre', /primer nombre|^nombres?$/],
   ['segundoApellido', /segundo apellido/],
@@ -107,7 +110,8 @@ export type Columnas = Partial<Record<Campo, number>>;
  * empieza por «Cedula» se perdería en silencio.
  */
 export function columnasDelEncabezado(celdas: string[]): Columnas | null {
-  if (celdas.some((c) => /^\d{4,}$/.test(c.replace(/[\s.\-_]/g, '')))) return null;
+  if (celdas.some((c) => /^\d{4,}$/.test(c.replace(/[\s.\-_]/g, ''))))
+    return null;
 
   const columnas: Columnas = {};
   celdas.forEach((celda, i) => {
@@ -132,25 +136,39 @@ export function columnasDelEncabezado(celdas: string[]): Columnas | null {
 const SIN_TILDES = (s: string) => llano(s);
 
 /** El género del SEP. «Otro» es el «No binario» del catálogo. */
-export function leerGenero(texto: string): { id: number | null; problema?: string } {
+export function leerGenero(texto: string): {
+  id: number | null;
+  problema?: string;
+} {
   const t = SIN_TILDES(texto);
   if (!t) return { id: null };
-  if (t === 'otro' || t === 'otra' || t === 'otros') return { id: GENERO_NO_BINARIO };
+  if (t === 'otro' || t === 'otra' || t === 'otros')
+    return { id: GENERO_NO_BINARIO };
   const hallado = GENEROS_SEP.find((g) => SIN_TILDES(g.etiqueta) === t);
   if (hallado) return { id: hallado.id };
   /// Por la primera letra, que es como lo escribe medio mundo: «M», «F».
   if (t === 'm' || t === 'masculino') return { id: 1 };
   if (t === 'f' || t === 'femenino') return { id: 2 };
-  return { id: null, problema: `«${texto}» no es un género conocido (masculino, femenino u otro)` };
+  return {
+    id: null,
+    problema: `«${texto}» no es un género conocido (masculino, femenino u otro)`,
+  };
 }
 
 /** El nivel ocupacional del SEP, por su nombre. */
-export function leerNivelOcupacional(texto: string): { id: number | null; problema?: string } {
+export function leerNivelOcupacional(texto: string): {
+  id: number | null;
+  problema?: string;
+} {
   const t = SIN_TILDES(texto);
   if (!t) return { id: null };
-  const hallado = NIVELES_OCUPACIONALES_SEP.find((n) => SIN_TILDES(n.etiqueta) === t);
+  const hallado = NIVELES_OCUPACIONALES_SEP.find(
+    (n) => SIN_TILDES(n.etiqueta) === t,
+  );
   if (hallado) return { id: hallado.id };
-  const empieza = NIVELES_OCUPACIONALES_SEP.find((n) => SIN_TILDES(n.etiqueta).startsWith(t));
+  const empieza = NIVELES_OCUPACIONALES_SEP.find((n) =>
+    SIN_TILDES(n.etiqueta).startsWith(t),
+  );
   if (empieza) return { id: empieza.id };
   return {
     id: null,
@@ -169,14 +187,19 @@ export function leerNivelOcupacional(texto: string): { id: number | null; proble
 export function leerDondeVive(
   departamento: string,
   municipio: string,
-): { departamentoSepId: number | null; municipioSepId: number | null; problema?: string } {
+): {
+  departamentoSepId: number | null;
+  municipioSepId: number | null;
+  problema?: string;
+} {
   const dTexto = SIN_TILDES(departamento);
   const mTexto = SIN_TILDES(municipio);
-  if (!dTexto && !mTexto) return { departamentoSepId: null, municipioSepId: null };
+  if (!dTexto && !mTexto)
+    return { departamentoSepId: null, municipioSepId: null };
 
   const depto = dTexto
-    ? DEPARTAMENTOS_SEP.find((d) => SIN_TILDES(d.etiqueta) === dTexto) ??
-      DEPARTAMENTOS_SEP.find((d) => SIN_TILDES(d.etiqueta).startsWith(dTexto))
+    ? (DEPARTAMENTOS_SEP.find((d) => SIN_TILDES(d.etiqueta) === dTexto) ??
+      DEPARTAMENTOS_SEP.find((d) => SIN_TILDES(d.etiqueta).startsWith(dTexto)))
     : undefined;
   if (dTexto && !depto) {
     return {
@@ -186,7 +209,8 @@ export function leerDondeVive(
     };
   }
 
-  if (!mTexto) return { departamentoSepId: depto?.id ?? null, municipioSepId: null };
+  if (!mTexto)
+    return { departamentoSepId: depto?.id ?? null, municipioSepId: null };
 
   const candidatos = MUNICIPIOS_SEP.filter((m) => SIN_TILDES(m[2]) === mTexto);
   if (candidatos.length === 0) {
@@ -239,11 +263,17 @@ export function leerDondeVive(
       problema: `hay ${candidatos.length} municipios llamados «${municipio}»: falta el departamento`,
     };
   }
-  return { departamentoSepId: candidatos[0][1], municipioSepId: candidatos[0][0] };
+  return {
+    departamentoSepId: candidatos[0][1],
+    municipioSepId: candidatos[0][0],
+  };
 }
 
 /** El estrato, del 1 al 6. */
-export function leerEstrato(texto: string): { valor: number | null; problema?: string } {
+export function leerEstrato(texto: string): {
+  valor: number | null;
+  problema?: string;
+} {
   const t = texto.trim();
   if (!t) return { valor: null };
   const n = Number(t.replace(/[^0-9]/g, ''));
@@ -254,10 +284,14 @@ export function leerEstrato(texto: string): { valor: number | null; problema?: s
 }
 
 /** Sí o no. Vacío es «no se sabe», que no es lo mismo que «no». */
-export function leerSiNo(texto: string): { valor: boolean | null; problema?: string } {
+export function leerSiNo(texto: string): {
+  valor: boolean | null;
+  problema?: string;
+} {
   const t = SIN_TILDES(texto);
   if (!t) return { valor: null };
-  if (['si', 'sí', 's', 'true', 'verdadero', 'x', '1'].includes(t)) return { valor: true };
+  if (['si', 'sí', 's', 'true', 'verdadero', 'x', '1'].includes(t))
+    return { valor: true };
   if (['no', 'n', 'false', 'falso', '0'].includes(t)) return { valor: false };
   return { valor: null, problema: `«${texto}» no es sí ni no` };
 }
@@ -302,11 +336,18 @@ export function leerFechaDeNacimiento(texto: string): {
     iso = new Date(base + serie * 86400000).toISOString().slice(0, 10);
   }
 
-  if (!iso) return { iso: null, problema: `«${texto}» no es una fecha (use dd/mm/aaaa)` };
+  if (!iso)
+    return {
+      iso: null,
+      problema: `«${texto}» no es una fecha (use dd/mm/aaaa)`,
+    };
 
   const fecha = new Date(`${iso}T12:00:00Z`);
   if (Number.isNaN(fecha.getTime())) {
-    return { iso: null, problema: `«${texto}» no es una fecha (use dd/mm/aaaa)` };
+    return {
+      iso: null,
+      problema: `«${texto}» no es una fecha (use dd/mm/aaaa)`,
+    };
   }
   if (fecha.getTime() > Date.now()) {
     return { iso: null, problema: `«${texto}» es una fecha futura` };

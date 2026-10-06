@@ -48,7 +48,13 @@ describe('ocupar una silla', () => {
   });
 
   it('quien se fue deja la silla', () => {
-    for (const salida of ['PERDIDO', 'RETIRADO', 'DESERTO', 'ABANDONO', 'NO_APROBO']) {
+    for (const salida of [
+      'PERDIDO',
+      'RETIRADO',
+      'DESERTO',
+      'ABANDONO',
+      'NO_APROBO',
+    ]) {
       expect(ETAPAS_VIVAS).not.toContain(salida);
     }
   });

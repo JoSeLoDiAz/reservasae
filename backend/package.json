@@ -49,7 +49,8 @@
     "db:guardia": "ts-node prisma/guardia-de-base-cli.ts",
     "db:brechas": "ts-node prisma/brechas.ts",
     "db:integridad": "ts-node prisma/integridad.ts",
-    "db:nit-pegado": "ts-node prisma/unir-nit-pegado.ts"
+    "db:nit-pegado": "ts-node prisma/unir-nit-pegado.ts",
+    "db:cronograma": "ts-node prisma/cronograma-a-los-grupos.ts"
   },
   "prisma": {
     "seed": "ts-node prisma/seed/index.ts"

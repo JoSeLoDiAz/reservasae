@@ -46,11 +46,21 @@ const EMPRESA = {
   redAsociadaOtra: null,
 };
 
-const OTRA = { ...EMPRESA, id: 'e2', nit: '800999888', razonSocial: 'LICEO MODERNO' };
+const OTRA = {
+  ...EMPRESA,
+  id: 'e2',
+  nit: '800999888',
+  razonSocial: 'LICEO MODERNO',
+};
 
 /// Una acción de ADECOPRIA. El id es lo que las distingue; el código
 /// se repite a propósito en la prueba del gremio ambiguo.
-const accion = (id: string, codigo: string, convenio = 'adecopria', sigla = 'ADECOPRIA') => ({
+const accion = (
+  id: string,
+  codigo: string,
+  convenio = 'adecopria',
+  sigla = 'ADECOPRIA',
+) => ({
   id,
   codigo,
   nombre: `Acción ${codigo}`,
@@ -125,7 +135,12 @@ describe('las cuatro reservas de una empresa son UNA fila', () => {
 
     expect(filas).toHaveLength(1);
     expect(acciones.map((a) => a.codigo)).toEqual(['AF1', 'AF2', 'AF3', 'AF4']);
-    expect(Object.keys(filas[0].porAccion).sort()).toEqual(['af1', 'af2', 'af3', 'af4']);
+    expect(Object.keys(filas[0].porAccion).sort()).toEqual([
+      'af1',
+      'af2',
+      'af3',
+      'af4',
+    ]);
   });
 
   it('los totales cuadran con lo que suman las celdas', () => {
@@ -149,8 +164,12 @@ describe('las cuatro reservas de una empresa son UNA fila', () => {
     /// La primera es la del 10 aunque llegara primera en la lista, y
     /// la última la del 18: no es «la primera y la última de la
     /// lista», es la menor y la mayor.
-    expect(fila.primeraReserva).toBe(new Date('2026-09-10T15:00:00Z').toISOString());
-    expect(fila.ultimaReserva).toBe(new Date('2026-09-18T15:00:00Z').toISOString());
+    expect(fila.primeraReserva).toBe(
+      new Date('2026-09-10T15:00:00Z').toISOString(),
+    );
+    expect(fila.ultimaReserva).toBe(
+      new Date('2026-09-18T15:00:00Z').toISOString(),
+    );
   });
 
   it('la cancelada se queda: es la que explica la columna Estado', () => {
@@ -300,9 +319,19 @@ describe('los contactos', () => {
 
 describe('los dos «AF1» no se mezclan', () => {
   const dosGremios = [
-    reserva({ id: 'r1', accionId: 'af1-adeco', codigo: 'AF1', cuposConfirmados: 5 }),
+    reserva({
+      id: 'r1',
+      accionId: 'af1-adeco',
+      codigo: 'AF1',
+      cuposConfirmados: 5,
+    }),
     {
-      ...reserva({ id: 'r2', accionId: 'af1-ae', codigo: 'AF1', cuposConfirmados: 7 }),
+      ...reserva({
+        id: 'r2',
+        accionId: 'af1-ae',
+        codigo: 'AF1',
+        cuposConfirmados: 7,
+      }),
       oferta: {
         modalidad: 'VIRTUAL' as const,
         ubicacion: { nombre: 'Bogotá' },
@@ -315,7 +344,10 @@ describe('los dos «AF1» no se mezclan', () => {
     const { acciones } = armarAgrupadas(dosGremios);
 
     expect(acciones).toHaveLength(2);
-    expect(acciones.map((a) => a.accionFormacionId)).toEqual(['af1-adeco', 'af1-ae']);
+    expect(acciones.map((a) => a.accionFormacionId)).toEqual([
+      'af1-adeco',
+      'af1-ae',
+    ]);
   });
 
   it('las dos quedan marcadas como ambiguas, para que la cabecera lo diga', () => {
@@ -345,7 +377,12 @@ describe('los dos «AF1» no se mezclan', () => {
 describe('varias organizaciones', () => {
   it('cada una es su fila, y la columna existe aunque solo una la haya reservado', () => {
     const { filas, acciones } = armarAgrupadas([
-      reserva({ id: 'r1', accionId: 'af1', codigo: 'AF1', cuposConfirmados: 5 }),
+      reserva({
+        id: 'r1',
+        accionId: 'af1',
+        codigo: 'AF1',
+        cuposConfirmados: 5,
+      }),
       reserva({
         id: 'r2',
         accionId: 'af2',

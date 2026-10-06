@@ -68,12 +68,24 @@ describe('sin el id del SEP se cae al criterio viejo, y lo dice', () => {
   });
 
   it('los bordes de la Ley 590', () => {
-    expect(tallaDeOrganizacion({ numeroColaboradores: 10 }).talla).toBe('Microempresa');
-    expect(tallaDeOrganizacion({ numeroColaboradores: 11 }).talla).toBe('Pequeña');
-    expect(tallaDeOrganizacion({ numeroColaboradores: 50 }).talla).toBe('Pequeña');
-    expect(tallaDeOrganizacion({ numeroColaboradores: 51 }).talla).toBe('Mediana');
-    expect(tallaDeOrganizacion({ numeroColaboradores: 200 }).talla).toBe('Mediana');
-    expect(tallaDeOrganizacion({ numeroColaboradores: 201 }).talla).toBe('Grande');
+    expect(tallaDeOrganizacion({ numeroColaboradores: 10 }).talla).toBe(
+      'Microempresa',
+    );
+    expect(tallaDeOrganizacion({ numeroColaboradores: 11 }).talla).toBe(
+      'Pequeña',
+    );
+    expect(tallaDeOrganizacion({ numeroColaboradores: 50 }).talla).toBe(
+      'Pequeña',
+    );
+    expect(tallaDeOrganizacion({ numeroColaboradores: 51 }).talla).toBe(
+      'Mediana',
+    );
+    expect(tallaDeOrganizacion({ numeroColaboradores: 200 }).talla).toBe(
+      'Mediana',
+    );
+    expect(tallaDeOrganizacion({ numeroColaboradores: 201 }).talla).toBe(
+      'Grande',
+    );
   });
 
   it('cero empleados es un dato, no un hueco', () => {
@@ -86,8 +98,13 @@ describe('sin el id del SEP se cae al criterio viejo, y lo dice', () => {
   });
 
   it('sin ninguno de los dos, no se inventa una talla', () => {
-    expect(tallaDeOrganizacion({})).toEqual({ talla: null, origen: 'SIN_DATO' });
-    expect(tallaDeOrganizacion({ tamanoSepId: null, numeroColaboradores: null })).toEqual({
+    expect(tallaDeOrganizacion({})).toEqual({
+      talla: null,
+      origen: 'SIN_DATO',
+    });
+    expect(
+      tallaDeOrganizacion({ tamanoSepId: null, numeroColaboradores: null }),
+    ).toEqual({
       talla: null,
       origen: 'SIN_DATO',
     });

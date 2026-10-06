@@ -97,8 +97,10 @@ function rutasDelPanel(): Ruta[] {
         const ruta = Reflect.getMetadata('path', fn) as string | undefined;
         if (ruta === undefined) continue;
 
-        const roles = (Reflect.getMetadata(ROLES, fn) ?? rolesClase) as string[];
-        const guardiasRuta = (Reflect.getMetadata('__guards__', fn) ?? []) as Array<{
+        const roles = (Reflect.getMetadata(ROLES, fn) ??
+          rolesClase) as string[];
+        const guardiasRuta = (Reflect.getMetadata('__guards__', fn) ??
+          []) as Array<{
           name?: string;
         }>;
         salida.push({
@@ -107,7 +109,9 @@ function rutasDelPanel(): Ruta[] {
           permiso: (Reflect.getMetadata(AREA, fn) as Perm) ?? permClase,
           soloSuperadmin:
             roles.length > 0 && roles.every((r) => r === 'SUPERADMIN'),
-          soloEditoresDeMarca: guardiasRuta.some((g) => g?.name === 'EditoresDeMarcaGuard'),
+          soloEditoresDeMarca: guardiasRuta.some(
+            (g) => g?.name === 'EditoresDeMarcaGuard',
+          ),
         });
       }
     }
@@ -133,19 +137,16 @@ describe('lo que escribe pide ESCRIBIR', () => {
     expect(escriben.length).toBeGreaterThan(40);
   });
 
-  it.each(escriben.map((r) => [r.nombre, r]))(
-    '%s',
-    (_n, r: unknown) => {
-      const ruta = r as Ruta;
-      if (PERMITIDAS[ruta.nombre]) return;
-      // el superadmin es una cerradura mas fuerte que el area
-      if (ruta.soloSuperadmin) return;
-      /// Y la lista de correos de `EDITORES_DE_MARCA`, más fuerte
-      /// todavía: deja fuera incluso a un superadmin que no esté.
-      if (ruta.soloEditoresDeMarca) return;
-      expect(ruta.permiso?.nivel).toBe('ESCRIBIR');
-    },
-  );
+  it.each(escriben.map((r) => [r.nombre, r]))('%s', (_n, r: unknown) => {
+    const ruta = r as Ruta;
+    if (PERMITIDAS[ruta.nombre]) return;
+    // el superadmin es una cerradura mas fuerte que el area
+    if (ruta.soloSuperadmin) return;
+    /// Y la lista de correos de `EDITORES_DE_MARCA`, más fuerte
+    /// todavía: deja fuera incluso a un superadmin que no esté.
+    if (ruta.soloEditoresDeMarca) return;
+    expect(ruta.permiso?.nivel).toBe('ESCRIBIR');
+  });
 
   it('lo permitido sigue existiendo: nada sobra en la lista', () => {
     for (const nombre of Object.keys(PERMITIDAS)) {

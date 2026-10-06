@@ -25,7 +25,9 @@ export function aRgb(hex: string): [number, number, number] | null {
 export function luminancia(hex: string): number | null {
   const rgb = aRgb(hex);
   if (!rgb) return null;
-  return 0.2126 * canal(rgb[0]) + 0.7152 * canal(rgb[1]) + 0.0722 * canal(rgb[2]);
+  return (
+    0.2126 * canal(rgb[0]) + 0.7152 * canal(rgb[1]) + 0.0722 * canal(rgb[2])
+  );
 }
 
 /** De 1 (idénticos) a 21 (negro sobre blanco). */

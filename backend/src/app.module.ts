@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
+import { JwtModule } from '@nestjs/jwt';
 import { ThrottlerModule } from '@nestjs/throttler';
 
 import { LeadsModule } from './leads/leads.module';
@@ -38,6 +39,18 @@ import { TablerosModule } from './tableros/tableros.module';
     ConfigModule.forRoot({ isGlobal: true }),
     // límite general de peticiones
     ThrottlerModule.forRoot([{ name: 'default', ttl: 60_000, limit: 60 }]),
+    /**
+     * PARA QUE EL LÍMITE SEPA DE QUIÉN ES CADA PETICIÓN.
+     *
+     * `ThrottlerIpGuard` cuenta por sesión cuando hay una ---en una
+     * oficina, contar por IP es un cubo compartido entre todas--- y
+     * para eso tiene que poder verificar la firma de la cookie.
+     *
+     * El MISMO secreto que firma la sesión en `AdminModule`: con otro,
+     * la verificación fallaría siempre y todo el panel volvería a
+     * contarse por IP sin que nada lo dijera.
+     */
+    JwtModule.register({ secret: process.env.ADMIN_JWT_SECRET }),
     PrismaModule,
     CorreoModule,
     PlantillasModule,

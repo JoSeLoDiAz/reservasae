@@ -23,27 +23,37 @@ describe('el ejemplo que fija las cuentas', () => {
   const INICIO = d('2026-09-07'); // lunes
 
   it('un curso que empieza el 7 de septiembre cierra el 31 de agosto', () => {
-    expect(cierreDeInscripciones(INICIO).toISOString().slice(0, 10)).toBe('2026-08-31');
+    expect(cierreDeInscripciones(INICIO).toISOString().slice(0, 10)).toBe(
+      '2026-08-31',
+    );
   });
 
   it('y el aviso para liberar cupos sale el 26', () => {
-    expect(avisoDeLiberacion(INICIO).toISOString().slice(0, 10)).toBe('2026-08-26');
+    expect(avisoDeLiberacion(INICIO).toISOString().slice(0, 10)).toBe(
+      '2026-08-26',
+    );
   });
 });
 
 describe('habilesAtras', () => {
   it('salta el fin de semana', () => {
     // lunes 7 menos un habil es viernes 4, no domingo 6
-    expect(habilesAtras(d('2026-09-07'), 1).toISOString().slice(0, 10)).toBe('2026-09-04');
+    expect(habilesAtras(d('2026-09-07'), 1).toISOString().slice(0, 10)).toBe(
+      '2026-09-04',
+    );
   });
 
   it('cero dias no mueve nada', () => {
-    expect(habilesAtras(d('2026-09-07'), 0).toISOString().slice(0, 10)).toBe('2026-09-07');
+    expect(habilesAtras(d('2026-09-07'), 0).toISOString().slice(0, 10)).toBe(
+      '2026-09-07',
+    );
   });
 
   it('cruza varias semanas sin perderse', () => {
     // diez habiles atras de lunes 7 sep son dos semanas: lunes 24 ago
-    expect(habilesAtras(d('2026-09-07'), 10).toISOString().slice(0, 10)).toBe('2026-08-24');
+    expect(habilesAtras(d('2026-09-07'), 10).toISOString().slice(0, 10)).toBe(
+      '2026-08-24',
+    );
   });
 });
 
@@ -122,12 +132,16 @@ describe('la hora de Colombia, no la de Greenwich', () => {
 
   it('la madrugada del dia del aviso ya avisa', () => {
     // 2026-08-26T06:00Z es la 1 a. m. del 26 en Bogota
-    expect(ventanaDe(INICIO, new Date('2026-08-26T06:00:00.000Z')).estado).toBe('AVISANDO');
+    expect(ventanaDe(INICIO, new Date('2026-08-26T06:00:00.000Z')).estado).toBe(
+      'AVISANDO',
+    );
   });
 
   it('la noche anterior al aviso, todavia no', () => {
     // 2026-08-26T02:00Z son las 9 p. m. del 25 en Bogota
-    expect(ventanaDe(INICIO, new Date('2026-08-26T02:00:00.000Z')).estado).toBe('ABIERTA');
+    expect(ventanaDe(INICIO, new Date('2026-08-26T02:00:00.000Z')).estado).toBe(
+      'ABIERTA',
+    );
   });
 });
 
@@ -141,25 +155,33 @@ describe('el cierre depende de la modalidad', () => {
 
   it('presencial cierra 5 días hábiles antes, como siempre', () => {
     // lunes 7 de septiembre menos 5 hábiles es lunes 31 de agosto
-    expect(cierreDeInscripciones(d('2026-09-07'), 'PRESENCIAL').toISOString().slice(0, 10)).toBe(
-      '2026-08-31',
-    );
+    expect(
+      cierreDeInscripciones(d('2026-09-07'), 'PRESENCIAL')
+        .toISOString()
+        .slice(0, 10),
+    ).toBe('2026-08-31');
   });
 
   it('virtual cierra 14 días de calendario antes', () => {
-    expect(cierreDeInscripciones(d('2026-09-07'), 'VIRTUAL').toISOString().slice(0, 10)).toBe(
-      '2026-08-24',
-    );
+    expect(
+      cierreDeInscripciones(d('2026-09-07'), 'VIRTUAL')
+        .toISOString()
+        .slice(0, 10),
+    ).toBe('2026-08-24');
   });
 
   it('la híbrida va por la regla presencial: también hay sala que alistar', () => {
-    expect(cierreDeInscripciones(d('2026-09-07'), 'HIBRIDA').toISOString().slice(0, 10)).toBe(
-      '2026-08-31',
-    );
+    expect(
+      cierreDeInscripciones(d('2026-09-07'), 'HIBRIDA')
+        .toISOString()
+        .slice(0, 10),
+    ).toBe('2026-08-31');
   });
 
   it('sin modalidad manda la presencial, que es lo que había antes', () => {
-    expect(cierreDeInscripciones(d('2026-09-07')).toISOString().slice(0, 10)).toBe('2026-08-31');
+    expect(
+      cierreDeInscripciones(d('2026-09-07')).toISOString().slice(0, 10),
+    ).toBe('2026-08-31');
   });
 
   it('el virtual cierra ANTES que el presencial: dos semanas son más que una', () => {
@@ -170,7 +192,9 @@ describe('el cierre depende de la modalidad', () => {
 
   it('los 14 días del virtual son de calendario y caen en el mismo día de la semana', () => {
     const inicio = d('2026-09-07'); // lunes
-    expect(cierreDeInscripciones(inicio, 'VIRTUAL').getUTCDay()).toBe(inicio.getUTCDay());
+    expect(cierreDeInscripciones(inicio, 'VIRTUAL').getUTCDay()).toBe(
+      inicio.getUTCDay(),
+    );
   });
 
   it('la ventana de un virtual usa su propio cierre', () => {
@@ -178,6 +202,8 @@ describe('el cierre depende de la modalidad', () => {
     // presencial (31): la misma fecha da dos estados distintos
     const hoy = new Date('2026-08-26T15:00:00.000Z');
     expect(ventanaDe(d('2026-09-07'), hoy, 'VIRTUAL').estado).toBe('CERRADA');
-    expect(ventanaDe(d('2026-09-07'), hoy, 'PRESENCIAL').estado).not.toBe('CERRADA');
+    expect(ventanaDe(d('2026-09-07'), hoy, 'PRESENCIAL').estado).not.toBe(
+      'CERRADA',
+    );
   });
 });

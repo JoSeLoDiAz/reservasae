@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 
+import { AuditoriaService } from '../comun/auditoria.service';
 import { CronogramaController } from './cronograma.controller';
 import { CronogramaService } from './cronograma.service';
 
@@ -13,6 +14,6 @@ import { CronogramaService } from './cronograma.service';
     }),
   ],
   controllers: [CronogramaController],
-  providers: [CronogramaService],
+  providers: [CronogramaService, AuditoriaService],
 })
 export class CronogramaModule {}

@@ -163,6 +163,10 @@ export type FilaEmpresa = {
   id: string;
   nit: string;
   digitoVerificacion: string | null;
+  /// NIT o RUT. Null en las que nadie ha clasificado todavia.
+  tipoDocumento: "NIT" | "RUT" | null;
+  /// Cuantas personas suyas se estan formando en este gremio.
+  inscritos: number;
   razonSocial: string;
   numeroColaboradores: number | null;
   redAsociada: string | null;

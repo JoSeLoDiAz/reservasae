@@ -24,7 +24,9 @@ type Caso = {
   cabecera?: string;
 };
 
-async function correr(caso: Caso): Promise<{ ambito?: Ambito; error?: string }> {
+async function correr(
+  caso: Caso,
+): Promise<{ ambito?: Ambito; error?: string }> {
   const prisma = {
     admin: {
       findUnique: jest.fn().mockResolvedValue({
@@ -42,7 +44,11 @@ async function correr(caso: Caso): Promise<{ ambito?: Ambito; error?: string }> 
     getAllAndOverride: (clave: string) =>
       clave === 'area_requerida' ? caso.area : undefined,
   };
-  const guard = new AdminGuard(jwt as never, prisma as never, reflector as never);
+  const guard = new AdminGuard(
+    jwt as never,
+    prisma as never,
+    reflector as never,
+  );
   const headers: Record<string, string> = { host: caso.host };
   if (caso.cabecera) headers['x-gremio'] = caso.cabecera;
   const peticion: Record<string, unknown> = {

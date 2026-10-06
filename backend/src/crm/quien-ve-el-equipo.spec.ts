@@ -33,14 +33,18 @@ const solo = (rol: RolConvenio) => ({ adecopria: [rol] });
 
 describe('quién ve el trabajo del equipo', () => {
   it('la líder de inscripciones lo ve', () => {
-    expect(conveniosQueVenElEquipo(solo('LIDER_INSCRIPCION'))).toEqual(['adecopria']);
+    expect(conveniosQueVenElEquipo(solo('LIDER_INSCRIPCION'))).toEqual([
+      'adecopria',
+    ]);
   });
 
   it('el líder ACADÉMICO no: responde por el aula, no por los asesores', () => {
     /// Reparte fichas --está en REPARTEN_FICHAS-- y aun así no ve
     /// este módulo. Es la prueba de que las dos listas responden a
     /// preguntas distintas y no se pueden fundir.
-    expect(conveniosQueReparten(solo('LIDER_ACADEMICO'))).toEqual(['adecopria']);
+    expect(conveniosQueReparten(solo('LIDER_ACADEMICO'))).toEqual([
+      'adecopria',
+    ]);
     expect(conveniosQueVenElEquipo(solo('LIDER_ACADEMICO'))).toEqual([]);
   });
 
@@ -48,7 +52,9 @@ describe('quién ve el trabajo del equipo', () => {
     /// Es el caso que motivó que existan dos listas: supervisa el
     /// trabajo del equipo y no lo organiza.
     expect(conveniosQueReparten(solo('COUNTRY_MANAGER'))).toEqual([]);
-    expect(conveniosQueVenElEquipo(solo('COUNTRY_MANAGER'))).toEqual(['adecopria']);
+    expect(conveniosQueVenElEquipo(solo('COUNTRY_MANAGER'))).toEqual([
+      'adecopria',
+    ]);
   });
 
   it('un gestor de inscripciones NO lo ve: se ve a sí mismo', () => {

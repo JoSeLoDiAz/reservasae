@@ -61,7 +61,11 @@ describe('la compuerta de matrícula', () => {
   it('con un celular bueno pasa aunque el correo esté mal', () => {
     const r = revisar({
       ...con('esto-no-es-un-correo'),
-      persona: { ...PERSONA, correo: 'esto-no-es-un-correo', celular: '3001234567' },
+      persona: {
+        ...PERSONA,
+        correo: 'esto-no-es-un-correo',
+        celular: '3001234567',
+      },
     });
     expect(sinContacto(r)).toBe(false);
   });

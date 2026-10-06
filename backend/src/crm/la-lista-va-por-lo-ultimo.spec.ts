@@ -11,7 +11,9 @@ import { masReciente } from './ultima-actividad';
 /// El doble aplica el orden DE VERDAD sobre las filas, no por el
 /// prefijo del id ni por el orden en que se escribieron: un doble
 /// que no ordena prueba el doble y no el candado.
-function prismaDoble(filas: Array<{ id: string; actualizadoEn: Date; creadoEn: Date }>) {
+function prismaDoble(
+  filas: Array<{ id: string; actualizadoEn: Date; creadoEn: Date }>,
+) {
   return {
     participante: {
       count: async () => filas.length,

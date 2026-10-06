@@ -24,7 +24,6 @@ import {
  * y cuál de los tres caminos vale la pena?
  */
 
-
 export type FilaDelTablero = {
   departamento: string;
   pauta: number;
@@ -127,7 +126,9 @@ export async function tableroPorAccion(
         orderBy: { numero: 'asc' },
         select: {
           numero: true,
-          coberturas: { select: { id: true, ubicacion: { select: { nombre: true } } } },
+          coberturas: {
+            select: { id: true, ubicacion: { select: { nombre: true } } },
+          },
         },
       },
     },
@@ -254,9 +255,11 @@ export async function tableroPorAccion(
     Prisma.sql`SELECT to_regclass('public.toques_de_origen') IS NOT NULL AS hay`,
   );
 
-  const rescate = !hay ? [] : await prisma.$queryRaw<
-    Array<{ suya: boolean; total: bigint; inscritos: bigint }>
-  >(Prisma.sql`
+  const rescate = !hay
+    ? []
+    : await prisma.$queryRaw<
+        Array<{ suya: boolean; total: bigint; inscritos: bigint }>
+      >(Prisma.sql`
     SELECT
       (${origenDeLeadSql('p')} = 'PAUTA') AS suya,
       COUNT(*) AS total,

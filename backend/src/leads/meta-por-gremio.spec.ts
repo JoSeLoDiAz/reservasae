@@ -68,7 +68,9 @@ describe('sin respaldo a las variables sueltas', () => {
 
 describe('se dice QUE falta, no solo que algo falta', () => {
   it('sin nada, faltan las dos y se nombran', () => {
-    const falta = loQueFalta(configDeMeta('adecopria', {} as NodeJS.ProcessEnv));
+    const falta = loQueFalta(
+      configDeMeta('adecopria', {} as NodeJS.ProcessEnv),
+    );
     expect(falta).toHaveLength(2);
     expect(falta.join(' ')).toContain('META_APP_SECRET_ADECOPRIA');
     expect(falta.join(' ')).toContain('META_VERIFY_TOKEN_ADECOPRIA');

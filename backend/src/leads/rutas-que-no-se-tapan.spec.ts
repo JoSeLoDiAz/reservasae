@@ -34,7 +34,8 @@ function rutasDe(clase: new (...a: never[]) => object): Ruta[] {
     .map((n) => {
       const fn = proto[n];
       if (typeof fn !== 'function') return null;
-      const camino = Reflect.getMetadata(PATH_METADATA, fn) as string | undefined;
+      const camino = Reflect.getMetadata(PATH_METADATA, fn) as
+        string | undefined;
       if (camino === undefined) return null;
       const verbo = Reflect.getMetadata(METHOD_METADATA, fn) as number;
       return {

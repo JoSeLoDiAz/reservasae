@@ -1,4 +1,8 @@
-import { esForo, motivoParaNoInscribir, type YaInscritaEn } from './una-sola-accion';
+import {
+  esForo,
+  motivoParaNoInscribir,
+  type YaInscritaEn,
+} from './una-sola-accion';
 
 const CURSO = { id: 'af1', evento: 'CURSO' };
 const OTRO_CURSO = { id: 'af2', evento: 'CURSO' };
@@ -43,7 +47,9 @@ describe('una sola acción por persona', () => {
   });
 
   it('y el foro tampoco impide tomar un curso después', () => {
-    expect(motivoParaNoInscribir(CURSO, [tiene('af7', 'FORO', 'AF7')])).toBeNull();
+    expect(
+      motivoParaNoInscribir(CURSO, [tiene('af7', 'FORO', 'AF7')]),
+    ).toBeNull();
   });
 
   /// Volver a la misma no es una segunda inscripcion: quien

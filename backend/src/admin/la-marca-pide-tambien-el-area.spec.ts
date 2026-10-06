@@ -70,13 +70,23 @@ function rutasDeMarca(): RutaDeMarca[] {
         /// Los metadatos DE VERDAD, no una expresión regular sobre
         /// el texto: es lo que distingue el decorador puesto del
         /// decorador escrito en un comentario.
-        const guardias = (Reflect.getMetadata('__guards__', fn) ?? []) as Array<{
+        const guardias = (Reflect.getMetadata('__guards__', fn) ??
+          []) as Array<{
           name?: string;
         }>;
         if (!guardias.some((g) => g?.name === 'EditoresDeMarcaGuard')) continue;
 
         const verbo = Reflect.getMetadata('method', fn);
-        const metodos = ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'ALL', 'OPTIONS', 'HEAD'];
+        const metodos = [
+          'GET',
+          'POST',
+          'PUT',
+          'DELETE',
+          'PATCH',
+          'ALL',
+          'OPTIONS',
+          'HEAD',
+        ];
         salida.push({
           nombre: `${clase.name}.${nombre}`,
           metodo: metodos[verbo as number] ?? String(verbo),
@@ -106,7 +116,9 @@ describe('la marca pide la lista Y el área', () => {
   );
 
   it.each(
-    rutas.filter((r) => ESCRIBEN.includes(r.metodo)).map((r) => [r.nombre, r] as const),
+    rutas
+      .filter((r) => ESCRIBEN.includes(r.metodo))
+      .map((r) => [r.nombre, r] as const),
   )('%s escribe la marca de todos, así que pide ESCRIBIR', (_nombre, ruta) => {
     expect(ruta.permiso?.nivel).toBe('ESCRIBIR');
   });

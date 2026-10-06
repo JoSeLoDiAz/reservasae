@@ -40,7 +40,11 @@ export function loQueEstaMal(
 
   if (!HORA.test(s.horaInicio)) mal.push('La hora de inicio va como HH:MM.');
   if (!HORA.test(s.horaFin)) mal.push('La hora de fin va como HH:MM.');
-  if (HORA.test(s.horaInicio) && HORA.test(s.horaFin) && s.horaFin <= s.horaInicio) {
+  if (
+    HORA.test(s.horaInicio) &&
+    HORA.test(s.horaFin) &&
+    s.horaFin <= s.horaInicio
+  ) {
     mal.push('La hora de fin tiene que ser posterior a la de inicio.');
   }
 
@@ -63,11 +67,15 @@ export function loQueEstaMal(
 
   if (s.dia) {
     if (!grupo.inicio) {
-      mal.push('Ponga primero las fechas del grupo: la sesión va dentro de ellas.');
+      mal.push(
+        'Ponga primero las fechas del grupo: la sesión va dentro de ellas.',
+      );
     } else {
       const d = s.dia.slice(0, 10);
       if (d < soloDia(grupo.inicio) || (grupo.fin && d > soloDia(grupo.fin))) {
-        mal.push('El día de la sesión tiene que caer dentro de las fechas del grupo.');
+        mal.push(
+          'El día de la sesión tiene que caer dentro de las fechas del grupo.',
+        );
       }
     }
   }
@@ -75,7 +83,11 @@ export function loQueEstaMal(
   /// Un foro hibrido se dicta en UNA sede, aunque la accion
   /// alcance seis departamentos. Ofrecer cualquiera dejaria
   /// poner la presencial donde ese grupo no llega.
-  if (s.ubicacionId && grupo.ubicaciones && !grupo.ubicaciones.includes(s.ubicacionId)) {
+  if (
+    s.ubicacionId &&
+    grupo.ubicaciones &&
+    !grupo.ubicaciones.includes(s.ubicacionId)
+  ) {
     mal.push('Ese lugar no es de los que cubre el grupo.');
   }
 

@@ -1,10 +1,6 @@
 import { createHmac } from 'node:crypto';
 
-import {
-  avisosDeLead,
-  firmaDeMeta,
-  respuestaDeVerificacion,
-} from './meta';
+import { avisosDeLead, firmaDeMeta, respuestaDeVerificacion } from './meta';
 
 /// Meta no se adapta a nadie. Si no se le contesta como
 /// espera, apaga el webhook — y no avisa: simplemente dejan de
@@ -20,9 +16,9 @@ describe('la firma de Meta', () => {
   const cuerpo = '{"object":"page","entry":[]}';
 
   it('la buena pasa', () => {
-    expect(
-      firmaDeMeta(Buffer.from(cuerpo), firmar(cuerpo), SECRETO),
-    ).toBe(true);
+    expect(firmaDeMeta(Buffer.from(cuerpo), firmar(cuerpo), SECRETO)).toBe(
+      true,
+    );
   });
 
   it('si cambia UN byte del cuerpo, no', () => {

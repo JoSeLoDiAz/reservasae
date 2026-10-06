@@ -24,17 +24,23 @@ const NOTA = {
 
 const ADMIN = { id: 'a1', nombre: 'Ana Jaramillo' };
 
-function armar(o: {
-  lead?: Record<string, unknown> | null;
-  revoco?: boolean;
-} = {}) {
+function armar(
+  o: {
+    lead?: Record<string, unknown> | null;
+    revoco?: boolean;
+  } = {},
+) {
   const escrito: string[] = [];
 
   const tx = {
     notaDeGestion: {
       create: (a: { data: Record<string, unknown> }) => {
         escrito.push('nota.create');
-        return Promise.resolve({ id: 'n1', creadoEn: new Date('2026-09-02'), ...a.data });
+        return Promise.resolve({
+          id: 'n1',
+          creadoEn: new Date('2026-09-02'),
+          ...a.data,
+        });
       },
     },
     leadEntrante: {
@@ -47,6 +53,9 @@ function armar(o: {
 
   const prisma = {
     leadEntrante: {
+      /// La que mira el candado de «quien reparte»: devuelve el convenio
+      /// de los leads del lote, que es sobre lo que se decide.
+      findMany: () => Promise.resolve([{ convenioId: 'c1' }]),
       findFirst: (a: { where: { convenioId?: { in: string[] } } }) => {
         /// EL ÁMBITO DE VERDAD: fuera de él, la fila no existe.
         if (a.where.convenioId && !a.where.convenioId.in.includes('c1')) {
@@ -153,12 +162,20 @@ describe('repartir un lead', () => {
     /// la cola lo cuenta como atendido. Mismo defecto que ya se
     /// cerró al repartir fichas.
     const { s, escrito } = armar();
-    const prisma = (s as unknown as { prisma: { adminConvenio: { findMany: () => Promise<unknown[]> } } }).prisma;
+    const prisma = (
+      s as unknown as {
+        prisma: { adminConvenio: { findMany: () => Promise<unknown[]> } };
+      }
+    ).prisma;
     prisma.adminConvenio.findMany = () => Promise.resolve([]);
 
-    await expect(s.asignar(['l1'], 'otro', ADMIN, ['c1'])).rejects.toThrow(
-      /no tiene permisos/i,
-    );
+    /// CON permiso de repartir: lo que esta prueba mide es el candado
+    /// de DESPUÉS ---que el destino pueda ver el lead---, y desde el 2
+    /// oct 2026 hay otro ANTES. Sin pasarlo, saltaría el primero y esta
+    /// prueba pasaría por el motivo equivocado.
+    await expect(
+      s.asignar(['l1'], 'otro', ADMIN, ['c1'], undefined, ['c1']),
+    ).rejects.toThrow(/no tiene permisos/i);
     expect(escrito).toEqual([]);
   });
 });

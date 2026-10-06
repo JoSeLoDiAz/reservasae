@@ -15,8 +15,18 @@
 import { AdminService } from './admin.service';
 
 const CONVENIOS = [
-  { id: 'c-adecopria', slug: 'adecopria', nombre: 'ADECOPRIA', sigla: 'ADECOPRIA' },
-  { id: 'c-britcham', slug: 'britcham-adee', nombre: 'BRITCHAM ADEE', sigla: 'BRITCHAM' },
+  {
+    id: 'c-adecopria',
+    slug: 'adecopria',
+    nombre: 'ADECOPRIA',
+    sigla: 'ADECOPRIA',
+  },
+  {
+    id: 'c-britcham',
+    slug: 'britcham-adee',
+    nombre: 'BRITCHAM ADEE',
+    sigla: 'BRITCHAM',
+  },
 ];
 
 /** Un Prisma de mentira, con los dos gremios y una AF6. */
@@ -56,7 +66,12 @@ function prismaFalso() {
 }
 
 function servicio() {
-  return new AdminService(prismaFalso() as never);
+  return new AdminService(
+    prismaFalso() as never,
+    {
+      registrar: () => Promise.resolve(),
+    } as never,
+  );
 }
 
 describe('los formularios personalizados del ámbito', () => {
@@ -99,7 +114,9 @@ describe('los formularios personalizados del ámbito', () => {
     /// Y el otro NO lo lleva: si el aliado se colara en todos, el
     /// logo de un tercero saldría en convocatorias que no son
     /// suyas.
-    expect(lista.find((f) => f.palabra === 'TallerBootcamp')?.aliado).toBeNull();
+    expect(
+      lista.find((f) => f.palabra === 'TallerBootcamp')?.aliado,
+    ).toBeNull();
   });
 
   it('quien solo lleva el otro gremio no ve ninguno', async () => {

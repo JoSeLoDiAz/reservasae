@@ -90,7 +90,12 @@ export function elegiblesDelGrupo(d: {
  * SENA una cohorte presencial hecha de gente que se apuntó a virtual.
  */
 export function porQueNoCuadraLaCelda(
-  celda: { ubicacionId: string; modalidad: string; numero: number; sede: string },
+  celda: {
+    ubicacionId: string;
+    modalidad: string;
+    numero: number;
+    sede: string;
+  },
   oferta: { ubicacionId: string; modalidad: string } | null,
 ): string | null {
   if (!oferta) {

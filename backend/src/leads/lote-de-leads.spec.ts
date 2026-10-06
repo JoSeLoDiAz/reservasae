@@ -52,7 +52,10 @@ function lead(p: Partial<LeadFalso> & { id: string }): LeadFalso {
   };
 }
 
-function armar(leads: LeadFalso[], falla: (id: string) => boolean = () => false) {
+function armar(
+  leads: LeadFalso[],
+  falla: (id: string) => boolean = () => false,
+) {
   const convertidos: string[] = [];
   const descartados: string[] = [];
 
@@ -93,7 +96,9 @@ function armar(leads: LeadFalso[], falla: (id: string) => boolean = () => false)
   const conversion = {
     convertirDeLote: (id: string) => {
       if (falla(id)) {
-        return Promise.reject(new Error('Ese documento no tiene forma de documento.'));
+        return Promise.reject(
+          new Error('Ese documento no tiene forma de documento.'),
+        );
       }
       convertidos.push(id);
       return Promise.resolve({
@@ -148,7 +153,13 @@ describe('un lead del otro gremio ni se convierte ni se menciona', () => {
       lead({ id: 'ajeno', convenioId: 'c-britcham' }),
     ]);
 
-    const r = await s.convertir(['mio', 'ajeno'], 'ana', admin as never, AMBITO, REPARTE);
+    const r = await s.convertir(
+      ['mio', 'ajeno'],
+      'ana',
+      admin as never,
+      AMBITO,
+      REPARTE,
+    );
 
     expect(r.fuera).toBe(1);
     expect(JSON.stringify(r.filas)).not.toContain('ajeno');
@@ -172,7 +183,13 @@ describe('la regla de «listo» se comprueba en el SERVIDOR', () => {
       lead({ id: 'sin-curso', accionFormacionId: null }),
     ]);
 
-    const r = await s.convertir(['sin-curso'], 'ana', admin as never, AMBITO, REPARTE);
+    const r = await s.convertir(
+      ['sin-curso'],
+      'ana',
+      admin as never,
+      AMBITO,
+      REPARTE,
+    );
 
     expect(convertidos).toEqual([]);
     expect(r.problemas[0].porque).toMatch(/curso/i);
@@ -206,7 +223,13 @@ describe('una fila mala no se lleva a las demás', () => {
       (id) => id === 'b',
     );
 
-    const r = await s.convertir(['a', 'b', 'c'], 'ana', admin as never, AMBITO, REPARTE);
+    const r = await s.convertir(
+      ['a', 'b', 'c'],
+      'ana',
+      admin as never,
+      AMBITO,
+      REPARTE,
+    );
 
     expect(convertidos).toEqual(['a', 'c']);
     expect({ convertidos: r.convertidos, fallaron: r.fallaron }).toEqual({
@@ -223,7 +246,13 @@ describe('el mismo id dos veces es un intento, no dos', () => {
     /// error que no es del usuario y que ensucia el recuento.
     const { s, admin, convertidos } = armar([lead({ id: 'a' })]);
 
-    const r = await s.convertir(['a', 'a', 'a'], 'ana', admin as never, AMBITO, REPARTE);
+    const r = await s.convertir(
+      ['a', 'a', 'a'],
+      'ana',
+      admin as never,
+      AMBITO,
+      REPARTE,
+    );
 
     expect(convertidos).toEqual(['a']);
     expect(r.pedidos).toBe(1);
@@ -235,9 +264,9 @@ describe('el tope', () => {
     const { s, admin } = armar([]);
     const muchos = Array.from({ length: 101 }, (_, i) => 'l' + i);
 
-    await expect(s.convertir(muchos, 'ana', admin as never, AMBITO, REPARTE)).rejects.toThrow(
-      /hasta 100/,
-    );
+    await expect(
+      s.convertir(muchos, 'ana', admin as never, AMBITO, REPARTE),
+    ).rejects.toThrow(/hasta 100/);
   });
 });
 
@@ -308,9 +337,17 @@ describe('quien reparte elige; quien no, se las queda', () => {
 
 describe('descartar saca de la mesa, no borra', () => {
   it('descarta los pendientes de su ámbito', async () => {
-    const { s, admin, descartados } = armar([lead({ id: 'a' }), lead({ id: 'b' })]);
+    const { s, admin, descartados } = armar([
+      lead({ id: 'a' }),
+      lead({ id: 'b' }),
+    ]);
 
-    const r = await s.descartar(['a', 'b'], 'no contesta', admin as never, AMBITO);
+    const r = await s.descartar(
+      ['a', 'b'],
+      'no contesta',
+      admin as never,
+      AMBITO,
+    );
 
     expect(r.descartados).toBe(2);
     expect(descartados.sort()).toEqual(['a', 'b']);
@@ -349,11 +386,12 @@ describe('descartar saca de la mesa, no borra', () => {
     /// explicar cuando alguien pregunta por qué no le llamaron.
     let escrito = '';
     const { s, admin } = armar([lead({ id: 'a' })]);
-    (s as unknown as { prisma: { leadEntrante: { updateMany: unknown } } }).prisma.leadEntrante.updateMany =
-      (a: { data: { motivo: string } }) => {
-        escrito = a.data.motivo;
-        return Promise.resolve({ count: 1 });
-      };
+    (
+      s as unknown as { prisma: { leadEntrante: { updateMany: unknown } } }
+    ).prisma.leadEntrante.updateMany = (a: { data: { motivo: string } }) => {
+      escrito = a.data.motivo;
+      return Promise.resolve({ count: 1 });
+    };
 
     await s.descartar(['a'], 'número equivocado', admin as never, AMBITO);
 

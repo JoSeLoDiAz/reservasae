@@ -25,13 +25,19 @@ const BOGOTA = 11001;
 describe('los dos juntos en la misma petición', () => {
   it('el par bueno pasa', () => {
     expect(
-      motivoDeIdInvalido({ departamentoSepId: ANTIOQUIA, municipioSepId: MEDELLIN }),
+      motivoDeIdInvalido({
+        departamentoSepId: ANTIOQUIA,
+        municipioSepId: MEDELLIN,
+      }),
     ).toBeNull();
   });
 
   it('el par imposible se rechaza', () => {
     expect(
-      motivoDeIdInvalido({ departamentoSepId: BOGOTA_DEPTO, municipioSepId: MEDELLIN }),
+      motivoDeIdInvalido({
+        departamentoSepId: BOGOTA_DEPTO,
+        municipioSepId: MEDELLIN,
+      }),
     ).toMatch(/no pertenece/i);
   });
 });
@@ -48,7 +54,10 @@ describe('partiendo la petición en dos: municipio después', () => {
 
   it('el municipio propio pasa', () => {
     expect(
-      motivoDeIdInvalido({ municipioSepId: MEDELLIN }, { departamentoSepId: ANTIOQUIA }),
+      motivoDeIdInvalido(
+        { municipioSepId: MEDELLIN },
+        { departamentoSepId: ANTIOQUIA },
+      ),
     ).toBeNull();
   });
 });
@@ -59,7 +68,10 @@ describe('EL ESPEJO: partiendo la petición al revés, departamento después', (
     /// departamento Bogotá y municipio Medellín, y esa fila el
     /// SEP la rechaza meses después.
     expect(
-      motivoDeIdInvalido({ departamentoSepId: BOGOTA_DEPTO }, { municipioSepId: MEDELLIN }),
+      motivoDeIdInvalido(
+        { departamentoSepId: BOGOTA_DEPTO },
+        { municipioSepId: MEDELLIN },
+      ),
     ).not.toBeNull();
   });
 
@@ -68,13 +80,19 @@ describe('EL ESPEJO: partiendo la petición al revés, departamento después', (
     /// pertenece» a secas deja al asesor sin saber qué tocar,
     /// porque el municipio no está en lo que acaba de mandar.
     expect(
-      motivoDeIdInvalido({ departamentoSepId: BOGOTA_DEPTO }, { municipioSepId: MEDELLIN }),
+      motivoDeIdInvalido(
+        { departamentoSepId: BOGOTA_DEPTO },
+        { municipioSepId: MEDELLIN },
+      ),
     ).toMatch(/cambie también el municipio/i);
   });
 
   it('el departamento que sí cuadra pasa', () => {
     expect(
-      motivoDeIdInvalido({ departamentoSepId: ANTIOQUIA }, { municipioSepId: MEDELLIN }),
+      motivoDeIdInvalido(
+        { departamentoSepId: ANTIOQUIA },
+        { municipioSepId: MEDELLIN },
+      ),
     ).toBeNull();
   });
 

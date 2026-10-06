@@ -10,7 +10,11 @@ import {
 import { EstadoConsultaRui } from '../../../generated/prisma';
 import { PrismaService } from '../../prisma/prisma.service';
 import { nombreCompleto } from '../../comun/documento';
-import { ENTIDADES, AuditoriaService, type Actor } from '../../comun/auditoria.service';
+import {
+  ENTIDADES,
+  AuditoriaService,
+  type Actor,
+} from '../../comun/auditoria.service';
 import { ColaRui } from './cola-rui';
 import { partirNombre } from './partir-nombre';
 import { nombreCoincide } from './comparar-nombres';
@@ -234,7 +238,7 @@ export class RuiService {
     /// cambia con ella y no se queda mintiendo.
     const permiso = permisoDeRui(persona?.numeroDocumento ?? '');
     const motivo = (simulado: boolean) =>
-      simulado ? (permiso.motivo || null) : null;
+      simulado ? permiso.motivo || null : null;
 
     if (!c) {
       return {
@@ -275,7 +279,9 @@ export class RuiService {
       /// puede traer el error del intento anterior y decirlo
       /// seria dar por perdida una consulta que sigue viva.
       motivoFallo:
-        c.estado === EstadoConsultaRui.FALLIDA ? porQueFallo(c.ultimoError) : null,
+        c.estado === EstadoConsultaRui.FALLIDA
+          ? porQueFallo(c.ultimoError)
+          : null,
     };
   }
 
@@ -397,7 +403,9 @@ export class RuiService {
     ///
     /// Va en el trabajador y no solo al revocar, porque una
     /// consulta se puede encolar después.
-    const revoco = permiso.real ? await this.haRevocado(tarea.personaId) : false;
+    const revoco = permiso.real
+      ? await this.haRevocado(tarea.personaId)
+      : false;
     if (revoco) {
       this.log.warn(
         `No se consulta el RUI de ${tarea.numeroDocumento}: revocó la autorización.`,

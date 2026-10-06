@@ -174,18 +174,21 @@ export function repartir(filas: Fila[]): MetricasInscripciones {
   // --- gremios: sus acciones, su total y su conversion
   const gremios = new Map<
     string,
-    { nombre: string; acciones: Map<string, number>; total: number; inscritos: number }
+    {
+      nombre: string;
+      acciones: Map<string, number>;
+      total: number;
+      inscritos: number;
+    }
   >();
   for (const f of filas) {
     if (!f.convenio) continue;
-    const g =
-      gremios.get(f.convenio.id) ??
-      {
-        nombre: f.convenio.sigla || f.convenio.nombre,
-        acciones: new Map<string, number>(),
-        total: 0,
-        inscritos: 0,
-      };
+    const g = gremios.get(f.convenio.id) ?? {
+      nombre: f.convenio.sigla || f.convenio.nombre,
+      acciones: new Map<string, number>(),
+      total: 0,
+      inscritos: 0,
+    };
     g.total += 1;
     if (f.etapa === 'INSCRITO') g.inscritos += 1;
     if (f.accionFormacion) {
@@ -226,7 +229,8 @@ export function repartir(filas: Fila[]): MetricasInscripciones {
     fechas.length > 0
       ? Math.max(
           1,
-          Math.ceil((Math.max(...fechas) - Math.min(...fechas)) / 86_400_000) + 1,
+          Math.ceil((Math.max(...fechas) - Math.min(...fechas)) / 86_400_000) +
+            1,
         )
       : 0;
   const promedio = {
@@ -256,7 +260,8 @@ export function repartir(filas: Fila[]): MetricasInscripciones {
         conversion: {
           inscritos: g.inscritos,
           base: g.total,
-          porcentaje: g.total > 0 ? Math.round((g.inscritos / g.total) * 1000) / 10 : 0,
+          porcentaje:
+            g.total > 0 ? Math.round((g.inscritos / g.total) * 1000) / 10 : 0,
         },
       }))
       .sort((a, b) => a.gremio.localeCompare(b.gremio)),

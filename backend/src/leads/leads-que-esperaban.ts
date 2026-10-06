@@ -31,7 +31,9 @@ import type { OrigenParticipante } from '../../generated/prisma';
 
 type Tx = {
   leadEntrante: {
-    findMany(a: unknown): Promise<
+    findMany(
+      a: unknown,
+    ): Promise<
       Array<{ id: string; origen: OrigenParticipante; origenSistema: string }>
     >;
     updateMany(a: unknown): Promise<{ count: number }>;

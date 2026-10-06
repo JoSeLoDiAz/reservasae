@@ -35,8 +35,20 @@ const creadas: any[] = [];
 const cerradas: any[] = [];
 
 const CONVENIOS = [
-  { id: ADECOPRIA, slug: 'adecopria', nombre: 'ADECOPRIA', sigla: 'ADECOPRIA', orden: 1 },
-  { id: BRITCHAM, slug: 'britcham-adee', nombre: 'BRITCHAM ADEE', sigla: 'BRITCHAM', orden: 2 },
+  {
+    id: ADECOPRIA,
+    slug: 'adecopria',
+    nombre: 'ADECOPRIA',
+    sigla: 'ADECOPRIA',
+    orden: 1,
+  },
+  {
+    id: BRITCHAM,
+    slug: 'britcham-adee',
+    nombre: 'BRITCHAM ADEE',
+    sigla: 'BRITCHAM',
+    orden: 2,
+  },
 ];
 
 // la política de BRITCHAM que ya firmó gente
@@ -108,7 +120,9 @@ const prismaFalso: any = {
   },
   politicaDatos: {
     findMany: async ({ where }: any) =>
-      [POLITICA_BRITCHAM].filter((p) => cuadra(where?.convenioId, p.convenioId)),
+      [POLITICA_BRITCHAM].filter((p) =>
+        cuadra(where?.convenioId, p.convenioId),
+      ),
     findFirst: async ({ where }: any) =>
       where.convenioId === BRITCHAM ? POLITICA_BRITCHAM : null,
     update: async (args: any) => {
@@ -257,9 +271,9 @@ describe('el ámbito en políticas y formularios', () => {
       .set('Cookie', cookie);
 
     expect(res.status).toBe(200);
-    expect((res.body as Array<{ convenio: string }>).map((f) => f.convenio)).toEqual([
-      'britcham-adee',
-    ]);
+    expect(
+      (res.body as Array<{ convenio: string }>).map((f) => f.convenio),
+    ).toEqual(['britcham-adee']);
   });
 
   it('C · una cuenta solo de ADECOPRIA no entra por el host de BRITCHAM', async () => {

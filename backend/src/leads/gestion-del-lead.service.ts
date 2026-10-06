@@ -31,6 +31,7 @@ import {
 } from '@nestjs/common';
 
 import { PrismaService } from '../prisma/prisma.service';
+import { motivoParaNoTocarElAsesor } from '../crm/coger-un-lead';
 import { AuditoriaService, ENTIDADES } from '../comun/auditoria.service';
 import { AQuienSeParece } from './a-quien-se-parece';
 import { ConfiguracionDeNotasService } from '../notas/configuracion-de-notas.service';
@@ -164,7 +165,52 @@ export class GestionDelLead {
     admin: Admin,
     ambito: string[],
     ip?: string,
+    reparten: string[] = [],
+    llevanFichas: string[] = [],
   ) {
+    /**
+     * REPARTIR ES DE UN LÍDER. COGER UNO LIBRE, NO.
+     *
+     * El candado existía en el gemelo de FICHAS ---`lote/asesor`--- y
+     * aquí no: la ruta solo exigía `inscripciones · ESCRIBIR`, que
+     * tiene cualquier gestor. Podía pasarle sus leads a otro o, con
+     * `asesorId: null`, vaciarle la cola a una compañera entera.
+     *
+     * PERO CERRARLO A SECAS HABRÍA BLOQUEADO AL EQUIPO, y eso ya pasó:
+     * el 2 oct Josse tuvo que abrir esta misma rendija en las fichas
+     * porque en producción los CINCO gestores de ADECOPRIA son justo
+     * quienes trabajan los leads, y con la regla cerrada no podían ni
+     * quedarse con uno que no era de nadie. Y en la mesa esta es la
+     * ÚNICA ruta que toca el asesor: no hay un «coger» aparte.
+     *
+     * Así que se usa SU regla, la de `coger-un-lead.ts`, en vez de
+     * escribir una segunda que acabaría discrepando. Las tres
+     * condiciones son suyas y ninguna sobra: el lead sin dueño, se lo
+     * queda quien lo pide, y quien lo pide lleva fichas. Soltar
+     * tampoco es coger, y sigue siendo de un líder.
+     *
+     * SE COMPRUEBA SOBRE LOS LEADS DE VERDAD y no sobre lo que venga
+     * en el cuerpo: un id pegado a mano no decide de qué convenio es,
+     * ni de quién es el lead.
+     */
+    const suyos = await this.prisma.leadEntrante.findMany({
+      where: { id: { in: ids }, convenioId: { in: ambito } },
+      select: { convenioId: true, asesorId: true },
+    });
+
+    for (const lead of suyos) {
+      const motivo = motivoParaNoTocarElAsesor({
+        quien: {
+          adminId: admin.id,
+          reparte: reparten.includes(lead.convenioId),
+          llevaFichas: llevanFichas.includes(lead.convenioId),
+        },
+        asesorAhora: lead.asesorId,
+        asesorPedido: asesorId,
+      });
+      if (motivo) throw new ForbiddenException(motivo);
+    }
+
     /// El asesor tiene que poder VER lo que se le asigna.
     ///
     /// Sin esto, un lead de ADECOPRIA asignado a quien solo tiene

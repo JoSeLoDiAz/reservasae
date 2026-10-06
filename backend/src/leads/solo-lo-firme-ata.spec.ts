@@ -59,7 +59,14 @@ function armar(coincide: { firme: boolean; por: string }) {
     $transaction: (f: (t: unknown) => Promise<unknown>) => f(tx),
   };
 
-  const s = new LeadsService(prisma as never, {} as never, { intentar: () => Promise.resolve({ paso: false, porque: 'doble', falta: [] }) } as never);
+  const s = new LeadsService(
+    prisma as never,
+    {} as never,
+    {
+      intentar: () =>
+        Promise.resolve({ paso: false, porque: 'doble', falta: [] }),
+    } as never,
+  );
 
   const llamar = (
     s as unknown as {
@@ -82,7 +89,11 @@ function armar(coincide: { firme: boolean; por: string }) {
           personaId: 'per1',
           participanteId: 'part-de-otro',
         },
-        { correo: 'nuevo@ejemplo.test', celular: null, nombreCompleto: 'Ana Ruiz' },
+        {
+          correo: 'nuevo@ejemplo.test',
+          celular: null,
+          nombreCompleto: 'Ana Ruiz',
+        },
         true,
       ),
   };

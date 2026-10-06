@@ -86,17 +86,22 @@ describe('cruce flojo contra una ficha que ya existe', () => {
     const s = new LeadsService(
       prisma as never,
       { encolar: () => {} } as never,
-      { intentar: () => Promise.resolve({ paso: false, porque: 'doble', falta: [] }) } as never,
+      {
+        intentar: () =>
+          Promise.resolve({ paso: false, porque: 'doble', falta: [] }),
+      } as never,
     );
 
-    await (s as never as {
-      avisarQueYaEstaba: (
-        id: string,
-        c: unknown,
-        d: unknown,
-        p: boolean,
-      ) => Promise<void>;
-    }).avisarQueYaEstaba(
+    await (
+      s as never as {
+        avisarQueYaEstaba: (
+          id: string,
+          c: unknown,
+          d: unknown,
+          p: boolean,
+        ) => Promise<void>;
+      }
+    ).avisarQueYaEstaba(
       'lead-1',
       {
         participanteId: AJENA,
@@ -121,17 +126,22 @@ describe('cruce flojo contra una ficha que ya existe', () => {
     const s = new LeadsService(
       prisma as never,
       { encolar: () => {} } as never,
-      { intentar: () => Promise.resolve({ paso: false, porque: 'doble', falta: [] }) } as never,
+      {
+        intentar: () =>
+          Promise.resolve({ paso: false, porque: 'doble', falta: [] }),
+      } as never,
     );
 
-    await (s as never as {
-      avisarQueYaEstaba: (
-        id: string,
-        c: unknown,
-        d: unknown,
-        p: boolean,
-      ) => Promise<void>;
-    }).avisarQueYaEstaba(
+    await (
+      s as never as {
+        avisarQueYaEstaba: (
+          id: string,
+          c: unknown,
+          d: unknown,
+          p: boolean,
+        ) => Promise<void>;
+      }
+    ).avisarQueYaEstaba(
       'lead-1',
       {
         participanteId: AJENA,

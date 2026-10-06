@@ -26,12 +26,59 @@
  * El prefijo `doc:` no es decorativo: sin él, un emisor cuyo
  * `externoId` fuera un número de cédula chocaría con el lead
  * derivado de esa misma cédula, y uno se comería al otro.
+ *
+ * Y EL GREMIO VA DENTRO DE LAS DOS LLAVES DERIVADAS.
+ *
+ * El único de la base es `(origenSistema, externoId)` y no
+ * lleva convenio (`prisma/schema.prisma`), así que la llave es
+ * lo ÚNICO que separa los gremios aquí. El código de la acción
+ * no los separa: `AF1` existe en ADECOPRIA y en BRITCHAM y no
+ * es el mismo curso --el propio `leads.service` resuelve el
+ * código contra las acciones DE ESE convenio por eso mismo--.
+ * Sin el gremio en la llave, la misma persona pidiendo «AF1» en
+ * BRITCHAM daba `doc:1-1020304050:AF1`, idéntica a la de su
+ * lead de ADECOPRIA: el segundo gremio NO CREABA NADA, volvía
+ * como «repetido» y se le devolvía a quien llamaba el `id`, el
+ * `estado` y el `participanteId` del lead del OTRO gremio.
+ *
+ * No se veía porque el webhook contestaba 200: para Meta el
+ * lead había entrado.
+ *
+ * Va en la del contenido por lo mismo, y no por simetría: dos
+ * leads con el mismo correo, celular, nombre y código en
+ * gremios distintos también daban la misma llave, y ahí el
+ * choque lo habría dado el único de la base --un 500 que el
+ * emisor lee como «no llegó»--.
+ *
+ * El `externoId` propio del emisor se deja tal cual: ese id es
+ * su identidad y si manda el mismo para dos gremios está
+ * diciendo que es el mismo registro, no una coincidencia.
  */
 
 import { normalizarCelular } from '../comun/celular';
 import { normalizarDocumento } from '../comun/documento';
 
-export type Llave = { llave: string } | { falta: string };
+/**
+ * La llave, y LA QUE SE USABA ANTES DE QUE LLEVARA GREMIO.
+ *
+ * El gremio entró en la llave el 5 oct 2026 para que el mismo
+ * documento pidiendo «AF1» en los dos convenios dejara de verse como
+ * un repetido. Pero ESTA LLAVE SE GUARDA EN LA BASE, en
+ * `LeadEntrante.externoId`: los leads que ya están guardados llevan
+ * la forma vieja ---`doc:1-1020304050:AF1`--- y al cambiar el formato
+ * dejarían de reconocerse.
+ *
+ * O sea que el arreglo, solo, habría convertido cada reintento de un
+ * emisor en un DUPLICADO de un lead que ya existe: justo lo que la
+ * llave existe para evitar, y en la puerta por la que entra la pauta
+ * pagada.
+ *
+ * Por eso se devuelven las dos. Quien compara busca por cualquiera de
+ * ellas; lo que se ESCRIBE es siempre la nueva, así que esto se va
+ * apagando solo según los leads viejos se van gestionando. No hace
+ * falta migrar nada ni elegir un día para el cambio.
+ */
+export type Llave = { llave: string; anterior?: string } | { falta: string };
 
 export function llaveDelLead(
   dto: {
@@ -45,9 +92,18 @@ export function llaveDelLead(
   },
   /// El codigo del curso ya resuelto: `AF1`, o null.
   codigoDelCurso?: string | null,
+  /// EL GREMIO del lead que entra. Va obligatorio a proposito
+  /// --aunque admita null-- para que ningun sitio nuevo pueda
+  /// formar una llave olvidandolo: ese olvido es justo el que
+  /// se tragaba los leads del segundo gremio en silencio.
+  convenioId?: string | null,
 ): Llave {
   const propio = (dto.externoId ?? '').trim();
   if (propio) return { llave: propio };
+
+  /// Sin gremio la llave se marca, no se calla: asi un lead
+  /// huerfano no se mezcla con los de un convenio de verdad.
+  const gremio = (convenioId ?? '').trim() || 'sin-gremio';
 
   const numero = dto.numeroDocumento
     ? normalizarDocumento(dto.numeroDocumento)
@@ -67,7 +123,14 @@ export function llaveDelLead(
     /// «AF1 - los nuevos metodos» son la misma inscripcion, y
     /// con el texto crudo serian tres.
     const curso = codigoDelCurso ?? 'sin-af';
-    return { llave: `doc:${tipo}-${numero}:${curso}` };
+    /// El gremio DELANTE del documento: el mismo `AF1` de dos
+    /// convenios son dos cursos distintos, y sin esto el
+    /// segundo gremio volvia como «repetido» del primero.
+    return {
+      llave: `doc:${gremio}:${tipo}-${numero}:${curso}`,
+      /// La de antes del 5 oct 2026, para reconocer lo ya guardado.
+      anterior: `doc:${tipo}-${numero}:${curso}`,
+    };
   }
 
   /// SIN DOCUMENTO TAMBIEN ENTRA. La llave sale del contenido.
@@ -118,5 +181,8 @@ export function llaveDelLead(
 
   /// El prefijo distingue esta llave de las otras dos, por lo
   /// mismo que `doc:` distingue a aquella de un `externoId`.
-  return { llave: `sin-doc:${partes.join('|')}` };
+  return {
+    llave: `sin-doc:${gremio}:${partes.join('|')}`,
+    anterior: `sin-doc:${partes.join('|')}`,
+  };
 }

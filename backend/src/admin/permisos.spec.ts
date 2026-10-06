@@ -72,13 +72,16 @@ describe('la matriz de permisos', () => {
   });
 
   it('CONSULTA no escribe en ningún sitio', () => {
-    for (const area of AREAS) expect(PERMISOS.CONSULTA[area]).not.toBe('ESCRIBIR');
+    for (const area of AREAS)
+      expect(PERMISOS.CONSULTA[area]).not.toBe('ESCRIBIR');
   });
 });
 
 describe('cómo se combinan', () => {
   it('varias filas en el mismo convenio suman: manda la mayor', () => {
-    expect(nivelDe(['GESTOR_ACADEMICO', 'LIDER_INSCRIPCION'], 'reportes')).toBe('ESCRIBIR');
+    expect(nivelDe(['GESTOR_ACADEMICO', 'LIDER_INSCRIPCION'], 'reportes')).toBe(
+      'ESCRIBIR',
+    );
     expect(nivelDe(['CONSULTA'], 'inscripciones')).toBe('VER');
     expect(nivelDe([], 'reserva')).toBe('NADA');
   });

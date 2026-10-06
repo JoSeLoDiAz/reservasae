@@ -12,6 +12,23 @@ import { BadRequestException } from '@nestjs/common';
 
 import { CronogramaService } from './cronograma.service';
 
+/// Quien hace el cambio. Desde el 2 oct 2026 estas dos rutas lo exigen:
+/// el modulo escribia fechas y cupos sin dejar una sola fila de
+/// auditoria, y no por olvido ---el catalogo de entidades no tenia
+/// GRUPO ni COBERTURA, asi que auditarlo no compilaba---.
+const ACTOR = { id: 'adm-1', nombre: 'Quien lo cambio' };
+
+/// La auditoria no es lo que estas pruebas miran, pero sin ella el
+/// servicio no se puede construir. Devuelve lo registrado por si
+/// alguna quiere comprobarlo.
+const auditoriaDePrueba = () => ({
+  registradas: [] as unknown[],
+  registrar(e: unknown) {
+    this.registradas.push(e);
+    return Promise.resolve();
+  },
+});
+
 const AMBITO = ['convenio-1'];
 const DIA = (t: string) => new Date(`${t}T00:00:00.000Z`);
 
@@ -21,6 +38,10 @@ function armar(sobre: Record<string, unknown> = {}) {
     id: 'gru-1',
     fechaInicio: DIA('2026-09-01'),
     fechaFin: DIA('2026-09-30'),
+    /// El servicio lo pide en su , asi que el doble lo trae: un
+    /// doble que devuelve menos que la consulta real hace pasar codigo
+    /// que en produccion revienta.
+    accionFormacion: { convenioId: 'convenio-1' },
     coberturas: [{ ubicacionId: 'ubi-medellin' }, { ubicacionId: 'ubi-huila' }],
     ...sobre,
   };
@@ -36,10 +57,20 @@ function armar(sobre: Record<string, unknown> = {}) {
     },
   };
 
-  return { servicio: new CronogramaService(prisma as never), escrito };
+  return {
+    servicio: new CronogramaService(
+      prisma as never,
+      auditoriaDePrueba() as never,
+    ),
+    escrito,
+  };
 }
 
-const PRESENCIAL = { tipo: 'PRESENCIAL' as const, horaInicio: '08:00', horaFin: '17:00' };
+const PRESENCIAL = {
+  tipo: 'PRESENCIAL' as const,
+  horaInicio: '08:00',
+  horaFin: '17:00',
+};
 
 describe('las fechas del grupo', () => {
   it('el fin no puede caer antes que el inicio', async () => {
@@ -50,6 +81,7 @@ describe('las fechas del grupo', () => {
         'gru-1',
         { fechaInicio: '2026-09-10', fechaFin: '2026-09-01' },
         AMBITO,
+        ACTOR,
       ),
     ).rejects.toThrow(BadRequestException);
     expect(escrito.data).toBeUndefined();
@@ -62,12 +94,19 @@ describe('las sesiones del grupo', () => {
   it('una presencial sin dia se guarda', async () => {
     const { servicio, escrito } = armar();
 
-    await servicio.actualizarGrupo('gru-1', { sesiones: [PRESENCIAL] }, AMBITO);
+    await servicio.actualizarGrupo(
+      'gru-1',
+      { sesiones: [PRESENCIAL] },
+      AMBITO,
+      ACTOR,
+    );
 
     expect(escrito.data).toMatchObject({
       sesiones: {
         deleteMany: {},
-        create: [{ orden: 1, tipo: 'PRESENCIAL', dia: null, horaInicio: '08:00' }],
+        create: [
+          { orden: 1, tipo: 'PRESENCIAL', dia: null, horaInicio: '08:00' },
+        ],
       },
     });
   });
@@ -80,15 +119,27 @@ describe('las sesiones del grupo', () => {
       'gru-1',
       {
         sesiones: [
-          { tipo: 'PRESENCIAL', dia: '2026-09-10', horaInicio: '08:00', horaFin: '12:00' },
-          { tipo: 'PRESENCIAL', dia: '2026-09-11', horaInicio: '14:00', horaFin: '18:00' },
+          {
+            tipo: 'PRESENCIAL',
+            dia: '2026-09-10',
+            horaInicio: '08:00',
+            horaFin: '12:00',
+          },
+          {
+            tipo: 'PRESENCIAL',
+            dia: '2026-09-11',
+            horaInicio: '14:00',
+            horaFin: '18:00',
+          },
         ],
       },
       AMBITO,
+      ACTOR,
     );
 
-    const create = (escrito.data as { sesiones: { create: Array<{ orden: number }> } })
-      .sesiones.create;
+    const create = (
+      escrito.data as { sesiones: { create: Array<{ orden: number }> } }
+    ).sesiones.create;
     expect(create.map((c) => c.orden)).toEqual([1, 2]);
   });
 
@@ -100,11 +151,17 @@ describe('las sesiones del grupo', () => {
       'gru-1',
       {
         sesiones: [
-          { tipo: 'PRESENCIAL', dia: '2026-09-10', horaInicio: '08:00', horaFin: '17:00' },
+          {
+            tipo: 'PRESENCIAL',
+            dia: '2026-09-10',
+            horaInicio: '08:00',
+            horaFin: '17:00',
+          },
           { tipo: 'PAT', horaInicio: '18:00', horaFin: '20:00' },
         ],
       },
       AMBITO,
+      ACTOR,
     );
 
     expect(escrito.data).toBeDefined();
@@ -121,15 +178,29 @@ describe('las sesiones del grupo', () => {
       'gru-1',
       {
         sesiones: [
-          { tipo: 'PRESENCIAL', dia: '2026-09-10', horaInicio: '10:00', horaFin: '12:00', ubicacionId: 'ubi-medellin' },
-          { tipo: 'PAT', dia: '2026-09-10', horaInicio: '10:00', horaFin: '12:00', ubicacionId: 'ubi-huila' },
+          {
+            tipo: 'PRESENCIAL',
+            dia: '2026-09-10',
+            horaInicio: '10:00',
+            horaFin: '12:00',
+            ubicacionId: 'ubi-medellin',
+          },
+          {
+            tipo: 'PAT',
+            dia: '2026-09-10',
+            horaInicio: '10:00',
+            horaFin: '12:00',
+            ubicacionId: 'ubi-huila',
+          },
         ],
       },
       AMBITO,
+      ACTOR,
     );
 
-    const create = (escrito.data as { sesiones: { create: Array<{ dia: Date | null }> } })
-      .sesiones.create;
+    const create = (
+      escrito.data as { sesiones: { create: Array<{ dia: Date | null }> } }
+    ).sesiones.create;
     expect(create).toHaveLength(2);
     expect(create.map((c) => c.dia)).not.toContain(null);
   });
@@ -141,9 +212,12 @@ describe('las sesiones del grupo', () => {
       'gru-1',
       { sesiones: [{ tipo: 'PAT', horaInicio: '18:00', horaFin: '20:00' }] },
       AMBITO,
+      ACTOR,
     );
 
-    expect(escrito.data).toMatchObject({ sesiones: { create: [{ dia: null }] } });
+    expect(escrito.data).toMatchObject({
+      sesiones: { create: [{ dia: null }] },
+    });
   });
 
   it('un dia fuera de las fechas del grupo se rechaza, y dice cual', async () => {
@@ -155,10 +229,16 @@ describe('las sesiones del grupo', () => {
         {
           sesiones: [
             PRESENCIAL,
-            { tipo: 'SINCRONICA', dia: '2026-10-05', horaInicio: '18:00', horaFin: '20:00' },
+            {
+              tipo: 'SINCRONICA',
+              dia: '2026-10-05',
+              horaInicio: '18:00',
+              horaFin: '20:00',
+            },
           ],
         },
         AMBITO,
+        ACTOR,
       ),
     ).rejects.toThrow(/Sesión 2/);
     expect(escrito.data).toBeUndefined();
@@ -170,8 +250,13 @@ describe('las sesiones del grupo', () => {
     await expect(
       servicio.actualizarGrupo(
         'gru-1',
-        { sesiones: [{ tipo: 'PRESENCIAL', horaInicio: '18:00', horaFin: '09:00' }] },
+        {
+          sesiones: [
+            { tipo: 'PRESENCIAL', horaInicio: '18:00', horaFin: '09:00' },
+          ],
+        },
         AMBITO,
+        ACTOR,
       ),
     ).rejects.toThrow(/posterior a la de inicio/);
   });
@@ -186,9 +271,17 @@ describe('las sesiones del grupo', () => {
         'gru-1',
         {
           fechaInicio: '2026-09-20',
-          sesiones: [{ tipo: 'SINCRONICA', dia: '2026-09-05', horaInicio: '08:00', horaFin: '12:00' }],
+          sesiones: [
+            {
+              tipo: 'SINCRONICA',
+              dia: '2026-09-05',
+              horaInicio: '08:00',
+              horaFin: '12:00',
+            },
+          ],
         },
         AMBITO,
+        ACTOR,
       ),
     ).rejects.toThrow(/dentro de las fechas del grupo/);
     expect(escrito.data).toBeUndefined();
@@ -198,7 +291,12 @@ describe('las sesiones del grupo', () => {
   it('no mandarlas no las toca', async () => {
     const { servicio, escrito } = armar();
 
-    await servicio.actualizarGrupo('gru-1', { dias: 'lunes a viernes' }, AMBITO);
+    await servicio.actualizarGrupo(
+      'gru-1',
+      { dias: 'lunes a viernes' },
+      AMBITO,
+      ACTOR,
+    );
 
     expect(escrito.data).not.toHaveProperty('sesiones');
   });
@@ -213,6 +311,7 @@ describe('las sesiones del grupo', () => {
         'gru-1',
         { sesiones: [{ ...PRESENCIAL, ubicacionId: 'ubi-de-otro-grupo' }] },
         AMBITO,
+        ACTOR,
       ),
     ).rejects.toThrow(/no es de los que cubre el grupo/);
     expect(escrito.data).toBeUndefined();
@@ -225,6 +324,7 @@ describe('las sesiones del grupo', () => {
       'gru-1',
       { sesiones: [{ ...PRESENCIAL, ubicacionId: 'ubi-medellin' }] },
       AMBITO,
+      ACTOR,
     );
 
     expect(escrito.data).toMatchObject({
@@ -241,23 +341,37 @@ describe('las sesiones del grupo', () => {
       'gru-1',
       {
         sesiones: [
-          { tipo: 'PRESENCIAL', dia: '2026-09-09', horaInicio: '08:00', horaFin: '17:00' },
-          { tipo: 'PRESENCIAL', dia: '2026-09-10', horaInicio: '08:00', horaFin: '17:00' },
+          {
+            tipo: 'PRESENCIAL',
+            dia: '2026-09-09',
+            horaInicio: '08:00',
+            horaFin: '17:00',
+          },
+          {
+            tipo: 'PRESENCIAL',
+            dia: '2026-09-10',
+            horaInicio: '08:00',
+            horaFin: '17:00',
+          },
         ],
       },
       AMBITO,
+      ACTOR,
     );
 
-    const create = (escrito.data as { sesiones: { create: Array<{ dia: Date | null }> } })
-      .sesiones.create;
+    const create = (
+      escrito.data as { sesiones: { create: Array<{ dia: Date | null }> } }
+    ).sesiones.create;
     expect(create.map((c) => c.dia)).not.toContain(null);
   });
 
   it('una lista vacía las borra todas', async () => {
     const { servicio, escrito } = armar();
 
-    await servicio.actualizarGrupo('gru-1', { sesiones: [] }, AMBITO);
+    await servicio.actualizarGrupo('gru-1', { sesiones: [] }, AMBITO, ACTOR);
 
-    expect(escrito.data).toMatchObject({ sesiones: { deleteMany: {}, create: [] } });
+    expect(escrito.data).toMatchObject({
+      sesiones: { deleteMany: {}, create: [] },
+    });
   });
 });

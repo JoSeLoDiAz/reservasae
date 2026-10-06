@@ -49,7 +49,8 @@ export type ModalidadDeCierre = 'PRESENCIAL' | 'VIRTUAL' | 'HIBRIDA';
 /// no hay a quien llamar.
 export const HABILES_DE_AVISO = 3;
 
-const ES_FIN_DE_SEMANA = (d: Date) => d.getUTCDay() === 0 || d.getUTCDay() === 6;
+const ES_FIN_DE_SEMANA = (d: Date) =>
+  d.getUTCDay() === 0 || d.getUTCDay() === 6;
 
 /// Colombia va cinco horas detras de UTC, y no mueve el
 /// reloj en todo el año.
@@ -138,6 +139,38 @@ export function cierreDeInscripciones(
   return habilesAtras(fechaInicio, HABILES_ANTES_DEL_INICIO);
 }
 
+/**
+ * Lo que hay que saber de un grupo para fechar su cierre.
+ *
+ * `cierreInscripciones` OPCIONAL a propósito: los sitios que no lo
+ * tienen a mano siguen compilando y siguen derivando, que es lo que
+ * hacían ayer.
+ */
+export type GrupoParaCierre = {
+  fechaInicio: Date | null;
+  modalidad?: ModalidadDeCierre;
+  cierreInscripciones?: Date | null;
+};
+
+/**
+ * Hasta cuándo se inscribe a ESTE grupo: lo fijado, o lo derivado.
+ *
+ * LO FIJADO MANDA. Las reglas de arriba ---14 días antes si es
+ * virtual, 5 hábiles si es presencial--- son una buena aproximación
+ * y no son el cronograma: ahí las fechas se marcan a mano y las
+ * distancias reales van de 5 a 11 días. Cuando el cronograma dice
+ * una fecha, esa fecha gana, porque es la que el SENA y el cliente
+ * tienen escrita.
+ *
+ * Null cuando el grupo no tiene ni lo uno ni lo otro: sin fecha de
+ * inicio no hay ventana, y eso ya lo sabía `VentanaInscripcion`.
+ */
+export function cierreDelGrupo(g: GrupoParaCierre): Date | null {
+  if (g.cierreInscripciones) return g.cierreInscripciones;
+  if (!g.fechaInicio) return null;
+  return cierreDeInscripciones(g.fechaInicio, g.modalidad);
+}
+
 /** Cuándo hay que avisar que faltan cupos por completar. */
 export function avisoDeLiberacion(
   fechaInicio: Date,
@@ -145,7 +178,10 @@ export function avisoDeLiberacion(
 ): Date {
   /// El aviso se cuenta en hábiles en las dos modalidades: son días
   /// de trabajo de quien tiene que llamar, no de calendario.
-  return habilesAtras(cierreDeInscripciones(fechaInicio, modalidad), HABILES_DE_AVISO);
+  return habilesAtras(
+    cierreDeInscripciones(fechaInicio, modalidad),
+    HABILES_DE_AVISO,
+  );
 }
 
 /** En qué punto está la ventana de inscripción de un grupo. */

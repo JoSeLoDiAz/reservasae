@@ -91,11 +91,10 @@ describe('sin sede pedida, decide el domicilio', () => {
   });
 
   it('de Sucre, ninguna', () => {
-    const r = sedeQueTendra(
-      { accionFormacionId: 'af' },
-      SOLO_DEPARTAMENTOS,
-      { departamento: 'SUCRE', ciudad: 'SINCELEJO' },
-    );
+    const r = sedeQueTendra({ accionFormacionId: 'af' }, SOLO_DEPARTAMENTOS, {
+      departamento: 'SUCRE',
+      ciudad: 'SINCELEJO',
+    });
     expect(r).toBeNull();
   });
 });

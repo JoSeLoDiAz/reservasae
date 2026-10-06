@@ -46,7 +46,7 @@ describe('la planeación de pauta, al elegir un grupo', () => {
     });
 
     /// La primera es la de cupos: sale de `ofertas`.
-    const cupos = consultas.find((c) => c.includes("AS reservados"));
+    const cupos = consultas.find((c) => c.includes('AS reservados'));
     expect(cupos).toBeDefined();
     expect(cupos).toContain('grupos_cobertura');
     expect(cupos).toContain('ubicacionId');
@@ -55,9 +55,11 @@ describe('la planeación de pauta, al elegir un grupo', () => {
   it('sin grupo, los cupos salen de toda la acción', async () => {
     const { prisma, consultas } = prismaEspia();
 
-    await planeacionDePauta(prisma as never, AMBITO, { accionFormacionId: ACCION });
+    await planeacionDePauta(prisma as never, AMBITO, {
+      accionFormacionId: ACCION,
+    });
 
-    const cupos = consultas.find((c) => c.includes("AS reservados"));
+    const cupos = consultas.find((c) => c.includes('AS reservados'));
     expect(cupos).toBeDefined();
     expect(cupos).not.toContain('grupos_cobertura');
   });

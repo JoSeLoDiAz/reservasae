@@ -35,7 +35,8 @@ export class DirectorioService {
   /** Qué instituciones hay bajo ese NIT. */
   async buscar(valor: string): Promise<BusquedaNit> {
     const lectura = leerNit(valor);
-    if (!lectura) throw new BadRequestException('El NIT no tiene forma de NIT.');
+    if (!lectura)
+      throw new BadRequestException('El NIT no tiene forma de NIT.');
 
     const filas = await this.prisma.institucion.findMany({
       where: { nit: lectura.nit, activo: true },
@@ -76,7 +77,8 @@ export class DirectorioService {
     razonSocial: string,
   ): Promise<InstitucionDelBanco> {
     const lectura = leerNit(valor);
-    if (!lectura) throw new BadRequestException('El NIT no tiene forma de NIT.');
+    if (!lectura)
+      throw new BadRequestException('El NIT no tiene forma de NIT.');
 
     const nombre = razonSocial.trim().replace(/\s+/g, ' ');
     if (nombre.length < 3) {

@@ -36,7 +36,12 @@ import {
   conAjustes,
   leerAjustesDePantalla,
 } from './ajustes-de-pantalla';
-import { conColores, leerTemaPropio, sinEsquema, type TemaPropio } from './tema-propio';
+import {
+  conColores,
+  leerTemaPropio,
+  sinEsquema,
+  type TemaPropio,
+} from './tema-propio';
 import { fusionarColores, tokensSobreescritos } from './apariencia';
 import {
   COMPROBACIONES_CONTRASTE,
@@ -49,6 +54,11 @@ import {
 import { gremioDelHost } from './gremio-del-host';
 import { formulariosDelConvenio } from '../preinscripcion/formularios-personalizados';
 import { OCUPAN_SILLA } from '../crm/etapas';
+import {
+  AuditoriaService,
+  ENTIDADES,
+  type Actor,
+} from '../comun/auditoria.service';
 
 const ID_MARCA = 'unica';
 
@@ -74,7 +84,10 @@ export type AmbitoDeLogos = { convenios: string[]; gremioFijo: boolean };
 
 @Injectable()
 export class AdminService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly auditoria: AuditoriaService,
+  ) {}
 
   // sesión
 
@@ -126,7 +139,9 @@ export class AdminService {
     const admin = await this.prisma.admin.findUnique({ where: { correo } });
 
     // mismo error: no decir que correos existen
-    const generico = new UnauthorizedException('Correo o contraseña incorrectos.');
+    const generico = new UnauthorizedException(
+      'Correo o contraseña incorrectos.',
+    );
     if (!admin || !admin.activo) {
       // hash de descarte: que tarde lo mismo
       await verificarClave(clave, 'scrypt$AAAA$AAAA');
@@ -146,12 +161,17 @@ export class AdminService {
       throw new UnauthorizedException('La contraseña actual no es correcta.');
     }
     if (await verificarClave(claveNueva, admin.hashClave)) {
-      throw new BadRequestException('La contraseña nueva debe ser distinta de la actual.');
+      throw new BadRequestException(
+        'La contraseña nueva debe ser distinta de la actual.',
+      );
     }
 
     await this.prisma.admin.update({
       where: { id: admin.id },
-      data: { hashClave: await hashearClave(claveNueva), debeCambiarClave: false },
+      data: {
+        hashClave: await hashearClave(claveNueva),
+        debeCambiarClave: false,
+      },
     });
     return { cambiada: true };
   }
@@ -233,12 +253,14 @@ export class AdminService {
       where: { id: { in: ids }, activo: true },
     });
     if (existen !== ids.length) {
-      throw new BadRequestException('Alguno de los convenios indicados no existe.');
+      throw new BadRequestException(
+        'Alguno de los convenios indicados no existe.',
+      );
     }
   }
 
   /** Crea la cuenta; la clave temporal se ve una vez. */
-  async crearAdmin(dto: CrearAdminDto) {
+  async crearAdmin(dto: CrearAdminDto, actor: Actor) {
     const claveTemporal = generarClaveTemporal();
     await this.exigirConveniosReales(dto.concesiones);
     try {
@@ -259,17 +281,63 @@ export class AdminService {
           },
         },
       });
+
+      /**
+       * LA HUELLA DE QUE ALGUIEN ENTRÓ AL EQUIPO.
+       *
+       * Hasta hoy, de las 23 escrituras de este fichero NINGUNA dejaba
+       * rastro: quién creó una cuenta, con qué rol y sobre qué gremios
+       * no constaba en ninguna parte. Las fichas dejan huella de todo
+       * desde hace semanas; la puerta por la que se entra a tocarlas,
+       * no.
+       *
+       * EL CONVENIO VA NULO A PROPÓSITO: una cuenta puede tener
+       * concesiones en varios, así que atar la fila a uno solo haría
+       * que el historial de un gremio enseñara cuentas que también son
+       * del otro. Los convenios concretos van en el resumen.
+       */
+      await this.auditoria.registrar({
+        actor,
+        accion: 'CUENTA_CREADA',
+        entidad: ENTIDADES.ADMIN,
+        entidadId: creado.id,
+        convenioId: null,
+        resumen:
+          `${dto.correo} como ${dto.rol}, en ` +
+          dto.concesiones.map((c) => `${c.convenioId} (${c.rol})`).join(', '),
+        camposTocados: ['correo', 'nombre', 'rol', 'concesiones'],
+      });
+
       return { admin: vistaAdmin(creado), claveTemporal };
     } catch (error) {
-      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
         throw new ConflictException('Ya existe una cuenta con ese correo.');
       }
       throw error;
     }
   }
 
-  async actualizarAdmin(quienEdita: Admin, id: string, dto: ActualizarAdminDto) {
-    const objetivo = await this.prisma.admin.findUnique({ where: { id } });
+  async actualizarAdmin(
+    quienEdita: Admin,
+    id: string,
+    dto: ActualizarAdminDto,
+  ) {
+    const objetivo = await this.prisma.admin.findUnique({
+      where: { id },
+      /**
+       * CON SUS CONCESIONES, para poder decir qué acceso se QUITÓ.
+       *
+       * Se reemplazan enteras ---se borran todas y se vuelven a
+       * crear--- así que sin leerlas antes no queda ni rastro de las
+       * que había. Y «a esta cuenta le quitaron ADECOPRIA el martes» es
+       * justo lo que se va a querer reconstruir el día que alguien
+       * pregunte por qué dejó de ver algo.
+       */
+      include: { convenios: { select: { convenioId: true, rol: true } } },
+    });
     if (!objetivo) throw new NotFoundException('No existe esa cuenta.');
 
     // no dejarse a uno mismo fuera del panel
@@ -278,7 +346,9 @@ export class AdminService {
         throw new BadRequestException('No puede desactivar su propia cuenta.');
       }
       if (dto.rol && dto.rol !== RolAdmin.SUPERADMIN) {
-        throw new BadRequestException('No puede quitarse a sí mismo el rol de superadmin.');
+        throw new BadRequestException(
+          'No puede quitarse a sí mismo el rol de superadmin.',
+        );
       }
     }
 
@@ -312,6 +382,48 @@ export class AdminService {
         data: { rol: dto.rol ?? undefined, activo: dto.activo ?? undefined },
       });
     });
+
+    /// El antes y el después, campo a campo. Solo lo que de verdad
+    /// cambió: una fila que dice «rol ASESOR → ASESOR» hace dudar de
+    /// las que sí cambiaron algo.
+    const cambios: string[] = [];
+    const tocados: string[] = [];
+    if (dto.rol && dto.rol !== objetivo.rol) {
+      cambios.push(`rol ${objetivo.rol} → ${dto.rol}`);
+      tocados.push('rol');
+    }
+    if (dto.activo !== undefined && dto.activo !== objetivo.activo) {
+      cambios.push(dto.activo ? 'reactivada' : 'DESACTIVADA');
+      tocados.push('activo');
+    }
+    if (dto.concesiones) {
+      const comoTexto = (cs: { convenioId: string; rol: string }[]) =>
+        cs
+          .map((c) => `${c.convenioId}(${c.rol})`)
+          .sort()
+          .join(' ');
+      const antes = comoTexto(objetivo.convenios);
+      const despues = comoTexto(dto.concesiones);
+      if (antes !== despues) {
+        cambios.push(`convenios: ${antes || 'ninguno'} → ${despues}`);
+        tocados.push('concesiones');
+      }
+    }
+
+    /// Sin cambios reales no se apunta nada: guardar el no-cambio
+    /// llena la bitácora de ruido y entierra lo que importa.
+    if (cambios.length > 0) {
+      await this.auditoria.registrar({
+        actor: { id: quienEdita.id, nombre: quienEdita.nombre },
+        accion: 'CUENTA_EDITADA',
+        entidad: ENTIDADES.ADMIN,
+        entidadId: id,
+        convenioId: null,
+        resumen: `${objetivo.correo}: ${cambios.join('; ')}`,
+        camposTocados: tocados,
+      });
+    }
+
     return vistaAdmin(actualizado);
   }
 
@@ -328,22 +440,54 @@ export class AdminService {
     const claveTemporal = generarClaveTemporal();
     await this.prisma.admin.update({
       where: { id },
-      data: { hashClave: await hashearClave(claveTemporal), debeCambiarClave: true },
+      data: {
+        hashClave: await hashearClave(claveTemporal),
+        debeCambiarClave: true,
+      },
     });
+    /**
+     * Y QUEDA ESCRITO QUIÉN SE LA REINICIÓ A QUIÉN.
+     *
+     * Es una toma de control: quien reinicia la clave ve la temporal en
+     * pantalla y puede entrar como esa persona hasta que ella la
+     * cambie. Sin esta fila, entrar con la cuenta de otro no deja
+     * ninguna señal, y todo lo que se haga después queda a nombre del
+     * dueño legítimo.
+     *
+     * LA CLAVE NO VA AQUÍ, evidentemente: la bitácora no es sitio para
+     * una credencial, ni siquiera temporal.
+     */
+    await this.auditoria.registrar({
+      actor: { id: quienEdita.id, nombre: quienEdita.nombre },
+      accion: 'CLAVE_REINICIADA',
+      entidad: ENTIDADES.ADMIN,
+      entidadId: id,
+      convenioId: null,
+      resumen: `Contraseña temporal nueva para ${objetivo.correo}`,
+      camposTocados: ['hashClave'],
+    });
+
     /// Sale tambien a quien, para poder escribirle. Va la
     /// VISTA y no la fila: aquella no lleva el hash.
     return { claveTemporal, admin: vistaAdmin(objetivo) };
   }
 
   /** Tiene que quedar al menos un superadmin activo. */
-  private async asegurarQuedaUnSuperadmin(objetivo: Admin, dto: ActualizarAdminDto) {
+  private async asegurarQuedaUnSuperadmin(
+    objetivo: Admin,
+    dto: ActualizarAdminDto,
+  ) {
     const dejaDeSerlo =
       objetivo.rol === RolAdmin.SUPERADMIN &&
       ((dto.rol && dto.rol !== RolAdmin.SUPERADMIN) || dto.activo === false);
     if (!dejaDeSerlo) return;
 
     const otros = await this.prisma.admin.count({
-      where: { rol: RolAdmin.SUPERADMIN, activo: true, id: { not: objetivo.id } },
+      where: {
+        rol: RolAdmin.SUPERADMIN,
+        activo: true,
+        id: { not: objetivo.id },
+      },
     });
     if (otros === 0) {
       throw new ForbiddenException(
@@ -373,7 +517,9 @@ export class AdminService {
     });
 
     // las dos paletas y el catalogo viajan juntos
-    const filas = await this.prisma.tema.findMany({ orderBy: { esquema: 'asc' } });
+    const filas = await this.prisma.tema.findMany({
+      orderBy: { esquema: 'asc' },
+    });
     const temas = Object.fromEntries(
       filas.map((t) => [t.esquema, conValoresPorDefecto(t.esquema, t.colores)]),
     ) as Record<EsquemaColor, ColoresTema>;
@@ -534,10 +680,16 @@ export class AdminService {
       select: { id: true, slug: true },
     });
     const gremio = gremioDelHost(host, activos);
-    return gremio ? this.obtenerMarcaDeGremio(gremio.slug) : this.obtenerMarca();
+    return gremio
+      ? this.obtenerMarcaDeGremio(gremio.slug)
+      : this.obtenerMarca();
   }
 
-  async actualizarTema(admin: Admin, esquema: EsquemaColor, dto: ActualizarTemaDto) {
+  async actualizarTema(
+    admin: Admin,
+    esquema: EsquemaColor,
+    dto: ActualizarTemaDto,
+  ) {
     const existe = await this.prisma.tema.findUnique({ where: { esquema } });
     if (!existe) throw new NotFoundException(`No existe el tema ${esquema}.`);
 
@@ -572,7 +724,11 @@ export class AdminService {
 
   /// Guarda en SU cuenta. No toca la tabla `temas`: ese era el
   /// defecto, un cambio de una persona que le llegaba a todas.
-  async guardarMiTema(admin: Admin, esquema: EsquemaColor, dto: ActualizarTemaDto) {
+  async guardarMiTema(
+    admin: Admin,
+    esquema: EsquemaColor,
+    dto: ActualizarTemaDto,
+  ) {
     const nuevo = conColores(await this.miTema(admin), esquema, dto.colores);
     await this.prisma.admin.update({
       where: { id: admin.id },
@@ -588,7 +744,9 @@ export class AdminService {
       where: { id: admin.id },
       data: {
         temaPropio:
-          Object.keys(nuevo).length > 0 ? (nuevo as Prisma.InputJsonValue) : Prisma.DbNull,
+          Object.keys(nuevo).length > 0
+            ? (nuevo as Prisma.InputJsonValue)
+            : Prisma.DbNull,
       },
     });
     return nuevo;
@@ -664,7 +822,8 @@ export class AdminService {
   ) {
     // lo general, solo por la puerta general
     if (!formularioId) {
-      if (a.gremioFijo) throw new NotFoundException('No existe ese formulario.');
+      if (a.gremioFijo)
+        throw new NotFoundException('No existe ese formulario.');
       return;
     }
 
@@ -705,7 +864,9 @@ export class AdminService {
   /// formularios: un helper sin candado al que llega un
   /// controlador es la puerta de servicio por la que entra
   /// todo lo que nunca comprobo.
-  private async listarLogos(formularioId: string | null): Promise<LogoPublico[]> {
+  private async listarLogos(
+    formularioId: string | null,
+  ): Promise<LogoPublico[]> {
     const filas = await this.prisma.logo.findMany({
       where: { formularioId },
       orderBy: [{ orden: 'asc' }, { creadoEn: 'asc' }],
@@ -794,7 +955,10 @@ export class AdminService {
         // orden entero: sin huecos ni empates
         await this.prisma.$transaction(
           hermanos.map((l, i) =>
-            this.prisma.logo.update({ where: { id: l.id }, data: { orden: i } }),
+            this.prisma.logo.update({
+              where: { id: l.id },
+              data: { orden: i },
+            }),
           ),
         );
       }
@@ -842,7 +1006,9 @@ export class AdminService {
 
   private async exigirFormulario(formularioId: string | null) {
     if (!formularioId) return;
-    const existe = await this.prisma.formulario.count({ where: { id: formularioId } });
+    const existe = await this.prisma.formulario.count({
+      where: { id: formularioId },
+    });
     if (!existe) throw new NotFoundException('No existe ese formulario.');
   }
 
@@ -881,7 +1047,10 @@ export class AdminService {
     });
 
     const formularios = convenios.flatMap((c) =>
-      formulariosDelConvenio(c.slug).map((f) => ({ convenio: c, formulario: f })),
+      formulariosDelConvenio(c.slug).map((f) => ({
+        convenio: c,
+        formulario: f,
+      })),
     );
 
     return Promise.all(
@@ -999,7 +1168,9 @@ export class AdminService {
   }
 
   async publicarAccion(ambito: string[], id: string, visible: boolean) {
-    const accion = await this.prisma.accionFormacion.findUnique({ where: { id } });
+    const accion = await this.prisma.accionFormacion.findUnique({
+      where: { id },
+    });
     // fuera del ambito no existe: publicar u ocultar la
     // accion del otro gremio la saca del sitio publico
     if (!accion || !ambito.includes(accion.convenioId)) {
@@ -1027,7 +1198,10 @@ export class AdminService {
     }
 
     // ocultar no cancela: solo sale del sitio publico
-    await this.prisma.accionFormacion.update({ where: { id }, data: { visible } });
+    await this.prisma.accionFormacion.update({
+      where: { id },
+      data: { visible },
+    });
     return { id, visible };
   }
 }

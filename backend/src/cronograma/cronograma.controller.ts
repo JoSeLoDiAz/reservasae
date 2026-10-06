@@ -1,8 +1,9 @@
 import { Body, Controller, Get, Param, Patch, UseGuards } from '@nestjs/common';
 
-import { RolAdmin } from '../../generated/prisma';
-import { AmbitoActual } from '../admin/admin-actual.decorator';
+import { RolAdmin, type Admin } from '../../generated/prisma';
+import { AdminActual, AmbitoActual } from '../admin/admin-actual.decorator';
 import { AdminGuard, Requiere, Roles, type Ambito } from '../admin/admin.guard';
+import { IpReal } from '../comun/ip-real';
 import { CronogramaService } from './cronograma.service';
 import {
   ActualizarCuposDto,
@@ -45,8 +46,16 @@ export class CronogramaController {
     @Param('id') id: string,
     @Body() dto: ActualizarGrupoDto,
     @AmbitoActual() ambito: Ambito,
+    @AdminActual() admin: Admin,
+    @IpReal() ip: string,
   ) {
-    return this.cronograma.actualizarGrupo(id, dto, ambito.convenios);
+    return this.cronograma.actualizarGrupo(
+      id,
+      dto,
+      ambito.convenios,
+      { id: admin.id, nombre: admin.nombre },
+      ip,
+    );
   }
 
   /**
@@ -79,7 +88,15 @@ export class CronogramaController {
     @Param('id') id: string,
     @Body() dto: ActualizarCuposDto,
     @AmbitoActual() ambito: Ambito,
+    @AdminActual() admin: Admin,
+    @IpReal() ip: string,
   ) {
-    return this.cronograma.actualizarCupos(id, dto, ambito.convenios);
+    return this.cronograma.actualizarCupos(
+      id,
+      dto,
+      ambito.convenios,
+      { id: admin.id, nombre: admin.nombre },
+      ip,
+    );
   }
 }

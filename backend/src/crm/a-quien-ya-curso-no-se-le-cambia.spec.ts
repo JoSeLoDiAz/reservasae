@@ -115,7 +115,7 @@ describe('la comprobación está puesta donde se asigna', () => {
    */
   it('después de la oferta, y antes de lo cerrada', () => {
     const cuerpo = cuerpoDeAsignar();
-    const cargaOferta = cuerpo.indexOf("if (!oferta) throw");
+    const cargaOferta = cuerpo.indexOf('if (!oferta) throw');
     const etapa = cuerpo.indexOf('cambiaDeAccion && HISTORIA_CERRADA');
     const cerrada = cuerpo.indexOf('if (!oferta.abierta)');
 

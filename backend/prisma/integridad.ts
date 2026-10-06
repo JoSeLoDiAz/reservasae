@@ -29,7 +29,10 @@
 
 import { PrismaClient } from '../generated/prisma';
 import { cubreA } from '../src/crm/cobertura';
-import { DEPARTAMENTO_POR_ID, MUNICIPIO_POR_ID } from '../src/crm/catalogos-sep';
+import {
+  DEPARTAMENTO_POR_ID,
+  MUNICIPIO_POR_ID,
+} from '../src/crm/catalogos-sep';
 
 const prisma = new PrismaClient();
 
@@ -64,7 +67,13 @@ async function enDosAcciones(): Promise<Hallazgo> {
       personaId: true,
       convenioId: true,
       convenio: { select: { sigla: true } },
-      persona: { select: { numeroDocumento: true, primerNombre: true, primerApellido: true } },
+      persona: {
+        select: {
+          numeroDocumento: true,
+          primerNombre: true,
+          primerApellido: true,
+        },
+      },
       accionFormacion: { select: { codigo: true, evento: true } },
       asesor: { select: { nombre: true } },
       etapa: true,
@@ -154,7 +163,8 @@ async function nitPartidoPorElDigito(): Promise<Hallazgo> {
   );
 
   return {
-    titulo: 'Organizaciones partidas en dos por el dígito pegado, con gente todavía repartida',
+    titulo:
+      'Organizaciones partidas en dos por el dígito pegado, con gente todavía repartida',
     cuantos: partidas.length,
     ejemplos: partidas
       .slice(0, EJEMPLOS)
@@ -174,7 +184,9 @@ async function nitQueNoEsNumero(): Promise<Hallazgo> {
   return {
     titulo: 'Organizaciones con el NIT mal escrito',
     cuantos: rotas.length,
-    ejemplos: rotas.slice(0, EJEMPLOS).map((e) => `«${e.nit}»  ${e.razonSocial}`),
+    ejemplos: rotas
+      .slice(0, EJEMPLOS)
+      .map((e) => `«${e.nit}»  ${e.razonSocial}`),
     comoSeArregla:
       'A mano, desde la ficha de la organización. Ningún repaso automático los toca: adivinar un NIT es inventarse el número que viaja al SENA.',
   };
@@ -403,6 +415,135 @@ async function sinSedeEnSuDepartamento(): Promise<Hallazgo> {
   };
 }
 
+/**
+ * DOS GREMIOS ENCENDIDOS A LA VEZ: DOS DEUDAS QUE DESPIERTAN.
+ *
+ * Hay dos defectos conocidos que HOY NO HACEN DAÑO porque solo hay
+ * un convenio con gente, y que pasan a hacerlo el día que se
+ * encienda el segundo:
+ *
+ *   - LA CARACTERIZACIÓN se filtra solo por «autorización viva», sin
+ *     atarla al convenio que se exporta, y cada marca cuelga de UNA
+ *     autorización ---la del gremio donde se capturó primero---. Así
+ *     que quien revoque en un gremio pierde su caracterización en el
+ *     reporte del OTRO, donde sigue autorizando. Y al revés: una
+ *     marca consentida solo en uno viaja en el reporte del otro.
+ *
+ *   - `papelEnConvenio`, `clasificacion` y `sectorEconomico` son de
+ *     la ORGANIZACIÓN y el F7 es POR CONVENIO. La misma empresa puede
+ *     ser conviniente en un gremio y beneficiaria en el otro, y solo
+ *     cabe un valor: quien lo arregle en un panel lo estropea en el
+ *     F7 del otro.
+ *
+ * LOS DOS PIDEN MIGRACIÓN, así que no se arreglan «por si acaso». Lo
+ * que no puede pasar es que el día que se encienda el segundo gremio
+ * nadie se acuerde: un apunte en un documento se pierde, y este aviso
+ * salta solo en cuanto los datos lo justifican.
+ *
+ * SE MIDE POR LOS DATOS Y NO POR EL INTERRUPTOR `activo`: un convenio
+ * activo y vacío no reporta nada ni tiene a quién perderle una
+ * caracterización. Lo que despierta la deuda es que haya gente en los
+ * dos.
+ */
+async function dosGremiosConGente(): Promise<Hallazgo> {
+  const convenios = await prisma.convenio.findMany({
+    where: { activo: true },
+    select: {
+      slug: true,
+      nombre: true,
+      _count: { select: { participantes: true } },
+    },
+  });
+  const conGente = convenios.filter((c) => c._count.participantes > 0);
+
+  return {
+    titulo:
+      'Dos gremios con gente a la vez: despiertan dos defectos conocidos del F7',
+    /// Con uno solo no hay nada que avisar: el cero apaga el aviso.
+    cuantos: conGente.length > 1 ? conGente.length : 0,
+    ejemplos: conGente.map(
+      (c) => `${c.slug}  ${c._count.participantes} fichas  ${c.nombre}`,
+    ),
+    comoSeArregla:
+      'Atar la caracterización al convenio donde se capturó, y sacar papelEnConvenio, clasificacion y sectorEconomico de la organización a una fila por convenio. Las dos piden migración: es decisión de Josse cuándo entran.',
+  };
+}
+/**
+ * INSCRITOS SIN EL MOVIMIENTO QUE LOS FECHA.
+ *
+ * Desde el 6 oct 2026 la tabla del comité cuenta las inscripciones por
+ * el ANCLA ---la primera vez que la ficha llegó a INSCRITO, que es un
+ * movimiento y no se reescribe nunca--- y no por cuándo se creó la
+ * ficha. Es lo que arregla «no tengo certeza de inscripciones
+ * realizadas en control de inscritos» (cliente, 5 oct 2026).
+ *
+ * El precio es este: una ficha que esté inscrita SIN ese movimiento no
+ * tiene fecha de inscripción, así que no cae en ninguna ventana y no
+ * se cuenta en ningún periodo. En el total sin ventana tampoco.
+ *
+ * En la base de pruebas son 12 de 1.304, y son de la siembra: nacen
+ * CERTIFICADO de un salto. En producción no se sabe cuántas hay ---no
+ * se mira producción--- y de ahí este control: lo dice el despliegue,
+ * con nombre y apellido, en vez de que la cifra salga baja y nadie
+ * sepa por qué.
+ *
+ * NO SE INVENTA EL MOVIMIENTO QUE FALTA. Escribir uno con una fecha
+ * supuesta es meter en el registro de auditoría un hecho que no
+ * consta, y el día que alguien lo audite no habrá forma de saber
+ * cuáles eran de verdad. Lo que se hace es moverlas a mano desde el
+ * panel ---eso sí deja movimiento--- o dejarlas como están sabiendo
+ * que no entran en los conteos por periodo.
+ */
+async function inscritosSinAncla(): Promise<Hallazgo> {
+  const YA_PASARON = [
+    'INSCRITO',
+    'EN_FORMACION',
+    'CERTIFICADO',
+    'NO_APROBO',
+    'DESERTO',
+    'ABANDONO',
+    'RETIRADO',
+  ];
+
+  const filas: Array<{
+    id: string;
+    etapa: string;
+    creadoEn: Date;
+    codigo: string | null;
+    nombre: string | null;
+  }> = await prisma.$queryRawUnsafe(
+    `SELECT pa."id", pa."etapa"::text AS etapa, pa."creadoEn",
+            af."codigo", concat_ws(' ', p."primerNombre", p."primerApellido") AS nombre
+       FROM "participantes" pa
+       LEFT JOIN "acciones_formacion" af ON af."id" = pa."accionFormacionId"
+       LEFT JOIN "personas" p ON p."id" = pa."personaId"
+      WHERE pa."etapa"::text = ANY($1)
+        AND NOT EXISTS (
+          SELECT 1 FROM "movimientos_participante" m
+           WHERE m."participanteId" = pa."id"
+             AND m."etapaDespues" = 'INSCRITO'::"EtapaParticipante"
+             AND m."etapaAntes" IS DISTINCT FROM m."etapaDespues")
+      ORDER BY pa."creadoEn" DESC`,
+    YA_PASARON,
+  );
+
+  const dia = (d: Date) => d.toISOString().slice(0, 10);
+
+  return {
+    titulo:
+      'Fichas inscritas sin el movimiento que las fecha: no entran en ningún periodo',
+    cuantos: filas.length,
+    ejemplos: filas
+      .slice(0, EJEMPLOS)
+      .map(
+        (f) =>
+          `${f.codigo ?? 'sin AF'}  ${f.etapa}  creada ${dia(f.creadoEn)}  ${f.nombre ?? f.id}`,
+      ),
+    comoSeArregla:
+      'Moverlas de etapa a mano desde el panel, que es lo unico que deja movimiento con fecha cierta. Inventarle la fecha a un movimiento de auditoria no: el dia que alguien lo audite no habra forma de saber cuales eran de verdad.',
+  };
+}
+
 async function main() {
   console.log('\n═══ SONDEO DE LOS DATOS ═══\n');
 
@@ -413,12 +554,14 @@ async function main() {
     await independientesAMedias(),
     await ciudadesSinDepartamento(),
     await sinSedeEnSuDepartamento(),
+    await dosGremiosConGente(),
+    await inscritosSinAncla(),
   ];
 
   const conCasos = hallazgos.filter((h) => h.cuantos > 0);
 
   if (conCasos.length === 0) {
-    console.log('  Nada que reportar: los seis controles salen en cero.\n');
+    console.log('  Nada que reportar: los ocho controles salen en cero.\n');
     return;
   }
 

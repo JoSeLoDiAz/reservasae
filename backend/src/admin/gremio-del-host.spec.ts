@@ -11,11 +11,17 @@ const CONVENIOS = [
 describe('el gremio que nombra la dirección', () => {
   it('lo saca del subdominio', () => {
     expect(gremioDelHost('adecopria.reservasae.com', CONVENIOS)?.id).toBe('c1');
-    expect(gremioDelHost('britcham-adee.reservasae.com', CONVENIOS)?.id).toBe('c2');
+    expect(gremioDelHost('britcham-adee.reservasae.com', CONVENIOS)?.id).toBe(
+      'c2',
+    );
   });
 
   it('la puerta general no nombra ninguno', () => {
-    for (const h of ['reservasae.com', 'www.reservasae.com', 'localhost:3000']) {
+    for (const h of [
+      'reservasae.com',
+      'www.reservasae.com',
+      'localhost:3000',
+    ]) {
       expect(gremioDelHost(h, CONVENIOS)).toBeNull();
     }
   });
@@ -59,7 +65,9 @@ describe('el gremio que nombra la dirección', () => {
     });
 
     it('`pre-` de un gremio que no existe sigue siendo nadie', () => {
-      expect(gremioDelHost('pre-cualquiera.reservasae.com', CONVENIOS)).toBeNull();
+      expect(
+        gremioDelHost('pre-cualquiera.reservasae.com', CONVENIOS),
+      ).toBeNull();
     });
 
     it('no se salta lo reservado poniendole el prefijo', () => {
@@ -81,7 +89,9 @@ describe('el gremio que nombra la dirección', () => {
   });
 
   it('no se cuela por mayúsculas, espacios ni puerto', () => {
-    expect(gremioDelHost('  ADECOPRIA.Reservasae.com:443 ', CONVENIOS)?.id).toBe('c1');
+    expect(
+      gremioDelHost('  ADECOPRIA.Reservasae.com:443 ', CONVENIOS)?.id,
+    ).toBe('c1');
   });
 
   it('sin host no hay gremio', () => {

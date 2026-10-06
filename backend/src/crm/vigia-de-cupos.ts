@@ -56,7 +56,8 @@ export class VigiaDeCupos implements OnModuleInit {
 
     let nuevos = 0;
     for (const g of pendientes) {
-      if (!g.ventana.fechaInicio || !g.ventana.cierre || !g.ventana.aviso) continue;
+      if (!g.ventana.fechaInicio || !g.ventana.cierre || !g.ventana.aviso)
+        continue;
 
       const ya = await this.prisma.avisoDeCupos.findUnique({
         where: {

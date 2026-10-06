@@ -84,7 +84,10 @@ describe('Bogotá, con sus dos nombres', () => {
   it('y con la CIUDAD Bogotá pasa lo mismo', () => {
     /// britcham AF8 tiene BOGOTÁ ciudad presencial, no la
     /// departamental. Escriban lo que escriban, es la única.
-    const af8 = [of('BOGOTÁ', 'CIUDAD', 'af8'), of('SANTANDER', 'DEPARTAMENTO', 'af8')];
+    const af8 = [
+      of('BOGOTÁ', 'CIUDAD', 'af8'),
+      of('SANTANDER', 'DEPARTAMENTO', 'af8'),
+    ];
     for (const t of ['Bogotá', 'BOGOTA D.C', 'bogota']) {
       expect(elegida(t, af8, 'af8')).toBe('BOGOTÁ');
     }
@@ -124,7 +127,10 @@ describe('lo que no casa se dice, no se acierta', () => {
 
 describe('solo las sedes de SU curso', () => {
   it('una sede de otra acción no se elige aunque el nombre case', () => {
-    const mezcla = [of('MEDELLÍN', 'CIUDAD', 'af9'), of('ANTIOQUIA', 'DEPARTAMENTO', 'af7')];
+    const mezcla = [
+      of('MEDELLÍN', 'CIUDAD', 'af9'),
+      of('ANTIOQUIA', 'DEPARTAMENTO', 'af7'),
+    ];
     expect(elegida('Medellín', mezcla, 'af7')).toBe('NINGUNA');
   });
 });

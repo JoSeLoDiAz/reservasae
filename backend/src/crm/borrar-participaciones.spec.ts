@@ -104,7 +104,9 @@ describe('las notas compartidas con un lead sobreviven', () => {
     await borrarParticipaciones(d.db as never, { id: 'p1' });
 
     for (const t of ['avances', 'movimientos', 'participantes']) {
-      expect(d.pasos.find((p) => p.tabla === t)?.where).not.toHaveProperty('leadId');
+      expect(d.pasos.find((p) => p.tabla === t)?.where).not.toHaveProperty(
+        'leadId',
+      );
     }
   });
 });

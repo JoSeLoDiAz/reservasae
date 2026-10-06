@@ -6,13 +6,15 @@ const HEXADECIMAL = /^#[0-9a-fA-F]{6}$/;
 
 /** Solo las claves conocidas y con color valido. */
 export function soloTokensValidos(guardados: unknown): ColoresTema {
-  if (!guardados || typeof guardados !== 'object' || Array.isArray(guardados)) return {};
+  if (!guardados || typeof guardados !== 'object' || Array.isArray(guardados))
+    return {};
 
   const entrada = guardados as Record<string, unknown>;
   const limpio: ColoresTema = {};
   for (const token of TOKENS) {
     const valor = entrada[token.clave];
-    if (typeof valor === 'string' && HEXADECIMAL.test(valor)) limpio[token.clave] = valor;
+    if (typeof valor === 'string' && HEXADECIMAL.test(valor))
+      limpio[token.clave] = valor;
   }
   return limpio;
 }

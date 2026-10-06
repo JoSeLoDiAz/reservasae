@@ -115,7 +115,13 @@ export class Matricula implements OnModuleInit {
   /** Los que no pueden pasar porque nadie les puso grupo. */
   async inscritosSinGrupo(): Promise<number> {
     return this.prisma.participante.count({
-      where: { etapa: 'INSCRITO', OR: [{ coberturaId: null }, { cobertura: { grupo: { fechaInicio: null } } }] },
+      where: {
+        etapa: 'INSCRITO',
+        OR: [
+          { coberturaId: null },
+          { cobertura: { grupo: { fechaInicio: null } } },
+        ],
+      },
     });
   }
 }

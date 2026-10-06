@@ -16,13 +16,22 @@ import { LeadsService } from './leads.service';
 /// Un servicio cuyo `entra` obedece un guion: por cada posición,
 /// o devuelve algo o lanza. Se prueba el LOTE, no el alta.
 function armar(guion: Array<'ok' | 'repetido' | 'falla'>) {
-  const s = new LeadsService({} as never, {} as never, { intentar: () => Promise.resolve({ paso: false, porque: 'doble', falta: [] }) } as never);
+  const s = new LeadsService(
+    {} as never,
+    {} as never,
+    {
+      intentar: () =>
+        Promise.resolve({ paso: false, porque: 'doble', falta: [] }),
+    } as never,
+  );
 
   let i = 0;
   (s as unknown as { entra: unknown }).entra = () => {
     const paso = guion[i++];
     if (paso === 'falla') {
-      return Promise.reject(new Error('Ese numero no tiene forma de documento.'));
+      return Promise.reject(
+        new Error('Ese numero no tiene forma de documento.'),
+      );
     }
     return Promise.resolve({
       id: `lead-${i}`,
@@ -45,9 +54,11 @@ describe('la fila 17 no se lleva a las demás', () => {
     const { s, leads } = armar(['ok', 'ok', 'falla', 'ok', 'ok']);
     const r = await s.entraLote(leads as never, 'orquestador');
 
-    expect({ recibidos: r.recibidos, entraron: r.entraron, fallaron: r.fallaron }).toEqual(
-      { recibidos: 5, entraron: 4, fallaron: 1 },
-    );
+    expect({
+      recibidos: r.recibidos,
+      entraron: r.entraron,
+      fallaron: r.fallaron,
+    }).toEqual({ recibidos: 5, entraron: 4, fallaron: 1 });
   });
 
   it('y se sigue procesando DESPUÉS del fallo, no se corta ahí', async () => {
@@ -102,8 +113,10 @@ describe('un repetido no es un error ni una alta', () => {
     const { s, leads } = armar(['ok', 'repetido', 'repetido', 'ok']);
     const r = await s.entraLote(leads as never, 'orquestador');
 
-    expect({ entraron: r.entraron, repetidos: r.repetidos, fallaron: r.fallaron }).toEqual(
-      { entraron: 2, repetidos: 2, fallaron: 0 },
-    );
+    expect({
+      entraron: r.entraron,
+      repetidos: r.repetidos,
+      fallaron: r.fallaron,
+    }).toEqual({ entraron: 2, repetidos: 2, fallaron: 0 });
   });
 });

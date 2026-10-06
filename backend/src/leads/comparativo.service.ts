@@ -62,13 +62,29 @@ const CAMPOS: Array<{
   clave: string | null;
 }> = [
   { campo: 'primerNombre', etiqueta: 'Primer nombre', clave: 'primerNombre' },
-  { campo: 'segundoNombre', etiqueta: 'Segundo nombre', clave: 'segundoNombre' },
-  { campo: 'primerApellido', etiqueta: 'Primer apellido', clave: 'primerApellido' },
-  { campo: 'segundoApellido', etiqueta: 'Segundo apellido', clave: 'segundoApellido' },
+  {
+    campo: 'segundoNombre',
+    etiqueta: 'Segundo nombre',
+    clave: 'segundoNombre',
+  },
+  {
+    campo: 'primerApellido',
+    etiqueta: 'Primer apellido',
+    clave: 'primerApellido',
+  },
+  {
+    campo: 'segundoApellido',
+    etiqueta: 'Segundo apellido',
+    clave: 'segundoApellido',
+  },
   { campo: 'correo', etiqueta: 'Correo', clave: 'correo' },
   { campo: 'celular', etiqueta: 'Celular', clave: 'celular' },
   { campo: 'generoSepId', etiqueta: 'Género', clave: 'generoSepId' },
-  { campo: 'departamentoSepId', etiqueta: 'Departamento', clave: 'departamentoSepId' },
+  {
+    campo: 'departamentoSepId',
+    etiqueta: 'Departamento',
+    clave: 'departamentoSepId',
+  },
   { campo: 'municipioSepId', etiqueta: 'Ciudad', clave: 'municipioSepId' },
   /// El documento se enseña pero NO se aplica desde aquí.
   ///
@@ -165,9 +181,7 @@ export class Comparativo {
         porDonde: l.origenSistema,
         recibidoEn: l.recibidoEn,
       })),
-      rui: rui
-        ? { simulado: rui.simulado, consultadoEn: rui.creadoEn }
-        : null,
+      rui: rui ? { simulado: rui.simulado, consultadoEn: rui.creadoEn } : null,
       filas,
       /// Cuántas piden atención, para poder decirlo sin contar.
       discrepan: filas.filter((f) => f.discrepa).length,
@@ -248,7 +262,10 @@ export class Comparativo {
     /// Los ids del SEP se leen por su etiqueta: un «2» no le dice
     /// nada a quien está mirando la pantalla.
     if (campo === 'generoSepId') {
-      return { valor: v, texto: GENERO_POR_ID.get(Number(v))?.etiqueta ?? String(v) };
+      return {
+        valor: v,
+        texto: GENERO_POR_ID.get(Number(v))?.etiqueta ?? String(v),
+      };
     }
     if (campo === 'departamentoSepId') {
       return {
@@ -257,7 +274,10 @@ export class Comparativo {
       };
     }
     if (campo === 'municipioSepId') {
-      return { valor: v, texto: MUNICIPIO_POR_ID.get(Number(v))?.[2] ?? String(v) };
+      return {
+        valor: v,
+        texto: MUNICIPIO_POR_ID.get(Number(v))?.[2] ?? String(v),
+      };
     }
 
     return { valor: v, texto: String(v) };

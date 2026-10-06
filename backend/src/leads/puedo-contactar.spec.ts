@@ -55,13 +55,24 @@ describe('lo que ya salió de la mesa se gestiona en su ficha', () => {
   /// La superficie entera: los dos caminos por los que un lead
   /// deja de estar en la mesa, cada uno por su cuenta.
   const FUERA = [
-    { que: 'ya tiene ficha', lead: { estado: 'PENDIENTE', participanteId: 'p1' } },
-    { que: 'está convertido', lead: { estado: 'CONVERTIDO', participanteId: null } },
-    { que: 'está descartado', lead: { estado: 'DESCARTADO', participanteId: null } },
+    {
+      que: 'ya tiene ficha',
+      lead: { estado: 'PENDIENTE', participanteId: 'p1' },
+    },
+    {
+      que: 'está convertido',
+      lead: { estado: 'CONVERTIDO', participanteId: null },
+    },
+    {
+      que: 'está descartado',
+      lead: { estado: 'DESCARTADO', participanteId: null },
+    },
   ];
 
   it.each(FUERA)('$que → no se gestiona aquí', ({ lead }) => {
-    expect(puedoContactar({ ...lead, revoco: false })).toBe('YA_NO_ESTA_EN_LA_MESA');
+    expect(puedoContactar({ ...lead, revoco: false })).toBe(
+      'YA_NO_ESTA_EN_LA_MESA',
+    );
   });
 
   it('y eso manda sobre la revocación, porque saca de la mesa antes', () => {
@@ -69,7 +80,11 @@ describe('lo que ya salió de la mesa se gestiona en su ficha', () => {
     /// lead ya convertido cuya persona revocó diría «REVOCO» y el
     /// asesor buscaría en la mesa algo que está en la ficha.
     expect(
-      puedoContactar({ estado: 'CONVERTIDO', participanteId: 'p1', revoco: true }),
+      puedoContactar({
+        estado: 'CONVERTIDO',
+        participanteId: 'p1',
+        revoco: true,
+      }),
     ).toBe('YA_NO_ESTA_EN_LA_MESA');
   });
 });

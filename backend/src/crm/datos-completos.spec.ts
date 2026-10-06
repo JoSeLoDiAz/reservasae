@@ -81,12 +81,17 @@ describe('pasar a «Datos completos»', () => {
 
   it('Contactado también', async () => {
     const { prisma, escrito } = armar('CONTACTADO');
-    expect(await pasarSiNoLeFaltaNada(prisma, 'p1', 'x')).toBe('DATOS_COMPLETOS');
+    expect(await pasarSiNoLeFaltaNada(prisma, 'p1', 'x')).toBe(
+      'DATOS_COMPLETOS',
+    );
     expect(escrito.etapa).toBe('DATOS_COMPLETOS');
   });
 
   it('con un dato pendiente no se mueve', async () => {
-    const { prisma, escrito } = armar('INTERESADO', { ...COMPLETA, barrio: '' });
+    const { prisma, escrito } = armar('INTERESADO', {
+      ...COMPLETA,
+      barrio: '',
+    });
     expect(await pasarSiNoLeFaltaNada(prisma, 'p1', 'x')).toBe('INTERESADO');
     expect(escrito.etapa).toBeUndefined();
   });
@@ -173,7 +178,12 @@ describe('pasar a «Datos completos»', () => {
   /// Completar unos datos no puede sacar a nadie del aula ni
   /// deshacer una inscripción.
   it('quien ya está inscrito o en formación no retrocede', async () => {
-    for (const etapa of ['INSCRITO', 'EN_FORMACION', 'PERDIDO', 'DATOS_COMPLETOS']) {
+    for (const etapa of [
+      'INSCRITO',
+      'EN_FORMACION',
+      'PERDIDO',
+      'DATOS_COMPLETOS',
+    ]) {
       const { prisma, escrito } = armar(etapa);
       expect(await pasarSiNoLeFaltaNada(prisma, 'p1', 'x')).toBe(etapa);
       expect(escrito.etapa).toBeUndefined();

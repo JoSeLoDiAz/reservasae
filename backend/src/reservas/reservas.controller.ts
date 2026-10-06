@@ -49,7 +49,10 @@ export class ReservasController {
     @IpReal() ip: string,
     @Headers('user-agent') userAgent?: string,
   ) {
-    return this.reservas.editar(id, dto.nit, dto.cuposSolicitados, { ip, userAgent });
+    return this.reservas.editar(id, dto.nit, dto.correo, dto.cuposSolicitados, {
+      ip,
+      userAgent,
+    });
   }
 
   // POST: lleva cuerpo y no borra la fila
@@ -62,6 +65,6 @@ export class ReservasController {
     @IpReal() ip: string,
     @Headers('user-agent') userAgent?: string,
   ) {
-    return this.reservas.cancelar(id, dto.nit, { ip, userAgent });
+    return this.reservas.cancelar(id, dto.nit, dto.correo, { ip, userAgent });
   }
 }

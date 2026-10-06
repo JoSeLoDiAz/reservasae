@@ -5,16 +5,28 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { faltaEnF7 } from '../crm/sep/formato-f7';
-import { DEPARTAMENTO_POR_ID, MUNICIPIO_POR_ID } from '../crm/catalogos-sep';
+import {
+  DEPARTAMENTO_POR_ID,
+  MUNICIPIO_POR_ID,
+  SECTORES_ECONOMICOS,
+  TAMANO_EMPRESA_POR_ID,
+  TIPO_DOCUMENTO_POR_ID,
+  municipioCuadra,
+} from '../crm/catalogos-sep';
 
-import { AccionMovimiento, EstadoReserva, Prisma } from '../../generated/prisma';
+import {
+  AccionMovimiento,
+  EstadoReserva,
+  Prisma,
+} from '../../generated/prisma';
 import { semaforo } from '../catalogo/catalogo.service';
-import { normalizarNit } from '../comun/nit';
+import { calcularDigitoVerificacion, normalizarNit } from '../comun/nit';
 import {
   coberturaDeConvenio,
   deConvenio,
   empresaDeConvenio,
   ofertaDeConvenio,
+  organizacionDeConvenio,
   reservaDeConvenio,
   respuestaDeConvenio,
   sqlDeConvenio,
@@ -30,8 +42,15 @@ import {
   TALLAS_MIPYME,
   tallaDeOrganizacion,
 } from '../crm/catalogos-sep';
-import { calcularProyeccion, cierreDeLaAccion, type PuntoNeto } from './proyeccion';
-import { informeDeReservas, type FiltrosInformeReservas } from './informe-de-reservas';
+import {
+  calcularProyeccion,
+  cierreDeLaAccion,
+  type PuntoNeto,
+} from './proyeccion';
+import {
+  informeDeReservas,
+  type FiltrosInformeReservas,
+} from './informe-de-reservas';
 import { reservasAgrupadas, type FiltrosAgrupadas } from './reservas-agrupadas';
 
 export type FiltrosReservas = {
@@ -69,6 +88,33 @@ const TOPE_EMPRESAS = 500;
 
 /** Todas las acciones, publicadas o no. */
 const UNIVERSO: Prisma.OfertaWhereInput = {};
+
+/**
+ * Si la organización responde con NIT o con RUT.
+ *
+ * «No entiendo por qué el listado de empresas no trae los RUT»
+ * (cliente, 2 oct 2026). El dato estaba ---`Empresa.tipoDocumentoSepId`,
+ * y el modelo ya lo advertía: «puede ser una persona con RUT, no solo
+ * un NIT»--- pero la tabla no lo enseñaba, así que un RUT se leía como
+ * un NIT mal escrito, de nueve o diez cifras que no cuadran.
+ *
+ * SE DICE «RUT» Y NO «CÉDULA DE CIUDADANÍA» aunque el catálogo del SEP
+ * lo llame así: aquí no se está identificando a una persona, se está
+ * identificando a QUIEN RESPONDE por la gente que se forma. Un
+ * independiente responde con su RUT, que es el documento de su
+ * actividad y lleva su cédula dentro. Poner «C.C.» en la columna de la
+ * organización haría pensar que alguien se equivocó de casilla.
+ */
+export function tipoDeDocumentoDeLaOrganizacion(
+  id: number | null,
+): 'NIT' | 'RUT' | null {
+  if (id === null) return null;
+  const tipo = TIPO_DOCUMENTO_POR_ID.get(id);
+  if (!tipo) return null;
+  /// El 6 es el Nit. Cualquier otro documento válido para una empresa
+  /// lo lleva una persona natural, y eso es un RUT.
+  return tipo.sigla === 'N.I.T.' ? 'NIT' : 'RUT';
+}
 
 const nombreDepartamento = (id: number | null) =>
   id ? (DEPARTAMENTO_POR_ID.get(id)?.etiqueta ?? null) : null;
@@ -209,7 +255,9 @@ export class TablerosService {
       canceladas,
       tasaCancelacion: pct(canceladas, total),
       cuposPorReserva: reservas._count
-        ? Math.round(((reservas._sum.cuposConfirmados ?? 0) / reservas._count) * 10) / 10
+        ? Math.round(
+            ((reservas._sum.cuposConfirmados ?? 0) / reservas._count) * 10,
+          ) / 10
         : 0,
       empresas,
       acciones,
@@ -263,7 +311,13 @@ export class TablerosService {
     // territorio
     const territorio = new Map<
       string,
-      { nombre: string; tipo: string; cupos: number; ocupados: number; acciones: number }
+      {
+        nombre: string;
+        tipo: string;
+        cupos: number;
+        ocupados: number;
+        acciones: number;
+      }
     >();
     for (const o of ofertas) {
       const clave = `${o.ubicacion.tipo}:${o.ubicacion.nombre}`;
@@ -281,7 +335,10 @@ export class TablerosService {
     }
 
     // modalidad, la de la ACCION: la celda nunca es hibrida
-    const modalidad = new Map<string, { cupos: number; ocupados: number; ofertas: number }>();
+    const modalidad = new Map<
+      string,
+      { cupos: number; ocupados: number; ofertas: number }
+    >();
     for (const o of ofertas) {
       const cual = o.accionFormacion.modalidad;
       const fila = modalidad.get(cual) ?? { cupos: 0, ocupados: 0, ofertas: 0 };
@@ -304,7 +361,9 @@ export class TablerosService {
       const cupos = e.reservas.reduce((s, r) => s + r.cuposConfirmados, 0);
 
       const nombreGremio =
-        e.redAsociada === 'Otro' ? (e.redAsociadaOtra ?? 'Otro') : (e.redAsociada ?? 'Sin indicar');
+        e.redAsociada === 'Otro'
+          ? (e.redAsociadaOtra ?? 'Otro')
+          : (e.redAsociada ?? 'Sin indicar');
       const g = gremio.get(nombreGremio) ?? { empresas: 0, cupos: 0 };
       g.empresas += 1;
       g.cupos += cupos;
@@ -339,11 +398,21 @@ export class TablerosService {
 
     return {
       territorio: [...territorio.values()]
-        .map((t) => ({ ...t, disponibles: t.cupos - t.ocupados, avance: pct(t.ocupados, t.cupos) }))
-        .sort((a, b) => b.ocupados - a.ocupados || a.nombre.localeCompare(b.nombre)),
+        .map((t) => ({
+          ...t,
+          disponibles: t.cupos - t.ocupados,
+          avance: pct(t.ocupados, t.cupos),
+        }))
+        .sort(
+          (a, b) => b.ocupados - a.ocupados || a.nombre.localeCompare(b.nombre),
+        ),
 
       modalidad: [...modalidad.entries()]
-        .map(([nombre, v]) => ({ nombre, ...v, avance: pct(v.ocupados, v.cupos) }))
+        .map(([nombre, v]) => ({
+          nombre,
+          ...v,
+          avance: pct(v.ocupados, v.cupos),
+        }))
         .sort((a, b) => b.cupos - a.cupos),
 
       gremio: [...gremio.entries()]
@@ -376,7 +445,10 @@ export class TablerosService {
       concentracion: {
         totalCupos,
         organizaciones: porEmpresa.length,
-        diezMayores: diezMayores.map((e) => ({ ...e, porcentaje: pct(e.cupos, totalCupos) })),
+        diezMayores: diezMayores.map((e) => ({
+          ...e,
+          porcentaje: pct(e.cupos, totalCupos),
+        })),
         porcentajeDiezMayores: pct(
           diezMayores.reduce((s, e) => s + e.cupos, 0),
           totalCupos,
@@ -465,7 +537,10 @@ export class TablerosService {
       /// dos, y eso es a proposito: ni ocupan silla ni se
       /// pueden depurar.
       if (!donde) continue;
-      donde.set(fila.coberturaId, (donde.get(fila.coberturaId) ?? 0) + fila._count._all);
+      donde.set(
+        fila.coberturaId,
+        (donde.get(fila.coberturaId) ?? 0) + fila._count._all,
+      );
     }
 
     // la espera vive en las reservas
@@ -478,7 +553,9 @@ export class TablerosService {
       },
       _sum: { cuposEnEspera: true },
     });
-    const esperaPorOferta = new Map(espera.map((e) => [e.ofertaId, e._sum.cuposEnEspera ?? 0]));
+    const esperaPorOferta = new Map(
+      espera.map((e) => [e.ofertaId, e._sum.cuposEnEspera ?? 0]),
+    );
 
     const ofertas = await this.prisma.oferta.findMany({
       where: ofertaDeConvenio(ambito),
@@ -488,7 +565,10 @@ export class TablerosService {
     for (const o of ofertas) {
       const n = esperaPorOferta.get(o.id) ?? 0;
       if (n) {
-        esperaPorAccion.set(o.accionFormacionId, (esperaPorAccion.get(o.accionFormacionId) ?? 0) + n);
+        esperaPorAccion.set(
+          o.accionFormacionId,
+          (esperaPorAccion.get(o.accionFormacionId) ?? 0) + n,
+        );
       }
     }
 
@@ -527,7 +607,10 @@ export class TablerosService {
         /// puede llenar lo que falta.
         grupos: a.grupos.map((g) => {
           const ventana = ventanaDe(g.fechaInicio, hoy);
-          const cuposMaximos = g.coberturas.reduce((s, c) => s + c.cuposMaximos, 0);
+          const cuposMaximos = g.coberturas.reduce(
+            (s, c) => s + c.cuposMaximos,
+            0,
+          );
           const inscritos = g.coberturas.reduce(
             (s, c) => s + (inscritosDe.get(c.id) ?? 0),
             0,
@@ -590,7 +673,8 @@ export class TablerosService {
         },
       },
     });
-    if (!accion) throw new NotFoundException('No existe esa acción de formación.');
+    if (!accion)
+      throw new NotFoundException('No existe esa acción de formación.');
 
     const idsOferta = accion.ofertas.map((o) => o.id);
 
@@ -683,8 +767,11 @@ export class TablerosService {
         (s, o) => s + o.reservas.reduce((t, r) => t + r.cuposEnEspera, 0),
         0,
       ),
-      organizaciones: new Set(reservas.filter((r) => r.estado !== 'CANCELADA').map((r) => r.empresa.nit))
-        .size,
+      organizaciones: new Set(
+        reservas
+          .filter((r) => r.estado !== 'CANCELADA')
+          .map((r) => r.empresa.nit),
+      ).size,
 
       ofertas: accion.ofertas.map((o) => ({
         id: o.id,
@@ -766,7 +853,9 @@ export class TablerosService {
       ],
       include: {
         ubicacion: true,
-        accionFormacion: { include: { convenio: { select: { slug: true, sigla: true } } } },
+        accionFormacion: {
+          include: { convenio: { select: { slug: true, sigla: true } } },
+        },
       },
     });
 
@@ -782,7 +871,9 @@ export class TablerosService {
       cupos: o.cuposMaximos,
       ocupados: o.cuposOcupados,
       disponibles: o.cuposMaximos - o.cuposOcupados,
-      avance: o.cuposMaximos ? Math.round((o.cuposOcupados / o.cuposMaximos) * 1000) / 10 : 0,
+      avance: o.cuposMaximos
+        ? Math.round((o.cuposOcupados / o.cuposMaximos) * 1000) / 10
+        : 0,
       estado: semaforo(o.cuposMaximos, o.cuposOcupados),
       abierta: o.abierta,
     }));
@@ -795,17 +886,40 @@ export class TablerosService {
    * el fichero binario para grep; con cadena vacia,
    * `contains` coincidiria con TODAS las filas.
    */
-  private dondeEmpresa(ambito: string[], buscar?: string): Prisma.EmpresaWhereInput {
+  private dondeEmpresa(
+    ambito: string[],
+    buscar?: string,
+  ): Prisma.EmpresaWhereInput {
+    /**
+     * CON `AND` Y NO CON DOS `OR` SUELTOS.
+     *
+     * `organizacionDeConvenio` ya trae un `OR` suyo ---reservó o tiene
+     * gente--- y el de la búsqueda es otro. Puestos los dos al mismo
+     * nivel, el segundo PISA al primero en el objeto literal y el
+     * listado pasaría a enseñar las organizaciones de todos los
+     * gremios. Un fallo de ámbito, no de búsqueda.
+     */
     return {
-      ...empresaDeConvenio(ambito),
-      ...(buscar
-        ? {
-            OR: [
-              ...(soloDigitos(buscar) ? [{ nit: { contains: soloDigitos(buscar) } }] : []),
-              { razonSocial: { contains: buscar, mode: 'insensitive' as const } },
-            ],
-          }
-        : {}),
+      AND: [
+        organizacionDeConvenio(ambito),
+        ...(buscar
+          ? [
+              {
+                OR: [
+                  ...(soloDigitos(buscar)
+                    ? [{ nit: { contains: soloDigitos(buscar) } }]
+                    : []),
+                  {
+                    razonSocial: {
+                      contains: buscar,
+                      mode: 'insensitive' as const,
+                    },
+                  },
+                ],
+              },
+            ]
+          : []),
+      ],
     };
   }
 
@@ -814,7 +928,11 @@ export class TablerosService {
    * la descarga en Excel: un informe recortado en silencio
    * a la primera pagina seria peor que no tenerlo.
    */
-  async porEmpresa(ambito: string[], buscar?: string, trozo?: { skip: number; take: number }) {
+  async porEmpresa(
+    ambito: string[],
+    buscar?: string,
+    trozo?: { skip: number; take: number },
+  ) {
     const empresas = await this.prisma.empresa.findMany({
       ...(trozo ?? {}),
       // alfabetico y en la base. Ordenar por cupos exigiria
@@ -838,44 +956,79 @@ export class TablerosService {
             oferta: { accionFormacion: { convenioId: { in: ambito } } },
           },
           include: {
-            oferta: { include: { accionFormacion: { select: { codigo: true } } } },
+            oferta: {
+              include: { accionFormacion: { select: { codigo: true } } },
+            },
+          },
+        },
+        /**
+         * SU GENTE, que para las de RUT es lo único que tienen.
+         *
+         * Una persona natural con RUT no aparta cupos: se inscribe. Sin
+         * esta cuenta, las organizaciones que entran por el formulario
+         * salían con reservas, confirmados y en espera en cero, o sea
+         * como si no fueran nadie, que es justo lo que se quería dejar
+         * de hacer al enseñarlas.
+         */
+        _count: {
+          select: {
+            participantes: { where: { convenioId: { in: ambito } } },
           },
         },
       },
     });
 
-    return empresas
-      .map((e) => ({
-        id: e.id,
-        nit: e.nit,
-        digitoVerificacion: e.digitoVerificacion,
-        razonSocial: e.razonSocial,
-        numeroColaboradores: e.numeroColaboradores,
-        redAsociada: e.redAsociada,
-        redAsociadaOtra: e.redAsociadaOtra,
+    return empresas.map((e) => ({
+      id: e.id,
+      nit: e.nit,
+      digitoVerificacion: e.digitoVerificacion,
+      /**
+       * NIT O RUT, dicho en la fila.
+       *
+       * «No entiendo por qué el listado de empresas no trae los RUT»
+       * (cliente, 2 oct 2026). Sí los trae ---`Empresa` guarda su tipo
+       * de documento desde siempre, y el modelo lo dice: «puede ser una
+       * persona con RUT, no solo un NIT»--- pero la tabla no lo
+       * enseñaba, así que un RUT parecía un NIT mal escrito.
+       *
+       * En UNA SOLA TABLA y no en dos: son la misma cosa ---quién
+       * responde por la gente que se forma--- y partirlas obligaría a
+       * mirar en dos sitios para la misma pregunta, además de duplicar
+       * los filtros, la descarga y el cargue. Lo que hacía falta era la
+       * columna que las distingue.
+       */
+      tipoDocumento: tipoDeDocumentoDeLaOrganizacion(e.tipoDocumentoSepId),
+      /// Cuántas personas suyas se están formando en este gremio.
+      inscritos: e._count.participantes,
+      razonSocial: e.razonSocial,
+      numeroColaboradores: e.numeroColaboradores,
+      redAsociada: e.redAsociada,
+      redAsociadaOtra: e.redAsociadaOtra,
+      departamento: nombreDepartamento(e.departamentoSepId),
+      municipio: nombreMunicipio(e.municipioSepId),
+      direccion: e.direccion,
+      telefono: e.telefono,
+      contactoNombre: e.contactoNombre,
+      contactoCargo: e.contactoCargo,
+      contactoCorreo: e.contactoCorreo,
+      sectorEconomico: e.sectorEconomico,
+      clasificacion: e.clasificacion,
+      numeroTrabajadores: e.numeroTrabajadores,
+      tamanoSepId: e.tamanoSepId,
+      // que le falta para poder ir en el F7
+      faltaF7: faltaEnF7({
+        ...e,
         departamento: nombreDepartamento(e.departamentoSepId),
         municipio: nombreMunicipio(e.municipioSepId),
-        direccion: e.direccion,
-        telefono: e.telefono,
-        contactoNombre: e.contactoNombre,
-        contactoCargo: e.contactoCargo,
-        contactoCorreo: e.contactoCorreo,
-        sectorEconomico: e.sectorEconomico,
-        clasificacion: e.clasificacion,
-        numeroTrabajadores: e.numeroTrabajadores,
-        tamanoSepId: e.tamanoSepId,
-        // que le falta para poder ir en el F7
-        faltaF7: faltaEnF7({
-          ...e,
-          departamento: nombreDepartamento(e.departamentoSepId),
-          municipio: nombreMunicipio(e.municipioSepId),
-        }),
-        reservas: e.reservas.length,
-        confirmados: e.reservas.reduce((s, r) => s + r.cuposConfirmados, 0),
-        enEspera: e.reservas.reduce((s, r) => s + r.cuposEnEspera, 0),
-        cursos: [...new Set(e.reservas.map((r) => r.oferta.accionFormacion.codigo))].sort(),
-        creadoEn: e.creadoEn,
-      }));
+      }),
+      reservas: e.reservas.length,
+      confirmados: e.reservas.reduce((s, r) => s + r.cuposConfirmados, 0),
+      enEspera: e.reservas.reduce((s, r) => s + r.cuposEnEspera, 0),
+      cursos: [
+        ...new Set(e.reservas.map((r) => r.oferta.accionFormacion.codigo)),
+      ].sort(),
+      creadoEn: e.creadoEn,
+    }));
   }
 
   /** Las de la página, más cuántas hay en total. */
@@ -888,7 +1041,10 @@ export class TablerosService {
     const tamano = Math.min(porPagina ?? POR_PAGINA_EMPRESAS, TOPE_EMPRESAS);
     const pag = Math.max(1, pagina ?? 1);
     const [filas, total] = await Promise.all([
-      this.porEmpresa(ambito, buscar, { skip: (pag - 1) * tamano, take: tamano }),
+      this.porEmpresa(ambito, buscar, {
+        skip: (pag - 1) * tamano,
+        take: tamano,
+      }),
       this.prisma.empresa.count({ where: this.dondeEmpresa(ambito, buscar) }),
     ]);
     return {
@@ -934,7 +1090,9 @@ export class TablerosService {
       ? Prisma.sql`AND r."ofertaId" IN (SELECT id FROM "ofertas" WHERE "accionFormacionId" = ${accionId})`
       : Prisma.empty;
 
-    const filas = await this.prisma.$queryRaw<Array<{ dia: string; neto: bigint }>>`
+    const filas = await this.prisma.$queryRaw<
+      Array<{ dia: string; neto: bigint }>
+    >`
       SELECT ${diaBogota(Prisma.sql`m."creadoEn"`)} AS dia,
              COALESCE(SUM(m."confirmadosDespues" - m."confirmadosAntes"), 0) AS neto
         FROM "movimientos_reserva" m
@@ -961,7 +1119,9 @@ export class TablerosService {
       ? Prisma.sql`AND r."ofertaId" IN (SELECT id FROM "ofertas" WHERE "accionFormacionId" = ${accionId})`
       : Prisma.empty;
 
-    const filas = await this.prisma.$queryRaw<Array<{ dia: string; neto: bigint }>>`
+    const filas = await this.prisma.$queryRaw<
+      Array<{ dia: string; neto: bigint }>
+    >`
       SELECT ${diaBogota(Prisma.sql`r."creadoEn"`)} AS dia,
              COALESCE(SUM(r."cuposConfirmados"), 0) AS neto
         FROM "reservas" r
@@ -997,7 +1157,9 @@ export class TablerosService {
       : Prisma.empty;
     const ocupan = Prisma.join(OCUPAN_SILLA);
 
-    const filas = await this.prisma.$queryRaw<Array<{ dia: string; neto: bigint }>>`
+    const filas = await this.prisma.$queryRaw<
+      Array<{ dia: string; neto: bigint }>
+    >`
       SELECT ${diaBogota(Prisma.sql`m."creadoEn"`)} AS dia,
              COALESCE(SUM(
                CASE
@@ -1030,7 +1192,9 @@ export class TablerosService {
     if (!primero) return 0;
     return Math.max(
       1,
-      Math.ceil((Date.now() - primero.creadoEn.getTime()) / (24 * 60 * 60 * 1000)),
+      Math.ceil(
+        (Date.now() - primero.creadoEn.getTime()) / (24 * 60 * 60 * 1000),
+      ),
     );
   }
 
@@ -1057,44 +1221,52 @@ export class TablerosService {
     if (!primero) return 0;
     return Math.max(
       1,
-      Math.ceil((Date.now() - primero.creadoEn.getTime()) / (24 * 60 * 60 * 1000)),
+      Math.ceil(
+        (Date.now() - primero.creadoEn.getTime()) / (24 * 60 * 60 * 1000),
+      ),
     );
   }
 
   /** Ritmo global y por acción, con fecha estimada. */
   async proyeccion(ambito: string[], dias = 14) {
     const hoy = new Date();
-    const [serie, historia, base, comprometidos, porAccion, acciones] = await Promise.all([
-      /// Contra COMPROMISOS y no contra reservas: si no, el
-      /// panel dice «no alcanza» al lado de «sobre ejecutado».
-      this.netoDeCompromisosPorDia(ambito, dias),
-      this.diasDeHistoriaDeFichas(ambito),
-      this.prisma.grupoCobertura.aggregate({
-        where: coberturaDeConvenio(ambito),
-        _sum: { cuposBase: true },
-      }),
-      this.prisma.participante.count({
-        where: { ...deConvenio(ambito), etapa: { in: OCUPAN_SILLA } },
-      }),
-      this.prisma.participante.groupBy({
-        by: ['accionFormacionId'],
-        where: { ...deConvenio(ambito), etapa: { in: OCUPAN_SILLA } },
-        _count: { _all: true },
-      }),
-      this.prisma.accionFormacion.findMany({
-        where: deConvenio(ambito),
-        select: {
-          id: true,
-          codigo: true,
-          nombre: true,
-          visible: true,
-          convenio: { select: { sigla: true, slug: true } },
-          ofertas: { select: { cuposOcupados: true } },
-          grupos: { select: { fechaInicio: true, coberturas: { select: { cuposBase: true } } } },
-        },
-        orderBy: { codigo: 'asc' },
-      }),
-    ]);
+    const [serie, historia, base, comprometidos, porAccion, acciones] =
+      await Promise.all([
+        /// Contra COMPROMISOS y no contra reservas: si no, el
+        /// panel dice «no alcanza» al lado de «sobre ejecutado».
+        this.netoDeCompromisosPorDia(ambito, dias),
+        this.diasDeHistoriaDeFichas(ambito),
+        this.prisma.grupoCobertura.aggregate({
+          where: coberturaDeConvenio(ambito),
+          _sum: { cuposBase: true },
+        }),
+        this.prisma.participante.count({
+          where: { ...deConvenio(ambito), etapa: { in: OCUPAN_SILLA } },
+        }),
+        this.prisma.participante.groupBy({
+          by: ['accionFormacionId'],
+          where: { ...deConvenio(ambito), etapa: { in: OCUPAN_SILLA } },
+          _count: { _all: true },
+        }),
+        this.prisma.accionFormacion.findMany({
+          where: deConvenio(ambito),
+          select: {
+            id: true,
+            codigo: true,
+            nombre: true,
+            visible: true,
+            convenio: { select: { sigla: true, slug: true } },
+            ofertas: { select: { cuposOcupados: true } },
+            grupos: {
+              select: {
+                fechaInicio: true,
+                coberturas: { select: { cuposBase: true } },
+              },
+            },
+          },
+          orderBy: { codigo: 'asc' },
+        }),
+      ]);
 
     const comprometidosDe = new Map(
       porAccion.map((f) => [f.accionFormacionId ?? '', f._count._all]),
@@ -1109,13 +1281,19 @@ export class TablerosService {
       origen: 'MOVIMIENTOS',
       diasDeHistoria: historia,
       // el plazo del cronograma: el ultimo grupo que cierra
-      cierre: cierreDeLaAccion(acciones.flatMap((a) => a.grupos.map((g) => g.fechaInicio))),
+      cierre: cierreDeLaAccion(
+        acciones.flatMap((a) => a.grupos.map((g) => g.fechaInicio)),
+      ),
     });
 
     // la serie de cada acción
     const series = await Promise.all(
       acciones.map(async (accion) => {
-        const suyo = await this.netoDeCompromisosPorDia(ambito, dias, accion.id);
+        const suyo = await this.netoDeCompromisosPorDia(
+          ambito,
+          dias,
+          accion.id,
+        );
         const ocupados = comprometidosDe.get(accion.id) ?? 0;
         const meta = accion.grupos.reduce(
           (s, g) => s + g.coberturas.reduce((t, c) => t + c.cuposBase, 0),
@@ -1233,7 +1411,10 @@ export class TablerosService {
 
         if (pregunta.tipo === 'CASILLA') {
           const sies = respuestas.filter((r) => r.valorBooleano).length;
-          return { ...comun, casilla: { si: sies, no: respuestas.length - sies } };
+          return {
+            ...comun,
+            casilla: { si: sies, no: respuestas.length - sies },
+          };
         }
 
         if (pregunta.tipo === 'NUMERO') {
@@ -1245,7 +1426,10 @@ export class TablerosService {
         }
 
         if (pregunta.opciones.length) {
-          return { ...comun, opciones: contarOpciones(pregunta.opciones, respuestas) };
+          return {
+            ...comun,
+            opciones: contarOpciones(pregunta.opciones, respuestas),
+          };
         }
 
         // el texto libre no se agrega
@@ -1260,7 +1444,11 @@ export class TablerosService {
     );
 
     return {
-      formulario: { id: formulario.id, slug: formulario.slug, titulo: formulario.titulo },
+      formulario: {
+        id: formulario.id,
+        slug: formulario.slug,
+        titulo: formulario.titulo,
+      },
       totalReservas,
       preguntas: informe,
     };
@@ -1296,7 +1484,15 @@ export class TablerosService {
   ) {
     const antes = await this.prisma.empresa.findUnique({
       where: { id },
-      select: { id: true, nit: true, razonSocial: true },
+      /// Con la ubicacion: el par departamento/municipio se comprueba
+      /// contra lo que VA A QUEDAR, no contra lo que viene en el dto.
+      select: {
+        id: true,
+        nit: true,
+        razonSocial: true,
+        departamentoSepId: true,
+        municipioSepId: true,
+      },
     });
     if (!antes) throw new NotFoundException('Esa organización no existe.');
 
@@ -1322,9 +1518,84 @@ export class TablerosService {
       .filter(([, v]) => v !== undefined)
       .map(([k]) => k);
 
+    /**
+     * Y LOS IDS DEL SEP, CONTRA SU CATÁLOGO.
+     *
+     * El DTO los valida con `@IsInt()`, que acepta cualquier entero.
+     * Un `tamanoSepId: 99` pasaba, `faltaEnF7` lo daba por relleno
+     * ---solo mira que no sea nulo--- y la columna «TAMAÑO DE LA
+     * EMPRESA» salía VACÍA en el F7, con la fila dada por completa. El
+     * fallo aparece en el SENA, no aquí.
+     *
+     * Y el par departamento/municipio: el F7 los resuelve por separado,
+     * así que un municipio de otro departamento sale con los dos
+     * valores puestos y la pareja imposible.
+     *
+     * La puerta gemela del CRM ya comprueba las dos cosas. Esta era la
+     * que no.
+     */
+    if (
+      dto.tamanoSepId !== undefined &&
+      dto.tamanoSepId !== null &&
+      !TAMANO_EMPRESA_POR_ID.has(dto.tamanoSepId)
+    ) {
+      throw new BadRequestException(
+        `El tamaño de empresa «${dto.tamanoSepId}» no está en el catálogo del SEP.`,
+      );
+    }
+    if (
+      dto.sectorEconomico &&
+      !SECTORES_ECONOMICOS.some((s) => s.etiqueta === dto.sectorEconomico)
+    ) {
+      throw new BadRequestException(
+        `«${dto.sectorEconomico}» no es un sector económico del catálogo del SEP.`,
+      );
+    }
+    /// Contra lo que va a quedar, no contra lo que viene: se puede
+    /// cambiar solo el municipio y que el departamento sea el de antes.
+    const departamentoFinal =
+      dto.departamentoSepId !== undefined
+        ? dto.departamentoSepId
+        : antes.departamentoSepId;
+    const municipioFinal =
+      dto.municipioSepId !== undefined
+        ? dto.municipioSepId
+        : antes.municipioSepId;
+    if (!municipioCuadra(departamentoFinal, municipioFinal)) {
+      throw new BadRequestException(
+        'Ese municipio no es de ese departamento. El F7 los resuelve por ' +
+          'separado, así que la fila saldría con una pareja imposible.',
+      );
+    }
+
+    /**
+     * EL DÍGITO DE VERIFICACIÓN NO SE TECLEA: SE DERIVA DEL NIT.
+     *
+     * Esta puerta hacía `data: { ...dto }` tal cual, así que al
+     * corregir el NIT la fila se quedaba con el DV del NIT VIEJO. Y
+     * ese par viaja junto a los tres formatos del SENA: el F7 y los
+     * dos de personas salen con un NIT y un dígito que no se
+     * corresponden, y el cargue rebota allí, no aquí.
+     *
+     * La puerta gemela del CRM ya lo hacía bien ---`calcularDigito
+     * Verificacion(leido.nit)`, con el comentario «el DV no se teclea,
+     * se deriva»---. Dos puertas al mismo dato y solo una comprobando:
+     * el patrón de siempre.
+     *
+     * Si quien edita manda un DV explícito se respeta ---puede estar
+     * corrigiendo justo eso--- pero si cambia el NIT y NO manda DV, se
+     * recalcula en vez de dejar el de antes, que es lo único que no
+     * puede ser cierto.
+     */
+    const cambiaElNit = Boolean(dto.nit && dto.nit !== antes.nit);
+    const datos =
+      cambiaElNit && dto.digitoVerificacion === undefined
+        ? { ...dto, digitoVerificacion: calcularDigitoVerificacion(dto.nit!) }
+        : { ...dto };
+
     const empresa = await this.prisma.empresa.update({
       where: { id },
-      data: { ...dto },
+      data: datos,
     });
 
     await this.auditoria.registrar({
@@ -1354,11 +1625,15 @@ export class TablerosService {
 
     if (filtros.estado) y.push({ estado: filtros.estado });
     if (filtros.convenio) {
-      y.push({ oferta: { accionFormacion: { convenio: { slug: filtros.convenio } } } });
+      y.push({
+        oferta: { accionFormacion: { convenio: { slug: filtros.convenio } } },
+      });
     }
-    if (filtros.accionId) y.push({ oferta: { accionFormacionId: filtros.accionId } });
+    if (filtros.accionId)
+      y.push({ oferta: { accionFormacionId: filtros.accionId } });
     // por que enlace entro
-    if (filtros.formulario) y.push({ formulario: { slug: filtros.formulario } });
+    if (filtros.formulario)
+      y.push({ formulario: { slug: filtros.formulario } });
 
     /// EL PERIODO, por cuándo se hizo la reserva. `creadoEn` es la
     /// misma columna por la que ya se ordena la lista, así que el
@@ -1377,7 +1652,9 @@ export class TablerosService {
         OR: [
           { contactoNombre: { contains: texto, mode: 'insensitive' } },
           { contactoCorreo: { contains: texto, mode: 'insensitive' } },
-          { empresa: { razonSocial: { contains: texto, mode: 'insensitive' } } },
+          {
+            empresa: { razonSocial: { contains: texto, mode: 'insensitive' } },
+          },
           // el NIT se busca por dígitos
           ...(digitos ? [{ empresa: { nit: { contains: digitos } } }] : []),
         ],
@@ -1404,7 +1681,9 @@ export class TablerosService {
           oferta: {
             include: {
               ubicacion: true,
-              accionFormacion: { include: { convenio: { select: { slug: true, sigla: true } } } },
+              accionFormacion: {
+                include: { convenio: { select: { slug: true, sigla: true } } },
+              },
             },
           },
           formulario: { select: { slug: true, titulo: true } },
@@ -1644,7 +1923,11 @@ export class TablerosService {
    * Todo queda en `MovimientoReserva` como AJUSTE_ADMIN. Sin esa
    * línea, un cupo aparecido de la nada no tendría a quién achacarse.
    */
-  async cambiarEstadoReserva(id: string, estado: EstadoReserva, ambito: string[]) {
+  async cambiarEstadoReserva(
+    id: string,
+    estado: EstadoReserva,
+    ambito: string[],
+  ) {
     const reserva = await this.prisma.reserva.findFirst({
       where: { id, ...reservaDeConvenio(ambito) },
       include: {
@@ -1675,7 +1958,10 @@ export class TablerosService {
     /// Con gente inscrita detrás no se sueltan los cupos: quedarían
     /// personas sentadas en una silla que ya nadie apartó. Vale para
     /// CANCELADA y para LISTA_ESPERA, que también los devuelve.
-    if (estado !== EstadoReserva.CONFIRMADA && reserva._count.participantes > 0) {
+    if (
+      estado !== EstadoReserva.CONFIRMADA &&
+      reserva._count.participantes > 0
+    ) {
       throw new ConflictException(
         `Esta reserva tiene ${reserva._count.participantes} personas inscritas. ` +
           'Quítelas de la reserva antes de soltar sus cupos: si no, se quedan ' +
@@ -1710,7 +1996,8 @@ export class TablerosService {
         /// Los suyos no cuentan como ocupados para sí misma: si ya
         /// tenía 5 confirmados, esos 5 están dentro de `cuposOcupados`
         /// y descontarlos otra vez le daría la mitad de su sitio.
-        const libres = oferta.cuposMaximos - (oferta.cuposOcupados - antes.confirmados);
+        const libres =
+          oferta.cuposMaximos - (oferta.cuposOcupados - antes.confirmados);
         confirmados = Math.min(reserva.cuposSolicitados, Math.max(libres, 0));
         enEspera = reserva.cuposSolicitados - confirmados;
       }
@@ -1738,7 +2025,8 @@ export class TablerosService {
           cuposConfirmados: confirmados,
           cuposEnEspera: enEspera,
           estado: estadoReal,
-          canceladaEn: estadoReal === EstadoReserva.CANCELADA ? new Date() : null,
+          canceladaEn:
+            estadoReal === EstadoReserva.CANCELADA ? new Date() : null,
         },
       });
 
@@ -1752,7 +2040,9 @@ export class TablerosService {
           enEsperaDespues: enEspera,
           nota:
             `Estado cambiado a mano desde el panel: ${reserva.estado} → ${estadoReal}.` +
-            (estadoReal !== estado ? ` Se pidió ${estado}, pero no había cupos libres.` : ''),
+            (estadoReal !== estado
+              ? ` Se pidió ${estado}, pero no había cupos libres.`
+              : ''),
         },
       });
 
@@ -1786,7 +2076,9 @@ export class TablerosService {
         oferta: {
           include: {
             ubicacion: true,
-            accionFormacion: { include: { convenio: { select: { slug: true, sigla: true } } } },
+            accionFormacion: {
+              include: { convenio: { select: { slug: true, sigla: true } } },
+            },
           },
         },
         formulario: { select: { slug: true, titulo: true } },
@@ -1821,7 +2113,9 @@ export function resumenNumerico(valores: number[]) {
   return {
     media: Math.round((suma / valores.length) * 10) / 10,
     mediana:
-      valores.length % 2 ? valores[medio] : (valores[medio - 1] + valores[medio]) / 2,
+      valores.length % 2
+        ? valores[medio]
+        : (valores[medio - 1] + valores[medio]) / 2,
     minimo: valores[0],
     maximo: valores[valores.length - 1],
     suma,
@@ -1831,7 +2125,10 @@ export function resumenNumerico(valores: number[]) {
 /** Cuenta por opción, con la etiqueta de hoy. */
 export function contarOpciones(
   opciones: Array<{ valor: string; etiqueta: string; archivada: boolean }>,
-  respuestas: Array<{ valoresSeleccion: string[]; etiquetasSeleccion: string[] }>,
+  respuestas: Array<{
+    valoresSeleccion: string[];
+    etiquetasSeleccion: string[];
+  }>,
 ) {
   const cuenta = new Map<string, number>();
   const etiquetaCongelada = new Map<string, string>();
@@ -1878,9 +2175,12 @@ export function valorLegible(respuesta: {
   etiquetasSeleccion: string[];
   valoresSeleccion: string[];
 }): string {
-  if (respuesta.etiquetasSeleccion.length) return respuesta.etiquetasSeleccion.join(', ');
-  if (respuesta.valoresSeleccion.length) return respuesta.valoresSeleccion.join(', ');
-  if (respuesta.valorBooleano !== null) return respuesta.valorBooleano ? 'Sí' : 'No';
+  if (respuesta.etiquetasSeleccion.length)
+    return respuesta.etiquetasSeleccion.join(', ');
+  if (respuesta.valoresSeleccion.length)
+    return respuesta.valoresSeleccion.join(', ');
+  if (respuesta.valorBooleano !== null)
+    return respuesta.valorBooleano ? 'Sí' : 'No';
   if (respuesta.valorNumero !== null) return String(respuesta.valorNumero);
   return respuesta.valorTexto ?? '';
 }

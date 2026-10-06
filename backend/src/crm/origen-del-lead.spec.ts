@@ -29,7 +29,13 @@ describe('cada canal cae en su puerta', () => {
   });
 
   it('lo demás es importación: alguien lo subió', () => {
-    const resto: OrigenParticipante[] = ['EMPRESA', 'ASESOR', 'REFERIDO', 'EVENTO', 'OTRO'];
+    const resto: OrigenParticipante[] = [
+      'EMPRESA',
+      'ASESOR',
+      'REFERIDO',
+      'EVENTO',
+      'OTRO',
+    ];
     for (const o of resto) expect(origenDeLead(o)).toBe('IMPORTACION');
   });
 });

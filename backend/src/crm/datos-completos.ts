@@ -35,7 +35,10 @@ const CAMPOS = {
   contactoCorreo: true,
 } as const;
 
-type Prisma = Pick<PrismaClient, 'participante' | 'movimientoParticipante' | '$transaction'>;
+type Prisma = Pick<
+  PrismaClient,
+  'participante' | 'movimientoParticipante' | '$transaction'
+>;
 
 /**
  * La mueve si ya no le falta nada. Devuelve la etapa en que queda,

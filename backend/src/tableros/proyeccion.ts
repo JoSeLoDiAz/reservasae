@@ -1,7 +1,14 @@
 /** A qué ritmo entran los cupos, y si llegan a tiempo. */
 
-import { aDiaBogota, aDiaDeCalendario, diaBogotaHace } from '../comun/dia-bogota';
-import { cierreDeInscripciones, hoyEnColombia } from '../crm/calendario-inscripcion';
+import {
+  aDiaBogota,
+  aDiaDeCalendario,
+  diaBogotaHace,
+} from '../comun/dia-bogota';
+import {
+  cierreDeInscripciones,
+  hoyEnColombia,
+} from '../crm/calendario-inscripcion';
 
 export type PuntoNeto = { dia: string; neto: number };
 
@@ -32,10 +39,7 @@ export type VeredictoCronograma =
   /// Ningun grupo tiene fecha de inicio. El esquema las deja
   /// opcionales --«los proyectos no traen fechas»--, asi que
   /// esto no es un error: es que nadie la ha cargado.
-  | 'SIN_CRONOGRAMA'
-  | 'CERRADA'
-  | 'ALCANZA'
-  | 'NO_ALCANZA';
+  'SIN_CRONOGRAMA' | 'CERRADA' | 'ALCANZA' | 'NO_ALCANZA';
 
 export type Confianza = 'BAJA' | 'NORMAL';
 
@@ -112,7 +116,9 @@ export function ritmoPorDia(
  * Los grupos sin fecha no cuentan --no restan plazo, porque no
  * se sabe el suyo--; si ninguno la tiene, no hay cierre.
  */
-export function cierreDeLaAccion(fechasDeInicio: Array<Date | null>): Date | null {
+export function cierreDeLaAccion(
+  fechasDeInicio: Array<Date | null>,
+): Date | null {
   const cierres = fechasDeInicio
     .filter((f): f is Date => f instanceof Date)
     /// La flecha NO sobra: `cierreDeInscripciones` recibe ahora la
@@ -130,7 +136,10 @@ function contraElCronograma(
   hoy: Date,
   faltan: number,
   ritmoDiario: number,
-): Pick<Proyeccion, 'cierre' | 'diasAlCierre' | 'faltaranAlCierre' | 'cronograma'> {
+): Pick<
+  Proyeccion,
+  'cierre' | 'diasAlCierre' | 'faltaranAlCierre' | 'cronograma'
+> {
   if (!cierre) {
     return {
       cierre: null,
@@ -144,10 +153,17 @@ function contraElCronograma(
   /// de `Grupo.fechaInicio`, que es una fecha TECLEADA guardada
   /// a medianoche UTC. Leerla en Bogota la retrasa un dia.
   const dia = aDiaDeCalendario(cierre);
-  const diasAlCierre = Math.round((cierre.getTime() - hoyEnColombia(hoy).getTime()) / DIA_MS);
+  const diasAlCierre = Math.round(
+    (cierre.getTime() - hoyEnColombia(hoy).getTime()) / DIA_MS,
+  );
 
   if (diasAlCierre < 0) {
-    return { cierre: dia, diasAlCierre, faltaranAlCierre: faltan, cronograma: 'CERRADA' };
+    return {
+      cierre: dia,
+      diasAlCierre,
+      faltaranAlCierre: faltan,
+      cronograma: 'CERRADA',
+    };
   }
 
   /// Lo que entraria de aqui al cierre al ritmo de hoy. Un

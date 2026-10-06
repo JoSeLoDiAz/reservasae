@@ -136,7 +136,9 @@ describe('y NO cierra el de nadie más', () => {
   it('el mismo número con OTRO tipo de documento tampoco', async () => {
     /// El mismo número puede ser una cédula y un pasaporte, y son
     /// dos personas distintas.
-    const { tx, cerrados } = armar([lead({ id: 'otro', tipoDocumentoSepId: 41 })]);
+    const { tx, cerrados } = armar([
+      lead({ id: 'otro', tipoDocumentoSepId: 41 }),
+    ]);
 
     expect(await cerrarLeadsQueEsperaban(tx as never, QUIEN)).toBe(0);
     expect(cerrados).toEqual([]);

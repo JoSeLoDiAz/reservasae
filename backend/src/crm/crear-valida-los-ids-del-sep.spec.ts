@@ -59,7 +59,7 @@ function armar() {
     { encolarSiHaceFalta: () => Promise.resolve() } as never,
     { deLaOferta: () => Promise.resolve(null) } as never,
     { alInscribir: () => Promise.resolve('ENCOLADO') } as never,
-  
+
     { avisar: () => Promise.resolve() } as never,
     /// El catálogo de notas. Devuelve «sin clasificar», que es lo
     /// que anota una pantalla que todavía no ofrece los

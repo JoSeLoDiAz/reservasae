@@ -14,6 +14,23 @@ import { BadRequestException, NotFoundException } from '@nestjs/common';
 
 import { CronogramaService } from './cronograma.service';
 
+/// Quien hace el cambio. Desde el 2 oct 2026 estas dos rutas lo exigen:
+/// el modulo escribia fechas y cupos sin dejar una sola fila de
+/// auditoria, y no por olvido ---el catalogo de entidades no tenia
+/// GRUPO ni COBERTURA, asi que auditarlo no compilaba---.
+const ACTOR = { id: 'adm-1', nombre: 'Quien lo cambio' };
+
+/// La auditoria no es lo que estas pruebas miran, pero sin ella el
+/// servicio no se puede construir. Devuelve lo registrado por si
+/// alguna quiere comprobarlo.
+const auditoriaDePrueba = () => ({
+  registradas: [] as unknown[],
+  registrar(e: unknown) {
+    this.registradas.push(e);
+    return Promise.resolve();
+  },
+});
+
 const AMBITO = ['convenio-1'];
 
 /// Una cobertura de Bogotá con 30 de tope, 25 comprometidos y 10
@@ -43,7 +60,8 @@ function armar(sobre: Record<string, unknown> = {}, dentro = 10) {
         Promise.resolve({
           _sum: {
             cuposMaximos:
-              ((escrito.cobertura as { cuposMaximos?: number })?.cuposMaximos ?? 0) + 40,
+              ((escrito.cobertura as { cuposMaximos?: number })?.cuposMaximos ??
+                0) + 40,
           },
         }),
     },
@@ -58,14 +76,25 @@ function armar(sobre: Record<string, unknown> = {}, dentro = 10) {
     $transaction: (fn: (tx: unknown) => Promise<unknown>) => fn(prisma),
   };
 
-  return { servicio: new CronogramaService(prisma as never), escrito };
+  return {
+    servicio: new CronogramaService(
+      prisma as never,
+      auditoriaDePrueba() as never,
+    ),
+    escrito,
+  };
 }
 
 describe('editar los cupos de un grupo en una sede', () => {
   it('sube el tope y el de la oferta pasa a ser la suma de sus sedes', async () => {
     const { servicio, escrito } = armar();
 
-    const r = await servicio.actualizarCupos('cob-1', { cuposMaximos: 50 }, AMBITO);
+    const r = await servicio.actualizarCupos(
+      'cob-1',
+      { cuposMaximos: 50 },
+      AMBITO,
+      ACTOR,
+    );
 
     expect(escrito.cobertura).toEqual({ cuposBase: 25, cuposMaximos: 50 });
     /// 50 de Bogotá + 40 de la otra sede.
@@ -76,7 +105,12 @@ describe('editar los cupos de un grupo en una sede', () => {
   it('bajarlo también recalcula: es el caso de quitarle a un departamento', async () => {
     const { servicio, escrito } = armar();
 
-    await servicio.actualizarCupos('cob-1', { cuposMaximos: 15, cuposBase: 15 }, AMBITO);
+    await servicio.actualizarCupos(
+      'cob-1',
+      { cuposMaximos: 15, cuposBase: 15 },
+      AMBITO,
+      ACTOR,
+    );
 
     expect(escrito.oferta).toEqual({ cuposMaximos: 55 });
   });
@@ -86,7 +120,12 @@ describe('editar los cupos de un grupo en una sede', () => {
     const { servicio } = armar();
 
     await expect(
-      servicio.actualizarCupos('cob-1', { cuposMaximos: 20, cuposBase: 25 }, AMBITO),
+      servicio.actualizarCupos(
+        'cob-1',
+        { cuposMaximos: 20, cuposBase: 25 },
+        AMBITO,
+        ACTOR,
+      ),
     ).rejects.toThrow(/sobrecupo suma, no resta/);
   });
 
@@ -95,7 +134,12 @@ describe('editar los cupos de un grupo en una sede', () => {
     const { servicio } = armar({}, 22);
 
     await expect(
-      servicio.actualizarCupos('cob-1', { cuposMaximos: 20, cuposBase: 20 }, AMBITO),
+      servicio.actualizarCupos(
+        'cob-1',
+        { cuposMaximos: 20, cuposBase: 20 },
+        AMBITO,
+        ACTOR,
+      ),
     ).rejects.toThrow(/ya tiene 22 personas dentro/);
   });
 
@@ -103,10 +147,18 @@ describe('editar los cupos de un grupo en una sede', () => {
     const prisma = {
       grupoCobertura: { findFirst: () => Promise.resolve(null) },
     };
-    const servicio = new CronogramaService(prisma as never);
+    const servicio = new CronogramaService(
+      prisma as never,
+      auditoriaDePrueba() as never,
+    );
 
     await expect(
-      servicio.actualizarCupos('cob-ajena', { cuposMaximos: 50 }, AMBITO),
+      servicio.actualizarCupos(
+        'cob-ajena',
+        { cuposMaximos: 50 },
+        AMBITO,
+        ACTOR,
+      ),
     ).rejects.toThrow(NotFoundException);
   });
 
@@ -116,7 +168,7 @@ describe('editar los cupos de un grupo en una sede', () => {
     (servicio as any).prisma.oferta.findUnique = () => Promise.resolve(null);
 
     await expect(
-      servicio.actualizarCupos('cob-1', { cuposMaximos: 50 }, AMBITO),
+      servicio.actualizarCupos('cob-1', { cuposMaximos: 50 }, AMBITO, ACTOR),
     ).rejects.toThrow(BadRequestException);
   });
 
@@ -124,7 +176,7 @@ describe('editar los cupos de un grupo en una sede', () => {
   it('un PATCH vacío deja los cupos como estaban', async () => {
     const { servicio, escrito } = armar();
 
-    await servicio.actualizarCupos('cob-1', {}, AMBITO);
+    await servicio.actualizarCupos('cob-1', {}, AMBITO, ACTOR);
 
     expect(escrito.cobertura).toEqual({ cuposBase: 25, cuposMaximos: 30 });
   });

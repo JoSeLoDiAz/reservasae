@@ -28,8 +28,14 @@ import { join } from 'node:path';
 
 import { sedeQueLeToca, type OfertaCandidata } from './sede-que-le-toca';
 
-const MESA = readFileSync(join(__dirname, 'mesa-de-entrada.service.ts'), 'utf8');
-const CONVERSION = readFileSync(join(__dirname, 'conversion.service.ts'), 'utf8');
+const MESA = readFileSync(
+  join(__dirname, 'mesa-de-entrada.service.ts'),
+  'utf8',
+);
+const CONVERSION = readFileSync(
+  join(__dirname, 'conversion.service.ts'),
+  'utf8',
+);
 
 describe('las dos deducen la sede con la misma DECISIÓN', () => {
   /**
@@ -65,7 +71,10 @@ describe('las dos deducen la sede con la misma DECISIÓN', () => {
       ['la mesa', MESA],
       ['la conversión', CONVERSION],
     ] as const) {
-      expect([nombre, fuente.includes('sedeQueLeToca(')]).toEqual([nombre, false]);
+      expect([nombre, fuente.includes('sedeQueLeToca(')]).toEqual([
+        nombre,
+        false,
+      ]);
       expect([nombre, fuente.includes('sedePedida(')]).toEqual([nombre, false]);
     }
   });
@@ -106,14 +115,22 @@ const OFERTAS: OfertaCandidata[] = [
     accionFormacionId: 'af1',
     cuposMaximos: 60,
     cuposOcupados: 55,
-    ubicacion: { nombre: 'MEDELLÍN', tipo: 'CIUDAD', departamento: 'ANTIOQUIA' },
+    ubicacion: {
+      nombre: 'MEDELLÍN',
+      tipo: 'CIUDAD',
+      departamento: 'ANTIOQUIA',
+    },
   },
   {
     id: 'of-antioquia',
     accionFormacionId: 'af1',
     cuposMaximos: 40,
     cuposOcupados: 0,
-    ubicacion: { nombre: 'ANTIOQUIA', tipo: 'DEPARTAMENTO', departamento: 'ANTIOQUIA' },
+    ubicacion: {
+      nombre: 'ANTIOQUIA',
+      tipo: 'DEPARTAMENTO',
+      departamento: 'ANTIOQUIA',
+    },
   },
   {
     id: 'of-huila',

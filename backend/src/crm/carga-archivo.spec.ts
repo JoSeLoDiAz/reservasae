@@ -45,7 +45,10 @@ describe('textoDeCelda', () => {
 
   it('un correo con enlace da el texto que se ve', () => {
     expect(
-      textoDeCelda({ text: 'laura@empresa.com', hyperlink: 'mailto:laura@empresa.com' }),
+      textoDeCelda({
+        text: 'laura@empresa.com',
+        hyperlink: 'mailto:laura@empresa.com',
+      }),
     ).toBe('laura@empresa.com');
   });
 
@@ -63,7 +66,16 @@ describe('textoDelArchivo', () => {
   it('un .xlsx sale como el texto que se pegaria', async () => {
     const t = await textoDelArchivo(
       await libro([
-        ['CC', 1019456782, 'Laura', 'Camila', 'Gómez', 'Rojas', 'l@e.com', '3001234567'],
+        [
+          'CC',
+          1019456782,
+          'Laura',
+          'Camila',
+          'Gómez',
+          'Rojas',
+          'l@e.com',
+          '3001234567',
+        ],
       ]),
       'lista.xlsx',
     );
@@ -90,7 +102,14 @@ describe('textoDelArchivo', () => {
       'lista.xlsx',
     );
     expect(t.split('\t')).toEqual([
-      'CC', '1019456782', 'Laura', '', 'Gómez', '', 'l@e.com', '3001234567',
+      'CC',
+      '1019456782',
+      'Laura',
+      '',
+      'Gómez',
+      '',
+      'l@e.com',
+      '3001234567',
     ]);
     expect(t.split('\t')[4]).toBe('Gómez');
   });
@@ -98,8 +117,13 @@ describe('textoDelArchivo', () => {
   it('las vacias de la DERECHA sí se quitan', async () => {
     const t = await textoDelArchivo(
       await libroConHuecos([
-        [1, 'CC'], [2, '1019456782'], [3, 'Laura'], [4, 'Camila'],
-        [5, 'Gómez'], [6, 'Rojas'], [8, ''],
+        [1, 'CC'],
+        [2, '1019456782'],
+        [3, 'Laura'],
+        [4, 'Camila'],
+        [5, 'Gómez'],
+        [6, 'Rojas'],
+        [8, ''],
       ]),
       'lista.xlsx',
     );

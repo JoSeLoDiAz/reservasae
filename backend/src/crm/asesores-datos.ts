@@ -19,7 +19,7 @@ import {
   type Ritmo,
 } from './seguimiento-de-asesores';
 import {
-  cierreDeInscripciones,
+  cierreDelGrupo,
   diasDeTrabajoEntre,
   hoyEnColombia,
   type ModalidadDeCierre,
@@ -48,7 +48,10 @@ const DESCARTADO: EtapaParticipante = 'PERDIDO';
  * contados en «pendientes» y son los que le inflan la antigüedad
  * media--, pero su plazo ya no es una fecha a la que llegar.
  */
-function elLimite(proximo: Date | null, ultimoPasado: Date | null): Date | null {
+function elLimite(
+  proximo: Date | null,
+  ultimoPasado: Date | null,
+): Date | null {
   return proximo ?? ultimoPasado;
 }
 
@@ -71,6 +74,29 @@ export type FilaDeAsesor = {
   ritmo: Ritmo;
   /// Días que llevan esperando, de media, los que siguen sin resolver.
   antiguedadMedia: number | null;
+  /**
+   * A CUÁNTA GENTE TOCÓ DENTRO DEL PERIODO. Otra cuenta que
+   * `carga.gestionados`, y por eso va aparte.
+   *
+   * «No me está mostrando lo gestionado el viernes y lo gestionado
+   * hoy» (cliente, 5 oct 2026). No lo mostraba porque no se podía:
+   * `gestionados` responde «de los leads que LLEGARON en este
+   * periodo, a cuántos se ha tocado alguna vez», y eso no cambia
+   * entre el viernes y hoy si los leads llegaron en agosto. No había
+   * ninguna fecha con la que recortar el acto de gestionar.
+   *
+   * La fecha sí existía, repartida en los tres sitios que ya
+   * definían «gestionado»: la nota tiene `creadoEn`,
+   * `datosTocadosPorAsesorEn` es un instante, y el movimiento de
+   * etapa tiene el suyo. Esto cuenta las fichas donde ALGUNA de las
+   * tres cayó dentro de la ventana, sin importar cuándo llegó la
+   * persona. No hizo falta migración.
+   *
+   * Nulo cuando no hay ventana puesta: sin periodo, «gestionado en
+   * el periodo» no quiere decir nada, y un cero ahí se leería como
+   * que el asesor no hizo nada.
+   */
+  gestionadosEnElPeriodo: number | null;
   /// La fecha contra la que corre, para poder decirla en pantalla.
   limite: string | null;
   /// Su carga partida por accion: el desglose que se abre al pulsar
@@ -145,19 +171,67 @@ export type CargaEnUnaAccion = {
 /// sus grupos. El más próximo y no el más lejano: en cuanto uno cierra
 /// ya hay gente a la que no se puede meter ahí, y el asesor tiene que
 /// enterarse entonces, no cuando cierre el último.
-export function cierrePorAccion(
-  grupos: Array<{ accionFormacionId: string; fechaInicio: Date | null; modalidad: Modalidad }>,
-): Map<string, Date> {
+/**
+ * Lo que hace falta saber de un grupo para fechar su cierre.
+ *
+ * `cierreInscripciones` OPCIONAL: los que todavía no lo seleccionan
+ * siguen derivando, sin cambiar de comportamiento.
+ */
+export type GrupoConCierre = {
+  accionFormacionId: string;
+  fechaInicio: Date | null;
+  modalidad: Modalidad;
+  cierreInscripciones?: Date | null;
+};
+
+export function cierrePorAccion(grupos: GrupoConCierre[]): Map<string, Date> {
   const por = new Map<string, Date>();
   for (const g of grupos) {
-    if (!g.fechaInicio) continue;
-    const cierre = cierreDeInscripciones(
-      g.fechaInicio,
-      g.modalidad as unknown as ModalidadDeCierre,
-    );
+    const cierre = cierreDelGrupo({
+      fechaInicio: g.fechaInicio,
+      modalidad: g.modalidad as unknown as ModalidadDeCierre,
+      cierreInscripciones: g.cierreInscripciones,
+    });
+    if (!cierre) continue;
     const actual = por.get(g.accionFormacionId);
     if (!actual || cierre < actual) por.set(g.accionFormacionId, cierre);
   }
+  return por;
+}
+
+/**
+ * TODAS las fechas en que cierra una acción, en orden.
+ *
+ * UNA ACCIÓN NO CIERRA ENTERA: «las AF no cierran como tal una
+ * completa sino por partes» (cliente, 2 oct 2026). En el cronograma
+ * de ADECOPRIA seis de las siete cierran en dos o más fechas, y AF3
+ * tiene una por cada uno de sus cinco grupos.
+ *
+ * `cierrePorAccion` se queda con la más próxima ---y hace bien, es
+ * la primera puerta que se cierra--- pero enseñar SOLO esa deja al
+ * asesor de los grupos que cierran después con unos días y una meta
+ * diaria que no son los suyos. Esto devuelve la lista entera para
+ * poder decirlo.
+ */
+export function cierresPorAccion(
+  grupos: GrupoConCierre[],
+): Map<string, Date[]> {
+  const por = new Map<string, Date[]>();
+  for (const g of grupos) {
+    const cierre = cierreDelGrupo({
+      fechaInicio: g.fechaInicio,
+      modalidad: g.modalidad as unknown as ModalidadDeCierre,
+      cierreInscripciones: g.cierreInscripciones,
+    });
+    if (!cierre) continue;
+    const ya = por.get(g.accionFormacionId) ?? [];
+    /// Por valor y no por identidad: dos grupos que cierran el
+    /// mismo día son UNA fecha de cierre, no dos.
+    if (!ya.some((d) => d.getTime() === cierre.getTime())) ya.push(cierre);
+    por.set(g.accionFormacionId, ya);
+  }
+  for (const fechas of por.values())
+    fechas.sort((a, b) => a.getTime() - b.getTime());
   return por;
 }
 
@@ -166,6 +240,19 @@ export function repartirInscripciones(
   leads: LeadDelAsesor[],
   cierres: Map<string, Date>,
   hoy: Date,
+  /**
+   * A CUÁNTAS FICHAS TOCÓ CADA ASESOR DENTRO DE LA VENTANA, por su
+   * id ---y `'SIN_ASESOR'` para las que no tienen---.
+   *
+   * Viene de una consulta aparte y no se deduce de `leads`: estas
+   * filas son las de los leads que LLEGARON en la ventana, y
+   * gestionar es otra cosa que llegar. Quien el viernes trabajó
+   * fichas de agosto no aparecería en ninguna.
+   *
+   * `undefined` = no hay ventana puesta, y entonces la cifra sale
+   * nula en vez de cero: un cero se leería como que no hizo nada.
+   */
+  tocadosEnLaVentana?: Map<string, number>,
 ): FilaDeAsesor[] {
   const por = new Map<
     string,
@@ -195,21 +282,19 @@ export function repartirInscripciones(
     /// los leads que nadie está trabajando, y esconderlos es como se
     /// pierden.
     const llave = l.asesorId ?? 'SIN_ASESOR';
-    const fila =
-      por.get(llave) ??
-      {
-        nombre: l.asesorNombre ?? 'Sin asesor asignado',
-        total: 0,
-        resueltos: 0,
-        inscritos: 0,
-        descartados: 0,
-        gestionados: 0,
-        esperando: [] as Date[],
-        primero: null as Date | null,
-        proximo: null as Date | null,
-        ultimoPasado: null as Date | null,
-        porAccion: new Map<string, CargaEnUnaAccion>(),
-      };
+    const fila = por.get(llave) ?? {
+      nombre: l.asesorNombre ?? 'Sin asesor asignado',
+      total: 0,
+      resueltos: 0,
+      inscritos: 0,
+      descartados: 0,
+      gestionados: 0,
+      esperando: [] as Date[],
+      primero: null as Date | null,
+      proximo: null as Date | null,
+      ultimoPasado: null as Date | null,
+      porAccion: new Map<string, CargaEnUnaAccion>(),
+    };
 
     fila.total += 1;
     if (!fila.primero || l.creadoEn < fila.primero) fila.primero = l.creadoEn;
@@ -235,19 +320,17 @@ export function repartirInscripciones(
     /// nadie ha encaminado todavía, y esconderlos es como se pierden
     /// --la misma razón por la que «sin asesor» es una fila--.
     const suAccion = l.accionFormacionId ?? 'SIN_ACCION';
-    const enLaAccion =
-      fila.porAccion.get(suAccion) ??
-      {
-        accionFormacionId: l.accionFormacionId,
-        codigo: l.accionCodigo,
-        nombre: l.accionNombre,
-        total: 0,
-        gestionados: 0,
-        resueltos: 0,
-        inscritos: 0,
-        descartados: 0,
-        pendientes: 0,
-      };
+    const enLaAccion = fila.porAccion.get(suAccion) ?? {
+      accionFormacionId: l.accionFormacionId,
+      codigo: l.accionCodigo,
+      nombre: l.accionNombre,
+      total: 0,
+      gestionados: 0,
+      resueltos: 0,
+      inscritos: 0,
+      descartados: 0,
+      pendientes: 0,
+    };
     enLaAccion.total += 1;
     if (gestionado) enLaAccion.gestionados += 1;
     if (inscrito) enLaAccion.inscritos += 1;
@@ -273,37 +356,53 @@ export function repartirInscripciones(
     por.set(llave, fila);
   }
 
-  return [...por.entries()]
-    .map(([id, f]) => {
-      const carga: Carga = {
-        total: f.total,
-        resueltos: f.resueltos,
-        gestionados: f.gestionados,
-      };
-      const diasCorridos = f.primero
-        ? Math.max(0, diasDeTrabajoEntre(hoyEnColombia(f.primero), hoyEnColombia(hoy)))
-        : 0;
-      const limite = elLimite(f.proximo, f.ultimoPasado);
-      return {
-        asesorId: id === 'SIN_ASESOR' ? null : id,
-        nombre: f.nombre,
-        carga,
-        inscritos: f.inscritos,
-        descartados: f.descartados,
-        ritmo: ritmoDe({ carga, limite, hoy, diasCorridos }),
-        antiguedadMedia: antiguedadMedia(f.esperando, hoy),
-        limite: limite ? limite.toISOString().slice(0, 10) : null,
-        /// En el mismo orden que la tabla de fuera: los que más
-        /// pendientes tienen, arriba. Quien abre una fila busca dónde
-        /// se le está acumulando, no la lista alfabética.
-        porAccion: [...f.porAccion.values()].sort(
-          (a, b) => b.pendientes - a.pendientes || (a.codigo ?? '').localeCompare(b.codigo ?? ''),
-        ),
-      };
-    })
-    /// Los que peor van, arriba: la pantalla es para decidir a quién
-    /// reforzar, no para pasar lista.
-    .sort((a, b) => b.ritmo.pendientes - a.ritmo.pendientes || a.nombre.localeCompare(b.nombre));
+  return (
+    [...por.entries()]
+      .map(([id, f]) => {
+        const carga: Carga = {
+          total: f.total,
+          resueltos: f.resueltos,
+          gestionados: f.gestionados,
+        };
+        const diasCorridos = f.primero
+          ? Math.max(
+              0,
+              diasDeTrabajoEntre(hoyEnColombia(f.primero), hoyEnColombia(hoy)),
+            )
+          : 0;
+        const limite = elLimite(f.proximo, f.ultimoPasado);
+        return {
+          asesorId: id === 'SIN_ASESOR' ? null : id,
+          nombre: f.nombre,
+          carga,
+          inscritos: f.inscritos,
+          descartados: f.descartados,
+          ritmo: ritmoDe({ carga, limite, hoy, diasCorridos }),
+          antiguedadMedia: antiguedadMedia(f.esperando, hoy),
+          /// Nulo cuando no hay ventana: sin periodo, «gestionado
+          /// en el periodo» no quiere decir nada.
+          gestionadosEnElPeriodo: tocadosEnLaVentana
+            ? (tocadosEnLaVentana.get(id) ?? 0)
+            : null,
+          limite: limite ? limite.toISOString().slice(0, 10) : null,
+          /// En el mismo orden que la tabla de fuera: los que más
+          /// pendientes tienen, arriba. Quien abre una fila busca dónde
+          /// se le está acumulando, no la lista alfabética.
+          porAccion: [...f.porAccion.values()].sort(
+            (a, b) =>
+              b.pendientes - a.pendientes ||
+              (a.codigo ?? '').localeCompare(b.codigo ?? ''),
+          ),
+        };
+      })
+      /// Los que peor van, arriba: la pantalla es para decidir a quién
+      /// reforzar, no para pasar lista.
+      .sort(
+        (a, b) =>
+          b.ritmo.pendientes - a.ritmo.pendientes ||
+          a.nombre.localeCompare(b.nombre),
+      )
+  );
 }
 
 // ── académicos ───────────────────────────────────────────────────
@@ -319,7 +418,10 @@ export type PaxDelAsesor = {
 };
 
 /** Una fila por asesor académico. */
-export function repartirAcademicos(pax: PaxDelAsesor[], hoy: Date): FilaDeAsesorAcademico[] {
+export function repartirAcademicos(
+  pax: PaxDelAsesor[],
+  hoy: Date,
+): FilaDeAsesorAcademico[] {
   const por = new Map<
     string,
     {
@@ -336,18 +438,16 @@ export function repartirAcademicos(pax: PaxDelAsesor[], hoy: Date): FilaDeAsesor
 
   for (const p of pax) {
     const llave = p.asesorAcademicoId ?? 'SIN_ASESOR';
-    const fila =
-      por.get(llave) ??
-      {
-        nombre: p.asesorNombre ?? 'Sin asesor asignado',
-        grupos: new Set<string>(),
-        total: 0,
-        certificados: 0,
-        conSeguimiento: 0,
-        proximo: null as Date | null,
-        ultimoPasado: null as Date | null,
-        primero: null as Date | null,
-      };
+    const fila = por.get(llave) ?? {
+      nombre: p.asesorNombre ?? 'Sin asesor asignado',
+      grupos: new Set<string>(),
+      total: 0,
+      certificados: 0,
+      conSeguimiento: 0,
+      proximo: null as Date | null,
+      ultimoPasado: null as Date | null,
+      primero: null as Date | null,
+    };
 
     fila.grupos.add(p.grupoId);
     fila.total += 1;
@@ -359,7 +459,8 @@ export function repartirAcademicos(pax: PaxDelAsesor[], hoy: Date): FilaDeAsesor
     /// que en inscripciones, y por la misma razón: ver `elLimite`.
     if (p.etapa !== 'CERTIFICADO' && p.fechaFin) {
       if (p.fechaFin >= hoy) {
-        if (!fila.proximo || p.fechaFin < fila.proximo) fila.proximo = p.fechaFin;
+        if (!fila.proximo || p.fechaFin < fila.proximo)
+          fila.proximo = p.fechaFin;
       } else if (!fila.ultimoPasado || p.fechaFin > fila.ultimoPasado) {
         fila.ultimoPasado = p.fechaFin;
       }
@@ -382,7 +483,10 @@ export function repartirAcademicos(pax: PaxDelAsesor[], hoy: Date): FilaDeAsesor
       /// asesor cuyo curso arrancó ayer no puede tener el ritmo de uno
       /// que lleva un mes.
       const diasCorridos = f.primero
-        ? Math.max(0, diasDeTrabajoEntre(hoyEnColombia(f.primero), hoyEnColombia(hoy)))
+        ? Math.max(
+            0,
+            diasDeTrabajoEntre(hoyEnColombia(f.primero), hoyEnColombia(hoy)),
+          )
         : 0;
       const limite = elLimite(f.proximo, f.ultimoPasado);
       return {
@@ -396,8 +500,16 @@ export function repartirAcademicos(pax: PaxDelAsesor[], hoy: Date): FilaDeAsesor
         /// En académica la antigüedad no se pide: lo que importa es
         /// cuánto falta para el cierre, no cuánto lleva esperando.
         antiguedadMedia: null,
+        /// Y tampoco «gestionado en el periodo»: el aula la
+        /// alimenta el LMS, así que tocar una ficha no es lo que
+        /// mide el trabajo de un académico.
+        gestionadosEnElPeriodo: null,
         limite: limite ? limite.toISOString().slice(0, 10) : null,
       };
     })
-    .sort((a, b) => b.ritmo.pendientes - a.ritmo.pendientes || a.nombre.localeCompare(b.nombre));
+    .sort(
+      (a, b) =>
+        b.ritmo.pendientes - a.ritmo.pendientes ||
+        a.nombre.localeCompare(b.nombre),
+    );
 }

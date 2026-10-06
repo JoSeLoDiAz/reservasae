@@ -42,14 +42,24 @@ describe('los 100 de Bogota con 40 apartados', () => {
 
 describe('cuando se llena', () => {
   it('cien inscritos de cien: no cabe nadie mas', () => {
-    const r = repartirCupos({ total: 100, apartados: 40, inscritosDeReserva: 40, inscritosLibres: 60 });
+    const r = repartirCupos({
+      total: 100,
+      apartados: 40,
+      inscritosDeReserva: 40,
+      inscritosLibres: 60,
+    });
     expect(r.lleno).toBe(true);
     expect(r.todo.faltan).toBe(0);
     expect(r.turnosSinUsar).toBe(0);
   });
 
   it('pasarse tambien es estar lleno', () => {
-    const r = repartirCupos({ total: 10, apartados: 0, inscritosDeReserva: 0, inscritosLibres: 12 });
+    const r = repartirCupos({
+      total: 10,
+      apartados: 0,
+      inscritosDeReserva: 0,
+      inscritosLibres: 12,
+    });
     expect(r.lleno).toBe(true);
     expect(r.todo.faltan).toBe(0);
   });
@@ -81,20 +91,35 @@ describe('una empresa que inscribe de mas', () => {
 
 describe('bordes', () => {
   it('sin nada apartado, todo es comun', () => {
-    const r = repartirCupos({ total: 50, apartados: 0, inscritosDeReserva: 0, inscritosLibres: 20 });
+    const r = repartirCupos({
+      total: 50,
+      apartados: 0,
+      inscritosDeReserva: 0,
+      inscritosLibres: 20,
+    });
     expect(r.apartados.cupos).toBe(0);
     expect(r.apartados.avance).toBe(0);
     expect(r.libres.cupos).toBe(50);
   });
 
   it('no se puede apartar mas de lo que hay', () => {
-    const r = repartirCupos({ total: 30, apartados: 80, inscritosDeReserva: 0, inscritosLibres: 0 });
+    const r = repartirCupos({
+      total: 30,
+      apartados: 80,
+      inscritosDeReserva: 0,
+      inscritosLibres: 0,
+    });
     expect(r.apartados.cupos).toBe(30);
     expect(r.libres.cupos).toBe(0);
   });
 
   it('una oferta sin cupos no divide por cero', () => {
-    const r = repartirCupos({ total: 0, apartados: 0, inscritosDeReserva: 0, inscritosLibres: 0 });
+    const r = repartirCupos({
+      total: 0,
+      apartados: 0,
+      inscritosDeReserva: 0,
+      inscritosLibres: 0,
+    });
     expect(r.todo.avance).toBe(0);
     expect(r.lleno).toBe(true);
   });

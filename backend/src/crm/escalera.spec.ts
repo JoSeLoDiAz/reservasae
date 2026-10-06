@@ -34,7 +34,11 @@ const TODAS: EtapaParticipante[] = [
 /// La misma lista que `OCUPAN_SILLA` de `panel-de-cupos.ts`.
 /// Escrita aquí a mano a propósito: si alguien cambia una de las
 /// dos sin la otra, este spec lo dice.
-const OCUPAN_SILLA: EtapaParticipante[] = ['INSCRITO', 'EN_FORMACION', 'CERTIFICADO'];
+const OCUPAN_SILLA: EtapaParticipante[] = [
+  'INSCRITO',
+  'EN_FORMACION',
+  'CERTIFICADO',
+];
 
 const EN_EL_AULA: EtapaParticipante[] = [
   'EN_FORMACION',
@@ -46,7 +50,9 @@ const EN_EL_AULA: EtapaParticipante[] = [
 ];
 
 /** Los 121 pares. */
-function cadaPar(f: (antes: EtapaParticipante, despues: EtapaParticipante) => void) {
+function cadaPar(
+  f: (antes: EtapaParticipante, despues: EtapaParticipante) => void,
+) {
   for (const antes of TODAS) for (const despues of TODAS) f(antes, despues);
 }
 
@@ -95,7 +101,13 @@ describe('exigeCupo es aritmética de sillas', () => {
   });
 
   it('salirse nunca pide cupo', () => {
-    for (const salida of ['RETIRADO', 'NO_APROBO', 'DESERTO', 'ABANDONO', 'PERDIDO'] as const) {
+    for (const salida of [
+      'RETIRADO',
+      'NO_APROBO',
+      'DESERTO',
+      'ABANDONO',
+      'PERDIDO',
+    ] as const) {
       for (const antes of TODAS) expect(exigeCupo(antes, salida)).toBe(false);
     }
   });
@@ -108,7 +120,11 @@ describe('exigeDatosParaElAula: siempre que se entre, venga de donde venga', () 
     /// influya es justo lo que lo garantiza.
     cadaPar((antes, despues) => {
       const esperado = despues === 'INSCRITO' || despues === 'EN_FORMACION';
-      expect({ antes, despues, datos: exigeDatosParaElAula(antes, despues) }).toEqual({
+      expect({
+        antes,
+        despues,
+        datos: exigeDatosParaElAula(antes, despues),
+      }).toEqual({
         antes,
         despues,
         datos: esperado,
@@ -171,11 +187,15 @@ describe('no se cierra una formación que no ocurrió', () => {
   });
 
   it('RETIRADO → CERTIFICADO no, y dice cómo hacerlo bien', () => {
-    expect(motivoDeTransicionImposible('RETIRADO', 'CERTIFICADO')).toMatch(/En formación/);
+    expect(motivoDeTransicionImposible('RETIRADO', 'CERTIFICADO')).toMatch(
+      /En formación/,
+    );
   });
 
   it('INTERESADO → CERTIFICADO tampoco', () => {
-    expect(motivoDeTransicionImposible('INTERESADO', 'CERTIFICADO')).toMatch(/matricula/i);
+    expect(motivoDeTransicionImposible('INTERESADO', 'CERTIFICADO')).toMatch(
+      /matricula/i,
+    );
   });
 
   it('desde INSCRITO sí: hay grupos sin fechas', () => {
@@ -190,7 +210,9 @@ describe('no se cierra una formación que no ocurrió', () => {
     /// imposible, no difícil.
     expect(motivoDeTransicionImposible('RETIRADO', 'EN_FORMACION')).toBeNull();
     expect(esRegresoAlAula('RETIRADO')).toBe(true);
-    expect(motivoDeTransicionImposible('EN_FORMACION', 'CERTIFICADO')).toBeNull();
+    expect(
+      motivoDeTransicionImposible('EN_FORMACION', 'CERTIFICADO'),
+    ).toBeNull();
   });
 });
 
@@ -221,7 +243,12 @@ describe('saleDelCupo: qué es «deshacer una inscripción»', () => {
   });
 
   it('salirse del cupo SÍ lo es, venga de donde venga', () => {
-    for (const salida of ['INTERESADO', 'PERDIDO', 'RETIRADO', 'NO_APROBO'] as const) {
+    for (const salida of [
+      'INTERESADO',
+      'PERDIDO',
+      'RETIRADO',
+      'NO_APROBO',
+    ] as const) {
       expect(saleDelCupo('INSCRITO', salida)).toBe(true);
       expect(saleDelCupo('EN_FORMACION', salida)).toBe(true);
     }

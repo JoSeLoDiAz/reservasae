@@ -23,6 +23,9 @@
 
 import { Prisma } from '../../generated/prisma';
 
+import { PRIMERA_MATRICULA } from './anclas';
+import type { RecorteDelResumen } from './resumen-por-accion';
+
 export type FilaDeGrupo = {
   grupoId: string;
   numero: number;
@@ -77,8 +80,77 @@ const DE_RESERVA = Prisma.sql`'EMPRESA'`;
  * es un grupo que existe y al que no se le puede meter a nadie
  * todavía, y esconderlo es como se pierde.
  */
-export function resumenPorGrupoSql(accionFormacionId: string): Prisma.Sql {
+/**
+ * Y OBEDECE AL MISMO RECORTE QUE LA TABLA DE ARRIBA.
+ *
+ * «No es confiable los filtros en los tableros» (cliente, 5 oct
+ * 2026). Este bloque no obedecía a NADA: ni al periodo ni a los cinco
+ * filtros. Se abría pulsando una fila de la tabla de arriba ---que sí
+ * los obedece--- así que los dos bloques, pegados en la misma
+ * pantalla, contaban gente distinta para la misma acción. Quien
+ * filtraba por una asesora veía su fila con 12 inscritos y, al
+ * abrirla, grupos que sumaban 85.
+ *
+ * Las dos ventanas son las de la tabla de arriba, por lo mismo: los
+ * LEADS por cuándo entró la persona, y los INSCRITOS por cuándo se
+ * inscribió ---el ancla, que es un movimiento y no se reescribe---.
+ *
+ * LA META Y LAS SEDES NO SE RECORTAN NUNCA, igual que arriba: los
+ * cupos de un grupo son los que son, los mire quien los mire.
+ */
+export function resumenPorGrupoSql(
+  accionFormacionId: string,
+  recorte: RecorteDelResumen = {},
+): Prisma.Sql {
+  /// Los cortes que miran a la PERSONA. El grupo no entra aquí: ese
+  /// recorta qué filas se enseñan, no a quién se cuenta.
+  const gente = Prisma.join(
+    [
+      Prisma.sql`TRUE`,
+      recorte.asesorId ? Prisma.sql`pa."asesorId" = ${recorte.asesorId}` : null,
+      recorte.departamentoSepId !== undefined
+        ? Prisma.sql`pa."personaId" IN (SELECT p2."id" FROM "personas" p2 WHERE p2."departamentoSepId" = ${recorte.departamentoSepId})`
+        : null,
+    ].filter((x): x is Prisma.Sql => x !== null),
+    ' AND ',
+  );
+
+  /// Cuándo ENTRÓ la persona, para los leads.
+  const llego = Prisma.join(
+    [
+      Prisma.sql`TRUE`,
+      recorte.desde
+        ? Prisma.sql`pa."creadoEn" >= ${recorte.desde}::timestamptz`
+        : null,
+      recorte.hasta
+        ? Prisma.sql`pa."creadoEn" < ${recorte.hasta}::timestamptz`
+        : null,
+    ].filter((x): x is Prisma.Sql => x !== null),
+    ' AND ',
+  );
+
+  /// Cuándo SE INSCRIBIÓ, para los inscritos.
+  const seInscribio = Prisma.join(
+    [
+      Prisma.sql`an."momento" IS NOT NULL`,
+      recorte.desde
+        ? Prisma.sql`an."momento" >= ${recorte.desde}::timestamptz`
+        : null,
+      recorte.hasta
+        ? Prisma.sql`an."momento" < ${recorte.hasta}::timestamptz`
+        : null,
+    ].filter((x): x is Prisma.Sql => x !== null),
+    ' AND ',
+  );
+
+  /// Y si arriba se eligió UN grupo, aquí se enseña solo ese: las
+  /// otras filas serían grupos que el filtro dice no mirar.
+  const soloEseGrupo = recorte.grupoId
+    ? Prisma.sql`AND g."id" = ${recorte.grupoId}`
+    : Prisma.empty;
+
   return Prisma.sql`
+    WITH ${PRIMERA_MATRICULA}
     SELECT g."id"              AS "grupoId",
            g."numero"          AS numero,
            g."modalidad"::text AS modalidad,
@@ -88,7 +160,8 @@ export function resumenPorGrupoSql(accionFormacionId: string): Prisma.Sql {
            COALESCE(p."nominados", 0)        AS "nominadosPorEmpresa",
            COALESCE(p."campana", 0)          AS "campanaDigital",
            COALESCE(p."inscritosReserva", 0) AS "inscritosReservas",
-           COALESCE(p."inscritosCampana", 0) AS "inscritosCampana"
+           COALESCE(p."inscritosCampana", 0) AS "inscritosCampana",
+           COALESCE(v."inscritosVigentes", 0) AS "inscritosVigentes"
       FROM "grupos" g
 
       -- LA META --con el 30 %-- Y DÓNDE SE DICTA, de las coberturas.
@@ -110,19 +183,29 @@ export function resumenPorGrupoSql(accionFormacionId: string): Prisma.Sql {
       LEFT JOIN (
         SELECT c."grupoId" AS gid,
                u."departamento" AS departamento,
-               COUNT(*) FILTER (WHERE pa."origen"::text = ${DE_RESERVA})::int AS "nominados",
-               COUNT(*) FILTER (WHERE pa."origen"::text <> ${DE_RESERVA})::int AS "campana",
+               -- LOS LEADS, por cuando ENTRO la persona.
+               COUNT(*) FILTER (
+                 WHERE pa."origen"::text = ${DE_RESERVA} AND ${llego}
+               )::int AS "nominados",
+               COUNT(*) FILTER (
+                 WHERE pa."origen"::text <> ${DE_RESERVA} AND ${llego}
+               )::int AS "campana",
+               -- LOS INSCRITOS, por cuando SE INSCRIBIO y sin mirar la
+               -- etapa de hoy: quien se inscribio ese dia se
+               -- inscribio ese dia, aunque despues desertara.
                COUNT(*) FILTER (
                  WHERE pa."origen"::text = ${DE_RESERVA}
-                   AND pa."etapa"::text IN ${INSCRITAS}
+                   AND ${seInscribio}
                )::int AS "inscritosReserva",
                COUNT(*) FILTER (
                  WHERE pa."origen"::text <> ${DE_RESERVA}
-                   AND pa."etapa"::text IN ${INSCRITAS}
+                   AND ${seInscribio}
                )::int AS "inscritosCampana"
           FROM "participantes" pa
           JOIN "grupos_cobertura" c ON c."id" = pa."coberturaId"
           JOIN "ubicaciones" u ON u."id" = c."ubicacionId"
+          LEFT JOIN primera_matricula an ON an."pid" = pa."id"
+         WHERE ${gente}
          GROUP BY 1, 2
       ) p ON p.gid = g."id"
              -- IS NOT DISTINCT FROM y no =: el grupo sin coberturas
@@ -130,7 +213,29 @@ export function resumenPorGrupoSql(accionFormacionId: string): Prisma.Sql {
              -- = ese cruce no casaría nunca.
              AND p.departamento IS NOT DISTINCT FROM s.departamento
 
+      -- LOS QUE OCUPAN SILLA HOY, y es OTRA subconsulta: no lleva la
+      -- ventana NI LOS FILTROS.
+      --
+      -- De aqui salen los cupos disponibles, y un cupo es del grupo,
+      -- no de quien lo mire: filtrando por una asesora, contar solo
+      -- SUS inscritos decia que en un grupo lleno quedan 64 cupos
+      -- libres. La meta no se recorta, asi que lo que se le resta
+      -- tampoco puede recortarse.
+      LEFT JOIN (
+        SELECT c."grupoId" AS gid,
+               u."departamento" AS departamento,
+               COUNT(*) FILTER (
+                 WHERE pa."etapa"::text IN ${INSCRITAS}
+               )::int AS "inscritosVigentes"
+          FROM "participantes" pa
+          JOIN "grupos_cobertura" c ON c."id" = pa."coberturaId"
+          JOIN "ubicaciones" u ON u."id" = c."ubicacionId"
+         GROUP BY 1, 2
+      ) v ON v.gid = g."id"
+             AND v.departamento IS NOT DISTINCT FROM s.departamento
+
      WHERE g."accionFormacionId" = ${accionFormacionId}
+       ${soloEseGrupo}
      ORDER BY g."numero" ASC, s.departamento ASC NULLS FIRST
   `;
 }
@@ -147,21 +252,37 @@ type Cruda = {
   campanaDigital: number;
   inscritosReservas: number;
   inscritosCampana: number;
+  /// Los que ocupan silla HOY. No sale a la pantalla: es el insumo de
+  /// los cupos disponibles, igual que en la tabla por acción.
+  inscritosVigentes: number;
 };
 
 /** Las cuatro columnas calculadas, con las mismas reglas que la tabla por acción. */
 export function completarGrupo(f: Cruda): FilaDeGrupo {
-  const totalLeads = f.nominadosPorEmpresa + f.campanaDigital;
-  const totalInscritos = f.inscritosReservas + f.inscritosCampana;
-  /// Meta menos INSCRITOS, no menos leads: el cupo se consume cuando
-  /// la persona queda inscrita. Es la corrección que el cliente hizo
-  /// ese mismo día en Comité Marketing.
-  const cuposDisponibles = f.meta - totalInscritos;
+  const { inscritosVigentes, ...columnas } = f;
+  const totalLeads = columnas.nominadosPorEmpresa + columnas.campanaDigital;
+  const totalInscritos =
+    columnas.inscritosReservas + columnas.inscritosCampana;
+  /**
+   * Meta menos quien OCUPA SILLA HOY, no menos los inscritos del
+   * periodo. El cupo se consume cuando la persona queda inscrita ---la
+   * corrección que el cliente hizo en Comité Marketing--- y se libera
+   * cuando se va; lo que no puede es depender de la ventana que se
+   * esté mirando: con «Hoy» arriba, un grupo lleno enseñaba sus 65
+   * cupos libres.
+   */
+  const cuposDisponibles = columnas.meta - inscritosVigentes;
   return {
-    ...f,
+    ...columnas,
     totalLeads,
     totalInscritos,
-    conversion: totalLeads > 0 ? totalInscritos / totalLeads : null,
+    /// Con ventana son dos poblaciones distintas y puede pasarse del
+    /// 100 %: ahí sale nulo. El porqué largo está en su gemela,
+    /// `resumen-por-accion.ts`.
+    conversion:
+      totalLeads > 0 && totalInscritos <= totalLeads
+        ? totalInscritos / totalLeads
+        : null,
     cuposDisponibles,
     estado: cuposDisponibles <= 0 ? 'CERRADO' : 'ABIERTO',
   };

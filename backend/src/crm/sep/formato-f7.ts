@@ -2,6 +2,7 @@
 
 import type { FormatoColumna } from '../../tableros/exportar';
 import { TAMANO_EMPRESA_POR_ID } from '../catalogos-sep';
+import { identificadorParaExcel } from './numero-para-excel';
 
 /**
  * A diferencia de los otros dos, este NO va por persona:
@@ -23,7 +24,11 @@ export const COLUMNAS: Array<{
   { titulo: 'NOMBRE EMPRESA', clave: 'empresa', ancho: 40 },
   { titulo: 'NIT', clave: 'nit', formato: 'entero' },
   { titulo: 'DV', clave: 'dv' },
-  { titulo: 'DEPARTAMENTO SEDE DE LA EMPRESA', clave: 'departamento', ancho: 24 },
+  {
+    titulo: 'DEPARTAMENTO SEDE DE LA EMPRESA',
+    clave: 'departamento',
+    ancho: 24,
+  },
   { titulo: 'MUNICIPIO SEDE DE LA EMPRESA', clave: 'municipio', ancho: 24 },
   { titulo: 'DIRECCIÓN', clave: 'direccion', ancho: 40 },
   { titulo: 'TELÉFONO', clave: 'telefono' },
@@ -86,7 +91,11 @@ export type CeldasF7 = {
   numero: number;
   accion: string;
   empresa: string;
-  nit: number;
+  /// NUMERO O TEXTO: texto cuando el NIT empieza por cero, porque
+  /// Excel se lo comeria. Ver `identificadorParaExcel`. El tipo se
+  /// declara a proposito ---el comentario de arriba explica por que---
+  /// asi que tiene que admitir los dos.
+  nit: string | number;
   dv: string;
   departamento: string;
   municipio: string;
@@ -111,7 +120,11 @@ export function fila(f: FilaF7, indice: number): CeldasF7 {
     empresa: e.razonSocial,
     // como numero para que Excel no lo parta ni lo alinee
     // a la izquierda; el DV va aparte y es texto
-    nit: Number(e.nit),
+    /// Ver `identificadorParaExcel`: con `Number()` se perdían los
+    /// ceros de la izquierda, y el F7 se arma concatenando celdas,
+    /// así que el error no se ve: sale un cargue contra el NIT
+    /// equivocado.
+    nit: identificadorParaExcel(e.nit),
     dv: e.digitoVerificacion ?? '',
     departamento: e.departamento ?? '',
     municipio: e.municipio ?? '',
@@ -132,7 +145,8 @@ export function fila(f: FilaF7, indice: number): CeldasF7 {
 /** Qué le falta a esta organización para poder reportarse. */
 export function faltaEnF7(e: FilaF7['empresa']): string[] {
   const falta: string[] = [];
-  if (!e.departamento || !e.municipio) falta.push('sin departamento o municipio de la sede');
+  if (!e.departamento || !e.municipio)
+    falta.push('sin departamento o municipio de la sede');
   if (!e.direccion) falta.push('sin dirección');
   if (!e.telefono) falta.push('sin teléfono');
   if (!e.contactoNombre) falta.push('sin persona de contacto');

@@ -32,7 +32,9 @@ import {
 import type { PeticionConAdmin } from './admin.guard';
 
 /** Los correos autorizados, en minúsculas y sin espacios. */
-export function editoresDeMarca(valor: string | undefined = process.env.EDITORES_DE_MARCA): string[] {
+export function editoresDeMarca(
+  valor: string | undefined = process.env.EDITORES_DE_MARCA,
+): string[] {
   return (valor ?? '')
     .split(',')
     .map((c) => c.trim().toLowerCase())

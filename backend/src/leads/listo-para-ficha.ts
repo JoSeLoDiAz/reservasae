@@ -68,7 +68,10 @@ export function loQueLeFaltaAlLead(lead: LeadJuzgable): string[] {
 
   /// La misma partición que hace la conversión, no una propia.
   const nombre = lead.primerApellido
-    ? { primerNombre: lead.primerNombre ?? '', primerApellido: lead.primerApellido }
+    ? {
+        primerNombre: lead.primerNombre ?? '',
+        primerApellido: lead.primerApellido,
+      }
     : partirNombreCompleto(lead.nombreCompleto ?? '');
   if (!nombre.primerNombre) falta.push('el nombre');
   if (!nombre.primerApellido) falta.push('el apellido');
@@ -80,7 +83,8 @@ export function loQueLeFaltaAlLead(lead: LeadJuzgable): string[] {
   /// cliente pidió y, sobre todo, es lo que hace morder al unique
   /// (accionFormacionId, personaId). Sin curso, dos leads de la
   /// misma persona darían dos fichas y nada lo pararía.
-  if (!lead.accionFormacionId) falta.push('el curso (no se reconoció cuál pidió)');
+  if (!lead.accionFormacionId)
+    falta.push('el curso (no se reconoció cuál pidió)');
 
   return falta;
 }

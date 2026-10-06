@@ -1,10 +1,19 @@
 /** El calendario de los grupos, que es de donde cuelga todo. */
 
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 
 import { RolConvenio } from '../../generated/prisma';
 import { fraseDeHorario } from '../comun/horario-de-grupo';
 import { ETAPAS_VIVAS } from '../crm/crm.service';
+import {
+  AuditoriaService,
+  ENTIDADES,
+  type Actor,
+} from '../comun/auditoria.service';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   ActualizarCuposDto,
@@ -38,10 +47,7 @@ const ROLES_ACADEMICOS: RolConvenio[] = [
 
 /** En qué punto está un grupo respecto de hoy. */
 export type EstadoGrupo =
-  | 'SIN_FECHAS'
-  | 'POR_EMPEZAR'
-  | 'EN_CURSO'
-  | 'TERMINADO';
+  'SIN_FECHAS' | 'POR_EMPEZAR' | 'EN_CURSO' | 'TERMINADO';
 
 export function estadoDeGrupo(
   inicio: Date | null,
@@ -56,7 +62,10 @@ export function estadoDeGrupo(
 
 @Injectable()
 export class CronogramaService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly auditoria: AuditoriaService,
+  ) {}
 
   /** Las acciones con sus grupos y sus fechas. */
   async listar(ambito: string[]) {
@@ -108,7 +117,11 @@ export class CronogramaService {
                 ubicacionId: true,
                 ubicacion: { select: { nombre: true, tipo: true } },
                 _count: {
-                  select: { participantes: { where: { etapa: { in: [...ETAPAS_VIVAS] } } } },
+                  select: {
+                    participantes: {
+                      where: { etapa: { in: [...ETAPAS_VIVAS] } },
+                    },
+                  },
                 },
               },
             },
@@ -125,7 +138,10 @@ export class CronogramaService {
         /// El TOPE, con el 30 % dentro: es contra lo que se
         /// mide la ocupacion en todo el panel.
         const tope = g.coberturas.reduce((s, c) => s + c.cuposMaximos, 0);
-        const inscritos = g.coberturas.reduce((s, c) => s + c._count.participantes, 0);
+        const inscritos = g.coberturas.reduce(
+          (s, c) => s + c._count.participantes,
+          0,
+        );
         return {
           id: g.id,
           numero: g.numero,
@@ -249,10 +265,15 @@ export class CronogramaService {
       where: { id, convenioId: { in: ambito } },
       select: { id: true },
     });
-    if (!accion) throw new NotFoundException('Esa acción de formación no existe.');
+    if (!accion)
+      throw new NotFoundException('Esa acción de formación no existe.');
 
     const limpio = (v?: string | null) =>
-      v === undefined ? undefined : v === null || v.trim() === '' ? null : v.trim();
+      v === undefined
+        ? undefined
+        : v === null || v.trim() === ''
+          ? null
+          : v.trim();
 
     return this.prisma.accionFormacion.update({
       where: { id },
@@ -272,7 +293,13 @@ export class CronogramaService {
   }
 
   /** Pone o corrige las fechas de un grupo. */
-  async actualizarGrupo(id: string, dto: ActualizarGrupoDto, ambito: string[]) {
+  async actualizarGrupo(
+    id: string,
+    dto: ActualizarGrupoDto,
+    ambito: string[],
+    actor: Actor,
+    ip?: string,
+  ) {
     const grupo = await this.prisma.grupo.findFirst({
       where: { id, accionFormacion: { convenioId: { in: ambito } } },
       select: {
@@ -339,7 +366,11 @@ export class CronogramaService {
       const suyo = await this.prisma.adminConvenio.findFirst({
         where: {
           adminId: dto.asesorAcademicoId,
-          convenioId: grupo.accionFormacion.convenioId,
+          /// Con  a proposito: la consulta de arriba lo pide, pero si
+          /// alguien recorta ese  manana, la edicion del grupo NO
+          /// puede caerse por culpa de la bitacora. Se apunta sin convenio
+          /// antes que no apuntar nada.
+          convenioId: grupo.accionFormacion?.convenioId ?? null,
           rol: { in: ROLES_ACADEMICOS },
           admin: { activo: true },
         },
@@ -358,7 +389,9 @@ export class CronogramaService {
       data: {
         /// `undefined` no lo toca; `null` lo suelta.
         asesorAcademicoId:
-          dto.asesorAcademicoId === undefined ? undefined : dto.asesorAcademicoId,
+          dto.asesorAcademicoId === undefined
+            ? undefined
+            : dto.asesorAcademicoId,
         fechaInicio: inicio,
         fechaFin: fin,
         dias: dto.dias === undefined ? undefined : dto.dias || null,
@@ -385,6 +418,41 @@ export class CronogramaService {
       },
     });
 
+    /**
+     * Y DEJA HUELLA, que hasta hoy no dejaba ninguna.
+     *
+     * No es que nadie la hubiera escrito: `entidad` va tipada contra
+     * el catálogo de `auditoria.service.ts` y allí NO EXISTÍAN `GRUPO`
+     * ni `COBERTURA`, así que auditar esto no compilaba. Había que
+     * ampliar el catálogo primero, y mientras tanto el módulo entero
+     * escribía sin dejar una sola fila.
+     *
+     * Y mueve más de lo que parece: la fecha de inicio de un grupo
+     * decide su cierre de inscripciones, los días que le quedan al
+     * asesor y su meta diaria. Se cambia un campo y se nota en tres
+     * pantallas, sin que hubiera forma de saber quién lo tocó.
+     */
+    const tocados = Object.keys(dto).filter(
+      (k) => dto[k as keyof ActualizarGrupoDto] !== undefined,
+    );
+    await this.auditoria.registrar({
+      actor,
+      accion: 'GRUPO_EDITADO',
+      entidad: ENTIDADES.GRUPO,
+      entidadId: id,
+      /// Con `?.` a propósito: la consulta de arriba lo pide, pero si
+      /// alguien recorta ese `select` mañana, la edición del grupo NO
+      /// puede caerse por culpa de la bitácora. Apuntar sin convenio es
+      /// peor que apuntar con él, y mucho mejor que no apuntar nada.
+      convenioId: grupo.accionFormacion?.convenioId ?? null,
+      /// Las fechas SÍ van en el resumen: no son dato personal, son
+      /// calendario del proyecto, y sin el antes y el después esta
+      /// fila no responde la única pregunta que se le va a hacer.
+      resumen: fraseDelCambioDeFechas(grupo, inicio, fin),
+      camposTocados: tocados,
+      ip,
+    });
+
     return { actualizado: true };
   }
 
@@ -406,7 +474,13 @@ export class CronogramaService {
    * `ofertas_cupos_dentro_del_tope` rechaza dejar el tope por debajo de
    * lo ya apartado por las empresas, y aborta la transaccion entera.
    */
-  async actualizarCupos(id: string, dto: ActualizarCuposDto, ambito: string[]) {
+  async actualizarCupos(
+    id: string,
+    dto: ActualizarCuposDto,
+    ambito: string[],
+    actor: Actor,
+    ip?: string,
+  ) {
     const cobertura = await this.prisma.grupoCobertura.findFirst({
       where: { id, grupo: { accionFormacion: { convenioId: { in: ambito } } } },
       select: {
@@ -416,10 +490,13 @@ export class CronogramaService {
         ubicacionId: true,
         ubicacion: { select: { nombre: true } },
         grupo: { select: { numero: true, accionFormacionId: true } },
-        _count: { select: { participantes: { where: { etapa: { in: ETAPAS_VIVAS } } } } },
+        _count: {
+          select: { participantes: { where: { etapa: { in: ETAPAS_VIVAS } } } },
+        },
       },
     });
-    if (!cobertura) throw new NotFoundException('Ese grupo no existe en esa sede.');
+    if (!cobertura)
+      throw new NotFoundException('Ese grupo no existe en esa sede.');
 
     const base = dto.cuposBase ?? cobertura.cuposBase;
     const tope = dto.cuposMaximos ?? cobertura.cuposMaximos;
@@ -439,7 +516,7 @@ export class CronogramaService {
       );
     }
 
-    return this.prisma.$transaction(async (tx) => {
+    const resultado = await this.prisma.$transaction(async (tx) => {
       /// La oferta de esa accion en esa sede, tomada antes de tocar
       /// nada: es la que hay que dejar cuadrada, y es la misma fila que
       /// bloquean las reservas.
@@ -486,6 +563,59 @@ export class CronogramaService {
         topeDeLaOferta: nuevoTope,
       };
     });
-  }
 
+    /**
+     * LA HUELLA, DESPUÉS DE QUE LA TRANSACCIÓN CONFIRME.
+     *
+     * Y no dentro, que fue lo primero que escribí: `registrar` abre su
+     * propia conexión y no admite la transacción de aquí, así que
+     * meterla dentro habría dejado la fila escrita aunque el CHECK
+     * `ofertas_cupos_dentro_del_tope` abortara ---y aborta cuando se
+     * intenta dejar el tope por debajo de lo ya apartado---.
+     *
+     * Fuera es además lo correcto: una bitácora que apunta cambios que
+     * no ocurrieron es peor que no tenerla, porque manda a buscar la
+     * causa de algo que nunca pasó.
+     */
+    await this.auditoria.registrar({
+      actor,
+      accion: 'CUPOS_EDITADOS',
+      entidad: ENTIDADES.COBERTURA,
+      entidadId: id,
+      convenioId: ambito[0] ?? null,
+      resumen:
+        `${cobertura.ubicacion.nombre}, grupo ${cobertura.grupo.numero}: ` +
+        `base ${cobertura.cuposBase} → ${resultado.cuposBase}, ` +
+        `tope ${cobertura.cuposMaximos} → ${resultado.cuposMaximos} ` +
+        `(la oferta queda en ${resultado.topeDeLaOferta})`,
+      camposTocados: Object.keys(dto).filter(
+        (k) => dto[k as keyof ActualizarCuposDto] !== undefined,
+      ),
+      ip,
+    });
+
+    return resultado;
+  }
+}
+
+/**
+ * El antes y el después de las fechas, en una línea.
+ *
+ * Sin esto el resumen diría «se editó el grupo», que no responde la
+ * única pregunta que se le va a hacer a esta fila: por qué este grupo
+ * arranca el 19 y no el 12.
+ */
+function fraseDelCambioDeFechas(
+  antes: { fechaInicio: Date | null; fechaFin: Date | null },
+  inicio: Date | null,
+  fin: Date | null,
+): string {
+  const d = (x: Date | null) =>
+    x ? x.toISOString().slice(0, 10) : 'sin fecha';
+  const partes: string[] = [];
+  if (d(antes.fechaInicio) !== d(inicio))
+    partes.push(`inicio ${d(antes.fechaInicio)} → ${d(inicio)}`);
+  if (d(antes.fechaFin) !== d(fin))
+    partes.push(`fin ${d(antes.fechaFin)} → ${d(fin)}`);
+  return partes.length ? partes.join(', ') : 'sin cambio de fechas';
 }

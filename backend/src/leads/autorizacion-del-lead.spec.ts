@@ -24,7 +24,12 @@ import {
 import type { OrigenParticipante } from '../../generated/prisma';
 
 describe('solo autorizó quien llenó un formulario', () => {
-  it.each(['FACEBOOK', 'INSTAGRAM', 'LINKEDIN', 'REDES'] as OrigenParticipante[])(
+  it.each([
+    'FACEBOOK',
+    'INSTAGRAM',
+    'LINKEDIN',
+    'REDES',
+  ] as OrigenParticipante[])(
     '%s llenó un formulario de la pauta: sí autorizó',
     (origen) => {
       expect(autorizoAlRegistrarse(origen)).toBe(true);
@@ -54,7 +59,11 @@ describe('la evidencia es de ESE lead, no una frase para todos', () => {
   };
 
   it('lleva el id que dio el emisor y el del lead', () => {
-    const e = evidenciaDelLead({ ...base, id: 'lead-abc', externoId: 'meta-999' });
+    const e = evidenciaDelLead({
+      ...base,
+      id: 'lead-abc',
+      externoId: 'meta-999',
+    });
 
     expect(e).toContain('meta-999');
     expect(e).toContain('lead-abc');
@@ -96,9 +105,9 @@ describe('qué le falta a un lead para poder ser ficha', () => {
   it('el documento con puntos vale: se normaliza igual que al convertir', () => {
     /// Si aquí no se normalizara y allá sí, la pantalla apagaría
     /// la casilla de un lead perfectamente convertible.
-    expect(loQueLeFaltaAlLead({ ...listo, numeroDocumento: '1.020.304.050' })).toEqual(
-      [],
-    );
+    expect(
+      loQueLeFaltaAlLead({ ...listo, numeroDocumento: '1.020.304.050' }),
+    ).toEqual([]);
   });
 
   it('sin curso, falta el curso', () => {

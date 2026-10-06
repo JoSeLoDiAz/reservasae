@@ -30,11 +30,12 @@ function armar(acciones: AccionFalsa[]) {
 
   const prisma = {
     accionFormacion: {
-      findFirst: (a: { where: { id: string; convenioId: { in: string[] } } }) => {
+      findFirst: (a: {
+        where: { id: string; convenioId: { in: string[] } };
+      }) => {
         const hit = acciones.find(
           (x) =>
-            x.id === a.where.id &&
-            a.where.convenioId.in.includes(x.convenioId),
+            x.id === a.where.id && a.where.convenioId.in.includes(x.convenioId),
         );
         return Promise.resolve(hit ?? null);
       },
@@ -75,7 +76,11 @@ function armar(acciones: AccionFalsa[]) {
 
   const configurar = (
     id: string,
-    cambios: { asesores?: number | null; dias?: number | null; cierre?: string | null },
+    cambios: {
+      asesores?: number | null;
+      dias?: number | null;
+      cierre?: string | null;
+    },
     convenios: string[],
   ) =>
     (
