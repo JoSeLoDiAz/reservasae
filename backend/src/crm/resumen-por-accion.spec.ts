@@ -252,14 +252,25 @@ describe('el recorte llega a la consulta', () => {
     const q = sql({
       desde: '2026-10-01T05:00:00.000Z',
       hasta: '2026-10-02T05:00:00.000Z',
+      asesorId: 'x',
+      grupoId: 'g',
+      departamentoSepId: 5,
     });
-    const bloque = q.slice(
-      q.indexOf('LOS QUE OCUPAN SILLA'),
-      q.indexOf('FROM "participantes" pa'),
-    );
+    /// SU PROPIA SUBCONSULTA, de `LOS QUE OCUPAN SILLA` hasta donde
+    /// se une. Antes compartía la de las personas, y entonces
+    /// cargaba con los cinco filtros: filtrando por una asesora,
+    /// una acción llena decía que quedan 519 cupos libres.
+    const i = q.indexOf('LOS QUE OCUPAN SILLA');
+    expect(i).toBeGreaterThan(-1);
+    const bloque = q.slice(i, q.indexOf(') v ON', i));
     expect(bloque).toContain('pa."etapa"');
+    /// Ni la ventana...
     expect(bloque).not.toContain('creadoEn');
     expect(bloque).not.toContain('an."momento"');
+    /// ...ni ninguno de los cinco filtros.
+    expect(bloque).not.toContain('asesorId');
+    expect(bloque).not.toContain('coberturaId');
+    expect(bloque).not.toContain('personaId');
   });
 
   it('la ventana va por instantes y el tope es EXCLUSIVO', () => {

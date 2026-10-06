@@ -203,7 +203,7 @@ export function resumenPorAccionSql(
            COALESCE(p.campana, 0)         AS "campanaDigital",
            COALESCE(p."inscritosReserva", 0) AS "inscritosReservas",
            COALESCE(p."inscritosCampana", 0) AS "inscritosCampana",
-           COALESCE(p."inscritosVigentes", 0) AS "inscritosVigentes"
+           COALESCE(v."inscritosVigentes", 0) AS "inscritosVigentes"
       FROM "acciones_formacion" a
 
       -- LA META, DEL CRONOGRAMA Y CON EL 30 % (cliente, 23 sep 2026).
@@ -245,18 +245,30 @@ export function resumenPorAccionSql(
                COUNT(*) FILTER (
                  WHERE pa."origen"::text <> ${DE_RESERVA}
                    AND ${seInscribioEnLaVentana}
-               )::int AS "inscritosCampana",
-               -- LOS QUE OCUPAN SILLA HOY, sin ventana ninguna: de
-               -- aqui salen los cupos disponibles, que son los de hoy
-               -- y no los del periodo que se este mirando.
-               COUNT(*) FILTER (
-                 WHERE pa."etapa"::text IN ${INSCRITAS}
-               )::int AS "inscritosVigentes"
+               )::int AS "inscritosCampana"
           FROM "participantes" pa
           LEFT JOIN primera_matricula an ON an."pid" = pa."id"
          WHERE ${gente}
          GROUP BY 1
       ) p ON p.aid = a."id"
+
+      -- LOS QUE OCUPAN SILLA HOY, y es OTRA subconsulta: no lleva la
+      -- ventana NI LOS CINCO FILTROS.
+      --
+      -- De aqui salen los cupos disponibles, y un cupo es del grupo,
+      -- no de quien lo mire: filtrando por una asesora, contar solo
+      -- SUS inscritos decia que en una accion llena quedan 519 cupos
+      -- libres. La meta no se recorta, asi que lo que se le resta
+      -- tampoco puede recortarse.
+      LEFT JOIN (
+        SELECT pa."accionFormacionId" AS aid,
+               COUNT(*) FILTER (
+                 WHERE pa."etapa"::text IN ${INSCRITAS}
+               )::int AS "inscritosVigentes"
+          FROM "participantes" pa
+         WHERE pa."accionFormacionId" IS NOT NULL
+         GROUP BY 1
+      ) v ON v.aid = a."id"
 
      WHERE a."convenioId" IN (${Prisma.join(ambito)})
        ${delGremio}

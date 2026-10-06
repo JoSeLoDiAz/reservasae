@@ -2675,6 +2675,10 @@ export function PanelProceso({
           <TablaPorGrupo
             accionFormacionId={abiertaVale.id}
             titulo={abiertaVale.titulo}
+            /// El MISMO corte que la tabla de arriba, incluida la
+            /// ventana. La acción no hace falta pasarla: va en la URL.
+            recorte={recorte}
+            esperaVentana
           />
         )}
 

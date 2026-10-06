@@ -56,18 +56,36 @@ const MODALIDAD: Record<string, string> = {
 export function TablaPorGrupo({
   accionFormacionId,
   titulo,
+  recorte,
+  esperaVentana = false,
 }: {
   accionFormacionId: string;
   /// El código y el nombre de la acción abierta, para que el bloque
   /// diga de cuál son estos grupos sin tener que mirar arriba.
   titulo: string;
+  /**
+   * EL MISMO RECORTE QUE LA TABLA DE ARRIBA.
+   *
+   * «No es confiable los filtros en los tableros» (cliente, 5 oct
+   * 2026). Este bloque no obedecía a ninguno ---ni al periodo---, y
+   * se abre pulsando una fila de esa tabla, que sí los obedece: los
+   * dos, pegados en la misma pantalla, contaban gente distinta para
+   * la misma acción.
+   */
+  recorte?: Record<string, unknown>;
+  /// Igual que los otros dos bloques: sin la ventana del periodo el
+  /// servidor no filtra, y saldría el histórico bajo el rótulo «Hoy».
+  esperaVentana?: boolean;
 }) {
+  const clave = JSON.stringify(recorte ?? {});
   const cargar = useCallback(
-    () => crmApi.resumenPorGrupo(accionFormacionId),
-    [accionFormacionId],
+    () => crmApi.resumenPorGrupo(accionFormacionId, recorte ?? {}),
+    [accionFormacionId, clave], // eslint-disable-line react-hooks/exhaustive-deps
   );
+  const listo = !esperaVentana || Boolean(recorte?.desde && recorte?.hasta);
   const vivos = useDatosVivos<FilaDeGrupo[]>(cargar, {
-    clave: `resumen-por-grupo:${accionFormacionId}`,
+    clave: `resumen-por-grupo:${accionFormacionId}:${clave}`,
+    activo: listo,
   });
 
   if (vivos.error) return <Aviso tipo="error">{vivos.error}</Aviso>;

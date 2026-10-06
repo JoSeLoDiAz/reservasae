@@ -795,6 +795,7 @@ export class CrmService {
   async resumenPorGrupo(
     ambito: Ambito,
     accionFormacionId: string,
+    recorte: RecorteDelResumen = {},
   ): Promise<FilaDeGrupo[]> {
     if (ambito.convenios.length === 0) return [];
     /// El ámbito se comprueba por la acción y no dentro del SQL: una
@@ -807,7 +808,7 @@ export class CrmService {
     if (!suya) return [];
     const filas = await this.prisma.$queryRaw<
       Parameters<typeof completarGrupo>[0][]
-    >(resumenPorGrupoSql(accionFormacionId));
+    >(resumenPorGrupoSql(accionFormacionId, recorte));
     return filas.map(completarGrupo);
   }
 

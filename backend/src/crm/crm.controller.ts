@@ -269,14 +269,38 @@ export class CrmController {
     });
   }
 
-  /** El Bloque 3: los grupos de una acción, con las mismas columnas. */
+  /**
+   * El Bloque 3: los grupos de una acción, con las mismas columnas.
+   *
+   * CON EL MISMO RECORTE QUE LA TABLA DE ARRIBA, desde el 6 oct 2026.
+   * No obedecía a nada ---ni al periodo ni a los cinco filtros--- y se
+   * abre pulsando una fila de esa tabla, que sí los obedece: los dos
+   * bloques, pegados en la misma pantalla, contaban gente distinta
+   * para la misma acción.
+   *
+   * Los cortes van uno a uno y no con un DTO, por lo mismo que arriba:
+   * el ValidationPipe global lleva `forbidNonWhitelisted`.
+   */
   @Get('resumen-por-accion/:accionFormacionId/grupos')
   @Requiere('inscritos')
   resumenPorGrupo(
     @AmbitoActual() ambito: Ambito,
     @Param('accionFormacionId') accionFormacionId: string,
+    @Query('grupoId') grupoId?: string,
+    @Query('asesorId') asesorId?: string,
+    @Query('departamentoSepId') departamentoSepId?: string,
+    @Query('desde') desde?: string,
+    @Query('hasta') hasta?: string,
   ) {
-    return this.crm.resumenPorGrupo(ambito, accionFormacionId);
+    return this.crm.resumenPorGrupo(ambito, accionFormacionId, {
+      grupoId: grupoId || undefined,
+      asesorId: asesorId || undefined,
+      departamentoSepId: departamentoSepId
+        ? Number(departamentoSepId)
+        : undefined,
+      desde: desde || undefined,
+      hasta: hasta || undefined,
+    });
   }
 
   /**

@@ -1836,9 +1836,19 @@ export const crmApi = {
     ),
 
   /// EL DETALLE POR GRUPOS de una acción (Bloque 3).
-  resumenPorGrupo: (accionFormacionId: string) =>
+  ///
+  /// CON EL MISMO RECORTE QUE LA TABLA DE ARRIBA, desde el 6 oct
+  /// 2026: este bloque no obedecía a ninguno, y se abre pulsando
+  /// una fila de esa tabla, que sí los obedece. Los dos, pegados en
+  /// la misma pantalla, contaban gente distinta para la misma
+  /// acción: con una asesora filtrada, su fila decía 12 inscritos y
+  /// sus grupos sumaban 85.
+  resumenPorGrupo: (
+    accionFormacionId: string,
+    recorte: Filtros & { desde?: string; hasta?: string } = {},
+  ) =>
     pedir<FilaDeGrupo[]>(
-      `/admin/participantes/resumen-por-accion/${accionFormacionId}/grupos`,
+      `/admin/participantes/resumen-por-accion/${accionFormacionId}/grupos${consulta(recorte)}`,
     ),
 
   /// LA TABLA DEL COMITÉ: una fila por acción de formación. Es el
