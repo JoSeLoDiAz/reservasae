@@ -65,7 +65,11 @@ import {
   COMO_SE_RECONOCIO,
   type PorQueEsLaMisma,
 } from './a-quien-ya-tenemos';
-import { interpretarLaFila, type FilaInterpretada } from './datos-de-la-fila';
+import {
+  interpretarLaFila,
+  type DatosDeLaFila,
+  type FilaInterpretada,
+} from './datos-de-la-fila';
 import type { Llave } from '../llave-del-lead';
 import { llaveDeLaFila, ORIGEN_DEL_CARGUE } from './llave-de-la-fila';
 import { leerElCargue, type ReparoDelCargue } from './lector-del-cargue';
@@ -91,7 +95,15 @@ import {
 const ORIGEN_POR_OMISION: OrigenParticipante = 'ASESOR';
 
 export type QueLePasoALaFila =
-  'NUEVA' | 'YA_ESTABA' | 'REPETIDA_EN_EL_ARCHIVO' | 'NO_SE_RECONOCE' | 'FALLO';
+  | 'NUEVA'
+  | 'YA_ESTABA'
+  /// Ya tiene ficha en Gestion de leads: no se crea lead ni se le
+  /// toca nada. Llego el 6 oct 2026, cuando el cliente pregunto
+  /// «¿pero con Gestion de leads?».
+  | 'YA_TIENE_FICHA'
+  | 'REPETIDA_EN_EL_ARCHIVO'
+  | 'NO_SE_RECONOCE'
+  | 'FALLO';
 
 export type FilaDelInforme = {
   /// El número de fila EN EL EXCEL.
@@ -130,6 +142,9 @@ export type ResultadoDelCargue = {
   leidas: number;
   nuevas: number;
   yaEstaban: number;
+  /// Cuantas ya tienen FICHA en Gestion de leads. No se crea lead
+  /// ni se les toca nada: se dicen. Llego el 6 oct 2026.
+  yaTienenFicha: number;
   /// De las que ya estaban, cuántas tenían algún hueco que tapar.
   seRellenan: number;
   /// Cuántos campos en total. «12 filas» y «48 campos» responden
@@ -317,6 +332,7 @@ export class CargueDeLeads {
       leidas: lectura.filas.length,
       nuevas: 0,
       yaEstaban: 0,
+      yaTienenFicha: 0,
       seRellenan: 0,
       camposQueSeRellenan: 0,
       conChoques: 0,
@@ -353,6 +369,11 @@ export class CargueDeLeads {
     /// fila, y el cruce lo decide después `aQuienYaTeniamos` en
     /// memoria.
     const candidatos = await this.candidatos(convenio.id, conLlave);
+
+    /// Y las FICHAS de este gremio que comparten documento, correo o
+    /// celular con alguna fila. Son otra población: quien llegó por
+    /// el formulario público nace ficha y no deja fila en la mesa.
+    const fichas = await this.fichasQueYaEstan(convenio.id, conLlave);
 
     /// Los que se van creando entran AQUÍ, en la misma lista.
     ///
@@ -422,6 +443,51 @@ export class CargueDeLeads {
           continue;
         }
 
+        /**
+         * ¿Y SI NO ESTÁ EN LA MESA PERO SÍ EN GESTIÓN DE LEADS?
+         *
+         * «¿Pero con Gestión de leads?» (cliente, 6 oct 2026), al
+         * preguntar cómo sabe qué le proponen al cargar una base.
+         *
+         * El cruce de arriba mira la MESA ---`leads_entrantes`--- y no
+         * las fichas. Y las dos poblaciones casi no se solapan: quien
+         * llega por el formulario público nace FICHA y no deja fila en
+         * la mesa. En la base de pruebas, de 1.480 fichas NINGUNA
+         * tiene lead en la mesa.
+         *
+         * Así que sin esto, subir una base con gente que ya está en
+         * Gestión de leads ---incluso ya inscrita--- las daba por
+         * NUEVAS y creaba un lead de cada una. Dos registros de la
+         * misma persona y dos asesoras llamándola: exactamente el
+         * duplicado que la mesa existe para no tener.
+         *
+         * NO SE LE TOCA NADA A LA FICHA, y es la misma frontera que
+         * ya pone el lead convertido: rellenar campos de una ficha
+         * desde un archivo cambia lo que se le reportó al SENA sin
+         * pasar por la ficha. Se dice quién es y se deja, que es lo
+         * que el cliente pidió para los choques: avisar, no decidir.
+         */
+        const ficha = buscarLaFicha(fichas, f.datos);
+        if (ficha) {
+          base.yaTienenFicha += 1;
+          base.filas.push({
+            fila: f.fila,
+            que: 'YA_TIENE_FICHA',
+            quien: comoSeLlamaLaFila(f),
+            leadId: null,
+            porque: ficha.porque,
+            comoSeReconocio: null,
+            rellena: [],
+            choques: [],
+            avisos: [
+              `ya está en Gestión de leads (${ficha.etapa.toLowerCase()}), ` +
+                'así que no se creó ningún lead ni se le tocó la ficha',
+              ...f.avisos,
+            ],
+          });
+          continue;
+        }
+
         const informe = await this.crearElNuevo(
           f,
           llave.llave,
@@ -483,6 +549,7 @@ export class CargueDeLeads {
     this.log.log(
       `Cargue de leads en ${convenio.slug} (${nombre}): ` +
         `${base.leidas} leídas, ${base.nuevas} nuevas, ${base.yaEstaban} ya estaban, ` +
+        `${base.yaTienenFicha} ya tenían ficha, ` +
         `${base.seRellenan} con huecos tapados, ${base.conChoques} con choques, ` +
         `${base.repetidasEnElArchivo} repetidas en el archivo, ` +
         `${base.sinReconocer} sin reconocer, ${base.fallaron} fallaron. ` +
@@ -506,6 +573,73 @@ export class CargueDeLeads {
    * leería y rellenaría leads de BRITCHAM, que es el mismo defecto
    * que la llave sin gremio pero por la puerta del cruce.
    */
+  /**
+   * Las FICHAS de este gremio que pueden ser alguna de estas filas.
+   *
+   * Devuelve un índice por documento, correo y celular ---las tres
+   * entradas apuntan a la misma ficha--- para poder preguntar por
+   * cada fila sin recorrer la lista entera.
+   *
+   * POR LA PERSONA Y ACOTADO AL CONVENIO. Lo segundo no es una
+   * formalidad: sin eso, un cargue de ADECOPRIA frenaría por una
+   * ficha de BRITCHAM, y son dos tratamientos de datos distintos.
+   *
+   * SE COMPARA CONTRA LO NORMALIZADO, igual que en la mesa: el
+   * documento sin puntos, el correo en minúsculas y el celular en
+   * diez dígitos. Comparando el texto crudo del Excel, «+57 300 111
+   * 2222» no encontraría a «3001112222» y el informe diría «todas
+   * nuevas» ---que es lo que uno espera ver en un cargue, así que
+   * nadie lo buscaría---.
+   */
+  private async fichasQueYaEstan(
+    convenioId: string,
+    conLlave: Array<{ f: FilaInterpretada; llave: Llave }>,
+  ): Promise<Map<string, { etapa: string; porque: PorQueEsLaMisma }>> {
+    const documentos = noVacios(
+      conLlave.map(({ f }) => f.datos.numeroDocumento),
+    );
+    const correos = noVacios(conLlave.map(({ f }) => f.datos.correo));
+    const celulares = noVacios(conLlave.map(({ f }) => f.datos.celular));
+
+    const porAlgo: Prisma.PersonaWhereInput[] = [];
+    if (documentos.length)
+      porAlgo.push({ numeroDocumento: { in: documentos } });
+    if (correos.length) porAlgo.push({ correo: { in: correos } });
+    if (celulares.length) porAlgo.push({ celular: { in: celulares } });
+
+    const indice = new Map<string, { etapa: string; porque: PorQueEsLaMisma }>();
+    if (porAlgo.length === 0) return indice;
+
+    const fichas = await this.prisma.participante.findMany({
+      where: { convenioId, persona: { OR: porAlgo } },
+      select: {
+        etapa: true,
+        persona: {
+          select: { numeroDocumento: true, correo: true, celular: true },
+        },
+      },
+    });
+
+    /// El documento primero: es el que de verdad identifica. Si la
+    /// misma ficha entra por dos de los tres, la primera gana y las
+    /// otras no la pisan ---así «por el documento» no se degrada a
+    /// «por el correo» según el orden de la consulta---.
+    for (const ficha of fichas) {
+      const p = ficha.persona;
+      const entradas: Array<[string | null, PorQueEsLaMisma]> = [
+        [p.numeroDocumento, 'DOCUMENTO'],
+        [p.correo, 'CORREO'],
+        [p.celular, 'CELULAR'],
+      ];
+      for (const [valor, porque] of entradas) {
+        if (!valor) continue;
+        const llave = `${porque}:${valor}`;
+        if (!indice.has(llave)) indice.set(llave, { etapa: ficha.etapa, porque });
+      }
+    }
+    return indice;
+  }
+
   private async candidatos(
     convenioId: string,
     conLlave: Array<{ f: FilaInterpretada; llave: Llave }>,
@@ -910,6 +1044,33 @@ function comoCandidato(
 
 function noVacios(xs: Array<string | null | undefined>): string[] {
   return [...new Set(xs.filter((x): x is string => Boolean(x)))];
+}
+
+/**
+ * Si esa fila es alguien que ya tiene FICHA en este gremio.
+ *
+ * Los tres en el mismo orden que el cruce de la mesa: documento,
+ * correo, celular. El documento primero porque es el que de verdad
+ * identifica ---dos personas comparten el correo de la empresa, y el
+ * celular de casa--- y porque es lo que se enseña como motivo: decir
+ * «por el correo» cuando se la reconoció por la cédula haría dudar de
+ * un cruce que es el bueno.
+ */
+function buscarLaFicha(
+  indice: Map<string, { etapa: string; porque: PorQueEsLaMisma }>,
+  datos: DatosDeLaFila,
+): { etapa: string; porque: PorQueEsLaMisma } | null {
+  const intentos: Array<[string | null | undefined, PorQueEsLaMisma]> = [
+    [datos.numeroDocumento, 'DOCUMENTO'],
+    [datos.correo, 'CORREO'],
+    [datos.celular, 'CELULAR'],
+  ];
+  for (const [valor, porque] of intentos) {
+    if (!valor) continue;
+    const ficha = indice.get(`${porque}:${valor}`);
+    if (ficha) return { etapa: ficha.etapa, porque };
+  }
+  return null;
 }
 
 /// Por qué falló una fila, en una línea y sin filtrar de más.

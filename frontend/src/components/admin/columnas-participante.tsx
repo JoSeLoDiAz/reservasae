@@ -450,6 +450,39 @@ export function columnasDeParticipante(): Columna<FilaParticipante>[] {
       filtro: "opciones",
     },
     {
+      /**
+       * Y POR QUÉ ENLACE, que es otra pregunta que el formulario.
+       *
+       * «Si o sí el sistema debe decirme de qué link de formulario
+       * entró, porque es imposible que no se pueda, o sea es una
+       * falacia» (cliente, 5 oct 2026). No era una falacia: el dato
+       * llegaba en el formulario público y se tiraba. Desde el 5 oct
+       * se guarda en la ficha, sin condiciones.
+       *
+       * EL MISMO FORMULARIO SE REPARTE POR VARIOS ENLACES ---uno por
+       * campaña, uno por gremio--- así que «cuántos trajo este
+       * enlace» no se contesta con la columna de al lado. Por eso son
+       * dos y van juntas.
+       *
+       * La raya es de las fichas anteriores a esa fecha: no se les
+       * inventa de dónde vinieron.
+       */
+      clave: "enlaceDeEntrada",
+      nueva: true,
+      ancho: "160px",
+      titulo: "Enlace de entrada",
+      valor: (f) => f.enlaceDeEntrada ?? "",
+      pinta: (f) =>
+        f.enlaceDeEntrada ? (
+          <span className="block truncate font-mono text-xs">
+            {f.enlaceDeEntrada}
+          </span>
+        ) : (
+          <span className="text-texto-suave">—</span>
+        ),
+      filtro: "opciones",
+    },
+    {
       /// El filtro va por la fuente y no por la campaña: con
       /// cada mailing un nombre nuevo, filtrar por nombre daria
       /// una opcion por envio y ninguna por «Mailing».
@@ -459,16 +492,43 @@ export function columnasDeParticipante(): Columna<FilaParticipante>[] {
       ancho: "150px",
       titulo: "Fuente formulario",
       valor: (f) => fuenteDelFormulario(f),
-      pinta: (f) => (
-        <span className="block leading-tight">
-          <span className="block">{fuenteDelFormulario(f)}</span>
-          {f.campanaDeEntrada && (
-            <span className="block truncate font-mono text-xs text-texto-suave">
-              {f.campanaDeEntrada}
-            </span>
-          )}
-        </span>
-      ),
+      /**
+       * SOLO EL CANAL. La campaña iba de subtítulo aquí debajo y se
+       * salió a su propia columna el 6 oct 2026, por esto:
+       *
+       * «¿Creo que se debe separar, ejemplo el Eduteka, para otra
+       * columna, porque no tengo opción de saber qué formulario?»
+       * (cliente). Y tenía razón en la lectura: viendo «Orgánico /
+       * eduteka» encima de un «Formulario: Preinscripción pública», lo
+       * que parece es que «eduteka» ES el formulario. No lo es: es la
+       * campaña que atribuyó el lead, y son tres preguntas distintas
+       * ---por qué canal, por qué campaña, a qué formulario--- que
+       * ahora son tres columnas.
+       *
+       * Pegadas a propósito, en ese orden: se leen juntas.
+       */
+      pinta: (f) => <span className="block">{fuenteDelFormulario(f)}</span>,
+      filtro: "opciones",
+    },
+    {
+      /// LA CAMPAÑA, en su propia columna desde el 6 oct 2026.
+      ///
+      /// En monoespaciada y pequeña, como estaba de subtítulo: son
+      /// marcas tecleadas en un enlace ---«eduteka», «lanzamiento-oct»---
+      /// y no nombres, así que se leen letra a letra.
+      clave: "campanaDeEntrada",
+      nueva: true,
+      ancho: "150px",
+      titulo: "Campaña",
+      valor: (f) => f.campanaDeEntrada ?? "",
+      pinta: (f) =>
+        f.campanaDeEntrada ? (
+          <span className="block truncate font-mono text-xs">
+            {f.campanaDeEntrada}
+          </span>
+        ) : (
+          <span className="text-texto-suave">—</span>
+        ),
       filtro: "opciones",
     },
     {

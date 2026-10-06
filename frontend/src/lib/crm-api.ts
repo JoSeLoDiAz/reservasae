@@ -465,6 +465,12 @@ export type FilaParticipante = {
    * puede llegar por Instagram a la preinscripción pública.
    */
   formularioDeEntrada?: string | null;
+  /// LA MARCA DEL ENLACE CORTO por el que entró. Otra cosa que el
+  /// formulario: el mismo formulario se reparte por varios enlaces,
+  /// y «cuántos trajo este enlace» es la pregunta que se hace al
+  /// pagar pauta. Llegó el 6 oct 2026; un backend sin reiniciar no
+  /// la manda, y por eso es opcional.
+  enlaceDeEntrada?: string | null;
   empresaNombre?: string | null;
   antiguedadDias: number;
 
@@ -1282,6 +1288,20 @@ export type Filtros = {
   /** Cuándo llegó el lead: instantes ISO, `llegoHasta` fuera. */
   llegoDesde?: string;
   llegoHasta?: string;
+  /**
+   * POR DÓNDE ENTRÓ: el enlace corto y el formulario personalizado.
+   *
+   * «Si o sí el sistema debe decirme de qué link de formulario entró»
+   * (cliente, 5 oct 2026). Son dos y no uno: el mismo formulario se
+   * reparte por varios enlaces ---uno por campaña, uno por gremio---
+   * así que «cuántos trajo este enlace» no se contesta con el
+   * formulario.
+   *
+   * `SIN_DATO` pide las que no lo tienen: las de antes del 5 oct, a
+   * las que no se les inventó de dónde vinieron.
+   */
+  enlaceDeEntrada?: string;
+  formularioDeEntrada?: string;
   buscar?: string;
   pagina?: number;
   /** Cuántas filas por carga; el servidor lo topa. */

@@ -1,87 +1,70 @@
-# `jose/dv-tecleado` · lista para validar y desplegar
+# `jose/dv-tecleado` · lo que queda tras la 0.21.0
 
-Josse: esto sustituye a todo lo anterior. Tus seis están cerradas, tu `v0.19.0` está
-fundida aquí y verde, y encima van **25 commits** que el corte de la 0.19.0 dejó fuera
-más la auditoría completa.
+Josse: gracias por las dos de esta mañana, y por volver a meter BBDD Leads y la
+bandeja sin que hiciera falta pedírtelo. Tu `dev` está fundida aquí y verde.
 
 | | |
 |---|---|
 | Rama | `jose/dv-tecleado`, subida |
-| Desplegado | `v0.19.0-JD` (2 oct) — **hace cuatro días** |
-| Sin desplegar | **42 commits** |
-| De lo tuyo que falte traer | **nada** |
-| Línea base | `tsc` limpio en backend y frontend · **265 suites, 2.807 pruebas**, verde |
-| Migraciones nuevas | **3** — ver §1a |
+| Desplegado | `v0.21.0-JD` (6 oct, 9:42) |
+| Sin desplegar | **6 commits**: 2 de contenido, y el resto merges, un revert y este documento |
+| De lo tuyo que falte traer | **nada**: `origin/dev` fundida |
+| Línea base | `tsc` limpio en backend y frontend · **267 suites, 2.834 pruebas**, verde |
+| Migraciones nuevas | **ninguna** |
 
 ---
 
-## 0 · Las siete del 6 de octubre — las cifras del comité
+## 0 · Los dos que quedan
 
-Siete commits del 6 de octubre, y son **las que el cliente está
-esperando**. Todas nacen de lo que reportó el 5 de octubre. Van primero porque dos de
-ellas cambian
-**números que él lee en comité**, y conviene que sepas qué va a cambiar antes de que
-te lo pregunte.
+### a) El cargue de BBDD Leads se duplicaba con Gestión de leads
 
-| | Commit | Qué arregla |
-|---|---|---|
-| 1 | `8a5d819` | El **«25»**: con «Hoy» arriba salía el histórico completo. Los tres bloques no preguntan hasta que la cabecera resuelve el periodo. Y la **AF se quedaba pegada en AF3**: elegir AF4 arriba no bajaba. |
-| 2 | `f76ce9d` | El **scroll de Gestión de leads**. Solo CSS. |
-| 3 | `1a36c43` | Las **inscripciones se cuentan por cuándo se inscribió** la persona, no por cuándo llegó la ficha. **Cambia cifras.** |
-| 4 | `cf6b1cd` | El **detalle por grupos** obedece los filtros y el periodo. No obedecía a ninguno. **Cambia cifras.** |
-| 5 | `f5b08e0` | Cambiar un filtro **mientras carga** ya no pierde la pedida ni pinta la respuesta vieja. |
-| 6 | `4ade9b8` | El **límite de peticiones** contaba por IP: toda la oficina compartía 60 por minuto. Ahora cuenta por sesión. |
-| 7 | `28083cf` | **«Gestionados en el periodo»**: una columna nueva en Seguimiento de asesores. La de siempre no podía decir lo gestionado el viernes contra lo de hoy. **Sin migración.** |
+`dae9dd1`. **Esto es un defecto de lo que acabas de desplegar**, así que va primero.
 
-**El cliente está pidiendo este despliegue hoy.** Sigo trabajando sobre esta misma rama,
-así que vuelve a mirar `git log origin/dev..jose/dv-tecleado` antes de desplegar: puede
-que haya más commits que cuando leas esto. Los de hoy van todos en esta sección.
+El cruce del cargue mira la MESA ---`leads_entrantes`--- y no las fichas. Y las dos
+poblaciones casi no se solapan: quien llega por el formulario público nace FICHA y no
+deja fila en la mesa. En la base de pruebas, **de 1.480 fichas ninguna tiene lead en la
+mesa**.
 
-### Lo que va a cambiar a la vista, y hay que decirlo
+Así que subir una base con gente que ya está en Gestión de leads ---incluso ya
+inscrita--- las da por NUEVAS y crea un lead de cada una: dos registros de la misma
+persona y dos asesoras llamándola, que es justo el duplicado que la mesa existe para no
+tener. Y el informe lo dice al revés ---«todas nuevas»---, que es lo que uno espera ver
+en un cargue, así que nadie lo buscaría.
 
-Dos columnas de la tabla del comité van a dar **otros números**, y es el arreglo, no un
-fallo:
+Lo encontró el cliente preguntando, no una prueba: «¿pero con Gestión de leads?».
 
-- **Inscritos del periodo.** Antes contaba a quien LLEGÓ en el periodo y está inscrito
-  HOY. Así que un día de veinte inscripciones podía salir en cero —si esa gente llegó
-  en agosto— y una inscripción se borraba del pasado cuando la persona desertaba. Ahora
-  va por el movimiento a INSCRITO, que no se reescribe nunca. Con ventana puesta,
-  arriba van las inscripciones **hechas** en el periodo y abajo los leads **llegados**:
-  la conversión es «cuánto entró y cuánto se inscribió este mes», no la de una cohorte.
-- **Cupos disponibles.** Salían de `meta − inscritos del periodo`, y la meta no se
-  recorta: con «Hoy» arriba, una AF llena enseñaba sus 519 cupos libres y estado
-  ABIERTO. Ahora se restan los que **ocupan silla hoy**, sin ventana y sin los cinco
-  filtros.
+Ahora, antes de crear, se mira también la ficha: documento, correo o celular, los
+mismos tres del cruce de la mesa y en el mismo orden. La fila sale como «Ya está en
+Gestión de leads», con por dónde se reconoció y **en qué etapa**.
 
-### La columna nueva pide un detalle que es fácil pasar por alto
+**No se le toca nada a la ficha.** Misma frontera que ya pone el lead convertido:
+rellenar campos de una ficha desde un archivo cambia lo que se le reportó al SENA sin
+pasar por la ficha.
 
-La tabla de Seguimiento de asesores pasa de `asesores-inscripciones-v2` a `-v3`. Es a
-propósito y la regla ya estaba escrita ahí: lo que cada quien acomodó de sus columnas
-vive en su navegador y **gana al código**, así que sin renombrar la tabla, la columna
-nueva solo la verían las cuentas que nunca entraron. El precio es que se pierden los
-anchos que alguien hubiera ajustado a mano, y es barato al lado de una columna invisible.
+Lo que mirarías tú: **acotado al convenio**, con prueba sobre el `where` que sale hacia
+Prisma; y el doble del arnés contesta al `where` como la base, porque uno que devolviera
+todas las fichas daría por bueno un cruce que no filtra.
 
-### Una cosa que te va a saltar en el despliegue, y no es un error nuevo
+### b) Por dónde entró cada persona, en columnas separadas
 
-`pnpm db:integridad` tiene **un control más**: fichas inscritas **sin el movimiento que
-las fecha**. Esas no caen en ninguna ventana, así que no se cuentan en ningún periodo.
-En la base de pruebas son 12 de 1.304 y son de la siembra; **en producción no sé cuántas
-hay, porque no miro producción**. El informe las lista con nombre y AF.
+`7b67734`. Cierra «si o sí el sistema debe decirme de qué link de formulario entró»
+(cliente, 5 oct) y lo que dijo hoy viendo la 0.20.0 ya desplegada: «¿se debe separar,
+ejemplo el Eduteka, para otra columna, porque no tengo opción de saber qué formulario?».
 
-No se les inventa el movimiento: escribir uno con fecha supuesta mete en el registro de
-auditoría un hecho que no consta. Se arreglan moviéndolas de etapa a mano desde el
-panel, que sí deja movimiento.
+Tenía razón en la lectura: «Orgánico / eduteka» encima de «Formulario: Preinscripción
+pública» hace pensar que *eduteka* es el formulario. No lo es ---es la campaña--- y eran
+tres preguntas apretadas en dos columnas. Ahora son cuatro columnas pegadas: canal,
+campaña, formulario y **enlace de entrada**, que es la que faltaba.
 
-### Orden y variables
+Con filtro en el servidor y en la dirección: `?enlace=` y `?formulario=` se pegan en un
+chat y llevan a la lista, como ya hacen `?asesor=` y `?curso=`. Y `SIN_DATO` pide las
+que no lo tienen, que es como se mide cuánto falta por saberse.
 
-- **Backend primero, frontend después.** El endpoint de grupos acepta parámetros nuevos
-  (`grupoId`, `asesorId`, `departamentoSepId`, `desde`, `hasta`). Con el frontend
-  nuevo contra el backend viejo, los ignora **en silencio** y los filtros vuelven a no
-  aplicarse: el mismo fallo, sin aviso.
-- **Ninguna migración nueva** en estas siete.
-- `ADMIN_JWT_SECRET` ahora también lo usa `AppModule`, para que el límite pueda
-  verificar la cookie. Es **la misma variable** que ya firma la sesión; no hay que
-  añadir nada. Si faltara, el límite no se cae: vuelve a contar por IP sin decirlo.
+Endpoint nuevo: `GET /admin/participantes/por-donde-entraron`.
+
+**La tabla se queda en `participantes-v2`.** La renombré por añadir la columna y tu
+revisión de la mañana me corrigió lo mismo en la de asesores: para eso está
+`nueva: true`. Deshecho antes de subirlo.
 
 ---
 
