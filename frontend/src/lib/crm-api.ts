@@ -554,6 +554,35 @@ export type Listado = {
   participantes: FilaParticipante[];
 };
 
+/**
+ * UNA CONVERSACIÓN DE LUCID QUE NO SE PEGÓ SOLA.
+ *
+ * «No está llegando las conversaciones de Lucid; dice que llega 200
+ * pero no queda» (cliente, 5 oct 2026). Llegaban y se guardaban: lo
+ * que faltaba era una pantalla que leyera esa tabla.
+ */
+export type ConversacionEnEspera = {
+  id: string;
+  /// `SIN_DUENO` = ese número no es de nadie del gremio.
+  /// `AMBIGUA` = toca a más de una persona y el sistema no elige.
+  estado: "SIN_DUENO" | "AMBIGUA";
+  celular: string;
+  resumen: string;
+  cuando: string;
+  /// Si la fecha es la que dio Lucid o la de cuando nos llegó. En
+  /// pantalla cambia el rótulo: decir «ocurrió» de la hora en que
+  /// nos llegó sería inventar un dato.
+  cuandoEsDeLucid: boolean;
+  convenioSigla: string | null;
+  candidatos: Array<{
+    tipo: "FICHA" | "LEAD";
+    id: string;
+    nombre: string | null;
+    documento: string | null;
+    etapa: string | null;
+  }>;
+};
+
 export type Resumen = {
   etapas: Array<{ etapa: Etapa; total: number }>;
   total: number;
@@ -1984,6 +2013,23 @@ export const crmApi = {
 
   listar: (filtros: Filtros = {}) =>
     pedir<Listado>(`/admin/participantes${consulta(filtros)}`),
+
+  /// LA BANDEJA DE CONVERSACIONES: las de Lucid que no se pegaron
+  /// solas. Las pegadas no salen: es una cola de trabajo, no un
+  /// historial.
+  conversacionesEnEspera: () =>
+    pedir<ConversacionEnEspera[]>("/admin/conversaciones"),
+
+  /// Pegarla a una ficha o a un lead. UNO de los dos: una
+  /// conversación pasó con una persona.
+  pegarConversacion: (
+    id: string,
+    destino: { participanteId?: string; leadId?: string },
+  ) =>
+    pedir<{ pegada: boolean; notaId: string }>(
+      `/admin/conversaciones/${id}/pegar`,
+      { method: "POST", body: JSON.stringify(destino) },
+    ),
 
   catalogos: () => pedir<CatalogosSep>("/admin/participantes/catalogos"),
 
