@@ -45,6 +45,19 @@ const TOPE = 200;
 export type FiltrosDeLaMesa = {
   estado?: string;
   convenioId?: string;
+  /**
+   * POR DÓNDE ENTRÓ: la pauta, el formulario, o un archivo.
+   *
+   * Lo pide la pantalla «BBDD Leads», que enseña SOLO lo cargado
+   * desde una base del cliente y no lo que llega solo. Sin esto, la
+   * única forma de separarlos era traerse la página entera y
+   * filtrarla en el navegador: con tres mil filas cargadas, la
+   * pantalla pediría cien páginas para enseñar una.
+   *
+   * Es el `origenSistema` del lead, que ya se devolvía como
+   * `porDonde`; lo que faltaba era poder PEDIRLO.
+   */
+  origenSistema?: string;
   /// Documento, nombre, correo o celular.
   buscar?: string;
   pagina?: number;
@@ -71,6 +84,9 @@ export class MesaDeEntrada {
         { convenioId: { in: ambito } },
         ...(filtros.convenioId ? [{ convenioId: filtros.convenioId }] : []),
         ...(filtros.estado ? [{ estado: filtros.estado as never }] : []),
+        ...(filtros.origenSistema
+          ? [{ origenSistema: filtros.origenSistema }]
+          : []),
         ...(filtros.buscar?.trim() ? [this.comoSeBusca(filtros.buscar)] : []),
       ],
     };
