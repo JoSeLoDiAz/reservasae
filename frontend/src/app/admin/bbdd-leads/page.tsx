@@ -13,7 +13,9 @@ import {
   EscogerArchivo,
   useAdmin,
 } from "@/components/admin/marco-admin";
-import { Bloque, Cifra, Encabezado, Vacio } from "@/components/admin/piezas";
+import { Bloque, Cifra, Encabezado } from "@/components/admin/piezas";
+import { columnasDeLead } from "@/components/admin/columnas-de-lead";
+import { Tabla } from "@/components/admin/tabla";
 import { alcanza } from "@/lib/admin-api";
 import { ErrorApi } from "@/lib/api";
 import { crmApi, type CatalogosSep } from "@/lib/crm-api";
@@ -32,7 +34,6 @@ import {
 import {
   ETIQUETA_ESTADO_LEAD,
   mesaApi,
-  TONO_ESTADO_LEAD,
   type EstadoLead,
   type LeadDeLaMesa,
   type ListadoDeLaMesa,
@@ -85,14 +86,7 @@ const ESTADOS: EstadoLead[] = ["PENDIENTE", "CONVERTIDO", "DESCARTADO"];
 /// algo, y esas van primero. El resto se cuenta, no se lista.
 const FILAS_QUE_SE_PINTAN = 200;
 
-function cuando(iso: string): string {
-  return new Date(iso).toLocaleString("es-CO", {
-    day: "2-digit",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
+
 
 /// Las que piden algo, primero.
 ///
@@ -123,8 +117,32 @@ function loQuePideAlgoPrimero(filas: FilaDelInforme[]): FilaDelInforme[] {
   });
 }
 
-export default function PaginaBbddLeads() {
+/**
+ * LAS DOS VISTAS DE BBDD LEADS, en un solo componente.
+ *
+ * «¿Esto, al ir a la subvista para cargar? O sea, ¿sí es claro lo
+ * que pido?» (cliente, 6 oct 2026), señalando el bloque de cargue
+ * encima de la lista. Y lo era: cargar y mirar la base son dos
+ * tareas distintas, y el formulario de cargue ocupaba media
+ * pantalla de quien solo venía a trabajar los leads.
+ *
+ * `lista` es la base, con la tabla de la casa ---las mismas
+ * columnas, filtros, vistas y Excel que Gestión de leads---.
+ * `cargue` es la subvista, con su propia dirección
+ * ---`/admin/bbdd-leads/cargar`--- para poder llegar y volver.
+ *
+ * UN SOLO COMPONENTE Y NO DOS PÁGINAS, a propósito: las dos
+ * comparten el gremio que se está mirando, las cuatro cifras de
+ * arriba y la recarga después de aplicar. Partirlo en dos ficheros
+ * duplicaría eso, y el día que una cambie, la otra se queda atrás.
+ */
+export default function PaginaBbddLeads({
+  vista = "lista",
+}: {
+  vista?: "lista" | "cargue";
+}) {
   const { admin, gremio, gremios } = useAdmin();
+  const enElCargue = vista === "cargue";
 
   /// EL GREMIO QUE SE ESTÁ MIRANDO, para el título y para el cargue.
   ///
@@ -357,6 +375,28 @@ export default function PaginaBbddLeads() {
         >
           Ir a Gestión de leads
         </Link>
+        {/* IDA Y VUELTA ENTRE LAS DOS VISTAS.
+
+            Sin el de volver, de la subvista solo se sale con el botón
+            del navegador, y eso en una pantalla a la que se entra
+            desde el menú no es obvio. */}
+        {enElCargue ? (
+          <Link
+            href="/admin/bbdd-leads"
+            className="text-[0.78125rem] font-medium text-marca hover:underline"
+          >
+            ← Volver a la base
+          </Link>
+        ) : (
+          puedeCargar && (
+            <Link
+              href="/admin/bbdd-leads/cargar"
+              className="text-[0.78125rem] font-medium text-marca hover:underline"
+            >
+              Cargar una base
+            </Link>
+          )
+        )}
       </Encabezado>
 
       {error && <Aviso tipo="error">{error}</Aviso>}
@@ -387,7 +427,7 @@ export default function PaginaBbddLeads() {
       </div>
 
       {/* ───────── EL CARGUE, EN DOS PASOS ───────── */}
-      {puedeCargar && (
+      {enElCargue && puedeCargar && (
         <Bloque
           titulo="Cargar una base"
           descripcion="Se revisa primero y se aplica después. Hasta que no se pulse «Aplicar el cargue» no se escribe nada."
@@ -519,7 +559,7 @@ export default function PaginaBbddLeads() {
       )}
 
       {/* ───────── EL INFORME ───────── */}
-      {informe && (
+      {enElCargue && informe && (
         <Bloque
           titulo={
             informe.aplicado
@@ -793,6 +833,11 @@ export default function PaginaBbddLeads() {
       )}
 
       {/* ───────── EL LISTADO ───────── */}
+      {/* Solo en la vista principal: quien entra a cargar no viene a
+          mirar la base, y la lista entera debajo del formulario es
+          lo que el cliente señaló. */}
+      {!enElCargue && (
+      <>
       {/* LA MISMA BARRA QUE LA MESA: el filtro manda y el buscador
           acompaña, con la misma caja los dos. */}
       <div className="flex flex-wrap items-start gap-3">
@@ -826,7 +871,10 @@ export default function PaginaBbddLeads() {
         </div>
 
         <div className="min-w-[320px] flex-1">
-          <Campo etiqueta="Buscar">
+          <Campo
+            etiqueta="Buscar en toda la base"
+            ayuda="La tabla tiene el suyo, que filtra lo que ya se trajo. Este pregunta a las 1.252."
+          >
             <input
               style={{ height: 38 }}
               className={CLASE_BUSCADOR + " w-full"}
@@ -838,141 +886,35 @@ export default function PaginaBbddLeads() {
         </div>
       </div>
 
-      {datos && leads.length === 0 ? (
-        <Vacio titulo="No hay leads cargados que mostrar">
-          {buscado || estado
+      {/**
+        * LA TABLA DE LA CASA, LA MISMA QUE GESTION DE LEADS.
+        *
+        * «¿Pero queda como la visual de Gestion de leads?» (cliente,
+        * 6 oct 2026), preguntado tres veces. Y no quedaba: esto era
+        * una tabla pintada a mano con seis columnas fijas, sin elegir
+        * columnas, sin filtros por columna, sin vistas guardadas, sin
+        * ordenar y sin Excel.  trae las seis.
+        *
+        * Las columnas son PROPIAS del lead y no las de participante:
+        * media docena de aquellas pediria datos que un lead no tiene,
+        * y una columna que siempre sale en raya enseña a no mirar la
+        * tabla.
+        */}
+      <Tabla
+        id="bbdd-leads-v1"
+        columnas={columnasDeLead()}
+        filas={leads}
+        clave={(l) => l.id}
+        total={datos?.total}
+        /// Pulsar la fila abre su cajon de gestion, que es lo que ya
+        /// hacia el nombre: asignar, llamar y anotar sin salir.
+        alClic={(l) => setGestionando(l)}
+        vacio={
+          buscado || estado
             ? "Con esos filtros no aparece ninguno."
-            : "Esta base se llena cargando un archivo. Baje la plantilla, llénela con lo que tenga —basta el correo o el celular— y súbala."}
-        </Vacio>
-      ) : (
-        <div className="caja-scroll overflow-x-auto rounded-xl border border-borde">
-          <table className="w-full min-w-[1060px] text-sm">
-            <thead className="bg-tabla-cabecera text-left text-xs tracking-wide text-texto-suave uppercase">
-              <tr>
-                <th className="px-4 py-2.5 font-medium">Persona</th>
-                <th className="px-4 py-2.5 font-medium">Contacto</th>
-                <th className="px-4 py-2.5 font-medium">Entró por</th>
-                <th className="px-4 py-2.5 font-medium">Qué pidió</th>
-                <th className="px-4 py-2.5 font-medium">Estado</th>
-                <th className="px-4 py-2.5 font-medium">Cargada</th>
-              </tr>
-            </thead>
-            <tbody>
-              {leads.map((l: LeadDeLaMesa) => (
-                <tr key={l.id} className="border-t border-borde align-top">
-                  <td className="px-4 py-2.5">
-                    <div className="font-medium">{l.nombre}</div>
-                    <div className="text-xs text-texto-suave">
-                      {l.documento ?? "sin documento"} · {l.gremio}
-                    </div>
-                    {/* QUÉ LE FALTA, dicho y no escondido: una base
-                        cargada sin documento entra igual --para eso no
-                        es restrictiva-- pero no se puede convertir
-                        hasta que alguien lo consiga. Se consigue
-                        gestionándola, que es justo lo que se pidió. */}
-                    {l.falta.length > 0 && l.estado === "PENDIENTE" && (
-                      <div className="mt-0.5 text-xs text-aviso">
-                        Le falta {l.falta.join(", ")}
-                      </div>
-                    )}
-                    {/* LOS DOS CAJONES DE LA MESA, LOS MISMOS.
-                        Es el pedido entero: «apenas se gestione, si la
-                        persona ya ingresa y completa datos, caiga a
-                        Gestión de leads». Una base cargada sin
-                        documento se gestiona para conseguirlo
-                        --«Gestionar»--, se completa --«Arreglar»-- y
-                        desde la mesa se convierte, que es lo que la
-                        pasa a Gestión de leads.
-
-                        Son `GestionarLead` y `ArreglarLead` tal cual,
-                        sin copia: dos formas de registrar la misma
-                        gestión se separarían el día que una cambie. */}
-                    {l.estado === "PENDIENTE" && (
-                      <div className="mt-0.5 flex flex-wrap gap-3">
-                        <button
-                          className="text-xs font-medium text-marca hover:underline"
-                          onClick={() => setArreglando(l)}
-                        >
-                          Arreglar
-                        </button>
-                        <button
-                          className="text-xs font-medium text-marca hover:underline"
-                          onClick={() => setGestionando(l)}
-                        >
-                          {l.gestiones > 0
-                            ? `Gestionar (${l.gestiones})`
-                            : "Gestionar"}
-                        </button>
-                      </div>
-                    )}
-                  </td>
-
-                  <td className="px-4 py-2.5">
-                    <div>{l.celular ?? "—"}</div>
-                    <div className="text-xs text-texto-suave">
-                      {l.correo ?? "—"}
-                    </div>
-                  </td>
-
-                  <td className="px-4 py-2.5">
-                    <div>{l.origen}</div>
-                    <div className="text-xs text-texto-suave">{l.porDonde}</div>
-                    {!l.autorizoAlRegistrarse && l.estado === "PENDIENTE" && (
-                      <div className="text-xs text-texto-suave">
-                        sin autorización
-                      </div>
-                    )}
-                  </td>
-
-                  <td className="px-4 py-2.5">
-                    {l.curso ? (
-                      <div className="font-medium">{l.curso}</div>
-                    ) : (
-                      <div className="text-aviso">Sin curso reconocido</div>
-                    )}
-                    {l.curso &&
-                      (l.sede ? (
-                        <div className="text-xs text-texto-suave">
-                          Sede: {l.sede}
-                        </div>
-                      ) : (
-                        <div className="text-xs text-aviso">
-                          Ninguna sede de este curso llega a donde vive
-                        </div>
-                      ))}
-                    {l.pidio && (
-                      <div className="text-xs text-texto-suave">{l.pidio}</div>
-                    )}
-                  </td>
-
-                  <td className="px-4 py-2.5">
-                    <span className={"font-medium " + TONO_ESTADO_LEAD[l.estado]}>
-                      {ETIQUETA_ESTADO_LEAD[l.estado]}
-                    </span>
-                    {l.motivo && (
-                      <div className="mt-0.5 text-xs text-texto-suave">
-                        {l.motivo}
-                      </div>
-                    )}
-                    {l.participanteId && (
-                      <Link
-                        href={"/admin/participantes/" + l.participanteId}
-                        className="mt-0.5 block text-xs font-medium text-marca hover:underline"
-                      >
-                        Ver en Gestión de leads
-                      </Link>
-                    )}
-                  </td>
-
-                  <td className="px-4 py-2.5 text-xs whitespace-nowrap text-texto-suave">
-                    {cuando(l.recibidoEn)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+            : "Esta base se llena cargando un archivo. Baje la plantilla, llenela con lo que tenga —basta el correo o el celular— y subala."
+        }
+      />
 
       {/* Pasar de página: con una base de miles, sin esto solo se
           ven las primeras 50 y el resto es invisible salvo buscando. */}
@@ -996,6 +938,8 @@ export default function PaginaBbddLeads() {
             Siguiente
           </button>
         </div>
+      )}
+      </>
       )}
 
       {arreglando && (
