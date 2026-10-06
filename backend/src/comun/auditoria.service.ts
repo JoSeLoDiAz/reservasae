@@ -138,18 +138,6 @@ export const ACCIONES = [
   'CUENTA_EDITADA',
   /// Se le generó una contraseña temporal a otra persona.
   'CLAVE_REINICIADA',
-  /**
-   * Se cargo una BBDD de leads desde un archivo.
-   *
-   * ES LA ESCRITURA MAS GRANDE QUE ADMITE EL SISTEMA: un archivo mete
-   * miles de personas de una vez, y lo que vale no es cada lead ---eso
-   * queda en el `carga` de cada uno--- sino EL ACTO: quién subió qué
-   * archivo, cuándo, a qué gremio, y cuántas entraron y cuántas no.
-   *
-   * Sin esta fila, dentro de un mes nadie puede responder de donde
-   * salieron tres mil personas a las que hay que llamar.
-   */
-  'LEADS_CARGADOS',
 ] as const;
 
 export type Accion = (typeof ACCIONES)[number];

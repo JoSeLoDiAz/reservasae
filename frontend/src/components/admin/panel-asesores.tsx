@@ -712,6 +712,9 @@ function DeInscripciones({
       titulo: "Gestionados en el periodo",
       ancho: "150px",
       numerica: true,
+      /// Para que salga también a quien guardó sus columnas antes de
+      /// que la tabla recordara cuáles existían.
+      nueva: true,
       valor: (f) => (accion ? "" : (f.gestionadosEnElPeriodo ?? "")),
       pinta: (f) => (
         <span className="tabular-nums">
@@ -848,10 +851,12 @@ function DeInscripciones({
           ///
           /// REGLA QUE SALE DE AQUÍ: reordenar columnas obliga a renombrar
           /// la tabla. Si no, el cambio solo lo ven los que nunca entraron.
-          /// v3 por la columna «Gestionados en el periodo» (6 oct
-          /// 2026): quien ya hubiera tocado sus columnas no la veria
-          /// nunca, porque lo guardado gana.
-          id="asesores-inscripciones-v3"
+          /// SE QUEDA EN v2: renombrarla por «Gestionados en el
+          /// periodo» le habria tirado a todo el mundo sus columnas y
+          /// sus anchos, y no hace falta. Lo que hace que una columna
+          /// nueva aparezca sola es `nueva: true` ---y, desde que la
+          /// tabla guarda `conocidas` (18 sep 2026), ni eso---.
+          id="asesores-inscripciones-v2"
           columnas={columnas}
           filas={filas}
           clave={(f) => f.asesorId ?? "sin-asesor"}

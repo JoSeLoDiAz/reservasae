@@ -386,7 +386,311 @@ bajaba la plantilla equivocada; con el arreglo no bajaba ninguna.
 > pinta como «No se pudo completar la operación»** — parecen fallos de la
 > aplicación y no lo son. Un segundo entre peticiones.
 
-## Estado actual (2 oct 2026 · v0.17.0-JD)
+## Estado actual (3 oct 2026 · el principal vive en la NUBE)
+
+> **`reservasae.com` se sirve desde Google Cloud desde el 3 oct 2026 a las 16:19
+> UTC** (11:19 de Bogotá). Bogotá y El Socorro se quedan como réplicas, en ese
+> orden de preferencia, y el PC Dell sale del esquema. Lo decidió Josse ese día:
+> *«opción 3 pero debe haber una manera que se replique en Bogotá y Socorro en
+> caso de que el server falle… cloud principal, luego Bogotá y por último
+> Socorro, y sacar a PC Dell del partido»*.
+>
+> **El corte fueron 31 segundos** —16:18:59 soltó Bogotá, 16:19:30 levantó la
+> nube— y **no se perdió un dato**: las tres sedes quedaron en la línea temporal
+> 18, el mismo LSN y las mismas filas (145 organizaciones, 334 fichas, 343
+> personas, 37 reservas). El procedimiento entero, con su marcha atrás, está en
+> [docs/operacion/migrar-a-la-nube.md](docs/operacion/migrar-a-la-nube.md).
+>
+> Tres respaldos: `~/reservasae-antes-de-la-nube-20261003.sql.gz` (3,2 MB, antes
+> de tocar nada), y los `~/rendicion-20261003-*.sql` de 13,6 MB que guardó
+> `rendirse.sh` en cada sede antes de reemplazar su volumen.
+
+### La máquina es COMPARTIDA, y eso manda sobre todo lo demás
+
+`instance-grupo-ae-col-2026` · `c3d-standard-16` (16 vCPU, 62 GB) · Ubuntu 26.04 ·
+`us-east4-b` · **sin IP pública**: solo sale, no entra.
+
+**Y no es nuestra sola: sirve DOS Moodle en producción.** `campusadecopria.com` y
+`campusgrupoadvanced.com`, los dos con su PHP-FPM en Docker, su `moodledata` en
+`/srv/<sitio>/` y sus bases en el **PostgreSQL 18 nativo** del puerto 5432. Josse
+lo dijo con esas palabras: *«no puedo tocar nada de lo que ya está montado»*.
+
+> **El LMS que este archivo lleva meses dando por pendiente YA EXISTE.** El
+> adaptador de Moodle sigue sin escribirse, pero la instalación de ADECOPRIA está
+> corriendo **en la misma máquina**, así que el adaptador puede hablarle por
+> `127.0.0.1` en vez de por internet.
+
+**Lo que NO se tocó, y por qué.** Hay cuatro discos conectados y crudos —2,5 TB
+sin formatear, sin montar y sin una línea en `/etc/fstab`—, y **mover
+`/var/lib/docker` a su disco exige parar Docker, o sea tumbar los dos Moodle**.
+Reservasae no los necesita: su base pesa 41 MB y el disco de arranque tiene 468 GB
+libres. Y como la base es un **volumen con nombre**, el día que ese disco se monte
+se la lleva consigo sin tocar el compose ni los guiones.
+
+| Disco | Lo que el plan decía | Lo que de verdad le toca |
+|---|---|---|
+| `var-lib-docker` 200 GB | no estaba en el plan | **la base del CRM**: es un volumen con nombre y esos viven en `/var/lib/docker/volumes/` |
+| `var-lib-postgresql` 300 GB | «base de datos del CRM» | **las dos bases de Moodle** — el PG 18 nativo guarda en `/var/lib/postgresql/18/main` |
+| `var-moodledata` 1,5 TB | archivos de estudiantes | correcto, pero hoy están en `/srv/<sitio>/moodledata` |
+| `var-lib-mysql` 500 GB | las tres bases de Moodle | **sin dueño: Moodle se instaló en PostgreSQL** |
+
+> **La base del CRM NO PUEDE ir en `/var/lib/postgresql`, y no es preferencia.**
+> `rendirse.sh:85-87` identifica el volumen leyendo `.Name` del montaje, y en un
+> bind mount **`.Name` viene vacío** → aborta. Ese guion es lo único que sabe
+> añadir una réplica y resincronizarla, y es lo que llama `autorendirse.sh`.
+> Montarla ahí rompería la replicación entera en esa sede.
+
+### Cómo entró la nube, y lo que hay que saber para repetirlo
+
+- **Tailscale es el ÚNICO camino de entrada**, porque la VM no tiene IP pública.
+  Todo lo que una sede le pregunta a otra va por `ssh sepadmin@<nombre>` y el
+  `curl` al 4600 se hace *dentro* de ese ssh (`comun.sh:46`), así que no hace
+  falta ningún puerto abierto. Se unió con una **auth key** (`--auth-key=file:`,
+  no por la línea de órdenes: en esa máquina hay más usuarios y un `ps` la
+  dejaría a la vista). Latencia Bogotá ↔ nube: **84 ms** por el relevo de
+  Washington, mejor que los 125-130 ms del de Miami por el que van las sedes.
+- **Tailscale NO tocó el DNS de la máquina**: usó split-DNS y `resolv.conf` sigue
+  apuntando al metadata de GCP. Era el riesgo de los dos Moodle y no se cumplió.
+- **El usuario es `sepadmin` y la ruta es `/opt/sep/reservasae`**, exactas. Están
+  escritas a fuego en 18 y 11 líneas de 8 guiones; se crea el usuario y se clona
+  ahí en vez de editar nueve ficheros.
+- **El repositorio llegó en un `git bundle` por el túnel IAP**, porque la VM no
+  tiene llave de GitHub. No hace falta que la tenga: `seguir-al-principal.sh` cae
+  a `git fetch` desde el principal por ssh, y se comprobó que funciona.
+- **No existe guion para AÑADIR una réplica.** El único `pg_basebackup` vive
+  dentro de `rendirse.sh`, así que la nube se enganchó con
+  `scripts/rendirse.sh server-bogota` **mientras Bogotá seguía sirviendo**. Antes
+  hay que correr `docker compose up -d db` una vez: el guion saca el volumen del
+  contenedor `db` y **se muere en la línea 87 si no existe**.
+
+### Las dos minas que habrían deshecho esto solo, y estaban armadas
+
+**1 · `recuperar-mando.sh`, que este archivo no documentaba.** Corre
+`FORZAR=si exec scripts/promover.sh` (línea 85), y `FORZAR=si` es exactamente lo
+que anula el guardia contra dos principales (`promover.sh:34-37`). Bogotá tenía
+`SEDE_PREFERIDA=server-bogota`, su `recuperar-mando.timer` **habilitado** y
+`ESPERA_RECUPERAR=60`: en cuanto hubiera quedado como réplica sana, **a los 60
+segundos se habría promovido sola**, dejando dos bases escribiendo. Y después el
+`autorendirse` de la nube habría visto a Bogotá en línea mayor y le habría borrado
+el volumen a la nube.
+
+**2 · `ESPERA_PROMOCION` son 60 segundos, no 300.** Los 300 son el valor por
+defecto del guion (`autopromover.sh:11`); el `.env` de las dos sedes lo baja a 60.
+**La ventana de un corte no se puede planear contra el número de este archivo.**
+
+> **Se desarmaron SIN `sudo`, y conviene saber cómo**: `sudo` pide contraseña en
+> las dos sedes, pero los dos guiones salen por una puerta de variable
+> —`[ "${AUTOPROMOVER:-}" = si ] || exit 0` y `[ -n "$PREFERIDA" ] || exit 0`— y el
+> `.env` es de `sepadmin`. Y `autorendirse.sh`, que **no tiene puerta de
+> variable**, era inofensivo por otra razón: recorre `OTRAS_SEDES`, y ninguna sede
+> la tiene puesta, así que usa la lista escrita a fuego de `comun.sh:104`, donde
+> `crm-nube` no está. No podía ver la nube ni rendirse sola.
+
+### Y una tercera que se evitó poniendo una línea
+
+`SEDE=${SEDE:-$(hostname)}` (`arrancar-tunel.sh:8`), y el `hostname` de la VM es
+`instance-grupo-ae-col-2026`, que **no** es el nombre con que las otras la llaman.
+Descuadrados, la sede se sonda **a sí misma**, se ve `SIRVE`, entra en
+`[ "$est" = SIRVE ] && bajar` (línea 34) y **no levanta su propio túnel** — mientras
+`promover.sh`, que no tiene `set -e`, imprime «✓ es ahora el principal» igual. Por
+eso el `.env` de la nube lleva `SEDE=crm-nube` y su nombre de Tailscale es el mismo.
+
+> La ranura de replicación, en cambio, **se nombra con `hostname` y no con `SEDE`**
+> (`ranura_de "$(hostname)"`), así que la de la nube es
+> `instance_grupo_ae_col_2026`. Es lo mismo que le pasa a Bogotá, cuya ranura se
+> llama `sep_dev`: funciona y es consistente consigo misma. No busque `crm-nube` en
+> `pg_replication_slots` porque no está.
+
+### Se ensayó la pila entera antes de cortar, y así se hace
+
+Lo pidió Josse: *«hay que probar como en una IP local o una dirección antes de
+mandar a producción»*. La aplicación **no se puede arrancar en una réplica**
+—`arrancar.sh` corre `prisma migrate deploy` antes de `node` y eso falla contra una
+base de solo lectura—, así que se montó la pila de pruebas del propio repositorio
+(`docker-compose.prueba.yml`, proyecto y volumen propios, puertos 5434 y 4601) con
+una **copia** de los datos y se miró por un túnel ssh a `localhost:4601`.
+
+- **Las mismas imágenes del commit que iba a producción.** El backend arrancó, las
+  80 migraciones corrieron, las cinco pantallas dieron 200 y los tres reportes al
+  SEP salieron con sus dos hojas.
+- **Y nada salió hacia afuera**: sin `SMTP_*` y con `ENTORNO=prueba` sin
+  `CORREO_REDIRIGIR_A` el sistema **se niega a mandar** —falla cerrado—, y
+  `RUI_WORKER=0`, `WEB_WORKER=0`, `CORREO_AUTOMATICO=no`. El propio log lo dice.
+- **`ADMIN_JWT_SECRET` y `LEADS_WEBHOOK_SECRET` propios**, para que una sesión del
+  ensayo no valga en producción y el orquestador de Mauricio no pueda escribir ahí.
+- Se ejercitó una **preinscripción pública de punta a punta**: 201, la constancia
+  de habeas data contra la versión 5 de la política con su hora e IP, el enlace de
+  completado marcado `delRegistro` y abriendo, y el acuse **encolado y sin salir**.
+- **El ensayo se tiró con `down -v`** en cuanto terminó, y con él su copia de datos
+  reales. Se comprobó que la réplica no se enteró.
+
+### El failover quedó cerrado el mismo día, y así está repartido
+
+A las 22:54 UTC del 3 oct, el ciclo completo:
+
+| | la nube (principal) | Bogotá y El Socorro (réplicas) |
+|---|---|---|
+| `arrancar-tunel` | ✓ | ✓ |
+| `asegurar-base` | ✓ | ✓ |
+| `seguir-al-principal` | ✓ | ✓ |
+| `autorendirse` | ✓ | ✓ |
+| `autopromover` | **no se instala**: es el principal | ✓, con `AUTOPROMOVER=si` |
+| `recuperar-mando` | **no se instala** | no |
+
+Y las tres sedes con `OTRAS_SEDES="crm-nube server-bogota server-socorro"` y la
+misma `PREFERENCIA_PROMOCION`, o sea el orden que pidió Josse: nube, Bogotá, El
+Socorro.
+
+- **Comprobado con los guiones de verdad, no leyendo**: `autopromover.sh` en las
+  dos sedes contesta «crm-nube atiende» y se abstiene, y `autorendirse.sh` en la
+  nube contesta «linea 18, nadie va por delante».
+- **`recuperar-mando` se deja FUERA a propósito.** Es el que corre
+  `FORZAR=si promover.sh`, y `FORZAR` anula el guardia contra dos principales —es
+  la mina que casi deshace esta migración—. Sin él la nube no recupera el mando
+  sola tras una caída: hay que devolvérselo con `promover.sh` a mano, y eso es
+  justo lo que se quiere de un atajo que se salta un candado.
+- **El PC Dell quedó dado de baja** el mismo día: sus seis temporizadores
+  `disabled`, su pila retirada y fuera de las listas de las tres. **Su volumen de
+  datos NO se borró** —queda una copia en la línea 17 por si alguna vez hace falta
+  mirarla— y sigue en la tailnet hasta que alguien lo saque a mano.
+
+> **Con dos réplicas el quórum no existe, y ahora es permanente.** Ante un
+> principal `INALCANZABLE` ninguna promueve: hace falta una tercera opinión y ya no
+> hay tercera máquina. El failover automático solo actúa con una `CAIDA`
+> concluyente —llegar por ssh y ver la aplicación muerta—. Si algún día se quiere
+> recuperar esa garantía, hace falta una tercera sede; la más barata sería una
+> segunda VM pequeña en otra zona de GCP.
+
+### Lo que queda abierto de verdad
+
+- **La tailnet se quedó como estaba, y fue la decisión correcta.** Josse creó la
+  de `grupo-ae.com.co` el 3 oct, vio lo que costaba mover los tres servidores y
+  **lo dio la vuelta**: dejó las máquinas donde están e invitó a
+  `proyectos@grupo-ae.com.co` a la tailnet existente, como Admin. Con eso las IP
+  `100.x` **no cambian**, así que desaparece la mina —`PG_BIND` rancia y los dos
+  `primary_conninfo` con la IP escrita a fuego por `pg_basebackup -R`— y no hubo
+  ni un segundo sin replicación. Queda en
+  [docs/operacion/tailnet-de-grupo-ae.md](docs/operacion/tailnet-de-grupo-ae.md),
+  con el procedimiento conservado por si algún día se retoma.
+- **Pero el Owner de esa red privada es una cuenta PERSONAL**,
+  `josediazd40z@gmail.com`. `proyectos@` entró como Admin, que no es lo mismo: si
+  esa cuenta se pierde, la tailnet donde viven las bases de producción se va con
+  ella. Tailscale deja transferir la propiedad; es el paso que falta.
+- **Y la caducidad de llave de nodo pasa a importar de verdad**, porque el motivo
+  para posponerla era la tailnet nueva y ya no existe. Sigue armada para el **10
+  feb 2027** en las tres: al caducar, el nodo sale de la red, **la replicación y
+  las sondas se cortan y el sitio sigue sirviendo**, así que nadie se entera. Son
+  tres clics en Machines → Disable key expiry.
+- **Los cuatro discos de 2,5 TB siguen crudos**, y es deliberado: montarlos exige
+  parar Docker y tumbar los dos Moodle. Reservasae no los necesita.
+- **`prueba.reservasae.com` se queda en Bogotá** con su propio túnel. No gana nada
+  en disponibilidad y nada de esto lo tocó.
+- **Desplegar ya no es `ssh sep-vm`**: es `ssh josed@crm-nube` y desde allí
+  `desplegar.sh`. Las réplicas se ponen al día solas con `seguir-al-principal`.
+
+## De antes (2 oct 2026 · v0.19.0-JD)
+
+> **v0.19.0-JD está en PRODUCCIÓN** (2 oct 2026, commit `9abe344`, etiqueta
+> `v0.19.0`), y encima de ella **los NIT pegados ya están unidos**. Ninguna de las
+> dos cosas trae migración, schema ni variables nuevas. Dos copias previas:
+> `~/reservasae-antes-de-v0.19.0-20261003-0049.sql.gz` para el despliegue y
+> `~/reservasae-antes-de-unir-nit-20261002.sql.gz` para el arreglo de datos.
+>
+> Antes de v0.18.0 producción tenía 131 organizaciones; hoy son **142**, y el
+> camino no es el que parece: 131 → 152 por el trabajo del día, y 152 → 142 al
+> unir las diez que el dígito pegado había partido en dos. Las **325 fichas** y
+> las **334 personas** no se movieron en ninguno de los dos pasos.
+>
+> **v0.18.0-JD** (`26bfe5a`, copia `…-v0.18.0-20261002-1450.sql.gz`) fue la
+> entrega de forma de Andrés en sus dos mitades, `forma-arregla` y encima
+> `forma-apariencia`. Con ella **el capítulo del diseño queda cerrado**, que es
+> justo lo que dice el bloque del 24 sep: de aquí en adelante solo entra función.
+
+### `crear()` dejó sin asesor a dos de sus tres llamadores (2 oct 2026)
+
+El arreglo de Andrés a la séptima de Josse era correcto —`crear()` dejó de deducir
+el asesor de `admin.id` y pasó a recibirlo, cerrando la tercera puerta de la regla
+de los roles— pero el parámetro nuevo nació **con valor por defecto `false`** y de
+los TRES llamadores solo se actualizó uno, el del panel.
+
+Los otros dos son justo los que más fichas crean: **convertir un lead** —el gestor
+lo convertía y la ficha se le iba al montón común, de donde se la podía llevar
+otro— y **la carga masiva**, donde una lista pegada entera nacía sin dueño.
+
+- **No lo cazó nada, y eso es lo que hay que recordar.** `tsc` no se queja porque
+  el parámetro tiene valor por defecto; las **2.446 pruebas pasaron en verde**; y
+  el spec de la tercera puerta leía `crear()` y la llamada del panel, de los otros
+  dos no decía nada. Es la forma exacta del `import 'dotenv/config'` del PR #2:
+  un cambio correcto y bien diagnosticado con un defecto dentro que solo se ve
+  **recorriendo la superficie**.
+- `quien-crea-se-queda-la-ficha.spec.ts` la recorre, con el criterio de
+  `escribir-pide-escribir` y `fuera-del-ambito`: busca todo `crm.crear(` y
+  `this.crear(` del árbol y exige que cada llamada diga explícitamente si quien
+  crea se queda la ficha. **Quita los comentarios antes de buscar**, y no es un
+  detalle: este proyecto explica sus decisiones en docblocks, así que `crm.crear()`
+  aparece citado en prosa más veces que llamado —al escribirlo acusó dos docblocks
+  de `preinscripcion.service.ts` que no llaman a nada—. Y lleva un aserto de que
+  **hay al menos tres llamadas que mirar**: sin él, renombrar `crear` dejaría el
+  spec en verde sin mirar nada.
+- `rolesPorConvenio` va **obligatorio** en `confirmarCarga` y en `convertir`, así
+  que el compilador caza al cuarto llamador que se olvide.
+
+### Los NIT que el dígito pegado había partido en dos (2 oct 2026)
+
+Diez organizaciones estaban duplicadas en producción —`800183767` y
+`8001837677`— y dieciséis más llevaban el dígito pegado sin tener gemela todavía.
+**La causa estaba en el código y ya está arreglada**: `normalizarNit` se tragaba un
+DV pegado en vez de partirlo, así que la misma organización escrita con y sin su
+dígito eran dos filas distintas, y las dos salían al F7 del SENA.
+
+El arreglo de los datos se hizo con SQL contra la base, no con el guion de Andrés,
+y queda apuntado **cómo**, porque es el procedimiento para los que vengan después:
+
+- **Una «mala» no es un NIT de diez dígitos**: es uno cuyos nueve primeros,
+  pasados por el algoritmo de la DIAN, dan **exactamente** el décimo. Esa
+  condición es la que separa un dígito pegado de un número mal tecleado, y es por
+  eso que **dos filas se quedaron fuera a propósito**: en `9007104515` los nueve
+  primeros dan DV 1, el último dígito es 5 y el guardado es 2 —tres números
+  distintos—, así que nadie puede decir cuál era el NIT. Corregirlas es adivinar,
+  y adivinar es una decisión, no un arreglo.
+- **Una reserva chocaba, y no se movió: se sumó.** `Reserva` tiene
+  `@@unique([empresaId, ofertaId])` y Fontán había reservado por los dos lados
+  contra la misma oferta —1 cupo en la buena y 3 en la pegada—. Sumarlas da la
+  verdad (4) y **deja el contador de la oferta donde estaba**, que es lo único que
+  no se puede descuadrar: es un `UPDATE` condicional atómico con sus `CHECK`
+  detrás. La suma deja su huella en `movimientos_reserva` como `AJUSTE_ADMIN`.
+- **El DV no se copia de la fila pegada a la buena.** Es tentador —rellenar lo
+  vacío— y manda un dígito falso al SENA: el DV no es una propiedad de la
+  organización como la dirección, **es una función del NIT**, y las dos filas
+  tienen NIT distinto. `DV("8001837677")` es 1 y `DV("800183767")` es 7.
+- **Tres guardas dentro de la misma transacción**, y las tres se probaron por
+  mutación antes de aplicar: que no quede ni un NIT con el dígito pegado (contra
+  el estado sin arreglar salta nombrando las 26 que había), que **las 106
+  ofertas** —no solo las 8 que se tocan— sigan con su contador cuadrado, y que no
+  se haya perdido ninguna ficha ni ninguna persona. Un informe que imprime
+  «DESCUADRADO» y hace `COMMIT` igual es el control en pie y vacío de efecto.
+- **El fichero que estaba en el servidor desde el 30 sep era el ENSAYO**, con
+  `ROLLBACK` al pie, y pesaba lo mismo que el supuesto definitivo. Correrlo
+  «de verdad» imprimía todo bien y no aplicaba nada. Si hay dos versiones de un
+  guion destructivo, que se distingan por algo más que el nombre.
+- **El resultado se comprobó en la réplica, no solo en el principal**: El Socorro
+  quedó en el LSN idéntico y contando las mismas 142 organizaciones, 325 fichas y
+  37 reservas, con las dos mal tecleadas intactas.
+
+> **`instituciones.digitoDeclarado` NO hay que limpiarlo**, aunque estuviera
+> apuntado como pendiente. La columna existe para avisar de una discrepancia, y la
+> lectura la enmascara cuando coincide con el calculado —lo dice su propio
+> docblock—; medido además en producción, **ninguna de las 295 filas tiene un
+> declarado que no cuadre**. Un `UPDATE` ahí sería trabajo sin efecto.
+
+> **Y el guion de Andrés —`db:nit-pegado`— ya es seguro, no es el que estaba
+> mal.** Las tres cosas que se le devolvieron están arregladas: el DV fuera de
+> `RELLENABLES` con el porqué escrito, el choque de `(empresaId, ofertaId)`
+> detectado, y `ts-node` en vez de `tsx`. Lo que hace con una pareja que choca es
+> **saltarla y decirlo**, que es lo conservador; el SQL se usó porque además la
+> une. Hoy el guion no encuentra nada, y para los casos que vengan sirve.
+
+## De antes (2 oct 2026 · v0.17.0-JD)
 
 > **v0.17.0-JD está en PRODUCCIÓN** (2 oct 2026, commit `0ba5ad8`, etiqueta
 > `v0.17.0`). Sin migraciones, sin schema y sin variables nuevas. Copia previa en

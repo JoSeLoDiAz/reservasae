@@ -276,7 +276,13 @@ export function completarGrupo(f: Cruda): FilaDeGrupo {
     ...columnas,
     totalLeads,
     totalInscritos,
-    conversion: totalLeads > 0 ? totalInscritos / totalLeads : null,
+    /// Con ventana son dos poblaciones distintas y puede pasarse del
+    /// 100 %: ahí sale nulo. El porqué largo está en su gemela,
+    /// `resumen-por-accion.ts`.
+    conversion:
+      totalLeads > 0 && totalInscritos <= totalLeads
+        ? totalInscritos / totalLeads
+        : null,
     cuposDisponibles,
     estado: cuposDisponibles <= 0 ? 'CERRADO' : 'ABIERTO',
   };

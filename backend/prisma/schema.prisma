@@ -1223,6 +1223,10 @@ model Participante {
   /// Lo creo su migracion y no estaba aqui: sin declararlo,
   /// la siguiente migracion lo borra sola.
   @@index([convenioId, origenLead])
+  /// Lo mismo, y por tercera vez: los crea
+  /// `20261005140000_por_que_enlace_entro` y faltaban aqui.
+  @@index([convenioId, formularioDeEntrada])
+  @@index([convenioId, enlaceDeEntrada])
   @@map("participantes")
 }
 

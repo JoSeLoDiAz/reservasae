@@ -6,12 +6,16 @@ import {
   getStorageToken,
   ThrottlerGuard,
   type ThrottlerModuleOptions,
+  type ThrottlerRequest,
   type ThrottlerStorage,
 } from '@nestjs/throttler';
 import type { Request } from 'express';
 
-import { COOKIE_SESION } from '../admin/admin.guard';
+import { COOKIE_SESION, PUBLICA } from '../admin/admin.guard';
 import { ipReal } from './ip-real';
+
+/// La marca que deja `handleRequest` para `getTracker`.
+const ES_PUBLICA = Symbol('ruta publica');
 
 /**
  * Limita por SESIÓN cuando hay sesión, y por IP cuando no.
@@ -53,11 +57,41 @@ export class ThrottlerIpGuard extends ThrottlerGuard {
     super(opciones, almacen, reflector);
   }
 
+  /**
+   * En una ruta `@Publica()` manda la IP, aunque haya cookie.
+   *
+   * El cubo de `POST /admin/sesion` es la ÚNICA defensa contra probar
+   * claves de administrador: `validarCredenciales` no lleva bloqueo de
+   * cuenta ni contador de fallos, y por eso lleva `@Throttle(8/min)`.
+   * Si ahí contara por sesión, el cubo lo elegiría quien llama: la
+   * misma petición cuenta en `ip:` si va pelada y en `sesion:` si lleva
+   * una cookie válida ---la propia, una de consulta, una filtrada---,
+   * así que desde una sola dirección se prueban 8 claves por cubo y por
+   * minuto, tantos como sesiones se tengan. Con la IP vuelve a ser lo
+   * que `docker/nginx/default.conf` dice que es.
+   *
+   * Va aquí y no en `getTracker` porque aquel solo recibe `req`: el
+   * contexto, que es lo que sabe qué manejador se va a ejecutar, solo
+   * llega a `handleRequest`.
+   */
+  protected handleRequest(peticion: ThrottlerRequest): Promise<boolean> {
+    const publica = this.reflector.getAllAndOverride<boolean>(PUBLICA, [
+      peticion.context.getHandler(),
+      peticion.context.getClass(),
+    ]);
+    if (publica) {
+      const { req } = this.getRequestResponse(peticion.context);
+      (req as Record<symbol, boolean>)[ES_PUBLICA] = true;
+    }
+    return super.handleRequest(peticion);
+  }
+
   protected getTracker(req: Request): Promise<string> {
+    const publica = (req as unknown as Record<symbol, boolean>)[ES_PUBLICA];
     const token = (req.cookies as Record<string, string> | undefined)?.[
       COOKIE_SESION
     ];
-    if (token) {
+    if (!publica && token) {
       try {
         const sujeto = this.jwt.verify<{ sub: string }>(token).sub;
         if (sujeto) return Promise.resolve(`sesion:${sujeto}`);

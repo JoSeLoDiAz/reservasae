@@ -50,6 +50,7 @@ import {
 } from './organizacion-de-carga';
 import { lugarDeUbicacion } from './plantilla-de-carga';
 import { elegirOferta, type OfertaParaCarga } from './accion-de-la-fila';
+import { acreditarPorQuienToco } from './acreditar-gestion';
 import {
   saleDelCupo,
   exigeCupo,
@@ -982,34 +983,49 @@ export class CrmService {
       ...(hasta ? { lt: hasta } : {}),
     };
 
-    /// Solo el id del asesor: son fichas, no filas de pantalla.
-    const fichas = await this.prisma.participante.findMany({
-      where: {
-        convenioId: { in: ambito.convenios },
-        OR: [
-          /// LA NOTA, SI LA ESCRIBIÓ UNA PERSONA. Las del sistema van
-          /// con `autorId` nulo ---Lucid deja una por cada
-          /// conversación que pega--- y contarlas diría que la asesora
-          /// trabajó una ficha que no tocó. Es la misma regla que ya
-          /// aplica Lucid al no marcarlas como intento de contacto.
-          { notas: { some: { creadoEn: dentro, autorId: { not: null } } } },
-          { datosTocadosPorAsesorEn: dentro },
-          /// Y EL MOVIMIENTO, SI LO HIZO UNA PERSONA. El que escribe
-          /// el LMS al reportar avance no es gestión de nadie:
-          /// contándolo, el día que entra un archivo del aula saldrían
-          /// todos los asesores trabajando.
-          { movimientos: { some: { creadoEn: dentro, adminId: { not: null } } } },
-        ],
-      },
-      select: { asesorId: true },
-    });
+    const suyas = { convenioId: { in: ambito.convenios } };
 
-    const por = new Map<string, number>();
-    for (const f of fichas) {
-      const llave = f.asesorId ?? 'SIN_ASESOR';
-      por.set(llave, (por.get(llave) ?? 0) + 1);
-    }
-    return por;
+    /**
+     * SE ACREDITA A QUIEN TOCÓ, NO A QUIEN ES HOY EL DUEÑO.
+     *
+     * Agrupar por el `asesorId` de la ficha contestaba otra pregunta:
+     * «a cuántas de MIS fichas de hoy las tocó alguien». Y eso lo
+     * infla justo quien no trabajó: `asignarAsesorEnLote` escribe, en
+     * la MISMA transacción, un movimiento con `adminId` y el
+     * `asesorId` nuevo, así que repartir 83 leads le ponía 83
+     * «gestionados» a quien los recibe sin haber abierto ninguno. Y
+     * una nota que un líder escribe sobre la ficha de otro se le
+     * acreditaba al otro.
+     *
+     * Es la misma inflación que el docblock de arriba dice evitar con
+     * el LMS, colándose por la puerta de al lado.
+     */
+    const [notas, movimientos, datos] = await Promise.all([
+      /// LA NOTA, SI LA ESCRIBIÓ UNA PERSONA. Las del sistema van con
+      /// `autorId` nulo ---Lucid deja una por cada conversación que
+      /// pega--- y contarlas diría que la asesora trabajó una ficha
+      /// que no tocó. Es la misma regla que ya aplica Lucid al no
+      /// marcarlas como intento de contacto.
+      this.prisma.notaDeGestion.findMany({
+        where: { creadoEn: dentro, autorId: { not: null }, participante: suyas },
+        select: { autorId: true, participanteId: true },
+      }),
+      /// Y EL MOVIMIENTO, SI LO HIZO UNA PERSONA. El que escribe el
+      /// LMS al reportar avance no es gestión de nadie.
+      this.prisma.movimientoParticipante.findMany({
+        where: { creadoEn: dentro, adminId: { not: null }, participante: suyas },
+        select: { adminId: true, participanteId: true },
+      }),
+      /// Esta es la única que no dice QUIÉN: la columna solo guarda
+      /// cuándo. Se le acredita al asesor de la ficha, que es lo que
+      /// su propio nombre afirma.
+      this.prisma.participante.findMany({
+        where: { ...suyas, datosTocadosPorAsesorEn: dentro },
+        select: { id: true, asesorId: true },
+      }),
+    ]);
+
+    return acreditarPorQuienToco(notas, movimientos, datos);
   }
 
   /**
@@ -1700,9 +1716,18 @@ export class CrmService {
             /// pintarlas. Solo las AMPARADAS por una autorizacion
             /// viva: una revocada no se enseña como si contara.
             caracterizaciones: {
-              where: { autorizacion: { revocadaEn: null } },
+              where: {
+                autorizacion: { revocadaEn: null },
+                /// Y DENTRO DEL AMBITO, como las autorizaciones de
+                /// abajo: son datos sensibles y mandarlas todas las
+                /// enseñaria en la red. El recorte al gremio de ESTA
+                /// ficha va despues del findUnique, porque aqui dentro
+                /// no se puede mirar una columna de la fila que se esta
+                /// cargando.
+                convenioId: { in: ambito },
+              },
               orderBy: { creadoEn: 'asc' },
-              select: { caracterizacionSepId: true },
+              select: { caracterizacionSepId: true, convenioId: true },
             },
             /// Los otros cursos de la misma persona, SOLO los
             /// del ambito.
@@ -1840,6 +1865,22 @@ export class CrmService {
       ...p,
       persona: {
         ...p.persona,
+        /**
+         * SOLO LAS MARCAS DE ESTE GREMIO.
+         *
+         * La ficha las pinta premarcadas y al guardar se reescriben
+         * enteras ---`deleteMany` + `createMany` por el convenio de la
+         * ficha---, así que enseñar aquí una que la persona declaró en
+         * el OTRO gremio no es solo verla: es que basta pulsar Guardar
+         * sin tocar nada para que quede creada también aquí, bajo la
+         * autorización de aquí, y de ahí al F7 del SENA. Son datos
+         * sensibles y es justo lo que la migración
+         * `caracterizacion_por_gremio` vino a separar; la escritura y
+         * el reporte ya acotaban, esta lectura no.
+         */
+        caracterizaciones: p.persona.caracterizaciones.filter(
+          (c) => c.convenioId === p.convenioId,
+        ),
         documento: `${siglaDocumento(p.persona.tipoDocumentoSepId)} ${p.persona.numeroDocumento}`,
       },
       faltantes: await this.faltantesParaMatricular(p.id),
