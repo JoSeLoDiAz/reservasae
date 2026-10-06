@@ -7105,6 +7105,24 @@ export class CrmService {
      * y son justo las que hay que mirar para saber cuánto falta por
      * saberse.
      */
+    /**
+     * LOS QUE TIENEN EL CORREO MALO.
+     *
+     * «No hay un criterio para ver si el correo esta bien o no»
+     * (cliente, 5 oct 2026). Esto es ese criterio: a esa direccion no
+     * se pudo la ultima vez que se intento.
+     *
+     * No es el rebote de verdad ---ese llega minutos despues de que
+     * el servidor acepto el mensaje y pide el webhook de SendGrid---
+     * sino lo que se supo EN EL ENVIO.
+     */
+    if (f.correo === 'FALLA') {
+      y.push({ persona: { correoFallaEn: { not: null } } });
+    } else if (f.correo === 'SIN_CORREO') {
+      /// Y el otro lado de la misma pregunta: a quien no se le puede
+      /// escribir porque no dejo direccion.
+      y.push({ persona: { correo: null } });
+    }
     if (f.enlaceDeEntrada === 'SIN_DATO') y.push({ enlaceDeEntrada: null });
     else if (f.enlaceDeEntrada) {
       y.push({ enlaceDeEntrada: f.enlaceDeEntrada });
@@ -7273,6 +7291,10 @@ export class CrmService {
       primerApellido: string;
       segundoApellido: string | null;
       correo: string | null;
+      /// Si su correo no salio la ultima vez. Opcionales porque el
+      /// `select` de alguna consulta vieja puede no pedirlos.
+      correoFallaEn?: Date | null;
+      correoFalloMotivo?: string | null;
       celular: string | null;
       fechaNacimiento: Date | null;
       generoSepId: number | null;
@@ -7395,6 +7417,13 @@ export class CrmService {
         .filter(Boolean)
         .join(' '),
       correo: p.persona.correo,
+      /// SI ESE CORREO NO SALIO la ultima vez que se intento, y por
+      /// que. «No hay un criterio para ver si el correo esta bien o
+      /// no» (cliente, 5 oct 2026): lo habia, pero solo en el
+      /// registro del servidor, que es donde no mira quien trabaja
+      /// la ficha.
+      correoFallaEn: p.persona.correoFallaEn?.toISOString() ?? null,
+      correoFalloMotivo: p.persona.correoFalloMotivo ?? null,
       celular: p.persona.celular,
       convenio: p.convenio.sigla ?? p.convenio.slug,
       accion: p.accionFormacion

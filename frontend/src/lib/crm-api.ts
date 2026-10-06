@@ -412,6 +412,11 @@ export type FilaParticipante = {
   documento: string;
   nombre: string;
   correo: string | null;
+  /// CUÁNDO NO SALIÓ EL ÚLTIMO CORREO a esa dirección, y por qué.
+  /// Nulo = nunca ha fallado, o no se sabe. Llegó el 6 oct 2026;
+  /// un backend sin reiniciar no los manda.
+  correoFallaEn?: string | null;
+  correoFalloMotivo?: string | null;
   celular: string | null;
   convenio: string;
   accion: string | null;
@@ -1302,6 +1307,14 @@ export type Filtros = {
    */
   enlaceDeEntrada?: string;
   formularioDeEntrada?: string;
+  /**
+   * A QUIÉN NO SE LE PUEDE ESCRIBIR.
+   *
+   * `FALLA` son las direcciones a las que no se pudo la última
+   * vez que se intentó; `SIN_CORREO`, las que no dejaron ninguna.
+   * Son la misma pregunta por dos caminos.
+   */
+  correo?: "FALLA" | "SIN_CORREO";
   buscar?: string;
   pagina?: number;
   /** Cuántas filas por carga; el servidor lo topa. */

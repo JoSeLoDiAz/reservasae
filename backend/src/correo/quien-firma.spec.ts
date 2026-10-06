@@ -106,7 +106,7 @@ describe('el nombre llega de verdad a la cabecera', () => {
   });
 
   const mandar = (deParte?: string) =>
-    new CorreoService().enviar({
+    new CorreoService(null as never).enviar({
       deParte,
       para: 'alguien@ejemplo.test',
       asunto: 'hola',

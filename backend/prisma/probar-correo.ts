@@ -29,7 +29,9 @@ async function main() {
     process.exit(1);
   }
 
-  const correo = new CorreoService();
+  /// Sin base: este guion solo saluda al servidor SMTP y manda uno
+  /// de prueba. No hay ficha a la que apuntarle nada.
+  const correo = new CorreoService(null as never);
 
   console.log('1 · ¿el servidor acepta la cuenta?\n');
   const prueba = await correo.probar();

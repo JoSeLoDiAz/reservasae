@@ -43,7 +43,7 @@ describe('el consejo cambia con el servidor', () => {
   });
 
   const servicio = () =>
-    new CorreoService();
+    new CorreoService(null as never);
 
   it('con SendGrid dice lo de la API key, no lo de Google', () => {
     process.env.SMTP_SERVIDOR = 'smtp.sendgrid.net';
@@ -101,7 +101,7 @@ describe('el remitente que SendGrid no deja usar', () => {
   it('dice qué dirección es y dónde se verifica', () => {
     process.env.SMTP_SERVIDOR = 'smtp.sendgrid.net';
     process.env.SMTP_DESDE = 'proyectosena@grupo-ae.com.co';
-    const servicio = new CorreoService();
+    const servicio = new CorreoService(null as never);
 
     const dice = explicar(
       servicio,
