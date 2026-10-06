@@ -51,3 +51,26 @@ export class NotaDeLucidDto {
   @IsObject()
   carga?: Record<string, unknown>;
 }
+
+/**
+ * A quién se pega una conversación que no se pegó sola.
+ *
+ * Los dos opcionales, y la validación de que venga UNO de los dos va
+ * en el servicio: con `@ValidateIf` cruzado, el mensaje que sale no
+ * dice qué falta, y quien lo lee es una persona en una pantalla.
+ */
+export class PegarConversacionDto {
+  @IsOptional()
+  @Transform(recortar)
+  @IsString()
+  @MinLength(1)
+  @MaxLength(40)
+  participanteId?: string;
+
+  @IsOptional()
+  @Transform(recortar)
+  @IsString()
+  @MinLength(1)
+  @MaxLength(40)
+  leadId?: string;
+}
