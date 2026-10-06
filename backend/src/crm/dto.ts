@@ -580,6 +580,12 @@ export class FiltrosParticipantesDto {
    * las que no se les inventó de dónde vinieron. Es un filtro de
    * verdad, no la ausencia de filtro.
    */
+  /// Si a esa persona se le puede escribir: `FALLA` son las
+  /// direcciones a las que no se pudo la ultima vez, y `SIN_CORREO`
+  /// las que no dejaron ninguna. Las dos son la misma pregunta ---«a
+  /// quien no le llega»--- por dos caminos.
+  @IsOptional() @IsIn(['FALLA', 'SIN_CORREO']) correo?: 'FALLA' | 'SIN_CORREO';
+
   @IsOptional() @IsString() @MaxLength(120) enlaceDeEntrada?: string;
   @IsOptional() @IsString() @MaxLength(120) formularioDeEntrada?: string;
 

@@ -1,70 +1,85 @@
-# `jose/dv-tecleado` · lo que queda tras la 0.21.0
+# `jose/dv-tecleado` · dos commits, y uno es para antes del 13
 
-Josse: gracias por las dos de esta mañana, y por volver a meter BBDD Leads y la
-bandeja sin que hiciera falta pedírtelo. Tu `dev` está fundida aquí y verde.
+Josse: aceptadas las dos peticiones de proceso, y van arriba porque son las que
+cambian cómo trabajamos.
+
+**La rama queda CONGELADA desde este documento.** No empujo nada más hasta que
+digas. Si hace falta algo urgente, lo digo antes de subirlo.
+
+**Y el aviso de migraciones va en la tabla de aquí abajo, siempre**, en la misma
+línea que el recuento. Esta ronda trae una: es lo que decide si el despliegue
+necesita copia previa.
 
 | | |
 |---|---|
-| Rama | `jose/dv-tecleado`, subida |
-| Desplegado | `v0.21.0-JD` (6 oct, 9:42) |
-| Sin desplegar | **6 commits**: 2 de contenido, y el resto merges, un revert y este documento |
+| Rama | `jose/dv-tecleado`, subida y **congelada** |
+| Desplegado | `v0.22.0-JD` (6 oct, 11:10) |
+| Sin desplegar | **4 commits**: 2 de contenido, un merge y este documento |
+| **Migraciones** | **1** — `20261006120000_cuando_el_correo_no_sale`. **Pide copia previa.** |
 | De lo tuyo que falte traer | **nada**: `origin/dev` fundida |
-| Línea base | `tsc` limpio en backend y frontend · **267 suites, 2.834 pruebas**, verde |
-| Migraciones nuevas | **ninguna** |
+| Línea base | `tsc` limpio en backend y frontend · **269 suites, 2.847 pruebas**, verde |
 
 ---
 
-## 0 · Los dos que quedan
+## 0 · Lo que entra
 
-### a) El cargue de BBDD Leads se duplicaba con Gestión de leads
+### a) El 13 de octubre, y por eso va primero
 
-`dae9dd1`. **Esto es un defecto de lo que acabas de desplegar**, así que va primero.
+`968e738` · **«No entró» y «no se sabe» ya no se dicen igual en el aula.**
 
-El cruce del cargue mira la MESA ---`leads_entrantes`--- y no las fichas. Y las dos
-poblaciones casi no se solapan: quien llega por el formulario público nace FICHA y no
-deja fila en la mesa. En la base de pruebas, **de 1.480 fichas ninguna tiene lead en la
-mesa**.
+Tu aviso era bueno y el defecto era real: el tablero decía las dos cosas con la misma
+palabra ---«Sin ingreso»--- y pintaba la segunda del rojo de PERDIDO. El día que
+arranquen los cuatro grupos de AF1, sus 116 personas salían señaladas por algo que no
+han hecho.
 
-Así que subir una base con gente que ya está en Gestión de leads ---incluso ya
-inscrita--- las da por NUEVAS y crea un lead de cada una: dos registros de la misma
-persona y dos asesoras llamándola, que es justo el duplicado que la mesa existe para no
-tener. Y el informe lo dice al revés ---«todas nuevas»---, que es lo que uno espera ver
-en un cargue, así que nadie lo buscaría.
+El aula alimenta las dos cosas que esa pantalla mide: las actividades y los accesos. Si
+de una acción no hay NI UNA actividad publicada NI UN acceso de nadie, lo que falta son
+los datos. Ahora se dice así, en gris y con su propia tarjeta.
 
-Lo encontró el cliente preguntando, no una prueba: «¿pero con Gestión de leads?».
+**Se apaga solo** en cuanto llegue la primera actividad o el primer acceso: nadie tiene
+que acordarse de quitarlo.
 
-Ahora, antes de crear, se mira también la ficha: documento, correo o celular, los
-mismos tres del cruce de la mesa y en el mismo orden. La fila sale como «Ya está en
-Gestión de leads», con por dónde se reconoció y **en qué etapa**.
+**Sin migración**, y **la regla vive en su propio fichero** con prueba que la ejercita
+---tu corrección de `acreditar-gestion.ts` aplicada antes de que me lo tuvieras que
+decir dos veces---.
 
-**No se le toca nada a la ficha.** Misma frontera que ya pone el lead convertido:
-rellenar campos de una ficha desde un archivo cambia lo que se le reportó al SENA sin
-pasar por la ficha.
+### b) Cuando un correo no sale, queda constancia
 
-Lo que mirarías tú: **acotado al convenio**, con prueba sobre el `where` que sale hacia
-Prisma; y el doble del arnés contesta al `where` como la base, porque uno que devolviera
-todas las fichas daría por bueno un cruce que no filtra.
+`5fb727b`. El último de la lista del 5 de octubre, y el que **trae la migración**.
 
-### b) Por dónde entró cada persona, en columnas separadas
+Lo tuyo de los 88 acuses quemados es exactamente lo que esto registra: 67 del domingo y
+21 del lunes agotaron sus cinco intentos y no hubo constancia en ninguna ficha.
 
-`7b67734`. Cierra «si o sí el sistema debe decirme de qué link de formulario entró»
-(cliente, 5 oct) y lo que dijo hoy viendo la 0.20.0 ya desplegada: «¿se debe separar,
-ejemplo el Eduteka, para otra columna, porque no tengo opción de saber qué formulario?».
+**La migración**: `personas.correoFallaEn` y `personas.correoFalloMotivo`, nulables,
+**sin relleno** ---no se les inventa un estado a las direcciones de antes--- más un
+índice, declarado también en el schema y sin `WHERE` porque Prisma no sabe declarar
+índices parciales. Rollback: soltar las dos columnas y el índice.
 
-Tenía razón en la lectura: «Orgánico / eduteka» encima de «Formulario: Preinscripción
-pública» hace pensar que *eduteka* es el formulario. No lo es ---es la campaña--- y eran
-tres preguntas apretadas en dos columnas. Ahora son cuatro columnas pegadas: canal,
-campaña, formulario y **enlace de entrada**, que es la que faltaba.
+Lo que mirarías tú: no tumba el envío; **con el correo desviado no se apunta nada**
+---lo cazó una prueba: la primera versión marcaba `proyectosena@grupo-ae.com.co` como
+dirección mala--- y la marca se borra sola cuando un correo a esa dirección vuelve a
+salir.
 
-Con filtro en el servidor y en la dirección: `?enlace=` y `?formulario=` se pegan en un
-chat y llevan a la lista, como ya hacen `?asesor=` y `?curso=`. Y `SIN_DATO` pide las
-que no lo tienen, que es como se mide cuánto falta por saberse.
+**No es el rebote de verdad**, y conviene que el cliente lo oiga de los dos: eso pide el
+webhook de SendGrid y el grueso es tuyo ---cuenta, dominio verificado y URL---. Son unas
+20 horas mías cuando lo tengas.
 
-Endpoint nuevo: `GET /admin/participantes/por-donde-entraron`.
+---
 
-**La tabla se queda en `participantes-v2`.** La renombré por añadir la columna y tu
-revisión de la mañana me corrigió lo mismo en la de asesores: para eso está
-`nueva: true`. Deshecho antes de subirlo.
+## 0.bis · Respuesta a lo que me contaste
+
+- **Producción limpia**: 0 de 319 sin el movimiento que las fecha. Entonces no hay nada
+  que mover a mano y las cifras de octubre están completas. Gracias por correr la
+  consulta literal.
+- **Tus cuatro correcciones, todas buenas.** La de «Gestionados en el periodo» era un
+  defecto de verdad: acreditar al dueño actual habría sumado 83 a quien recibe un
+  reparto. Tu `acreditar-gestion.ts` acredita a quien tocó, cuenta fichas distintas y
+  deja claro por qué `datos` es la excepción. No la toco.
+- **Lo de los índices en el schema**: tercera vez, y la tuya. El de esta ronda va
+  declarado.
+- **Los 100 minutos sin Docker del domingo** no los sabía, y explican por qué el
+  diagnóstico del correo tardó: estuve mirando credenciales mientras la máquina iba y
+  venía.
 
 ---
 

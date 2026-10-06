@@ -96,9 +96,38 @@ export function interpretarLaFila(
   const nombres = (v.nombre ?? '').trim().replace(/\s+/g, ' ');
   const apellidos = (v.apellido ?? '').trim().replace(/\s+/g, ' ');
 
-  const piezas = apellidos ? partirConApellidos(nombres, apellidos) : null;
-  const nombreCompleto =
-    [nombres, apellidos].filter(Boolean).join(' ').trim() || null;
+  /**
+   * SI EL ARCHIVO TRAE LAS CUATRO PIEZAS, NO SE ADIVINA NADA.
+   *
+   * La base del cliente las tiene en cuatro columnas ---«Primer
+   * nombre», «Segundo nombre», «Primer apellido», «Segundo
+   * apellido»--- y hasta el 6 oct 2026 el cargue no las conocía:
+   * de 19 columnas suyas, 13 salían como «no se reconocen».
+   *
+   * Cuando vienen, mandan. Partir «Ana María Ruiz Gómez» es
+   * adivinar si son dos nombres y dos apellidos o uno y tres, y
+   * esas cuatro son columnas del reporte al SENA: adivinar mal se
+   * le reporta al Estado. Si las trae separadas, el problema no
+   * existe.
+   */
+  const sueltas = limpiarPiezas(v);
+
+  const piezas =
+    sueltas ?? (apellidos ? partirConApellidos(nombres, apellidos) : null);
+
+  /// El nombre completo se arma de lo que haya: de las cuatro
+  /// piezas si vinieron, y si no, de las dos columnas de siempre.
+  const nombreCompleto = sueltas
+    ? [
+        sueltas.primerNombre,
+        sueltas.segundoNombre,
+        sueltas.primerApellido,
+        sueltas.segundoApellido,
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .trim() || null
+    : [nombres, apellidos].filter(Boolean).join(' ').trim() || null;
 
   /// EL CORREO: vacío si no es un correo, igual que en el webhook.
   ///
@@ -237,4 +266,34 @@ function partirConApellidos(nombres: string, apellidos: string) {
     primerApellido: as[0] ?? null,
     segundoApellido: as.slice(1).join(' ') || null,
   };
+}
+
+/**
+ * Las cuatro piezas del nombre, si el archivo las trae separadas.
+ *
+ * `null` cuando no viene ninguna: entonces manda la lógica de
+ * siempre ---dos columnas y un reparto--- y nada cambia para quien
+ * ya usaba la plantilla.
+ *
+ * Basta con que venga UNA. Una base que solo trae «Primer nombre» y
+ * «Primer apellido» es más fiable que partir una frase, aunque le
+ * falten las otras dos: lo que se sabe se guarda donde va, y lo que
+ * no, queda nulo.
+ */
+function limpiarPiezas(v: Record<string, string | null | undefined>): {
+  primerNombre: string | null;
+  segundoNombre: string | null;
+  primerApellido: string | null;
+  segundoApellido: string | null;
+} | null {
+  const uno = (x: string | null | undefined) =>
+    (x ?? '').trim().replace(/\s+/g, ' ') || null;
+
+  const piezas = {
+    primerNombre: uno(v.primerNombre),
+    segundoNombre: uno(v.segundoNombre),
+    primerApellido: uno(v.primerApellido),
+    segundoApellido: uno(v.segundoApellido),
+  };
+  return Object.values(piezas).some(Boolean) ? piezas : null;
 }

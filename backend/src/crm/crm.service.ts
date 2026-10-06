@@ -31,6 +31,7 @@ import {
   seHistoria,
 } from './clase-de-dato';
 import { masReciente } from './ultima-actividad';
+import { accionesSinDatosDelAula } from './sin-datos-del-aula';
 import { origenDeLead } from './origen-del-lead';
 import { documentoValido, normalizarDocumento } from '../comun/documento';
 import { normalizarNit, calcularDigitoVerificacion } from '../comun/nit';
@@ -315,6 +316,11 @@ export const MINIMO_PARA_CERTIFICAR = 0.8;
  * SIN_EMPEZAR, que es lo que de verdad se sabe de ellos.
  */
 type EstadoAcademico =
+  /// El aula no ha dicho NADA de esa accion todavia: ni una
+  /// actividad publicada ni un acceso de nadie. No es que la gente
+  /// no haya entrado, es que no hay datos. Llego el 6 oct 2026, para
+  /// el arranque de AF1 del 13.
+  | 'SIN_DATOS_DEL_AULA'
   | 'SIN_INGRESO'
   | 'SIN_EMPEZAR'
   | 'ATRASADO'
@@ -6111,6 +6117,20 @@ export class CrmService {
       obligatorias.map((a) => [a.accionFormacionId, a._count._all]),
     );
 
+    /**
+     * DE QUÉ ACCIONES NO HA DICHO NADA EL AULA TODAVÍA.
+     *
+     * El LMS alimenta las dos cosas que mide esta pantalla: las
+     * actividades y los accesos. Una acción sin NI UNA actividad
+     * publicada y sin NI UN acceso de nadie no es una acción cuya
+     * gente no entró: es una de la que aún no hay datos.
+     *
+     * Se calcula sobre las filas que ya se trajeron, sin otra
+     * consulta: el acceso lo trae cada fila, y las actividades
+     * publicadas ya están en `catalogo`.
+     */
+    const sinDatosDelAula = accionesSinDatosDelAula(catalogo, filas);
+
     const ahora = Date.now();
 
     const personas = filas.map((p) => {
@@ -6211,6 +6231,30 @@ export class CrmService {
       // cosas se dicen igual, que su curso no ha empezado
       else if (esperadas === null) estado = 'SIN_EMPEZAR';
       else if (inicio !== null && ahora < inicio) estado = 'SIN_EMPEZAR';
+      /**
+       * EL AULA TODAVÍA NO HA DICHO NADA DE ESTA ACCIÓN.
+       *
+       * «El 13 de octubre arrancan los cuatro primeros grupos de AF1:
+       * 116 personas pasan solas a en formación y, con cero
+       * actividades cargadas, el tablero las va a dar todas por
+       * "nunca entró al aula", de forma permanente» (Josse, 6 oct
+       * 2026).
+       *
+       * Y tiene razón: «no entró» y «no se sabe» se dicen igual, y el
+       * segundo se pinta en rojo. Son 116 personas señaladas por algo
+       * que no han hecho, el día que empiezan.
+       *
+       * El aula ---el LMS--- alimenta las dos cosas: las actividades
+       * y los accesos. Si de esa acción no hay NI UNA actividad
+       * publicada NI UN acceso de nadie, lo que falta son los datos,
+       * no la gente. Se dice así y no se juzga a nadie.
+       *
+       * EN CUANTO LLEGUE LO PRIMERO ---una actividad publicada o un
+       * solo acceso--- esto se apaga solo y vuelve a mandar la regla
+       * de siempre. No hay que acordarse de quitarlo.
+       */
+      else if (sinDatosDelAula.has(p.accionFormacionId ?? ''))
+        estado = 'SIN_DATOS_DEL_AULA';
       // nunca piso el aula, aunque su grupo ya empezo
       else if (p.ultimoAcceso === null) estado = 'SIN_INGRESO';
       else if (desfase! <= -TOLERANCIA) estado = 'ATRASADO';
@@ -6393,6 +6437,10 @@ export class CrmService {
         analizadas: personas.length,
         /// Los seis se cuentan solo sobre quien sigue dentro.
         enFormacion: personas.filter((p) => !p.salio).length,
+        /// Los que estan esperando a que el aula reporte algo. Van
+        /// aparte de 'sin ingreso' a proposito: mezclarlos diria que
+        /// 116 personas no entraron el dia que empiezan.
+        sinDatosDelAula: cuenta('SIN_DATOS_DEL_AULA'),
         sinIngreso: cuenta('SIN_INGRESO'),
         sinEmpezar: cuenta('SIN_EMPEZAR'),
         atrasados: cuenta('ATRASADO'),
@@ -7105,6 +7153,24 @@ export class CrmService {
      * y son justo las que hay que mirar para saber cuánto falta por
      * saberse.
      */
+    /**
+     * LOS QUE TIENEN EL CORREO MALO.
+     *
+     * «No hay un criterio para ver si el correo esta bien o no»
+     * (cliente, 5 oct 2026). Esto es ese criterio: a esa direccion no
+     * se pudo la ultima vez que se intento.
+     *
+     * No es el rebote de verdad ---ese llega minutos despues de que
+     * el servidor acepto el mensaje y pide el webhook de SendGrid---
+     * sino lo que se supo EN EL ENVIO.
+     */
+    if (f.correo === 'FALLA') {
+      y.push({ persona: { correoFallaEn: { not: null } } });
+    } else if (f.correo === 'SIN_CORREO') {
+      /// Y el otro lado de la misma pregunta: a quien no se le puede
+      /// escribir porque no dejo direccion.
+      y.push({ persona: { correo: null } });
+    }
     if (f.enlaceDeEntrada === 'SIN_DATO') y.push({ enlaceDeEntrada: null });
     else if (f.enlaceDeEntrada) {
       y.push({ enlaceDeEntrada: f.enlaceDeEntrada });
@@ -7273,6 +7339,10 @@ export class CrmService {
       primerApellido: string;
       segundoApellido: string | null;
       correo: string | null;
+      /// Si su correo no salio la ultima vez. Opcionales porque el
+      /// `select` de alguna consulta vieja puede no pedirlos.
+      correoFallaEn?: Date | null;
+      correoFalloMotivo?: string | null;
       celular: string | null;
       fechaNacimiento: Date | null;
       generoSepId: number | null;
@@ -7395,6 +7465,13 @@ export class CrmService {
         .filter(Boolean)
         .join(' '),
       correo: p.persona.correo,
+      /// SI ESE CORREO NO SALIO la ultima vez que se intento, y por
+      /// que. «No hay un criterio para ver si el correo esta bien o
+      /// no» (cliente, 5 oct 2026): lo habia, pero solo en el
+      /// registro del servidor, que es donde no mira quien trabaja
+      /// la ficha.
+      correoFallaEn: p.persona.correoFallaEn?.toISOString() ?? null,
+      correoFalloMotivo: p.persona.correoFalloMotivo ?? null,
       celular: p.persona.celular,
       convenio: p.convenio.sigla ?? p.convenio.slug,
       accion: p.accionFormacion
