@@ -472,6 +472,70 @@ export class CrmService {
     private readonly catalogoDeNotas: ConfiguracionDeNotasService,
   ) {}
 
+  /**
+   * POR DÓNDE ENTRÓ LA GENTE, para llenar los dos filtros.
+   *
+   * «Si o sí el sistema debe decirme de qué link de formulario entró»
+   * (cliente, 5 oct 2026). Un filtro donde hay que teclear el nombre
+   * exacto del enlace no lo usa nadie: hace falta la lista de los que
+   * de verdad trajeron a alguien.
+   *
+   * SALEN DE LAS FICHAS Y NO DEL CATÁLOGO DE ENLACES, y es a
+   * propósito: un enlace que existe pero no trajo a nadie no es una
+   * opción útil, y uno que se borró del catálogo sigue siendo de donde
+   * vino la gente que trajo. La pregunta es de dónde salió esta gente,
+   * no qué enlaces hay.
+   *
+   * Y CON SU RECUENTO, que es media respuesta sin tener que filtrar:
+   * «cuántos trajo este enlace» se contesta mirando la lista.
+   */
+  async porDondeEntraron(ambito: Ambito): Promise<{
+    enlaces: Array<{ valor: string; cuantos: number }>;
+    formularios: Array<{ valor: string; cuantos: number }>;
+    /// Cuántas fichas no lo tienen: las de antes del 5 oct 2026. Se
+    /// dice en vez de callarse, porque explica por qué los recuentos
+    /// de arriba no suman el total de la base.
+    sinDato: number;
+  }> {
+    if (ambito.convenios.length === 0) {
+      return { enlaces: [], formularios: [], sinDato: 0 };
+    }
+    const donde = { convenioId: { in: ambito.convenios } };
+
+    const [enlaces, formularios, sinDato] = await Promise.all([
+      this.prisma.participante.groupBy({
+        by: ['enlaceDeEntrada'],
+        where: { ...donde, enlaceDeEntrada: { not: null } },
+        _count: { _all: true },
+      }),
+      this.prisma.participante.groupBy({
+        by: ['formularioDeEntrada'],
+        where: { ...donde, formularioDeEntrada: { not: null } },
+        _count: { _all: true },
+      }),
+      this.prisma.participante.count({
+        where: { ...donde, enlaceDeEntrada: null, formularioDeEntrada: null },
+      }),
+    ]);
+
+    /// Los más gruesos arriba: quien abre el filtro busca el enlace
+    /// que está trabajando, y ese casi siempre es de los que más
+    /// gente traen.
+    const ordenar = (
+      filas: Array<{ _count: { _all: number } } & Record<string, unknown>>,
+      campo: string,
+    ) =>
+      filas
+        .map((f) => ({ valor: String(f[campo]), cuantos: f._count._all }))
+        .sort((a, b) => b.cuantos - a.cuantos || a.valor.localeCompare(b.valor));
+
+    return {
+      enlaces: ordenar(enlaces, 'enlaceDeEntrada'),
+      formularios: ordenar(formularios, 'formularioDeEntrada'),
+      sinDato,
+    };
+  }
+
   async listar(filtros: Filtros) {
     const donde = this.donde(filtros);
     const pagina = Math.max(1, filtros.pagina ?? 1);
@@ -6981,6 +7045,35 @@ export class CrmService {
       y.push({ persona: { departamentoSepId: f.departamentoSepId } });
     }
 
+    /**
+     * POR DÓNDE ENTRÓ: el formulario personalizado y el enlace corto.
+     *
+     * «Si o sí el sistema debe decirme de qué link de formulario
+     * entró» (cliente, 5 oct 2026), y «si una empresa tiene reserva
+     * pero no entra por plano y sí entra por otro formulario, debo
+     * saberlo».
+     *
+     * Son dos filtros y no uno: el mismo formulario se reparte por
+     * varios enlaces ---uno por campaña, uno por gremio--- así que
+     * «cuántos trajo este enlace» y «cuántos trajo este formulario»
+     * son dos preguntas, y la segunda no se contesta con la primera.
+     *
+     * `SIN_DATO` es un filtro de verdad y no la ausencia de filtro:
+     * son las fichas anteriores al 5 oct, a las que no se les inventa
+     * de dónde vinieron. Sin esta palabra no habría forma de pedirlas,
+     * y son justo las que hay que mirar para saber cuánto falta por
+     * saberse.
+     */
+    if (f.enlaceDeEntrada === 'SIN_DATO') y.push({ enlaceDeEntrada: null });
+    else if (f.enlaceDeEntrada) {
+      y.push({ enlaceDeEntrada: f.enlaceDeEntrada });
+    }
+    if (f.formularioDeEntrada === 'SIN_DATO') {
+      y.push({ formularioDeEntrada: null });
+    } else if (f.formularioDeEntrada) {
+      y.push({ formularioDeEntrada: f.formularioDeEntrada });
+    }
+
     /// «Completa» no es una columna: es que no falte nada de lo
     /// que mira `faltaDeLaFicha` --la persona Y su organización--.
     ///
@@ -7126,6 +7219,11 @@ export class CrmService {
     origen: OrigenParticipante;
     creadoEn: Date;
     nivelOcupacionalSepId: number | null;
+    /// POR DÓNDE ENTRÓ, tal como se guardó en el alta pública. Nulos
+    /// en las fichas anteriores al 5 oct 2026: a esas no se les
+    /// inventa de dónde vinieron.
+    formularioDeEntrada?: string | null;
+    enlaceDeEntrada?: string | null;
     persona: {
       tipoDocumentoSepId: number;
       numeroDocumento: string;
@@ -7373,9 +7471,30 @@ export class CrmService {
        * Pauta y el formulario es la preinscripción. Son dos columnas
        * porque son dos preguntas.
        */
+      /**
+       * Y DESDE EL 5 OCT 2026, LO QUE DE VERDAD CONSTA, antes que lo
+       * deducido.
+       *
+       * «Si o sí el sistema debe decirme de qué link de formulario
+       * entró, porque es imposible que no se pueda, o sea es una
+       * falacia» (cliente, 5 oct 2026). No era una falacia: el dato
+       * llegaba en el POST público y se tiraba. Ahora se guarda en la
+       * ficha, sin condiciones.
+       *
+       * Lo deducido se queda DEBAJO y no se quita: las fichas de antes
+       * de esa fecha tienen la columna en nulo ---no se les inventa de
+       * dónde vinieron--- y para esas, lo deducido sigue siendo lo
+       * mejor que se puede decir.
+       */
       formularioDeEntrada:
+        p.formularioDeEntrada ??
         p.reserva?.formulario?.titulo ??
         (p.origen === 'AUTOGESTION' ? 'Preinscripción pública' : null),
+      /// LA MARCA DEL ENLACE CORTO por el que entró, que es otra cosa
+      /// que el formulario: el mismo formulario se reparte por varios
+      /// enlaces ---uno por campaña, uno por gremio--- y la pregunta
+      /// «cuántos trajo este enlace» es la que se hace al pagar pauta.
+      enlaceDeEntrada: p.enlaceDeEntrada ?? null,
       /// La carga entera y no solo su id: la tabla enseña el archivo y
       /// el recuento de esa importacion, y pedirlos aparte por cada
       /// fila serian cincuenta consultas por pagina.

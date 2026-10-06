@@ -526,6 +526,21 @@ export class CrmController {
     return this.crm.catalogos();
   }
 
+  /**
+   * POR DÓNDE ENTRÓ LA GENTE: los enlaces y los formularios que de
+   * verdad trajeron a alguien, con cuántos trajo cada uno.
+   *
+   * Es lo que llena los dos filtros nuevos de Gestión de leads. Se
+   * sacan de las fichas y NO de la tabla de enlaces: un enlace que
+   * existe pero no trajo a nadie no es una opción útil de filtro, y un
+   * enlace que se borró del catálogo sigue siendo de dónde vino la
+   * gente que trajo.
+   */
+  @Get('por-donde-entraron')
+  porDondeEntraron(@AmbitoActual() ambito: Ambito) {
+    return this.crm.porDondeEntraron(ambito);
+  }
+
   /** Quién va al día y quién no, contra las fechas del grupo. */
   @Get('academico')
   @Requiere('academico')

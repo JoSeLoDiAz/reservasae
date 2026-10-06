@@ -567,6 +567,22 @@ export class FiltrosParticipantesDto {
   @IsOptional() @IsDateString() llegoDesde?: string;
   @IsOptional() @IsDateString() llegoHasta?: string;
 
+  /**
+   * POR DÓNDE ENTRÓ: el enlace corto y el formulario personalizado.
+   *
+   * «Si o sí el sistema debe decirme de qué link de formulario entró»
+   * (cliente, 5 oct 2026). Son dos y no uno: el mismo formulario se
+   * reparte por varios enlaces ---uno por campaña, uno por gremio---
+   * así que «cuántos trajo este enlace» no se contesta con el
+   * formulario.
+   *
+   * `SIN_DATO` pide las que no lo tienen: las de antes del 5 oct, a
+   * las que no se les inventó de dónde vinieron. Es un filtro de
+   * verdad, no la ausencia de filtro.
+   */
+  @IsOptional() @IsString() @MaxLength(120) enlaceDeEntrada?: string;
+  @IsOptional() @IsString() @MaxLength(120) formularioDeEntrada?: string;
+
   @IsOptional()
   @Transform(({ value }) => Number(value))
   @IsInt()
