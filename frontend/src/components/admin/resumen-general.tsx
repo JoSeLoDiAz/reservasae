@@ -96,16 +96,50 @@ const CIFRAS: Array<{
   },
 ];
 
-export function ResumenGeneral({ filtros }: { filtros?: Filtros }) {
+/**
+ * EL PERIODO LLEGA TARDE, Y SIN EL NO SE PREGUNTA.
+ *
+ * «Ayer hago 5 inscripciones y hoy 20, pero me cuentan como si
+ * fueran 25» (cliente, 5 oct 2026).
+ *
+ * La ventana del periodo la resuelve la cabecera y llega por una
+ * respuesta APARTE. En el primer render todavía no está, así que
+ * este bloque preguntaba con `desde` y `hasta` vacíos ---y el
+ * servidor, sin ventana, NO FILTRA NADA---. Resultado: el histórico
+ * completo pintado bajo el rótulo «Hoy». Y permanente si la segunda
+ * petición se pierde, que con el limitador de 60 por minuto pasa.
+ *
+ * `activo` espera a que la ventana exista. Vale `undefined` cuando
+ * de verdad no hay recorte ---la pantalla sin periodo--- y por eso
+ * se mira si la PROPIEDAD está, no si tiene valor.
+ */
+export function ResumenGeneral({
+  filtros,
+  esperaVentana = false,
+}: {
+  /// Los cinco filtros Y la ventana: `desde`/`hasta` no están en
+  /// `Filtros` porque ese tipo es el del listado, que no lleva
+  /// periodo.
+  filtros?: Filtros & { desde?: string; hasta?: string };
+  /// true = este bloque vive en una pantalla con periodo, así que
+  /// no debe preguntar hasta que la ventana llegue.
+  esperaVentana?: boolean;
+}) {
   /// La clave lleva los filtros: sin ella, cambiar de departamento
   /// dejaba las barras del corte anterior hasta que volviera la
   /// respuesta, que es el «no concuerda» que el cliente ya señaló
   /// una vez en Tráfico.
   const clave = useMemo(() => JSON.stringify(filtros ?? {}), [filtros]);
   const cargar = useCallback(() => crmApi.resumenGeneral(filtros ?? {}), [clave]); // eslint-disable-line react-hooks/exhaustive-deps
+  const listo = !esperaVentana || Boolean(filtros?.desde && filtros?.hasta);
   const vivos = useDatosVivos<FilaResumenGeneral[]>(cargar, {
     clave: `resumen-general:${clave}`,
+    activo: listo,
   });
+
+  /// Mientras no hay ventana se enseña el esqueleto, no un cero ni
+  /// una cifra vieja: las dos se leen como un dato.
+  if (!listo) return <Esqueleto />;
 
   if (vivos.error) return <Aviso tipo="error">{vivos.error}</Aviso>;
   if (!vivos.datos) return <Esqueleto />;

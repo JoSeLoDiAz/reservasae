@@ -930,6 +930,36 @@ export function PanelProceso({
     hasta: aHasta ?? undefined,
   };
 
+  /**
+   * LA AF ABIERTA SE SUELTA SI EL FILTRO ELIGE OTRA.
+   *
+   * «Selecciono AF4, AF5 y no me sale abajo solo esa AF; cuando doy
+   * clic en los grupos se queda congelado en AF3» (cliente, 5 oct
+   * 2026).
+   *
+   * Pulsar una fila abre sus grupos y guarda esa AF, y ese valor
+   * PISABA al del desplegable. Nada la soltaba: elegir AF4 arriba
+   * dejaba la tabla y el bloque de grupos en AF3, y solo se liberaba
+   * volviendo a pulsar la fila. Quien no supiera eso veia una
+   * pantalla que no obedece.
+   *
+   * MANDA EL FILTRO, que es lo explicito: si el desplegable nombra
+   * una accion y la abierta es otra, la abierta deja de contar. Se
+   * resuelve al vuelo y no con un efecto que llame a `setEstado`:
+   * un efecto repintaria dos veces y dejaria un fotograma con la
+   * tabla de AF3 debajo del rotulo de AF4.
+   */
+  const abiertaVale =
+    accionAbierta &&
+    (!filtros.accionFormacionId ||
+      filtros.accionFormacionId === accionAbierta.id)
+      ? accionAbierta
+      : null;
+
+  const recorteConLaAbierta = abiertaVale
+    ? { ...recorte, accionFormacionId: abiertaVale.id }
+    : recorte;
+
   /// Los dos rótulos, de la MISMA respuesta que trae la ventana.
   /// Se sellan con las cifras (ver `Cargado`) y entran en la
   /// clave: si el periodo cambia de nombre, lo que hay pintado
@@ -2570,7 +2600,10 @@ export function PanelProceso({
             formación. Va con los mismos filtros de arriba: un bloque
             que los ignora enseña una cifra distinta a la de su vecino
             para la misma pregunta. */}
-        <ResumenGeneral filtros={recorte} />
+        {/* `esperaVentana`: no preguntar hasta que la cabecera
+            resuelva el periodo. Sin ventana el servidor NO filtra, y
+            salia el historico completo bajo el rotulo «Hoy». */}
+        <ResumenGeneral filtros={recorte} esperaVentana />
 
         {/* ── 5 · De qué está hecha esa gente ── */}
         {/* SOLO «Por convenio», y solo con los dos gremios a la vista.
@@ -2595,18 +2628,33 @@ export function PanelProceso({
             dé el listado de los grupos»). Pulsar otra vez la fila
             suelta el corte y vuelven las siete. */}
         <TablaPorAccion
-          /// EL MISMO RECORTE, PERO DEL OTRO PERIODO. Nulo cuando no
-          /// hay comparacion puesta, y entonces la tabla sale como
-          /// siempre, con una sola cifra por celda.
+          /// Sin la ventana del periodo el servidor no filtra: hasta
+          /// que la cabecera la resuelva, esqueleto y no cifras.
+          esperaVentana
+          /// EL MISMO CORTE, PERO DEL OTRO PERIODO. Nulo cuando no hay
+          /// comparacion puesta, y entonces la tabla sale como siempre,
+          /// con una sola cifra por celda.
+          ///
+          /// Y con la AF abierta dentro, que es lo que le faltaba:
+          /// llevaba `filtros` pelados, asi que con los grupos de AF3
+          /// abiertos la cifra de arriba de cada celda era de AF3 y la
+          /// de abajo ---la del periodo anterior--- de TODAS las
+          /// acciones. Dos numeros apilados con cara de ser comparables
+          /// que no lo eran.
           recorteAnterior={
-            bDesde && bHasta ? { ...filtros, desde: bDesde, hasta: bHasta } : null
+            bDesde && bHasta
+              ? {
+                  ...filtros,
+                  ...(abiertaVale
+                    ? { accionFormacionId: abiertaVale.id }
+                    : {}),
+                  desde: bDesde,
+                  hasta: bHasta,
+                }
+              : null
           }
           rotuloAnterior={rotuloAnterior}
-          recorte={
-            accionAbierta
-              ? { ...recorte, accionFormacionId: accionAbierta.id }
-              : recorte
-          }
+          recorte={recorteConLaAbierta}
           /// Pulsar la fila abre sus grupos; pulsarla otra vez los
           /// cierra. Es el Bloque 3 que pidió el cliente, y nace
           /// cerrado: siete acciones abiertas son setenta filas.
@@ -2617,14 +2665,16 @@ export function PanelProceso({
                 : { id: fila.accionFormacionId, titulo: `${fila.codigo} · ${fila.nombre}` },
             )
           }
-          elegida={accionAbierta?.id ?? null}
+          elegida={abiertaVale?.id ?? null}
         />
 
         {/* ── BLOQUE 3 · EL DETALLE POR GRUPOS ── */}
-        {accionAbierta && (
+        {/* `abiertaVale` y no `accionAbierta`: si el filtro de arriba
+            nombra otra accion, los grupos de la vieja no se enseñan. */}
+        {abiertaVale && (
           <TablaPorGrupo
-            accionFormacionId={accionAbierta.id}
-            titulo={accionAbierta.titulo}
+            accionFormacionId={abiertaVale.id}
+            titulo={abiertaVale.titulo}
           />
         )}
 

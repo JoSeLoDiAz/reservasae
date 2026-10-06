@@ -1830,7 +1830,7 @@ export const crmApi = {
 
   /// EL RESUMEN GENERAL: siete cifras macro por acción de formación.
   /// Toma los mismos cortes que el resto de la pantalla.
-  resumenGeneral: (filtros: Filtros = {}) =>
+  resumenGeneral: (filtros: Filtros & { desde?: string; hasta?: string } = {}) =>
     pedir<FilaResumenGeneral[]>(
       `/admin/participantes/control/resumen-general${consulta(filtros)}`,
     ),

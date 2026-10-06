@@ -86,6 +86,7 @@ const tasa = (v: number | null) => (v === null ? "—" : `${Math.round(v * 100)}
 export function TablaPorAccion({
   alElegir,
   elegida,
+  esperaVentana = false,
   recorte,
   recorteAnterior,
   rotuloAnterior,
@@ -104,6 +105,9 @@ export function TablaPorAccion({
    * Nulo = no hay comparación puesta, y la tabla sale como siempre.
    */
   recorteAnterior?: Record<string, unknown> | null;
+  /// Igual que en `ResumenGeneral`: sin la ventana del periodo, el
+  /// servidor no filtra y sale el histórico bajo el rótulo «Hoy».
+  esperaVentana?: boolean;
   /// Cómo se llama ese periodo, para poder decirlo en la cabecera.
   rotuloAnterior?: string | null;
   /// La pantalla la usa para abrir el detalle por grupos: la fila
@@ -128,9 +132,11 @@ export function TablaPorAccion({
     },
     [clave, claveAntes], // eslint-disable-line react-hooks/exhaustive-deps
   );
+  const listo =
+    !esperaVentana || Boolean(recorte?.desde && recorte?.hasta);
   const vivos = useDatosVivos<{ ahora: FilaDeAccion[]; antes: FilaDeAccion[] | null }>(
     cargar,
-    { clave: `resumen-por-accion:${clave}:${claveAntes}` },
+    { clave: `resumen-por-accion:${clave}:${claveAntes}`, activo: listo },
   );
 
   if (vivos.error) return <Aviso tipo="error">{vivos.error}</Aviso>;
