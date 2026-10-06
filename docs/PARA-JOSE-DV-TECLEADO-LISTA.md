@@ -7,21 +7,111 @@ más la auditoría completa.
 | | |
 |---|---|
 | Rama | `jose/dv-tecleado`, subida |
-| Desplegado hoy | `v0.19.0-JD` (2 oct) |
-| Sin desplegar | **25 commits** |
+| Desplegado | `v0.19.0-JD` (2 oct) — **hace cuatro días** |
+| Sin desplegar | **40 commits** |
 | De lo tuyo que falte traer | **nada** |
-| Línea base | `tsc` limpio en backend y frontend · **249 suites, 2.664 pruebas** |
-| Migraciones nuevas | **1** — `20261002160000_cierre_de_inscripciones_por_grupo` |
+| Línea base | `tsc` limpio en backend y frontend · **264 suites, 2.797 pruebas**, verde |
+| Migraciones nuevas | **3** — ver §1a |
 
 ---
 
-## 1 · Tres cosas que mirar al desplegar
+## 0 · Las seis del 6 de octubre — las cifras del comité
 
-### a) Una migración, compatible hacia atrás
+Seis commits, de 06:21 a 07:37 del 6 de octubre, y son **las que el cliente está
+esperando**. Todas nacen de lo que reportó el 5 de octubre. Van primero porque dos de
+ellas cambian
+**números que él lee en comité**, y conviene que sepas qué va a cambiar antes de que
+te lo pregunte.
+
+| | Commit | Qué arregla |
+|---|---|---|
+| 1 | `8a5d819` | El **«25»**: con «Hoy» arriba salía el histórico completo. Los tres bloques no preguntan hasta que la cabecera resuelve el periodo. Y la **AF se quedaba pegada en AF3**: elegir AF4 arriba no bajaba. |
+| 2 | `f76ce9d` | El **scroll de Gestión de leads**. Solo CSS. |
+| 3 | `1a36c43` | Las **inscripciones se cuentan por cuándo se inscribió** la persona, no por cuándo llegó la ficha. **Cambia cifras.** |
+| 4 | `cf6b1cd` | El **detalle por grupos** obedece los filtros y el periodo. No obedecía a ninguno. **Cambia cifras.** |
+| 5 | `f5b08e0` | Cambiar un filtro **mientras carga** ya no pierde la pedida ni pinta la respuesta vieja. |
+| 6 | `4ade9b8` | El **límite de peticiones** contaba por IP: toda la oficina compartía 60 por minuto. Ahora cuenta por sesión. |
+
+### Lo que va a cambiar a la vista, y hay que decirlo
+
+Dos columnas de la tabla del comité van a dar **otros números**, y es el arreglo, no un
+fallo:
+
+- **Inscritos del periodo.** Antes contaba a quien LLEGÓ en el periodo y está inscrito
+  HOY. Así que un día de veinte inscripciones podía salir en cero —si esa gente llegó
+  en agosto— y una inscripción se borraba del pasado cuando la persona desertaba. Ahora
+  va por el movimiento a INSCRITO, que no se reescribe nunca. Con ventana puesta,
+  arriba van las inscripciones **hechas** en el periodo y abajo los leads **llegados**:
+  la conversión es «cuánto entró y cuánto se inscribió este mes», no la de una cohorte.
+- **Cupos disponibles.** Salían de `meta − inscritos del periodo`, y la meta no se
+  recorta: con «Hoy» arriba, una AF llena enseñaba sus 519 cupos libres y estado
+  ABIERTO. Ahora se restan los que **ocupan silla hoy**, sin ventana y sin los cinco
+  filtros.
+
+### Una cosa que te va a saltar en el despliegue, y no es un error nuevo
+
+`pnpm db:integridad` tiene **un control más**: fichas inscritas **sin el movimiento que
+las fecha**. Esas no caen en ninguna ventana, así que no se cuentan en ningún periodo.
+En la base de pruebas son 12 de 1.304 y son de la siembra; **en producción no sé cuántas
+hay, porque no miro producción**. El informe las lista con nombre y AF.
+
+No se les inventa el movimiento: escribir uno con fecha supuesta mete en el registro de
+auditoría un hecho que no consta. Se arreglan moviéndolas de etapa a mano desde el
+panel, que sí deja movimiento.
+
+### Orden y variables
+
+- **Backend primero, frontend después.** El endpoint de grupos acepta parámetros nuevos
+  (`grupoId`, `asesorId`, `departamentoSepId`, `desde`, `hasta`). Con el frontend
+  nuevo contra el backend viejo, los ignora **en silencio** y los filtros vuelven a no
+  aplicarse: el mismo fallo, sin aviso.
+- **Ninguna migración nueva** en estas siete.
+- `ADMIN_JWT_SECRET` ahora también lo usa `AppModule`, para que el límite pueda
+  verificar la cookie. Es **la misma variable** que ya firma la sesión; no hay que
+  añadir nada. Si faltara, el límite no se cae: vuelve a contar por IP sin decirlo.
+
+---
+
+## 1 · Tres cosas que mirar al desplegar (de las 34 anteriores)
+
+### a) Tres migraciones, las tres compatibles hacia atrás
+
+Van en `backend/prisma/migrations/`, así que se aplican al arrancar el contenedor. En
+orden:
+
+**1. `20261002160000_cierre_de_inscripciones_por_grupo`** (de `17767a0`)
 
 `Grupo.cierreInscripciones DateTime?`, nulo por defecto. **Nulo = el comportamiento de
 siempre**: el cierre se sigue derivando de `fechaInicio`. Nada cambia hasta que alguien
 corra el importador del cronograma, que es un comando aparte y no corre solo.
+
+Rollback: `ALTER TABLE "grupos" DROP COLUMN "cierreInscripciones";`
+
+**2. `20261005120000_caracterizacion_por_gremio`** (de `6573c37`)
+
+Añade `CaracterizacionPersona.convenioId` y cambia la llave única de
+`(persona, caracterización)` a `(persona, caracterización, convenio)`.
+
+**Esta sí toca filas**: rellena el convenio desde la política que ampara cada
+autorización, que es de donde se dedujo siempre, y **borra** las marcas cuya
+autorización no exista, porque esas no se pueden reportar a nadie. Antes de desplegar,
+mira cuántas son:
+
+```sql
+SELECT COUNT(*) FROM "caracterizaciones_persona" c
+ WHERE NOT EXISTS (SELECT 1 FROM "autorizaciones_datos" a WHERE a."id" = c."autorizacionId");
+```
+
+En pruebas salió cero. Si en producción no sale cero, dímelo antes de seguir.
+
+**3. `20261005140000_por_que_enlace_entro`** (de `816c3c9`)
+
+Tres columnas nulables en `participantes` ---`formularioDeEntrada`,
+`enlaceDeEntrada`, `visitaDeEntrada`--- y dos índices por convenio. **No toca ni una
+fila**: lo de antes se queda en nulo a propósito, porque suponer de dónde vino alguien
+sería decirlo sin que conste.
+
+Rollback: soltar las tres columnas y los dos índices.
 
 ### b) Un commit de solo frontend
 
