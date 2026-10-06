@@ -49,22 +49,30 @@ Reducir el privilegio de verdad es otra conversación, y es de José. Para que l
 
 No lo prometo para una fecha: es trabajo de infraestructura sobre una máquina con producción de un tercero, y lleva una mudanza de base dentro.
 
-## 3 · El estado real de la instancia hoy
+## 3 · Cuál es la sede principal, que es lo que preguntas
 
-Para que no tengas que mirarlo tú: la pila está completa y el CRM corriendo en **0.21.0-JD**. Y corrijo —otra vez— las cifras de consumo, porque las que te mandé eran de un momento de reposo y el sistema ya está con carga real:
+**Hoy la principal es esta instancia**, y ya está atendiendo: la pila completa, el CRM en **0.23.0-JD**.
+
+Te explico la arquitectura, porque viste los temporizadores y la pregunta tiene más fondo del que parece. El CRM vive en **tres máquinas**: ésta, una en Bogotá y otra en El Socorro. Solo una escribe; las otras dos llevan una copia de su base al instante. Si la que atiende deja de responder cinco minutos y una tercera lo confirma, **otra toma el relevo sola** y el dominio sigue funcionando. Eso es lo que pasó el domingo cuando se apagó Docker, y por eso encontraste aquí solo la base: el relevo había actuado.
+
+Lo que esto significa para ti, y conviene decirlo claro: **el CRM puede dejar de atender desde esta máquina sin que nadie lo decida**, y volver igual. No se lleva nada por delante —Moodle ni se entera— pero si algún día ves aquí solo el contenedor de la base, no es que esté roto: es que está de respaldo.
+
+El orden de preferencia es esta instancia primero, Bogotá después, El Socorro al final.
+
+### El consumo, medido ahora con carga real
 
 | Contenedor | RAM | CPU |
 |---|---|---|
-| backend | 505 MB | 2,4 % |
-| base de datos | 128 MB | 0,0 % |
-| frontend | 68 MB | 0,0 % |
-| conector del túnel | 28 MB | 0,3 % |
-| nginx | 16 MB | 0,0 % |
-| **total** | **≈ 744 MB** | **< 3 %** |
+| backend | 676 MB | 3,2 % |
+| base de datos | 158 MB | 0,2 % |
+| frontend | 86 MB | 0,0 % |
+| conector del túnel | 26 MB | 0,3 % |
+| nginx | 15 MB | 0,0 % |
+| **total** | **≈ 960 MB** | **< 4 %** |
 
-El volumen de nuestra base ocupa 244 MB. La reserva que pedimos (4 vCPU y 8 GB) sigue siendo holgada a propósito, para los picos de campaña.
+Te las doy otra vez porque las primeras eran de un momento de reposo y no servían. El volumen de nuestra base ocupa 278 MB. La reserva que pedimos (4 vCPU y 8 GB) sigue siendo holgada a propósito.
 
-> **Y de paso, una oferta: la máquina tiene unos 23 GB recuperables** entre imágenes de Docker huérfanas (11,8 GB) y caché de construcción (10 GB). Buena parte es nuestra, de los despliegues. Si te parece, lo limpiamos nosotros con `docker image prune` y `docker builder prune` en una ventana acordada — no toca ningún contenedor en marcha, pero prefiero no ejecutarlo en una máquina compartida sin decírtelo.
+> **Y una oferta: la máquina tiene unos 26 GB recuperables** entre imágenes de Docker huérfanas (15,8 GB) y caché de construcción (10,2 GB). **La mayor parte es nuestra**, de los despliegues de hoy. Si te parece, lo limpiamos con `docker image prune` y `docker builder prune` en una ventana acordada — no toca ningún contenedor en marcha, pero no voy a ejecutarlo en una máquina compartida sin decírtelo.
 
 ## 4 · Lo que cambia por tus respuestas
 
@@ -80,7 +88,7 @@ Aquí es donde más te necesito, y te explico por qué:
 
 - **`tipodoc`.** Nos diste las cinco etiquetas, gracias. Nuestro catálogo —el del SEP, que es el que usamos para reportar— tiene **once** tipos de persona, y cinco casan con los tuyos. Los seis que se quedan sin sitio son Permiso Especial de Permanencia, «Otro», Documento Nacional de Identidad, Cédula de Identidad, Documento Personal de Identificación y Número de Seguridad Social.
 
-  **En la práctica hoy esto casi no muerde**, y lo medí: de las 548 personas que tenemos, 541 llevan cédula de ciudadanía, 4 cédula de extranjería, 2 PPT y **solo una** lleva un tipo sin destino («Otro»). Así que no hace falta que añadáis nada por nuestra cuenta; dinos solo qué prefieres que hagamos con los casos sueltos: dejarlos fuera del campus, o tratarlos aparte.
+  **En la práctica hoy esto casi no muerde**, y lo medí: de las 572 personas que tenemos, 541 llevan cédula de ciudadanía, 4 cédula de extranjería, 2 PPT y **solo una** lleva un tipo sin destino («Otro»). Así que no hace falta que añadáis nada por nuestra cuenta; dinos solo qué prefieres que hagamos con los casos sueltos: dejarlos fuera del campus, o tratarlos aparte.
 - **`departamento`.** Medimos las 33 cadenas nuestras contra el formato que muestran tus dos ejemplos y **no coincide ninguna letra por letra**: las nuestras van en mayúscula sostenida y sin algunos signos. Vamos a escribir una tabla de traducción, y para eso necesito **las 33 cadenas exactas tal como están en Moodle**.
 - **`municipio`.** De este no tenemos ningún valor. ¿Cuántos tiene el menú, depende en cascada del departamento, y nos pasas las cadenas? Nuestro catálogo tiene 1.123 municipios, pero para la gente que hoy iría al campus solo hacen falta **42**, así que si os sirve os mandamos esa lista corta y nos devolvéis cómo se escribe cada uno allí.
 
@@ -188,14 +196,18 @@ Relacionado: en aquel correo decíamos que íbamos a comprobar la preferencia de
 
 ---
 
-## Los siguientes pasos, tal como los veo
+## Los siguientes pasos
 
-1. Nos confirmas la **ventana de mantenimiento** y qué prefieres para el **correo repetido**.
-2. Nos pasas las **cadenas de `departamento` y `municipio`**, y nos dices qué hacemos con los seis tipos de documento sin equivalente.
-3. Creas el **rol y el token** sobre un curso de prueba separado de AF1 y AF2, y nos lo haces llegar por un canal seguro. Con eso empezamos a escribir el adaptador.
-4. Cuando la interventoría conteste, **cerramos la regla de certificación** y entonces sí configuras la finalización y los Números de ID.
-5. En paralelo, nos dices si quieres que limpiemos los 23 GB de disco.
+Tus cuatro me parecen bien y los sigo tal cual. Solo los completo con lo que falta de nuestro lado:
 
-Quedo atento, y gracias otra vez por el nivel de detalle: el punto de la ruta de aprendizaje nos ahorró construir algo que habría dado cifras distintas a las vuestras.
+1. **Te confirmo tus puntos 1 y 2**, que es lo que pedías para arrancar: la sede principal es ésta (§3), el corte del domingo está explicado con horas (§1), y lo de `sepadmin` queda reconocido con el compromiso por escrito (§2). De la regla de certificación te debo la respuesta hasta que conteste la interventoría (§6).
+2. **Creas el curso «CRM Prueba», el rol y el token** como propones. Dos ajustes a la lista de funciones, en el §7, que la reducen.
+3. **El token**: de acuerdo en que no vaya por correo. Dinos por dónde prefieres —una llamada, o un gestor de secretos si tenéis uno— y nos adaptamos. Nosotros lo guardaremos como variable de entorno del contenedor, no en el código ni en el repositorio.
+4. **Las pruebas con dos o tres usuarios inventados**, en ese curso de prueba y no en AF1 ni AF2. Ahí es donde comprobaremos juntos lo de la IP interna.
+5. Y en paralelo, lo que necesito de ti para poder escribir el adaptador: **las cadenas exactas de `departamento` y `municipio`** —dices que enviabas la lista completa de departamentos y no me ha llegado, así que puede que se te quedara en el tintero—, **qué prefieres para el correo repetido**, y si quieres que limpiemos los 26 GB de disco.
+
+Un dato para dimensionar: hoy son **324 personas** las que entrarían al campus —las inscritas en AF1 y AF2—, repartidas en los 16 grupos de la tabla.
+
+Quedo atento, y gracias otra vez por el nivel de detalle: el punto de la ruta de aprendizaje nos ahorró construir algo que habría dado cifras distintas a las vuestras, y lo de los cuatro campos obligatorios nos habría dejado usuarios atascados.
 
 **José Díaz** — Líder de desarrollo Convoca CRM, Grupo AE
