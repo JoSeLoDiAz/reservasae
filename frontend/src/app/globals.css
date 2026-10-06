@@ -1044,6 +1044,50 @@ select[size]:not([size='1']) {
      sigue a su fila: blanca en reposo, resaltada al pasar por encima,
      sin saber nada de colores. */
   background: var(--superficie);
+
+  /* LAS FILAS QUE NO SE VEN NO SE PINTAN.
+   *
+   * «Cuando en Gestión de leads voy moviendo o dando scroll a la
+   * derecha se pega horrible; esto nunca había pasado» (cliente, 5
+   * oct 2026).
+   *
+   * Esa tabla son 29 columnas por 100 filas: 2.900 celdas, 4.672 px
+   * de ancho, y de ellas se ven veinte filas. Al desplazar en
+   * horizontal el navegador rehace el pintado de TODAS, no de las
+   * veinte. `content-visibility: auto` le deja saltarse las que
+   * quedan fuera del cajón.
+   *
+   * LO QUE SE MIDIÓ, porque la primera tanda de medidas no valía:
+   * cada candidato se probó en un proceso aparte y el mismo caso base
+   * salía 15 y 25 frames largos según lo que estuviera haciendo la
+   * máquina. Repetido en un banco A-B-A-B dentro de la misma página,
+   * con el procesador frenado 6x y 100 filas: el caso base deja 24
+   * frames de más de 32 ms, esto deja 20, y QUITAR LA COLUMNA FIJA
+   * ENTERA deja 18. Es decir: el coste no está en la columna pegada
+   * --que era la sospecha, por ser lo que entró el 1 oct-- sino en el
+   * tamaño de la tabla, y ningún apaño de CSS lo arregla del todo.
+   *
+   * Lo que sí lo arregla es tener menos filas: con 25 por página son
+   * 8 frames largos, y con 10 son 3. Eso ya está en la mano de quien
+   * mira, en el selector de abajo.
+   *
+   * Y SE DESCARTÓ `table-layout: fixed`, que prometía el doble de
+   * ganancia: con el texto del panel al 150 % deja las columnas en su
+   * ancho de 100 % --son píxeles, no rem-- y recorta 203 celdas. Una
+   * medida fija dentro de algo que escala.
+   *
+   * Esto, en cambio, no mueve NADA: se comprobó a 1280, 1440 y 1920
+   * px, al 100 % y al 150 % de letra, que ni los anchos de columna ni
+   * los altos de fila ni el alto total cambian, ni al ponerlo ni al
+   * bajar hasta el final y volver.
+   *
+   * El tamaño declarado es el alto de una fila de una línea, en rem
+   * para que crezca con el ajuste de texto: es solo la suposición
+   * para las filas que todavía no se han pintado nunca ---con `auto`,
+   * una vez pintada el navegador recuerda el alto de verdad--- y de
+   * ella depende que la barra no dé un salto al bajar. */
+  content-visibility: auto;
+  contain-intrinsic-size: auto 2.6rem;
 }
 
 /* que un ancla no aterrice pegada al borde */
