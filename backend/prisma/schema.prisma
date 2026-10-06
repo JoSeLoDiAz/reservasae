@@ -1093,6 +1093,36 @@ model Participante {
   /// Pagado u orgánico. Null en los que ya existían: no se
   /// puede saber hacia atrás, y ponerles ORGANICO a todos
   /// sería inventarse una métrica.
+  /**
+   * /**
+   * POR QUE ENLACE ENTRO, tal cual, y SIEMPRE.
+   * «Si o si el sistema debe decirme de que link de formulario entro
+   * porque es imposible que no se pueda, es una falacia» (cliente, 5
+   * oct 2026). No era una falacia: era un dato que LLEGABA Y SE
+   * TIRABA. El POST publico recibe la palabra del formulario, la marca
+   * del enlace y la baliza de la visita, y de todo eso solo sobrevivia
+   * `campanaDeEntrada` ---y encima a medias---.
+   * POR QUE A MEDIAS: `campanaDeEntrada` solo se escribe si la ficha
+   * es NUEVA y no habia ningun lead esperando. Es deliberado para que
+   * el ultimo clic no borre de donde vino de verdad, pero significa
+   * que una campaña de recaptacion no se mide: la persona vuelve por
+   * su enlace y no queda rastro.
+   * Estos tres se escriben SIEMPRE y SOLO AL CREAR la ficha. Siempre,
+   * porque la pregunta «¿por donde entro esta persona?» tiene que
+   * tener respuesta en todas; y solo al crear, porque lo que se
+   * responde es por donde entro, no por donde volvio.
+   * Hacia atras NO se puede reconstruir: `pasos_de_visita` se borra a
+   * los 90 dias y su id nunca se guardo en la ficha. De aqui en
+   * adelante, al 100%.
+   */
+  /// La palabra del formulario personalizado: «Santillana», «Afiliados».
+  formularioDeEntrada String?
+  /// La marca del enlace corto: «mailing-ucc», «qr-feria».
+  enlaceDeEntrada     String?
+  /// La baliza del navegador, para poder cruzar con `pasos_de_visita`
+  /// mientras esa fila viva. Opaca: no identifica a nadie por si sola.
+  visitaDeEntrada     String?
+
   origenLead OrigenLead?
 
   /// El nombre del envio con el que ENTRO: `mailing18092026`, o

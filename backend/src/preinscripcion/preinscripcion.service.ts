@@ -605,6 +605,36 @@ export class PreinscripcionService {
             accionFormacionId: oferta.accionFormacionId,
             origen: 'AUTOGESTION',
             etapa: 'INTERESADO',
+
+            /**
+             * POR QUÉ ENLACE ENTRÓ, Y SIN CONDICIONES.
+             *
+             * «Si o si el sistema debe decirme de qué link de formulario
+             * entró, es una falacia que no se pueda» (cliente, 5 oct
+             * 2026). No era una falacia: el POST ya recibía estos tres
+             * y se tiraban.
+             *
+             * AQUÍ Y NO MÁS ABAJO, que es lo que lo arregla de verdad.
+             * La atribución que ya existía ---`campanaDeEntrada`--- vive
+             * en un bloque posterior con tres condiciones: ficha nueva,
+             * sin lead esperando, y con canal reconocido. Son
+             * deliberadas ---evitan que el último clic borre de dónde
+             * vino de verdad--- pero dejan sin respuesta justo las
+             * preguntas que se hacen: una campaña de recaptación no se
+             * mide, y quien entra por un enlace sin canal conocido no
+             * deja rastro.
+             *
+             * Esto se escribe en el `create`, así que se guarda SIEMPRE
+             * y SOLO al nacer la ficha. Siempre, porque «¿por dónde
+             * entró?» tiene que tener respuesta en todas. Solo al
+             * nacer, porque lo que se responde es por dónde entró, no
+             * por dónde volvió: quien vuelve deja su rastro en
+             * `ToqueDeOrigen`, que para eso está.
+             */
+            formularioDeEntrada: dto.formulario?.trim() || null,
+            enlaceDeEntrada: dto.enlace?.trim() || null,
+            visitaDeEntrada: dto.visita?.trim() || null,
+
             movimientos: {
               create: {
                 etapaDespues: 'INTERESADO',
