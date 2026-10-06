@@ -2600,10 +2600,15 @@ export function PanelProceso({
             formación. Va con los mismos filtros de arriba: un bloque
             que los ignora enseña una cifra distinta a la de su vecino
             para la misma pregunta. */}
-        {/* `esperaVentana`: no preguntar hasta que la cabecera
-            resuelva el periodo. Sin ventana el servidor NO filtra, y
-            salia el historico completo bajo el rotulo «Hoy». */}
-        <ResumenGeneral filtros={recorte} esperaVentana />
+        {/* `ventanaResuelta`: no preguntar hasta que la cabecera
+            conteste. Sin ventana el servidor NO filtra, y salia el
+            historico completo bajo el rotulo «Hoy».
+
+            Es «ya contesto» y no «hay dos fechas»: con el periodo en
+            «Desde el principio» la respuesta es que no hay ventana,
+            y mirando las fechas estos bloques se quedaban en
+            esqueleto para siempre. */}
+        <ResumenGeneral filtros={recorte} ventanaResuelta={control != null} />
 
         {/* ── 5 · De qué está hecha esa gente ── */}
         {/* SOLO «Por convenio», y solo con los dos gremios a la vista.
@@ -2628,9 +2633,9 @@ export function PanelProceso({
             dé el listado de los grupos»). Pulsar otra vez la fila
             suelta el corte y vuelven las siete. */}
         <TablaPorAccion
-          /// Sin la ventana del periodo el servidor no filtra: hasta
-          /// que la cabecera la resuelva, esqueleto y no cifras.
-          esperaVentana
+          /// Hasta que la cabecera conteste, esqueleto y no cifras:
+          /// el servidor, sin ventana, no filtra.
+          ventanaResuelta={control != null}
           /// EL MISMO CORTE, PERO DEL OTRO PERIODO. Nulo cuando no hay
           /// comparacion puesta, y entonces la tabla sale como siempre,
           /// con una sola cifra por celda.
@@ -2678,7 +2683,7 @@ export function PanelProceso({
             /// El MISMO corte que la tabla de arriba, incluida la
             /// ventana. La acción no hace falta pasarla: va en la URL.
             recorte={recorte}
-            esperaVentana
+            ventanaResuelta={control != null}
           />
         )}
 

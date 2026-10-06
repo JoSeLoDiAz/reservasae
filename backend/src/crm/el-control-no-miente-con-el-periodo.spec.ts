@@ -36,46 +36,67 @@ describe('sin la ventana del periodo no se pregunta', () => {
    * LOS DOS BLOQUES, que son los dos que el cliente ve con el «25»:
    * el resumen general de arriba y la tabla del comité.
    */
-  it('el resumen general espera la ventana', () => {
-    expect(PANEL()).toMatch(/<ResumenGeneral[^>]*esperaVentana/);
-  });
-
-  it('y la tabla por acción, también', () => {
+  it('los tres bloques esperan a que la cabecera conteste', () => {
     const t = PANEL();
-    const i = t.indexOf('<TablaPorAccion');
-    expect(i).toBeGreaterThan(-1);
-    /// Dentro de SUS atributos, no en cualquier parte del fichero.
-    expect(t.slice(i, t.indexOf('/>', i))).toContain('esperaVentana');
+    for (const bloque of [
+      '<ResumenGeneral',
+      '<TablaPorAccion',
+      '<TablaPorGrupo',
+    ]) {
+      const i = t.indexOf(bloque);
+      expect(i).toBeGreaterThan(-1);
+      /// Dentro de SUS atributos, no en cualquier parte del fichero.
+      expect(t.slice(i, t.indexOf('/>', i))).toContain(
+        'ventanaResuelta={control != null}',
+      );
+    }
   });
 
   /**
-   * Y LOS DOS LO HONRAN. Pasar la bandera sin que el componente la
-   * mire deja el fallo intacto y las dos pruebas de arriba en verde,
-   * que es la peor combinación posible.
+   * Y ES «YA CONTESTÓ», NO «HAY DOS FECHAS». Esto se hizo primero
+   * mirando las fechas, y al probarlo en pantalla la tabla del comité
+   * no pedía nada: con el periodo en «Desde el principio» ---que es
+   * como arranca--- no hay ventana NUNCA, así que los tres bloques se
+   * quedaban en esqueleto para siempre. Que no haya ventana es una
+   * respuesta, no una espera.
+   */
+  it('y la espera no mira las fechas, que con «Desde el principio» no llegan', () => {
+    for (const f of [
+      'components/admin/resumen-general.tsx',
+      'components/admin/tabla-por-accion.tsx',
+      'components/admin/tabla-por-grupo.tsx',
+    ]) {
+      const t = frontend(f);
+      expect(t).toContain('const listo = ventanaResuelta;');
+      expect(t).not.toContain('esperaVentana');
+    }
+  });
+
+  /**
+   * Y LOS TRES LO HONRAN. Pasar la bandera sin que el componente la
+   * mire deja el fallo intacto y las pruebas de arriba en verde, que
+   * es la peor combinación posible.
    */
   it('el resumen general no consulta hasta tenerla', () => {
     const t = frontend('components/admin/resumen-general.tsx');
-    /// La condición: con la bandera puesta hacen falta las dos
-    /// puntas del periodo.
-    expect(t).toMatch(
-      /!esperaVentana \|\| Boolean\(filtros\?\.desde && filtros\?\.hasta\)/,
-    );
-    /// Y lo que decide si se pregunta es eso, no otra cosa.
+    /// Lo que decide si se pregunta es eso, no otra cosa.
     expect(t).toContain('activo: listo');
     /// Mientras espera, esqueleto. Un cero o la cifra vieja se leen
     /// como un dato: es justo el «25» con otra cara.
     expect(t).toContain('if (!listo) return <Esqueleto />;');
   });
 
-  it('la tabla por acción tampoco', () => {
-    const t = frontend('components/admin/tabla-por-accion.tsx');
-    expect(t).toMatch(
-      /!esperaVentana \|\| Boolean\(recorte\?\.desde && recorte\?\.hasta\)/,
-    );
-    expect(t).toContain('activo: listo');
-    /// Esta ya traía su esqueleto para cuando no hay datos, y con
-    /// `activo` en falso no los hay. Se fija para que siga ahí.
-    expect(t).toContain('if (!vivos.datos) return <Esqueleto />;');
+  it('las dos tablas tampoco', () => {
+    for (const f of [
+      'components/admin/tabla-por-accion.tsx',
+      'components/admin/tabla-por-grupo.tsx',
+    ]) {
+      const t = frontend(f);
+      expect(t).toContain('activo: listo');
+      /// Las dos ya traían su esqueleto para cuando no hay datos, y
+      /// con `activo` en falso no los hay. Se fija para que siga ahí.
+      expect(t).toContain('if (!vivos.datos) return <Esqueleto />;');
+    }
   });
 
   /**

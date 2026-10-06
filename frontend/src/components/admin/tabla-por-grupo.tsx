@@ -57,7 +57,7 @@ export function TablaPorGrupo({
   accionFormacionId,
   titulo,
   recorte,
-  esperaVentana = false,
+  ventanaResuelta = true,
 }: {
   accionFormacionId: string;
   /// El código y el nombre de la acción abierta, para que el bloque
@@ -73,16 +73,27 @@ export function TablaPorGrupo({
    * la misma acción.
    */
   recorte?: Record<string, unknown>;
-  /// Igual que los otros dos bloques: sin la ventana del periodo el
-  /// servidor no filtra, y saldría el histórico bajo el rótulo «Hoy».
-  esperaVentana?: boolean;
+  /**
+   * SI LA CABECERA YA RESOLVIO EL PERIODO.
+   *
+   * Falso = todavia no ha contestado, y entonces este bloque NO
+   * pregunta: el servidor, sin ventana, no filtra, y salia el
+   * historico completo bajo el rotulo «Hoy» ---el «25» que reporto
+   * el cliente el 5 oct 2026---.
+   *
+   * Y es «ya contesto», no «hay dos fechas»: con el periodo en
+   * «Desde el principio» la respuesta es que NO hay ventana, y eso
+   * es una respuesta. Mirando las fechas, la pantalla se quedaba en
+   * esqueleto para siempre.
+   */
+  ventanaResuelta?: boolean;
 }) {
   const clave = JSON.stringify(recorte ?? {});
   const cargar = useCallback(
     () => crmApi.resumenPorGrupo(accionFormacionId, recorte ?? {}),
     [accionFormacionId, clave], // eslint-disable-line react-hooks/exhaustive-deps
   );
-  const listo = !esperaVentana || Boolean(recorte?.desde && recorte?.hasta);
+  const listo = ventanaResuelta;
   const vivos = useDatosVivos<FilaDeGrupo[]>(cargar, {
     clave: `resumen-por-grupo:${accionFormacionId}:${clave}`,
     activo: listo,
