@@ -22,6 +22,7 @@ import { LoteDeLeads } from './lote.service';
 import { ConversionDeLeads } from './conversion.service';
 import { LeadsController } from './leads.controller';
 import { LeadsService } from './leads.service';
+import { CargueDeLeads } from './cargue/cargue-de-leads.service';
 import { MetaPruebasController } from './meta-pruebas.controller';
 
 @Module({
@@ -59,6 +60,13 @@ import { MetaPruebasController } from './meta-pruebas.controller';
     AQuienSeParece,
     ConversionAutomatica,
     DeQuienEsEseDocumento,
+    /// El cargue masivo de la BBDD de leads.
+    ///
+    /// Solo necesita Prisma: ni la cola del RUI ni el CRM, porque
+    /// NO crea fichas. Deja los leads PENDIENTE en la mesa y la
+    /// ficha la sigue haciendo la conversión, que es la única
+    /// puerta por la que nace una persona en el CRM.
+    CargueDeLeads,
     /// Igual que en CrmModule: se provee aqui en vez de importar
     /// un modulo, que es como ya lo hace el resto.
     AuditoriaService,

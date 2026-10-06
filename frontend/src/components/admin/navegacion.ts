@@ -275,7 +275,7 @@ export const MODULOS: Modulo[] = [
         exacto: true,
         area: 'inscripciones',
       },
-      {
+     {
         /// LA BANDEJA DE WHATSAPP, y es la octava entrada.
         ///
         /// Rompe otra vez la regla de las seis, y por la misma razón
