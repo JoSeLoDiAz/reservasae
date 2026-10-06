@@ -84,7 +84,13 @@ function prismaFalso(tocadaPorAsesor: boolean) {
     },
     /// Hay autorización viva: lo que se prueba aquí es el
     /// desvío del asesor, no el candado del consentimiento.
-    autorizacionDatos: { findFirst: () => Promise.resolve({ id: 'a1' }) },
+    /// CON SU POLITICA, como la pide el `select` real: la marca se
+    /// guarda por gremio y de ahi sale el convenio. Un doble que
+    /// devuelve menos que la consulta deja pasar codigo que revienta.
+    autorizacionDatos: {
+      findFirst: () =>
+        Promise.resolve({ id: 'a1', politica: { convenioId: 'c1' } }),
+    },
     politicaDatos: { findFirst: () => Promise.resolve({ id: 'p1' }) },
     caracterizacionPersona: {
       deleteMany: anota('caracterizacionPersona', 'deleteMany', { count: 0 }),

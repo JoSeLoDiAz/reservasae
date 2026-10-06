@@ -480,7 +480,24 @@ export class SepService {
              * empate.
              */
             caracterizaciones: {
-              where: { autorizacion: { revocadaEn: null } },
+              /**
+               * Y LAS DE ESTE GREMIO, no las de cualquiera.
+               *
+               * Filtraba solo por «autorización viva». Como la marca
+               * colgaba de UNA autorización ---la del gremio donde se
+               * capturó primero--- revocar allí la borraba también de
+               * ESTE reporte, donde la persona sigue autorizando. Y al
+               * revés: una marca consentida solo en el otro gremio
+               * viajaba aquí.
+               *
+               * Desde el 5 oct 2026 cada marca lleva su `convenioId`,
+               * así que se pide el de este reporte y la autorización
+               * que la ampara es necesariamente la de aquí.
+               */
+              where: {
+                convenioId,
+                autorizacion: { revocadaEn: null },
+              },
               orderBy: [{ creadoEn: 'asc' }, { caracterizacionSepId: 'asc' }],
             },
           },

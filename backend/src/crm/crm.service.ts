@@ -3493,8 +3493,18 @@ export class CrmService {
     }
 
     await this.prisma.$transaction(async (tx) => {
+      /**
+       * SOLO LAS DE ESTE GREMIO.
+       *
+       * Borraba TODAS las de la persona. Mientras la marca era una
+       * por persona daba igual; desde que son una por gremio, eso
+       * sería declarar en ADECOPRIA y borrarle a la misma persona lo
+       * que dijo en BRITCHAM ---sin que nadie se entere y sin que el
+       * compilador pueda avisar, porque `deleteMany` acepta cualquier
+       * filtro---.
+       */
       await tx.caracterizacionPersona.deleteMany({
-        where: { personaId: p.personaId },
+        where: { personaId: p.personaId, convenioId: p.convenioId },
       });
 
       if (elegidas.length && autorizacion) {
@@ -3503,6 +3513,9 @@ export class CrmService {
             personaId: p.personaId,
             caracterizacionSepId,
             autorizacionId: autorizacion.id,
+            /// En qué gremio lo dijo: la autorización que lo ampara es
+            /// de este convenio, y la marca vale solo aquí.
+            convenioId: p.convenioId,
           })),
         });
       }

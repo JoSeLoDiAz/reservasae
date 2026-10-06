@@ -52,6 +52,7 @@ model Convenio {
 
   acciones             AccionFormacion[]
   politicas            PoliticaDatos[]
+  caracterizaciones    CaracterizacionPersona[]
   formularios          Formulario[]
   leads                LeadEntrante[]
   conversaciones       ConversacionEntrante[]
@@ -1514,17 +1515,40 @@ model NotaDeGestion {
 /// suprimirlo sin tocar la identidad, y cuelga de la
 /// autorizacion exacta que lo ampara.
 model CaracterizacionPersona {
-  id                   String   @id @default(cuid())
+  id                   String @id @default(cuid())
   personaId            String
   caracterizacionSepId Int
   autorizacionId       String
-  creadoEn             DateTime @default(now())
+
+  /// EN QUE GREMIO LO DIJO, y por que hace falta tenerlo aqui.
+  ///
+  /// Se puede deducir ---`autorizacion.politica.convenioId`--- pero
+  /// la llave unica NO puede: Prisma no indexa a traves de dos
+  /// relaciones. Y sin el convenio en la llave, «una marca, una vez»
+  /// significaba una vez POR PERSONA, no por gremio.
+  ///
+  /// Consecuencia, que es el defecto: la marca colgaba de UNA sola
+  /// autorizacion ---la del gremio donde se capturo primero--- y al
+  /// revocar ALLI desaparecia tambien del reporte del OTRO, donde la
+  /// persona sigue autorizando. Y al reves: una marca consentida solo
+  /// en un gremio viajaba en el reporte del otro.
+  ///
+  /// Son datos sensibles ---victima del conflicto armado, una
+  /// discapacidad--- y es lo que ve el SENA. Que el mismo gremio
+  /// dependiera de lo que la persona decida en otro no se sostiene.
+  convenioId String
+
+  creadoEn DateTime @default(now())
 
   persona      Persona           @relation(fields: [personaId], references: [id], onDelete: Cascade)
   autorizacion AutorizacionDatos @relation(fields: [autorizacionId], references: [id], onDelete: Cascade)
+  convenio     Convenio          @relation(fields: [convenioId], references: [id], onDelete: Cascade)
 
-  // una marca, una vez
-  @@unique([personaId, caracterizacionSepId])
+  /// Una marca, una vez POR GREMIO. La misma persona puede declarar
+  /// lo mismo en los dos, y cada declaracion la ampara la
+  /// autorizacion de SU gremio.
+  @@unique([personaId, caracterizacionSepId, convenioId])
+  @@index([convenioId])
   @@index([autorizacionId])
   @@map("caracterizaciones_persona")
 }

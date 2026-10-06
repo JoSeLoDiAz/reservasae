@@ -33,7 +33,14 @@ function bloqueDeCaracterizaciones(): string {
   /// leyendo prosa en vez de código.
   const i = FUENTE.indexOf('caracterizaciones: {');
   if (i === -1) return '';
-  return FUENTE.slice(i, i + 400);
+  /// HASTA DONDE CIERRA EL BLOQUE, no 400 caracteres.
+  ///
+  /// Con el corte fijo, añadir un comentario dentro empujaba el
+  /// código fuera de la ventana y estas pruebas caían sin que nada
+  /// hubiera dejado de cumplirse. Una prueba que falla porque alguien
+  /// explicó mejor su código enseña a ignorarla.
+  const fin = FUENTE.indexOf('\n            },', i);
+  return fin === -1 ? FUENTE.slice(i, i + 900) : FUENTE.slice(i, fin);
 }
 
 describe('el reporte solo manda lo que sigue amparado', () => {

@@ -1609,7 +1609,9 @@ export class PreinscripcionService {
         },
       },
       orderBy: { otorgadaEn: 'desc' },
-      select: { id: true },
+      /// Con su convenio: la marca se guarda por gremio, asi que hay
+      /// que saber en cual se esta declarando.
+      select: { id: true, politica: { select: { convenioId: true } } },
     });
 
     const marcar = this.prisma.persona.update({
@@ -1632,7 +1634,12 @@ export class PreinscripcionService {
     /// Se reemplaza entera, no se suma: si la persona vuelve
     /// y quita una casilla, quitarla tiene que servir de algo.
     await this.prisma.$transaction([
-      this.prisma.caracterizacionPersona.deleteMany({ where: { personaId } }),
+      /// SOLO LAS DE ESTE GREMIO: borraba todas las de la persona, y
+      /// desde que son una por gremio eso le borraría lo que declaró
+      /// en el otro. Ver el porqué en el modelo.
+      this.prisma.caracterizacionPersona.deleteMany({
+        where: { personaId, convenioId: autorizacion.politica.convenioId },
+      }),
       ...(elegidas.length > 0
         ? [
             this.prisma.caracterizacionPersona.createMany({
@@ -1640,6 +1647,7 @@ export class PreinscripcionService {
                 personaId,
                 caracterizacionSepId,
                 autorizacionId: autorizacion.id,
+                convenioId: autorizacion.politica.convenioId,
               })),
             }),
           ]
