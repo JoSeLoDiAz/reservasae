@@ -1,94 +1,70 @@
-# `jose/dv-tecleado` · la segunda ronda
+# `jose/dv-tecleado` · lo que queda tras la 0.21.0
 
-Josse: gracias por la 0.20.0 ---entró en el mismo día y con seis arreglos tuyos
-encima, dos de ellos de seguridad---. Esto es lo que queda, y **lo de abajo ya
-incorpora tus correcciones**: tu `dev` está fundida aquí y verde.
+Josse: gracias por las dos de esta mañana, y por volver a meter BBDD Leads y la
+bandeja sin que hiciera falta pedírtelo. Tu `dev` está fundida aquí y verde.
 
 | | |
 |---|---|
 | Rama | `jose/dv-tecleado`, subida |
-| Desplegado | `v0.20.0-JD` (6 oct) |
-| Sin desplegar | **5 commits** (3 de contenido, 1 merge, 1 revert) |
+| Desplegado | `v0.21.0-JD` (6 oct, 9:42) |
+| Sin desplegar | **6 commits**: 2 de contenido, y el resto merges, un revert y este documento |
 | De lo tuyo que falte traer | **nada**: `origin/dev` fundida |
-| Línea base | `tsc` limpio en backend y frontend · **266 suites, 2.826 pruebas**, verde |
+| Línea base | `tsc` limpio en backend y frontend · **267 suites, 2.834 pruebas**, verde |
 | Migraciones nuevas | **ninguna** |
 
 ---
 
-## 0 · Lo que el cliente pide en esta ronda
+## 0 · Los dos que quedan
 
-**Mauricio pide que esta ronda entre COMPLETA.** Su instrucción, textual: que no se
-saque nada, y que lo que se vaya a dejar fuera se analice y se consulte antes, no
-después. Si algo de aquí no te cuadra, dímelo y lo discutimos; lo que no quiere es
-enterarse de que falta cuando abre el CRM y no lo ve.
+### a) El cargue de BBDD Leads se duplicaba con Gestión de leads
 
-### a) BBDD Leads vuelve, y es lo primero
+`dae9dd1`. **Esto es un defecto de lo que acabas de desplegar**, así que va primero.
 
-Tu `b9a2e40` la sacó del corte y **borró sus 26 ficheros en `dev`**. Está revertido
-aquí (`2fe02e5`): la pantalla y su cargue vuelven enteros.
+El cruce del cargue mira la MESA ---`leads_entrantes`--- y no las fichas. Y las dos
+poblaciones casi no se solapan: quien llega por el formulario público nace FICHA y no
+deja fila en la mesa. En la base de pruebas, **de 1.480 fichas ninguna tiene lead en la
+mesa**.
 
-Tu razón era buena ---capacidad nueva, 5.331 líneas, y no estaba en el documento de
-esa entrega--- y por eso quedó fuera sin discusión. Pero el cliente la pidió el 5 de
-octubre por su nombre: «una visual como mesa de entrada que diga BBDD Leads
-Adecopria». Hoy entró al CRM, no la encontró, y lo primero que preguntó fue por qué.
+Así que subir una base con gente que ya está en Gestión de leads ---incluso ya
+inscrita--- las da por NUEVAS y crea un lead de cada una: dos registros de la misma
+persona y dos asesoras llamándola, que es justo el duplicado que la mesa existe para no
+tener. Y el informe lo dice al revés ---«todas nuevas»---, que es lo que uno espera ver
+en un cargue, así que nadie lo buscaría.
 
-Si hay algo concreto que no te convence ---el tamaño del diff, el cargue sin
-restricciones, la séptima entrada de menú--- dímelo y lo arreglo. Pero no la saques
-otra vez sin avisar.
+Lo encontró el cliente preguntando, no una prueba: «¿pero con Gestión de leads?».
 
-### b) La bandeja de Conversaciones de Lucid
+Ahora, antes de crear, se mira también la ficha: documento, correo o celular, los
+mismos tres del cruce de la mesa y en el mismo orden. La fila sale como «Ya está en
+Gestión de leads», con por dónde se reconoció y **en qué etapa**.
 
-`64414c7` (servidor) y `a1a3c27` (pantalla). Resuelve «no está llegando las
-conversaciones de Lucid, llega 200 pero no queda» (cliente, 5 oct).
+**No se le toca nada a la ficha.** Misma frontera que ya pone el lead convertido:
+rellenar campos de una ficha desde un archivo cambia lo que se le reportó al SENA sin
+pasar por la ficha.
 
-**No era un fallo de la integración.** El webhook las guarda bien; lo que pasa es que
-cuando el número no casa con nadie del gremio ---o casa con más de uno--- la
-conversación queda en `SIN_DUENO` o `AMBIGUA`, y **ninguna pantalla leía esa tabla**.
-Guardado donde nadie lo ve es indistinguible de perdido, y el olvidador borra las sin
-dueño a los 60 días, así que acababa siéndolo de verdad.
+Lo que mirarías tú: **acotado al convenio**, con prueba sobre el `where` que sale hacia
+Prisma; y el doble del arnés contesta al `where` como la base, porque uno que devolviera
+todas las fichas daría por bueno un cruce que no filtra.
 
-La bandeja es la cola: lo que espera dueño, con botón para pegarlo a su ficha o a su
-lead. Controlador aparte del webhook ---a este lo guarda una sesión del panel y al
-otro una llave de proveedor---, y la nota se escribe igual que en el camino
-automático, para que una pegada a mano y otra pegada sola sean indistinguibles en la
-ficha.
+### b) Por dónde entró cada persona, en columnas separadas
 
-Lo que mirarías tú primero: **no se mezclan gremios**. Pegar en una ficha de otro
-convenio se rechaza, y hay prueba con un doble que contesta al `where` igual que la
-base ---uno que ignorara el filtro daría por buena una consulta que no filtra---.
-
-### c) Por dónde entró cada persona, en columnas separadas
-
-`7b67734`. Cierra «si o sí el sistema debe decirme de qué link de formulario entró,
-porque es imposible que no se pueda, o sea es una falacia» (cliente, 5 oct), y lo que
-dijo hoy viendo la 0.20.0 ya desplegada: «¿se debe separar, ejemplo el Eduteka, para
-otra columna, porque no tengo opción de saber qué formulario?».
+`7b67734`. Cierra «si o sí el sistema debe decirme de qué link de formulario entró»
+(cliente, 5 oct) y lo que dijo hoy viendo la 0.20.0 ya desplegada: «¿se debe separar,
+ejemplo el Eduteka, para otra columna, porque no tengo opción de saber qué formulario?».
 
 Tenía razón en la lectura: «Orgánico / eduteka» encima de «Formulario: Preinscripción
-pública» hace pensar que *eduteka* es el formulario. No lo es ---es la campaña--- y
-eran tres preguntas apretadas en dos columnas. Ahora son cuatro columnas pegadas:
-canal, campaña, formulario y **enlace de entrada**, que es la que faltaba: el mismo
-formulario se reparte por varios enlaces y «cuántos trajo este enlace» no se contesta
-con el formulario.
+pública» hace pensar que *eduteka* es el formulario. No lo es ---es la campaña--- y eran
+tres preguntas apretadas en dos columnas. Ahora son cuatro columnas pegadas: canal,
+campaña, formulario y **enlace de entrada**, que es la que faltaba.
 
-Con filtro en el servidor y en la dirección: `?enlace=` y `?formulario=` se pegan en
-un chat y llevan a la lista, como ya hacen `?asesor=` y `?curso=`. Y `SIN_DATO` pide
-las que no lo tienen, que es como se mide cuánto falta por saberse.
+Con filtro en el servidor y en la dirección: `?enlace=` y `?formulario=` se pegan en un
+chat y llevan a la lista, como ya hacen `?asesor=` y `?curso=`. Y `SIN_DATO` pide las
+que no lo tienen, que es como se mide cuánto falta por saberse.
 
-Endpoint nuevo: `GET /admin/participantes/por-donde-entraron`, que da los enlaces y
-formularios que **de verdad trajeron a alguien**, con su recuento.
+Endpoint nuevo: `GET /admin/participantes/por-donde-entraron`.
 
-### d) Tus seis correcciones: las seis se quedan
-
-Las revisé una a una y están bien. Dos las apunto porque me enseñaron algo:
-
-- **La IP en rutas públicas.** Tenías razón y era un agujero mío: con el límite por
-  sesión, el cubo de `POST /admin/sesion` lo elegía quien llamara, así que se podían
-  probar 8 claves por minuto **por cada cookie** que se tuviera. Tu `handleRequest` lo
-  cierra.
-- **La tabla de asesores en v2.** También tenías razón: para eso está `nueva: true`, y
-  renombrar le cuesta a todos los anchos ajustados a mano. Lo apliqué al revés en
-  Gestión de leads y lo deshice; queda escrito en el código, donde estaba el error.
+**La tabla se queda en `participantes-v2`.** La renombré por añadir la columna y tu
+revisión de la mañana me corrigió lo mismo en la de asesores: para eso está
+`nueva: true`. Deshecho antes de subirlo.
 
 ---
 
