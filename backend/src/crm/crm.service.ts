@@ -876,7 +876,76 @@ export class CrmService {
       })),
       cierrePorAccion(grupos),
       ahora,
+      await this.tocadosEnLaVentana(ambito, ventana),
     );
+  }
+
+  /**
+   * A CUÁNTAS FICHAS TOCÓ CADA ASESOR DENTRO DE LA VENTANA.
+   *
+   * «No me está mostrando lo gestionado el viernes y lo gestionado
+   * hoy» (cliente, 5 oct 2026). No lo mostraba porque no se podía:
+   * `gestionados` cuenta, de los leads que LLEGARON en el periodo, a
+   * cuántos se ha tocado alguna vez. Eso no cambia entre el viernes y
+   * hoy si los leads llegaron en agosto.
+   *
+   * LA FECHA YA EXISTÍA, repartida en los tres sitios que definen
+   * «gestionado» ---la misma regla, no una nueva---:
+   *
+   *   - una nota de gestión, que tiene su `creadoEn`;
+   *   - `datosTocadosPorAsesorEn`, que ya es un instante;
+   *   - un movimiento de etapa HECHO POR UNA PERSONA.
+   *
+   * Lo tercero pide `adminId: { not: null }`: el movimiento que
+   * escribe el LMS al reportar avance no es gestión de nadie, y
+   * contándolo, el día que entra un archivo del aula todos los
+   * asesores saldrían trabajando.
+   *
+   * No hizo falta migración.
+   */
+  private async tocadosEnLaVentana(
+    ambito: Ambito,
+    ventana: VentanaDeLlegada,
+  ): Promise<Map<string, number> | undefined> {
+    const desde = ventana.llegoDesde ? new Date(ventana.llegoDesde) : null;
+    const hasta = ventana.llegoHasta ? new Date(ventana.llegoHasta) : null;
+    /// Sin ventana la cifra no quiere decir nada, y se devuelve
+    /// `undefined` para que salga nula en vez de cero.
+    if (!desde && !hasta) return undefined;
+
+    const dentro = {
+      ...(desde ? { gte: desde } : {}),
+      ...(hasta ? { lt: hasta } : {}),
+    };
+
+    /// Solo el id del asesor: son fichas, no filas de pantalla.
+    const fichas = await this.prisma.participante.findMany({
+      where: {
+        convenioId: { in: ambito.convenios },
+        OR: [
+          /// LA NOTA, SI LA ESCRIBIÓ UNA PERSONA. Las del sistema van
+          /// con `autorId` nulo ---Lucid deja una por cada
+          /// conversación que pega--- y contarlas diría que la asesora
+          /// trabajó una ficha que no tocó. Es la misma regla que ya
+          /// aplica Lucid al no marcarlas como intento de contacto.
+          { notas: { some: { creadoEn: dentro, autorId: { not: null } } } },
+          { datosTocadosPorAsesorEn: dentro },
+          /// Y EL MOVIMIENTO, SI LO HIZO UNA PERSONA. El que escribe
+          /// el LMS al reportar avance no es gestión de nadie:
+          /// contándolo, el día que entra un archivo del aula saldrían
+          /// todos los asesores trabajando.
+          { movimientos: { some: { creadoEn: dentro, adminId: { not: null } } } },
+        ],
+      },
+      select: { asesorId: true },
+    });
+
+    const por = new Map<string, number>();
+    for (const f of fichas) {
+      const llave = f.asesorId ?? 'SIN_ASESOR';
+      por.set(llave, (por.get(llave) ?? 0) + 1);
+    }
+    return por;
   }
 
   /**

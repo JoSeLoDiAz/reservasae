@@ -691,6 +691,36 @@ function DeInscripciones({
         </span>
       ),
     },
+    /**
+     * LO GESTIONADO DENTRO DEL PERIODO, que es otra cuenta.
+     *
+     * «No me está mostrando lo gestionado el viernes y lo
+     * gestionado hoy» (cliente, 5 oct 2026). La columna de al lado
+     * cuenta, de los leads que LLEGARON en el periodo, a cuántos se
+     * ha tocado alguna vez: con leads de agosto, esa cifra es la
+     * misma el viernes que hoy. Esta cuenta el ACTO de gestionar
+     * ---una nota, un dato tocado, un cambio de etapa hecho por una
+     * persona--- caiga dentro de la ventana, sin importar cuándo
+     * llegó el lead.
+     *
+     * CON UNA ACCIÓN ELEGIDA SALE UNA RAYA, no un cero: la cifra no
+     * está partida por acción, y un cero diría que en esa acción no
+     * se trabajó.
+     */
+    {
+      clave: "gestionadosEnElPeriodo",
+      titulo: "Gestionados en el periodo",
+      ancho: "150px",
+      numerica: true,
+      valor: (f) => (accion ? "" : (f.gestionadosEnElPeriodo ?? "")),
+      pinta: (f) => (
+        <span className="tabular-nums">
+          {accion || f.gestionadosEnElPeriodo == null
+            ? "—"
+            : f.gestionadosEnElPeriodo}
+        </span>
+      ),
+    },
     {
       /// EL CIERRE Y LO QUE FALTA, en dos renglones. Era su propio
       /// componente `Plazo`, que pintaba un `<td>`; con `Tabla` la
@@ -818,7 +848,10 @@ function DeInscripciones({
           ///
           /// REGLA QUE SALE DE AQUÍ: reordenar columnas obliga a renombrar
           /// la tabla. Si no, el cambio solo lo ven los que nunca entraron.
-          id="asesores-inscripciones-v2"
+          /// v3 por la columna «Gestionados en el periodo» (6 oct
+          /// 2026): quien ya hubiera tocado sus columnas no la veria
+          /// nunca, porque lo guardado gana.
+          id="asesores-inscripciones-v3"
           columnas={columnas}
           filas={filas}
           clave={(f) => f.asesorId ?? "sin-asesor"}

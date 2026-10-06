@@ -74,6 +74,29 @@ export type FilaDeAsesor = {
   ritmo: Ritmo;
   /// Días que llevan esperando, de media, los que siguen sin resolver.
   antiguedadMedia: number | null;
+  /**
+   * A CUÁNTA GENTE TOCÓ DENTRO DEL PERIODO. Otra cuenta que
+   * `carga.gestionados`, y por eso va aparte.
+   *
+   * «No me está mostrando lo gestionado el viernes y lo gestionado
+   * hoy» (cliente, 5 oct 2026). No lo mostraba porque no se podía:
+   * `gestionados` responde «de los leads que LLEGARON en este
+   * periodo, a cuántos se ha tocado alguna vez», y eso no cambia
+   * entre el viernes y hoy si los leads llegaron en agosto. No había
+   * ninguna fecha con la que recortar el acto de gestionar.
+   *
+   * La fecha sí existía, repartida en los tres sitios que ya
+   * definían «gestionado»: la nota tiene `creadoEn`,
+   * `datosTocadosPorAsesorEn` es un instante, y el movimiento de
+   * etapa tiene el suyo. Esto cuenta las fichas donde ALGUNA de las
+   * tres cayó dentro de la ventana, sin importar cuándo llegó la
+   * persona. No hizo falta migración.
+   *
+   * Nulo cuando no hay ventana puesta: sin periodo, «gestionado en
+   * el periodo» no quiere decir nada, y un cero ahí se leería como
+   * que el asesor no hizo nada.
+   */
+  gestionadosEnElPeriodo: number | null;
   /// La fecha contra la que corre, para poder decirla en pantalla.
   limite: string | null;
   /// Su carga partida por accion: el desglose que se abre al pulsar
@@ -217,6 +240,19 @@ export function repartirInscripciones(
   leads: LeadDelAsesor[],
   cierres: Map<string, Date>,
   hoy: Date,
+  /**
+   * A CUÁNTAS FICHAS TOCÓ CADA ASESOR DENTRO DE LA VENTANA, por su
+   * id ---y `'SIN_ASESOR'` para las que no tienen---.
+   *
+   * Viene de una consulta aparte y no se deduce de `leads`: estas
+   * filas son las de los leads que LLEGARON en la ventana, y
+   * gestionar es otra cosa que llegar. Quien el viernes trabajó
+   * fichas de agosto no aparecería en ninguna.
+   *
+   * `undefined` = no hay ventana puesta, y entonces la cifra sale
+   * nula en vez de cero: un cero se leería como que no hizo nada.
+   */
+  tocadosEnLaVentana?: Map<string, number>,
 ): FilaDeAsesor[] {
   const por = new Map<
     string,
@@ -343,6 +379,11 @@ export function repartirInscripciones(
           descartados: f.descartados,
           ritmo: ritmoDe({ carga, limite, hoy, diasCorridos }),
           antiguedadMedia: antiguedadMedia(f.esperando, hoy),
+          /// Nulo cuando no hay ventana: sin periodo, «gestionado
+          /// en el periodo» no quiere decir nada.
+          gestionadosEnElPeriodo: tocadosEnLaVentana
+            ? (tocadosEnLaVentana.get(id) ?? 0)
+            : null,
           limite: limite ? limite.toISOString().slice(0, 10) : null,
           /// En el mismo orden que la tabla de fuera: los que más
           /// pendientes tienen, arriba. Quien abre una fila busca dónde
@@ -459,6 +500,10 @@ export function repartirAcademicos(
         /// En académica la antigüedad no se pide: lo que importa es
         /// cuánto falta para el cierre, no cuánto lleva esperando.
         antiguedadMedia: null,
+        /// Y tampoco «gestionado en el periodo»: el aula la
+        /// alimenta el LMS, así que tocar una ficha no es lo que
+        /// mide el trabajo de un académico.
+        gestionadosEnElPeriodo: null,
         limite: limite ? limite.toISOString().slice(0, 10) : null,
       };
     })

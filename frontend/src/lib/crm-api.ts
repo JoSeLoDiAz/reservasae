@@ -1598,6 +1598,19 @@ export type FilaDeAsesor = {
   descartados?: number;
   ritmo: RitmoDeAsesor;
   antiguedadMedia: number | null;
+  /**
+   * A CUÁNTAS FICHAS TOCÓ DENTRO DEL PERIODO.
+   *
+   * «No me está mostrando lo gestionado el viernes y lo gestionado
+   * hoy» (cliente, 5 oct 2026). `carga.gestionados` no lo podía
+   * decir: cuenta, de los leads que LLEGARON en el periodo, a
+   * cuántos se ha tocado alguna vez, y eso no cambia de un día a
+   * otro si los leads llegaron en agosto.
+   *
+   * Nulo = sin periodo puesto. Opcional porque un backend sin
+   * reiniciar no lo manda.
+   */
+  gestionadosEnElPeriodo?: number | null;
   limite: string | null;
   /// SU CARGA REPARTIDA POR ACCIÓN, que es el desglose que se abre al
   /// pulsar la fila: «con al menos dos métricas, y como la tablita
