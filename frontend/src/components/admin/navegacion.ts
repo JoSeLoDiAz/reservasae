@@ -276,6 +276,32 @@ export const MODULOS: Modulo[] = [
         area: 'inscripciones',
       },
       {
+        /// LA BANDEJA DE WHATSAPP, y es la octava entrada.
+        ///
+        /// Rompe otra vez la regla de las seis, y por la misma razón
+        /// que la de arriba: una pantalla sin entrada de menú no se
+        /// encuentra, y esconderla no sería respetar la regla sino
+        /// dejar la pantalla inservible. Si el módulo hay que recortar,
+        /// eso es diseño del menú y lo decide Josse.
+        ///
+        /// AQUÍ Y NO EN SISTEMAS. En Sistemas se configura la
+        /// integración ---la llave, el estado de la puerta---; esto es
+        /// trabajo diario de la cola de leads: «no está llegando las
+        /// conversaciones de Lucid» (cliente, 5 oct 2026) no era un
+        /// problema de integración, era que nadie las veía.
+        ///
+        /// Con nivel VER, que es lo que exige el `@Get()` de
+        /// `bandeja.controller.ts`. Pegar pide ESCRIBIR y la pantalla
+        /// esconde sola los botones a quien no lo tiene: pedir
+        /// ESCRIBIR en la entrada le quitaría la cola a quien sí puede
+        /// verla, y entonces no sabría que hay conversaciones
+        /// esperando.
+        href: '/admin/conversaciones',
+        etiqueta: 'Conversaciones',
+        exacto: true,
+        area: 'inscripciones',
+      },
+      {
         /// La planeación de pauta y el rendimiento por asesor. Aquí y
         /// no en Mailing: «Comité Marketing mándalo para inscripciones»
         /// (cliente, 23 sep 2026).
