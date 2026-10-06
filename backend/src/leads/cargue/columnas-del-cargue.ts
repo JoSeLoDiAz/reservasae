@@ -35,6 +35,14 @@
 export type ClaveDeColumna =
   | 'nombre'
   | 'apellido'
+  /// LAS CUATRO PIEZAS POR SEPARADO, cuando el archivo las trae
+  /// así. La base del cliente las tiene en cuatro columnas ---«es
+  /// mejor que adivinar»--- y adivinar es justo lo que hay que
+  /// evitar: esas cuatro son columnas del reporte al SENA.
+  | 'primerNombre'
+  | 'segundoNombre'
+  | 'primerApellido'
+  | 'segundoApellido'
   | 'correo'
   | 'celular'
   | 'tipoDocumento'
@@ -94,12 +102,49 @@ export const COLUMNAS_DEL_CARGUE: ColumnaDelCargue[] = [
   {
     clave: 'apellido',
     titulo: 'Apellidos',
-    tambienSeLlama: ['apellido', 'apellidos', 'primer apellido'],
+    /// «Primer apellido» YA NO entra por aqui: tiene columna
+    /// propia desde el 6 oct 2026, y si lo dejara aqui ganaria esta
+    /// ---se declara antes--- y la especifica no casaria nunca. Con
+    /// las cuatro piezas no hay que adivinar donde acaba el nombre.
+    tambienSeLlama: ['apellido', 'apellidos'],
     ejemplo: 'Ruiz Gómez',
     ayuda:
       'Si viene esta columna, el nombre ya no hay que adivinarlo: lo que ' +
       'esté aquí son apellidos y lo de al lado son nombres.',
     ancho: 26,
+  },
+  {
+    clave: 'primerNombre',
+    titulo: 'Primer nombre',
+    tambienSeLlama: ['primer nombre', '1er nombre', 'nombre 1'],
+    ejemplo: 'Ana',
+    ayuda:
+      'Solo si su archivo tiene el nombre partido en columnas. Si lo trae, no se adivina nada: cada pieza va a la suya.',
+    ancho: 18,
+  },
+  {
+    clave: 'segundoNombre',
+    titulo: 'Segundo nombre',
+    tambienSeLlama: ['segundo nombre', '2do nombre', 'nombre 2'],
+    ejemplo: 'María',
+    ayuda: 'Opcional, como todo lo demás.',
+    ancho: 18,
+  },
+  {
+    clave: 'primerApellido',
+    titulo: 'Primer apellido',
+    tambienSeLlama: ['primer apellido', '1er apellido', 'apellido 1'],
+    ejemplo: 'Ruiz',
+    ayuda: 'Opcional, como todo lo demás.',
+    ancho: 18,
+  },
+  {
+    clave: 'segundoApellido',
+    titulo: 'Segundo apellido',
+    tambienSeLlama: ['segundo apellido', '2do apellido', 'apellido 2'],
+    ejemplo: 'Gómez',
+    ayuda: 'Opcional, como todo lo demás.',
+    ancho: 18,
   },
   {
     clave: 'correo',
@@ -179,6 +224,7 @@ export const COLUMNAS_DEL_CARGUE: ColumnaDelCargue[] = [
     titulo: 'Acción de formación',
     tambienSeLlama: [
       'accion de formacion',
+      'accion de formacion de interes',
       'accion',
       'af',
       'curso',
@@ -217,6 +263,7 @@ export const COLUMNAS_DEL_CARGUE: ColumnaDelCargue[] = [
       'municipio',
       'ciudad de residencia',
       'ciudad municipio',
+      'ciudad o municipio',
     ],
     ejemplo: 'Medellín',
     ayuda:
