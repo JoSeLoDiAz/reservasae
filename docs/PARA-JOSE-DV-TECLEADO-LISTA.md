@@ -8,16 +8,16 @@ más la auditoría completa.
 |---|---|
 | Rama | `jose/dv-tecleado`, subida |
 | Desplegado | `v0.19.0-JD` (2 oct) — **hace cuatro días** |
-| Sin desplegar | **40 commits** |
+| Sin desplegar | **42 commits** |
 | De lo tuyo que falte traer | **nada** |
-| Línea base | `tsc` limpio en backend y frontend · **264 suites, 2.797 pruebas**, verde |
+| Línea base | `tsc` limpio en backend y frontend · **265 suites, 2.807 pruebas**, verde |
 | Migraciones nuevas | **3** — ver §1a |
 
 ---
 
-## 0 · Las seis del 6 de octubre — las cifras del comité
+## 0 · Las siete del 6 de octubre — las cifras del comité
 
-Seis commits, de 06:21 a 07:37 del 6 de octubre, y son **las que el cliente está
+Siete commits del 6 de octubre, y son **las que el cliente está
 esperando**. Todas nacen de lo que reportó el 5 de octubre. Van primero porque dos de
 ellas cambian
 **números que él lee en comité**, y conviene que sepas qué va a cambiar antes de que
@@ -31,6 +31,11 @@ te lo pregunte.
 | 4 | `cf6b1cd` | El **detalle por grupos** obedece los filtros y el periodo. No obedecía a ninguno. **Cambia cifras.** |
 | 5 | `f5b08e0` | Cambiar un filtro **mientras carga** ya no pierde la pedida ni pinta la respuesta vieja. |
 | 6 | `4ade9b8` | El **límite de peticiones** contaba por IP: toda la oficina compartía 60 por minuto. Ahora cuenta por sesión. |
+| 7 | `28083cf` | **«Gestionados en el periodo»**: una columna nueva en Seguimiento de asesores. La de siempre no podía decir lo gestionado el viernes contra lo de hoy. **Sin migración.** |
+
+**El cliente está pidiendo este despliegue hoy.** Sigo trabajando sobre esta misma rama,
+así que vuelve a mirar `git log origin/dev..jose/dv-tecleado` antes de desplegar: puede
+que haya más commits que cuando leas esto. Los de hoy van todos en esta sección.
 
 ### Lo que va a cambiar a la vista, y hay que decirlo
 
@@ -47,6 +52,14 @@ fallo:
   recorta: con «Hoy» arriba, una AF llena enseñaba sus 519 cupos libres y estado
   ABIERTO. Ahora se restan los que **ocupan silla hoy**, sin ventana y sin los cinco
   filtros.
+
+### La columna nueva pide un detalle que es fácil pasar por alto
+
+La tabla de Seguimiento de asesores pasa de `asesores-inscripciones-v2` a `-v3`. Es a
+propósito y la regla ya estaba escrita ahí: lo que cada quien acomodó de sus columnas
+vive en su navegador y **gana al código**, así que sin renombrar la tabla, la columna
+nueva solo la verían las cuentas que nunca entraron. El precio es que se pierden los
+anchos que alguien hubiera ajustado a mano, y es barato al lado de una columna invisible.
 
 ### Una cosa que te va a saltar en el despliegue, y no es un error nuevo
 
