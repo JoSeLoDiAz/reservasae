@@ -822,6 +822,9 @@ export type Ficha = {
 };
 
 export type EstadoAcademico =
+  /// El aula no ha dicho NADA de esa acción todavía: ni una
+  /// actividad publicada ni un acceso de nadie.
+  | "SIN_DATOS_DEL_AULA"
   | "SIN_INGRESO"
   | "SIN_EMPEZAR"
   | "ATRASADO"
@@ -830,6 +833,7 @@ export type EstadoAcademico =
   | "CERTIFICADO";
 
 export const ETIQUETA_ACADEMICA: Record<EstadoAcademico, string> = {
+  SIN_DATOS_DEL_AULA: "Sin datos del aula",
   SIN_INGRESO: "Sin ingreso",
   /// «SIN ACTIVIDADES» Y NO «SIN EMPEZAR» (cliente, 24 sep 2026).
   /// Es como él nombró el estado en su lista, y describe mejor lo que
@@ -844,6 +848,19 @@ export const ETIQUETA_ACADEMICA: Record<EstadoAcademico, string> = {
 
 /// Qué significa cada uno, para no tener que adivinarlo.
 export const AYUDA_ACADEMICA: Record<EstadoAcademico, string> = {
+  /**
+   * LO QUE FALTA SON LOS DATOS, NO LA GENTE.
+   *
+   * Sin esto, el día que un grupo arranca con el aula aún sin
+   * cargar, todos sus inscritos salen «Sin ingreso» y en rojo:
+   * señalados por algo que no han hecho. Pasa el 13 de octubre
+   * con los cuatro primeros grupos de AF1 y sus 116 personas.
+   *
+   * Se apaga solo en cuanto llegue la primera actividad o el
+   * primer acceso.
+   */
+  SIN_DATOS_DEL_AULA:
+    "El aula todavía no ha reportado nada de esta acción: ni actividades ni ingresos. No es que no hayan entrado, es que aún no se sabe.",
   SIN_INGRESO: "Su grupo ya empezó y nunca ha entrado al aula.",
   SIN_EMPEZAR: "Su grupo todavía no arranca: no se juzga.",
   ATRASADO: "Va dos actividades o más por debajo de lo que tocaría.",
@@ -931,7 +948,11 @@ export type Academico = {
     analizadas: number;
     /** Los seis se cuentan solo sobre quien sigue dentro. */
     enFormacion: number;
-    sinIngreso: number;
+    /// Los que esperan a que el aula reporte algo. Opcional: un
+  /// backend sin reiniciar no lo manda, y entonces la tarjeta sale
+  /// en cero en vez de romper la pantalla.
+  sinDatosDelAula?: number;
+  sinIngreso: number;
     sinEmpezar: number;
     atrasados: number;
     alDia: number;
