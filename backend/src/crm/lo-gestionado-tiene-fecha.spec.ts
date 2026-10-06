@@ -20,6 +20,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
+import { acreditarPorQuienToco, SIN_ASESOR } from './acreditar-gestion';
 import { repartirInscripciones, type LeadDelAsesor } from './asesores-datos';
 
 const HOY = new Date('2026-10-06T15:00:00.000Z');
@@ -102,9 +103,25 @@ describe('qué cuenta como gestión dentro de la ventana', () => {
 
   it('los tres sitios que ya definían «gestionado», los tres con fecha', () => {
     const b = bloque();
-    expect(b).toContain('notas: { some: { creadoEn: dentro, autorId: { not: null } } }');
+    expect(b).toContain('notaDeGestion.findMany');
+    expect(b).toContain('movimientoParticipante.findMany');
     expect(b).toContain('datosTocadosPorAsesorEn: dentro');
-    expect(b).toContain('movimientos: { some:');
+    expect(b).toContain('creadoEn: dentro');
+  });
+
+  /**
+   * Y NO SE AGRUPA POR EL DUEÑO DE LA FICHA.
+   *
+   * Es lo único de esta consulta que un test de texto puede decir y el
+   * de arriba no decía: mientras el `select` traiga `asesorId` de
+   * `participante` para agrupar por él, la cifra es de otra pregunta.
+   * Lo que importa de verdad se prueba abajo, llamando a la función.
+   */
+  it('cada toque se acredita a quien lo hizo, no al asesor de hoy', () => {
+    const b = bloque();
+    expect(b).toContain('autorId: true');
+    expect(b).toContain('adminId: true');
+    expect(b).toContain('acreditarPorQuienToco');
   });
 
   /**
@@ -135,5 +152,89 @@ describe('qué cuenta como gestión dentro de la ventana', () => {
 
   it('y sin ventana no consulta nada', () => {
     expect(bloque()).toContain('if (!desde && !hasta) return undefined;');
+  });
+});
+
+/**
+ * A QUIÉN SE LE APUNTA CADA TOQUE. Esto sí se prueba llamando.
+ *
+ * La consulta agrupaba por el `asesorId` de la ficha, así que contestaba
+ * «a cuántas de MIS fichas de hoy las tocó alguien». Y eso lo infla
+ * justo quien no trabajó: `asignarAsesorEnLote` escribe en la misma
+ * transacción el movimiento --con su `adminId`-- y el `asesorId` nuevo.
+ */
+describe('se acredita a quien tocó, no a quien es hoy el dueño', () => {
+  it('repartir fichas no le sube la cifra a quien las recibe', () => {
+    /// Lo que deja un reparto de tres leads: tres movimientos del
+    /// líder, y las tres fichas ya con el asesorId de Ana.
+    const por = acreditarPorQuienToco(
+      [],
+      [
+        { adminId: 'lider', participanteId: 'f1' },
+        { adminId: 'lider', participanteId: 'f2' },
+        { adminId: 'lider', participanteId: 'f3' },
+      ],
+      [],
+    );
+    expect(por.get('ana')).toBeUndefined();
+    expect(por.get('lider')).toBe(3);
+  });
+
+  it('la nota que un líder escribe sobre la ficha de otro es del líder', () => {
+    const por = acreditarPorQuienToco(
+      [{ autorId: 'lider', participanteId: 'f1' }],
+      [],
+      [],
+    );
+    expect(por.get('ana')).toBeUndefined();
+    expect(por.get('lider')).toBe(1);
+  });
+
+  /// Tres toques a la misma ficha son UNA ficha gestionada.
+  it('la misma ficha tocada varias veces cuenta una', () => {
+    const por = acreditarPorQuienToco(
+      [
+        { autorId: 'ana', participanteId: 'f1' },
+        { autorId: 'ana', participanteId: 'f1' },
+      ],
+      [{ adminId: 'ana', participanteId: 'f1' }],
+      [{ id: 'f1', asesorId: 'ana' }],
+    );
+    expect(por.get('ana')).toBe(1);
+  });
+
+  /// Y dos personas distintas sobre la misma ficha son dos: las dos
+  /// la trabajaron.
+  it('dos personas sobre la misma ficha cuentan una cada una', () => {
+    const por = acreditarPorQuienToco(
+      [{ autorId: 'ana', participanteId: 'f1' }],
+      [{ adminId: 'beto', participanteId: 'f1' }],
+      [],
+    );
+    expect(por.get('ana')).toBe(1);
+    expect(por.get('beto')).toBe(1);
+  });
+
+  /// `datosTocadosPorAsesorEn` es la única que no dice quién: ahí sí
+  /// manda el asesor de la ficha, que es lo que la columna afirma.
+  it('los datos tocados se acreditan al asesor de la ficha', () => {
+    const por = acreditarPorQuienToco([], [], [{ id: 'f1', asesorId: 'ana' }]);
+    expect(por.get('ana')).toBe(1);
+  });
+
+  it('lo que no tiene dueño va a su propia llave', () => {
+    const por = acreditarPorQuienToco([], [], [{ id: 'f1', asesorId: null }]);
+    expect(por.get(SIN_ASESOR)).toBe(1);
+  });
+
+  /// Una nota puede colgar de un lead y no de una ficha: entonces no
+  /// hay ficha que contar.
+  it('una nota sin ficha no cuenta', () => {
+    const por = acreditarPorQuienToco(
+      [{ autorId: 'ana', participanteId: null }],
+      [],
+      [],
+    );
+    expect(por.size).toBe(0);
   });
 });

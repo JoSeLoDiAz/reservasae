@@ -50,6 +50,7 @@ import {
 } from './organizacion-de-carga';
 import { lugarDeUbicacion } from './plantilla-de-carga';
 import { elegirOferta, type OfertaParaCarga } from './accion-de-la-fila';
+import { acreditarPorQuienToco } from './acreditar-gestion';
 import {
   saleDelCupo,
   exigeCupo,
@@ -960,22 +961,7 @@ export class CrmService {
       }),
     ]);
 
-    /// Una ficha tocada tres veces por la misma persona es UNA.
-    const vistos = new Set<string>();
-    const por = new Map<string, number>();
-    const apuntar = (quien: string | null, ficha: string | null) => {
-      if (!ficha) return;
-      const llave = quien ?? 'SIN_ASESOR';
-      if (vistos.has(`${llave}|${ficha}`)) return;
-      vistos.add(`${llave}|${ficha}`);
-      por.set(llave, (por.get(llave) ?? 0) + 1);
-    };
-
-    for (const n of notas) apuntar(n.autorId, n.participanteId);
-    for (const m of movimientos) apuntar(m.adminId, m.participanteId);
-    for (const d of datos) apuntar(d.asesorId, d.id);
-
-    return por;
+    return acreditarPorQuienToco(notas, movimientos, datos);
   }
 
   /**
