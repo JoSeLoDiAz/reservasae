@@ -1,70 +1,68 @@
-# `jose/dv-tecleado` · lo que queda tras la 0.21.0
+# `jose/dv-tecleado` · lo que queda tras la 0.22.0
 
-Josse: gracias por las dos de esta mañana, y por volver a meter BBDD Leads y la
-bandeja sin que hiciera falta pedírtelo. Tu `dev` está fundida aquí y verde.
+Josse: cuatro despliegues en una mañana. Las dos de la ronda anterior ---el cargue que
+duplicaba y las columnas de entrada--- ya están en la 0.22.0. Queda **uno**.
 
 | | |
 |---|---|
 | Rama | `jose/dv-tecleado`, subida |
-| Desplegado | `v0.21.0-JD` (6 oct, 9:42) |
-| Sin desplegar | **6 commits**: 2 de contenido, y el resto merges, un revert y este documento |
+| Desplegado | `v0.22.0-JD` (6 oct, 11:10) |
+| Sin desplegar | **2 commits**: 1 de contenido y este documento |
 | De lo tuyo que falte traer | **nada**: `origin/dev` fundida |
-| Línea base | `tsc` limpio en backend y frontend · **267 suites, 2.834 pruebas**, verde |
-| Migraciones nuevas | **ninguna** |
+| Línea base | `tsc` limpio en backend y frontend · **268 suites, 2.841 pruebas**, verde |
+| Migraciones nuevas | **1**, dos columnas nulables y un índice |
 
 ---
 
-## 0 · Los dos que quedan
+## 0 · El último de la lista del 5 de octubre
 
-### a) El cargue de BBDD Leads se duplicaba con Gestión de leads
+`5fb727b` · **Cuando un correo no sale, queda constancia en la ficha.**
 
-`dae9dd1`. **Esto es un defecto de lo que acabas de desplegar**, así que va primero.
+Cierra «no hay un criterio para ver si el correo está bien o no; correos rebotados»
+(cliente, 5 oct). El rechazo quedaba en el registro del servidor ---donde no mira quien
+trabaja la ficha--- y el panel seguía enseñando esa dirección como si sirviera.
 
-El cruce del cargue mira la MESA ---`leads_entrantes`--- y no las fichas. Y las dos
-poblaciones casi no se solapan: quien llega por el formulario público nace FICHA y no
-deja fila en la mesa. En la base de pruebas, **de 1.480 fichas ninguna tiene lead en la
-mesa**.
+**Dos casos, y el segundo era el invisible:** el envío que falla entero y lanza, y el
+envío que SALE BIEN y trae direcciones en `rejected`. Mandar a tres y que una rebote es
+el caso corriente de una lista, y el código solo miraba la excepción.
 
-Así que subir una base con gente que ya está en Gestión de leads ---incluso ya
-inscrita--- las da por NUEVAS y crea un lead de cada una: dos registros de la misma
-persona y dos asesoras llamándola, que es justo el duplicado que la mesa existe para no
-tener. Y el informe lo dice al revés ---«todas nuevas»---, que es lo que uno espera ver
-en un cargue, así que nadie lo buscaría.
+### La migración
 
-Lo encontró el cliente preguntando, no una prueba: «¿pero con Gestión de leads?».
+`20261006120000_cuando_el_correo_no_sale`: `personas.correoFallaEn` y
+`personas.correoFalloMotivo`, nulables, **sin relleno** ---no se les inventa un estado a
+las direcciones de antes--- más un índice.
 
-Ahora, antes de crear, se mira también la ficha: documento, correo o celular, los
-mismos tres del cruce de la mesa y en el mismo orden. La fila sale como «Ya está en
-Gestión de leads», con por dónde se reconoció y **en qué etapa**.
+El índice va declarado también en el schema, y **sin `WHERE`** aunque parcial ocuparía
+menos: Prisma no sabe declarar índices parciales, así que el schema no podría decir lo
+mismo y el primer `migrate dev` de alguien propondría borrarlo. Es tu corrección de la
+mañana aplicada aquí.
 
-**No se le toca nada a la ficha.** Misma frontera que ya pone el lead convertido:
-rellenar campos de una ficha desde un archivo cambia lo que se le reportó al SENA sin
-pasar por la ficha.
+Rollback: soltar las dos columnas y el índice.
 
-Lo que mirarías tú: **acotado al convenio**, con prueba sobre el `where` que sale hacia
-Prisma; y el doble del arnés contesta al `where` como la base, porque uno que devolviera
-todas las fichas daría por bueno un cruce que no filtra.
+### Lo que mirarías tú
 
-### b) Por dónde entró cada persona, en columnas separadas
+- **No tumba el envío.** Si apuntar falla, el correo ya salió o ya falló: lo que está en
+  juego es una marca de ayuda, y tumbar por ella la respuesta de un formulario público
+  sería cambiar un aviso por una caída.
+- **Con el correo desviado no se apunta nada**, y esto lo cazó una prueba antes de
+  salir. En pruebas y preproducción todo va al buzón del equipo: lo que el servidor
+  acepta o rechaza es ESA dirección. La primera versión marcaba
+  `proyectosena@grupo-ae.com.co` como dirección mala y dejaba la de la persona sin
+  marcar. El fallo era del código, no de la prueba.
+- **La marca se borra sola** cuando un correo a esa dirección vuelve a salir. Si no, en
+  seis meses es una lista de direcciones malas que hace tiempo son buenas.
+- Va **por dirección y no por persona**: es la dirección la que está mal, y si dos
+  fichas comparten correo las dos tienen el mismo problema.
 
-`7b67734`. Cierra «si o sí el sistema debe decirme de qué link de formulario entró»
-(cliente, 5 oct) y lo que dijo hoy viendo la 0.20.0 ya desplegada: «¿se debe separar,
-ejemplo el Eduteka, para otra columna, porque no tengo opción de saber qué formulario?».
+### Y lo que NO es, para que no lo vendamos de más
 
-Tenía razón en la lectura: «Orgánico / eduteka» encima de «Formulario: Preinscripción
-pública» hace pensar que *eduteka* es el formulario. No lo es ---es la campaña--- y eran
-tres preguntas apretadas en dos columnas. Ahora son cuatro columnas pegadas: canal,
-campaña, formulario y **enlace de entrada**, que es la que faltaba.
+**No es el rebote de verdad.** El rebote llega minutos después de que el servidor aceptó
+el mensaje y solo lo sabe el proveedor: hace falta el webhook de SendGrid, y eso depende
+de que lo montes en producción. Esto es lo que se sabe EN EL ENVÍO, que es la mitad de
+los casos y no costaba una integración.
 
-Con filtro en el servidor y en la dirección: `?enlace=` y `?formulario=` se pegan en un
-chat y llevan a la lista, como ya hacen `?asesor=` y `?curso=`. Y `SIN_DATO` pide las
-que no lo tienen, que es como se mide cuánto falta por saberse.
-
-Endpoint nuevo: `GET /admin/participantes/por-donde-entraron`.
-
-**La tabla se queda en `participantes-v2`.** La renombré por añadir la columna y tu
-revisión de la mañana me corrigió lo mismo en la de asesores: para eso está
-`nueva: true`. Deshecho antes de subirlo.
+Cuando quieras montar SendGrid, dime y lo escribo: son ~20 horas y el grueso es tuyo
+---la cuenta, el dominio verificado y la URL del webhook---.
 
 ---
 
