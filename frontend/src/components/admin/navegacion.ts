@@ -249,33 +249,6 @@ export const MODULOS: Modulo[] = [
         area: 'inscripciones',
       },
       {
-        /// PEGADA A LA MESA, Y ES UNA SÉPTIMA ENTRADA.
-        ///
-        /// La regla de arriba dice que ningún módulo pasa de seis, y
-        /// esta la rompe. Queda escrito en vez de callado: la pidió el
-        /// cliente el 5 oct 2026 como pantalla APARTE de la mesa ---«una
-        /// visual como mesa de entrada que diga BBDD Leads
-        /// Adecopria»---, y una pantalla sin entrada de menú no se
-        /// encuentra. Si el módulo hay que recortar a seis, eso es
-        /// diseño del menú y lo decide Josse; esconder la entrada no
-        /// sería respetar la regla, sería dejar la pantalla inservible.
-        ///
-        /// Y aquí, al lado de la mesa, porque es su hermana: la misma
-        /// tabla y los mismos filtros, pedidos con
-        /// `origenSistema=cargue-masivo`. Lo que entra solo está en la
-        /// mesa; lo que se sube a mano, aquí.
-        ///
-        /// Con `inscripciones` y nivel VER, que es lo que exige el
-        /// servidor en `@Get()` de `mesa-de-entrada.controller.ts`. El
-        /// cargue pide ESCRIBIR y la pantalla lo esconde sola a quien
-        /// no lo tiene: pedir ESCRIBIR en la entrada le quitaría el
-        /// listado a quien sí puede verlo.
-        href: '/admin/bbdd-leads',
-        etiqueta: 'BBDD Leads',
-        exacto: true,
-        area: 'inscripciones',
-      },
-      {
         /// La planeación de pauta y el rendimiento por asesor. Aquí y
         /// no en Mailing: «Comité Marketing mándalo para inscripciones»
         /// (cliente, 23 sep 2026).

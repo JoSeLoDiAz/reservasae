@@ -118,24 +118,12 @@ export const TONO_ESTADO_LEAD: Record<EstadoLead, string> = {
 export const mesaApi = {
   listar: (q: {
     estado?: string;
-    /// Por dónde entró el lead, tal como lo guarda el servidor en
-    /// `origenSistema`. Opcional, y sin él la lista es la de
-    /// siempre: la mesa de entrada lo omite y sigue viendo todo.
-    ///
-    /// Es lo único que separa la BBDD de leads de la mesa --el
-    /// mismo listado pedido con `cargue-masivo`--, así que el
-    /// filtro vive aquí y no en una segunda función que repetiría
-    /// los otros cuatro parámetros.
-    origenSistema?: string;
-    convenioId?: string;
     buscar?: string;
     pagina?: number;
     limite?: number;
   }) => {
     const p = new URLSearchParams();
     if (q.estado) p.set("estado", q.estado);
-    if (q.origenSistema) p.set("origenSistema", q.origenSistema);
-    if (q.convenioId) p.set("convenioId", q.convenioId);
     if (q.buscar?.trim()) p.set("buscar", q.buscar.trim());
     if (q.pagina) p.set("pagina", String(q.pagina));
     if (q.limite) p.set("limite", String(q.limite));
