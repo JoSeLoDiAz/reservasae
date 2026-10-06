@@ -20,7 +20,11 @@ import { construirLibro, nombreArchivo } from './exportar';
 import { hojaPorOrganizacion } from './exportar-por-organizacion';
 import { filtrosDelInforme } from './informe-de-reservas';
 import { AdminActual, AmbitoActual } from '../admin/admin-actual.decorator';
-import { TablerosService, valorLegible, type FiltrosReservas } from './tableros.service';
+import {
+  TablerosService,
+  valorLegible,
+  type FiltrosReservas,
+} from './tableros.service';
 
 const ESTADOS = Object.values(EstadoReserva) as string[];
 
@@ -85,7 +89,10 @@ export class TablerosController {
   }
 
   @Get('ubicaciones')
-  porUbicacion(@AmbitoActual() ambito: Ambito, @Query('convenio') convenio?: string) {
+  porUbicacion(
+    @AmbitoActual() ambito: Ambito,
+    @Query('convenio') convenio?: string,
+  ) {
     return this.tableros.porUbicacion(ambito.convenios, convenio);
   }
 
@@ -93,7 +100,9 @@ export class TablerosController {
   proyeccion(@AmbitoActual() ambito: Ambito, @Query('dias') dias?: string) {
     // ventana entre 7 y 90 días
     const n = Number(dias);
-    const ventana = Number.isFinite(n) ? Math.min(90, Math.max(7, Math.trunc(n))) : 14;
+    const ventana = Number.isFinite(n)
+      ? Math.min(90, Math.max(7, Math.trunc(n)))
+      : 14;
     return this.tableros.proyeccion(ambito.convenios, ventana);
   }
 
@@ -128,10 +137,25 @@ export class TablerosController {
    * EMPRESA ENTERA --dejando sin empleador a inscritos que nunca
    * vinieron de esa reserva--.
    */
+  /**
+   * `ESCRIBIR` y no `VER`, que es lo que pedía.
+   *
+   * Cancelar no es mirar: devuelve los cupos a la oferta, cambia el
+   * estado de la reserva y puede desatar la lista de espera. Pedía
+   * `reserva · VER`, el mismo nivel que abrir la pantalla, mientras su
+   * gemela de aquí al lado ---`reservas/:id/estado`, que hace MENOS---
+   * ya pedía `ESCRIBIR`.
+   *
+   * No era acceso cruzado: el ámbito ya recortaba el gremio. Era nivel
+   * insuficiente, y lo tapaba que en la práctica los superadmin tienen
+   * concesiones de líder. Una cuenta SUPERADMIN cuya única concesión
+   * fuera `CONSULTA` ---que da `reserva: VER`--- cancelaba y recibía un
+   * 200.
+   */
   @Post('reservas/:id/cancelar')
   @HttpCode(200)
   @Roles(RolAdmin.SUPERADMIN)
-  @Requiere('reserva', 'VER')
+  @Requiere('reserva', 'ESCRIBIR')
   cancelarReserva(@Param('id') id: string, @AmbitoActual() ambito: Ambito) {
     return this.tableros.cancelarReserva(id, ambito.convenios);
   }
@@ -152,7 +176,10 @@ export class TablerosController {
   }
 
   @Get('reservas')
-  reservas(@Query() consulta: Record<string, string>, @AmbitoActual() ambito: Ambito) {
+  reservas(
+    @Query() consulta: Record<string, string>,
+    @AmbitoActual() ambito: Ambito,
+  ) {
     return this.tableros.reservas(this.filtros(consulta, ambito));
   }
 
@@ -251,8 +278,14 @@ export class TablerosController {
    * filtros de `filtrosDelInforme`, que descarta todo lo demás.
    */
   @Get('informe-reservas')
-  informeReservas(@Query() consulta: Record<string, string>, @AmbitoActual() ambito: Ambito) {
-    return this.tableros.informeReservas(ambito.convenios, filtrosDelInforme(consulta));
+  informeReservas(
+    @Query() consulta: Record<string, string>,
+    @AmbitoActual() ambito: Ambito,
+  ) {
+    return this.tableros.informeReservas(
+      ambito.convenios,
+      filtrosDelInforme(consulta),
+    );
   }
 
   // descargas
@@ -271,7 +304,9 @@ export class TablerosController {
 
     // columnas de las preguntas propias
     const columnasExtra = [
-      ...new Set(reservas.flatMap((r) => r.respuestas.map((x) => x.etiquetaPregunta))),
+      ...new Set(
+        reservas.flatMap((r) => r.respuestas.map((x) => x.etiquetaPregunta)),
+      ),
     ];
 
     const libro = await construirLibro([
@@ -289,17 +324,36 @@ export class TablerosController {
           { titulo: 'NIT', clave: 'nit', ancho: 14 },
           { titulo: 'DV', clave: 'dv', ancho: 5 },
           { titulo: 'Organización', clave: 'razonSocial', ancho: 36 },
-          { titulo: 'Colaboradores', clave: 'colaboradores', ancho: 14, numero: true },
+          {
+            titulo: 'Colaboradores',
+            clave: 'colaboradores',
+            ancho: 14,
+            numero: true,
+          },
           { titulo: 'Gremio', clave: 'gremio', ancho: 14 },
           { titulo: 'Otro gremio', clave: 'gremioOtro', ancho: 20 },
           { titulo: 'Contacto', clave: 'contacto', ancho: 28 },
           { titulo: 'Correo', clave: 'correo', ancho: 32 },
           { titulo: 'Celular', clave: 'celular', ancho: 16 },
           { titulo: 'Cargo', clave: 'cargo', ancho: 24 },
-          { titulo: 'Solicitados', clave: 'solicitados', ancho: 12, numero: true },
-          { titulo: 'Confirmados', clave: 'confirmados', ancho: 12, numero: true },
+          {
+            titulo: 'Solicitados',
+            clave: 'solicitados',
+            ancho: 12,
+            numero: true,
+          },
+          {
+            titulo: 'Confirmados',
+            clave: 'confirmados',
+            ancho: 12,
+            numero: true,
+          },
           { titulo: 'En espera', clave: 'enEspera', ancho: 12, numero: true },
-          ...columnasExtra.map((titulo, i) => ({ titulo, clave: `extra${i}`, ancho: 28 })),
+          ...columnasExtra.map((titulo, i) => ({
+            titulo,
+            clave: `extra${i}`,
+            ancho: 28,
+          })),
         ],
         filas: reservas.map((r) => {
           const extras: Record<string, string> = {};
@@ -310,7 +364,9 @@ export class TablerosController {
           return {
             fecha: r.creadoEn.toISOString().slice(0, 16).replace('T', ' '),
             estado: ESTADO_RESERVA[r.estado] ?? r.estado,
-            convenio: r.oferta.accionFormacion.convenio.sigla ?? r.oferta.accionFormacion.convenio.slug,
+            convenio:
+              r.oferta.accionFormacion.convenio.sigla ??
+              r.oferta.accionFormacion.convenio.slug,
             formulario: r.formulario?.titulo ?? '',
             codigo: r.oferta.accionFormacion.codigo,
             accion: r.oferta.accionFormacion.nombre,
@@ -379,7 +435,10 @@ export class TablerosController {
 
   @Get('exportar/ocupacion')
   @Roles(RolAdmin.SUPERADMIN, RolAdmin.GESTOR)
-  async exportarOcupacion(@AmbitoActual() ambito: Ambito, @Res() res: Response) {
+  async exportarOcupacion(
+    @AmbitoActual() ambito: Ambito,
+    @Res() res: Response,
+  ) {
     const [ubicaciones, acciones] = await Promise.all([
       this.tableros.porUbicacion(ambito.convenios),
       this.tableros.porAccion(ambito.convenios),
@@ -397,7 +456,12 @@ export class TablerosController {
           { titulo: 'Modalidad', clave: 'modalidad', ancho: 12 },
           { titulo: 'Cupos', clave: 'cupos', ancho: 10, numero: true },
           { titulo: 'Reservados', clave: 'ocupados', ancho: 12, numero: true },
-          { titulo: 'Disponibles', clave: 'disponibles', ancho: 12, numero: true },
+          {
+            titulo: 'Disponibles',
+            clave: 'disponibles',
+            ancho: 12,
+            numero: true,
+          },
           { titulo: '% avance', clave: 'avance', ancho: 10, numero: true },
           { titulo: 'Estado', clave: 'estado', ancho: 16 },
         ],
@@ -424,10 +488,20 @@ export class TablerosController {
           { titulo: 'Evento', clave: 'evento', ancho: 16 },
           { titulo: 'Modalidad', clave: 'modalidad', ancho: 12 },
           { titulo: 'Horas', clave: 'horas', ancho: 8, numero: true },
-          { titulo: 'Ubicaciones', clave: 'ubicaciones', ancho: 12, numero: true },
+          {
+            titulo: 'Ubicaciones',
+            clave: 'ubicaciones',
+            ancho: 12,
+            numero: true,
+          },
           { titulo: 'Cupos', clave: 'cupos', ancho: 10, numero: true },
           { titulo: 'Reservados', clave: 'ocupados', ancho: 12, numero: true },
-          { titulo: 'Disponibles', clave: 'disponibles', ancho: 12, numero: true },
+          {
+            titulo: 'Disponibles',
+            clave: 'disponibles',
+            ancho: 12,
+            numero: true,
+          },
           { titulo: 'En espera', clave: 'enEspera', ancho: 12, numero: true },
           { titulo: '% avance', clave: 'avance', ancho: 10, numero: true },
           { titulo: 'Publicada', clave: 'publicada', ancho: 12 },
@@ -469,11 +543,21 @@ export class TablerosController {
           { titulo: 'NIT', clave: 'nit', ancho: 14 },
           { titulo: 'DV', clave: 'dv', ancho: 5 },
           { titulo: 'Organización', clave: 'razonSocial', ancho: 40 },
-          { titulo: 'Colaboradores', clave: 'colaboradores', ancho: 14, numero: true },
+          {
+            titulo: 'Colaboradores',
+            clave: 'colaboradores',
+            ancho: 14,
+            numero: true,
+          },
           { titulo: 'Gremio', clave: 'gremio', ancho: 14 },
           { titulo: 'Otro gremio', clave: 'gremioOtro', ancho: 20 },
           { titulo: 'Reservas', clave: 'reservas', ancho: 10, numero: true },
-          { titulo: 'Cupos confirmados', clave: 'confirmados', ancho: 18, numero: true },
+          {
+            titulo: 'Cupos confirmados',
+            clave: 'confirmados',
+            ancho: 18,
+            numero: true,
+          },
           { titulo: 'En espera', clave: 'enEspera', ancho: 12, numero: true },
           { titulo: 'Cursos', clave: 'cursos', ancho: 24 },
           { titulo: 'Primera reserva', clave: 'creadoEn', ancho: 18 },
@@ -508,7 +592,10 @@ export class TablerosController {
     res.send(libro);
   }
 
-  private filtros(consulta: Record<string, string>, ambito: Ambito): FiltrosReservas {
+  private filtros(
+    consulta: Record<string, string>,
+    ambito: Ambito,
+  ): FiltrosReservas {
     const estado = consulta.estado;
     return {
       ambito: ambito.convenios,

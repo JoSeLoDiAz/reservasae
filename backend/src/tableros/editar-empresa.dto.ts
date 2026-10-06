@@ -34,7 +34,11 @@ import { normalizarNit } from '../comun/nit';
 
 /** Vacío es vacío: un campo que llega en blanco se borra. */
 const aNuloOTexto = ({ value }: { value: unknown }) =>
-  typeof value === 'string' ? (value.trim() === '' ? null : value.trim()) : value;
+  typeof value === 'string'
+    ? value.trim() === ''
+      ? null
+      : value.trim()
+    : value;
 
 const aNumeroONulo = ({ value }: { value: unknown }): number | null =>
   value === '' || value === null || value === undefined ? null : Number(value);
@@ -84,7 +88,9 @@ export class EditarEmpresaDto {
   /// El dígito de verificación va aparte: no es parte del número.
   @IsOptional()
   @Transform(aNuloOTexto)
-  @Matches(/^[0-9]$/, { message: 'El dígito de verificación es un solo número.' })
+  @Matches(/^[0-9]$/, {
+    message: 'El dígito de verificación es un solo número.',
+  })
   digitoVerificacion?: string | null;
 
   @IsOptional()

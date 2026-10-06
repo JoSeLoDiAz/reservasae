@@ -126,7 +126,7 @@ function reserva(p: {
     // nombre es el del departamento
     departamento: p.ubicacion,
     conNombre: BigInt(p.conNombre ?? 0),
-    dentro: BigInt(p.dentro ?? (p.conNombre ?? 0)),
+    dentro: BigInt(p.dentro ?? p.conNombre ?? 0),
   };
 }
 
@@ -726,12 +726,16 @@ describe('el desglose por departamento', () => {
   });
 
   it('suma las mismas reservas que los totales', () => {
-    expect(suma(informe.porDepartamento, 'reservas')).toBe(informe.totales.reservas);
+    expect(suma(informe.porDepartamento, 'reservas')).toBe(
+      informe.totales.reservas,
+    );
   });
 
   it('cuenta cada institución UNA vez por departamento, no una por reserva', () => {
     // «Maderas» y «Colegio Montessori» apartaron las dos en ANTIOQUIA
-    const antioquia = informe.porDepartamento.find((d) => d.departamento === 'ANTIOQUIA');
+    const antioquia = informe.porDepartamento.find(
+      (d) => d.departamento === 'ANTIOQUIA',
+    );
     expect(antioquia).toBeDefined();
     expect(antioquia!.organizaciones).toBeLessThanOrEqual(antioquia!.reservas);
   });
@@ -749,7 +753,9 @@ describe('el desglose por departamento', () => {
 
   it('el «con nombre» de cada departamento nunca pasa de sus cupos sumados', () => {
     for (const d of informe.porDepartamento) {
-      expect(d.conNombre + d.sinNombre).toBeGreaterThanOrEqual(d.cuposConfirmados);
+      expect(d.conNombre + d.sinNombre).toBeGreaterThanOrEqual(
+        d.cuposConfirmados,
+      );
     }
   });
 });
@@ -774,7 +780,9 @@ describe('el plazo de entrega de nombres', () => {
 
   it('cada fila del cruce trae su estado, ya calculado', () => {
     for (const fila of informe.cruce) {
-      expect(['COMPLETA', 'EN_PLAZO', 'POR_VENCER', 'VENCIDA']).toContain(fila.estadoPlazo);
+      expect(['COMPLETA', 'EN_PLAZO', 'POR_VENCER', 'VENCIDA']).toContain(
+        fila.estadoPlazo,
+      );
     }
   });
 

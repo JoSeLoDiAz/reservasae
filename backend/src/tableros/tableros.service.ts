@@ -8,7 +8,10 @@ import { faltaEnF7 } from '../crm/sep/formato-f7';
 import {
   DEPARTAMENTO_POR_ID,
   MUNICIPIO_POR_ID,
+  SECTORES_ECONOMICOS,
+  TAMANO_EMPRESA_POR_ID,
   TIPO_DOCUMENTO_POR_ID,
+  municipioCuadra,
 } from '../crm/catalogos-sep';
 
 import {
@@ -17,7 +20,7 @@ import {
   Prisma,
 } from '../../generated/prisma';
 import { semaforo } from '../catalogo/catalogo.service';
-import { normalizarNit } from '../comun/nit';
+import { calcularDigitoVerificacion, normalizarNit } from '../comun/nit';
 import {
   coberturaDeConvenio,
   deConvenio,
@@ -1481,7 +1484,15 @@ export class TablerosService {
   ) {
     const antes = await this.prisma.empresa.findUnique({
       where: { id },
-      select: { id: true, nit: true, razonSocial: true },
+      /// Con la ubicacion: el par departamento/municipio se comprueba
+      /// contra lo que VA A QUEDAR, no contra lo que viene en el dto.
+      select: {
+        id: true,
+        nit: true,
+        razonSocial: true,
+        departamentoSepId: true,
+        municipioSepId: true,
+      },
     });
     if (!antes) throw new NotFoundException('Esa organización no existe.');
 
@@ -1507,9 +1518,84 @@ export class TablerosService {
       .filter(([, v]) => v !== undefined)
       .map(([k]) => k);
 
+    /**
+     * Y LOS IDS DEL SEP, CONTRA SU CATÁLOGO.
+     *
+     * El DTO los valida con `@IsInt()`, que acepta cualquier entero.
+     * Un `tamanoSepId: 99` pasaba, `faltaEnF7` lo daba por relleno
+     * ---solo mira que no sea nulo--- y la columna «TAMAÑO DE LA
+     * EMPRESA» salía VACÍA en el F7, con la fila dada por completa. El
+     * fallo aparece en el SENA, no aquí.
+     *
+     * Y el par departamento/municipio: el F7 los resuelve por separado,
+     * así que un municipio de otro departamento sale con los dos
+     * valores puestos y la pareja imposible.
+     *
+     * La puerta gemela del CRM ya comprueba las dos cosas. Esta era la
+     * que no.
+     */
+    if (
+      dto.tamanoSepId !== undefined &&
+      dto.tamanoSepId !== null &&
+      !TAMANO_EMPRESA_POR_ID.has(dto.tamanoSepId)
+    ) {
+      throw new BadRequestException(
+        `El tamaño de empresa «${dto.tamanoSepId}» no está en el catálogo del SEP.`,
+      );
+    }
+    if (
+      dto.sectorEconomico &&
+      !SECTORES_ECONOMICOS.some((s) => s.etiqueta === dto.sectorEconomico)
+    ) {
+      throw new BadRequestException(
+        `«${dto.sectorEconomico}» no es un sector económico del catálogo del SEP.`,
+      );
+    }
+    /// Contra lo que va a quedar, no contra lo que viene: se puede
+    /// cambiar solo el municipio y que el departamento sea el de antes.
+    const departamentoFinal =
+      dto.departamentoSepId !== undefined
+        ? dto.departamentoSepId
+        : antes.departamentoSepId;
+    const municipioFinal =
+      dto.municipioSepId !== undefined
+        ? dto.municipioSepId
+        : antes.municipioSepId;
+    if (!municipioCuadra(departamentoFinal, municipioFinal)) {
+      throw new BadRequestException(
+        'Ese municipio no es de ese departamento. El F7 los resuelve por ' +
+          'separado, así que la fila saldría con una pareja imposible.',
+      );
+    }
+
+    /**
+     * EL DÍGITO DE VERIFICACIÓN NO SE TECLEA: SE DERIVA DEL NIT.
+     *
+     * Esta puerta hacía `data: { ...dto }` tal cual, así que al
+     * corregir el NIT la fila se quedaba con el DV del NIT VIEJO. Y
+     * ese par viaja junto a los tres formatos del SENA: el F7 y los
+     * dos de personas salen con un NIT y un dígito que no se
+     * corresponden, y el cargue rebota allí, no aquí.
+     *
+     * La puerta gemela del CRM ya lo hacía bien ---`calcularDigito
+     * Verificacion(leido.nit)`, con el comentario «el DV no se teclea,
+     * se deriva»---. Dos puertas al mismo dato y solo una comprobando:
+     * el patrón de siempre.
+     *
+     * Si quien edita manda un DV explícito se respeta ---puede estar
+     * corrigiendo justo eso--- pero si cambia el NIT y NO manda DV, se
+     * recalcula en vez de dejar el de antes, que es lo único que no
+     * puede ser cierto.
+     */
+    const cambiaElNit = Boolean(dto.nit && dto.nit !== antes.nit);
+    const datos =
+      cambiaElNit && dto.digitoVerificacion === undefined
+        ? { ...dto, digitoVerificacion: calcularDigitoVerificacion(dto.nit!) }
+        : { ...dto };
+
     const empresa = await this.prisma.empresa.update({
       where: { id },
-      data: { ...dto },
+      data: datos,
     });
 
     await this.auditoria.registrar({

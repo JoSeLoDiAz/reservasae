@@ -63,7 +63,11 @@ describe('contarOpciones', () => {
       { valoresSeleccion: ['quiza'], etiquetasSeleccion: ['Quizá'] },
     ]);
     const huerfana = filas.find((f) => f.valor === 'quiza');
-    expect(huerfana).toMatchObject({ etiqueta: 'Quizá', veces: 1, archivada: true });
+    expect(huerfana).toMatchObject({
+      etiqueta: 'Quizá',
+      veces: 1,
+      archivada: true,
+    });
   });
 
   it('una selección múltiple cuenta cada marca', () => {

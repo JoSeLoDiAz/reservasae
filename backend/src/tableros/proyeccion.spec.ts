@@ -67,12 +67,22 @@ describe('calcularProyeccion', () => {
   });
 
   it('sin meta no hay contra qué proyectar', () => {
-    const p = calcularProyeccion({ ...comun, serie: constante(14, 4), ocupados: 9, meta: 0 });
+    const p = calcularProyeccion({
+      ...comun,
+      serie: constante(14, 4),
+      ocupados: 9,
+      meta: 0,
+    });
     expect(p.estado).toBe('SIN_META');
   });
 
   it('sin movimiento no se inventa una fecha', () => {
-    const p = calcularProyeccion({ ...comun, serie: [], ocupados: 10, meta: 100 });
+    const p = calcularProyeccion({
+      ...comun,
+      serie: [],
+      ocupados: 10,
+      meta: 100,
+    });
     expect(p.estado).toBe('SIN_RITMO');
     expect(p.ritmoDiario).toBe(0);
     expect(p.fechaEstimada).toBeNull();
