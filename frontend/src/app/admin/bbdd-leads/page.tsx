@@ -167,6 +167,12 @@ export default function PaginaBbddLeads({
     !admin?.permisos || alcanza(admin.permisos.inscripciones, "ESCRIBIR");
 
   const [datos, setDatos] = useState<ListadoDeLaMesa | null>(null);
+  /// Quién puede repartir. La MISMA llave que la Mesa: dos nombres
+  /// para el mismo permiso acaban dando dos respuestas distintas.
+  const reparte = Boolean(admin?.puede?.repartirFichas);
+  /// Lo que se acaba de hacer, para que el lote no termine en
+  /// silencio. Null: nada que decir.
+  const [asignados, setAsignados] = useState<string | null>(null);
   /// Cuántos hay por estado DENTRO de esta base.
   ///
   /// No sale del `resumen` del listado: aquel cuenta todo el ámbito
@@ -400,6 +406,11 @@ export default function PaginaBbddLeads({
       </Encabezado>
 
       {error && <Aviso tipo="error">{error}</Aviso>}
+      {/* Y LO QUE ACABA DE PASAR CON EL LOTE. Sin esto, repartir 50
+          leads no deja rastro en pantalla: el desplegable vuelve a
+          quedar en blanco y la tabla se repinta igual, porque el
+          asesor solo se ve si esa columna está puesta. */}
+      {asignados && <Aviso tipo="exito">{asignados}</Aviso>}
 
       {/* LA OTRA PUERTA, nombrada. Ver el porqué en
           `participantes/carga/page.tsx`: hay dos cargadores y los
@@ -924,6 +935,52 @@ export default function PaginaBbddLeads({
         /// Pulsar la fila abre su cajon de gestion, que es lo que ya
         /// hacia el nombre: asignar, llamar y anotar sin salir.
         alClic={(l) => setGestionando(l)}
+        /**
+         * SE PUEDE MARCAR Y ASIGNAR, que es para lo que se carga una
+         * base.
+         *
+         * «Se debe permitir asignar, es la visual de Gestión de leads
+         * y no la veo igual» (cliente, 7 oct 2026), después de que le
+         * llamaran la atención por ello.
+         *
+         * Yo había leído «que se vea como Gestión de leads» como las
+         * columnas, los filtros y el Excel, y había dejado fuera lo
+         * único que de verdad hace falta: repartir. Una base de 1.252
+         * personas sin repartir no es trabajo de nadie, y abrirlas de
+         * una en una por el cajón son 1.252 clics.
+         */
+        seleccion
+        accionesLote={(ids, limpiar) =>
+          reparte ? (
+            <AsignarLoteDeLaBase
+              ids={ids}
+              asesores={datos?.asesores ?? []}
+              alTerminar={async ({ repartidos, sinTocar }) => {
+                setError(null);
+                limpiar();
+                /// Y SE DICE LO QUE NO SE TOCÓ, que es la mitad que
+                /// importa: el servidor salta a quien ya tiene ficha
+                /// o revocó. Callarlo deja a quien reparte creyendo
+                /// que los 50 quedaron repartidos.
+                setAsignados(
+                  `${repartidos} ${repartidos === 1 ? 'lead' : 'leads'} con asesor nuevo.` +
+                    (sinTocar > 0
+                      ? ` ${sinTocar} sin tocar: ya tienen ficha o no se les puede contactar.`
+                      : ''),
+                );
+                await cargar();
+              }}
+              alFallar={setError}
+            />
+          ) : (
+            /* No se esconde a secas: quien lo busca tiene que saber
+               por qué no está y a quién pedírselo. */
+            <span className="text-sm text-texto-suave">
+              Repartir leads entre asesores lo hace un líder de
+              inscripciones.
+            </span>
+          )
+        }
         vacio={
           buscado || estado
             ? "Con esos filtros no aparece ninguno."
@@ -974,6 +1031,74 @@ export default function PaginaBbddLeads({
           alGuardado={cargar}
         />
       )}
+    </div>
+  );
+}
+
+/**
+ * LA BARRA DE REPARTIR, la misma que la de Gestión de leads.
+ *
+ * Se escribe aquí y no se importa de `participantes/page` porque
+ * aquella llama a `crmApi.asignarAsesorEnLote` ---fichas--- y esta a
+ * `mesaApi.asignar` ---leads de la mesa---. Son dos poblaciones con
+ * dos rutas distintas en el servidor; compartir el componente
+ * obligaría a pasarle la función y a leer cuál de las dos es cada
+ * vez, que es más sitio donde equivocarse que estas veinte líneas.
+ */
+function AsignarLoteDeLaBase({
+  ids,
+  asesores,
+  alTerminar,
+  alFallar,
+}: {
+  ids: string[];
+  asesores: Array<{ id: string; nombre: string }>;
+  alTerminar: (r: { repartidos: number; sinTocar: number }) => Promise<void>;
+  alFallar: (motivo: string) => void;
+}) {
+  const [trabajando, setTrabajando] = useState(false);
+
+  async function asignar(asesorId: string | null) {
+    setTrabajando(true);
+    try {
+      const r = await mesaApi.asignar(ids, asesorId);
+      await alTerminar(r);
+    } catch (e) {
+      /// Un fallo aquí NO se traga: se elegía asesor, no pasaba nada
+      /// y la pantalla no decía ni bien ni mal. Es el mismo defecto
+      /// que ya se arregló en Gestión de leads.
+      alFallar(
+        e instanceof ErrorApi ? e.message : "No se pudo asignar el asesor.",
+      );
+    } finally {
+      setTrabajando(false);
+    }
+  }
+
+  return (
+    /* Un `<div>` y no un `<label>`: el disparador del `Desplegable`
+       es un `<button>`, y una etiqueta no se ata a un botón. */
+    <div className="flex items-center gap-3 text-sm">
+      <span className="whitespace-nowrap">Asignar a</span>
+      <div className="max-w-[13rem] min-w-[11rem]">
+        {/* ESTO ES UNA ACCIÓN, no un campo con valor: se elige, se
+            asigna el lote y el control vuelve a quedar en blanco. De
+            ahí el `valor=""` fijo y el marcador siempre a la vista. */}
+        <Desplegable
+          valor=""
+          desactivado={trabajando}
+          etiquetaAria="Asignar los seleccionados a un asesor"
+          marcador="Elija un asesor…"
+          alElegir={(v) => {
+            if (v === "") return;
+            void asignar(v === "NADIE" ? null : v);
+          }}
+          opciones={[
+            ...asesores.map((a) => ({ valor: a.id, etiqueta: a.nombre })),
+            { valor: "NADIE", etiqueta: "— Quitarles el asesor —" },
+          ]}
+        />
+      </div>
     </div>
   );
 }
