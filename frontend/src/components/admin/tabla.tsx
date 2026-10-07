@@ -9,6 +9,7 @@ import {
   type ReactNode,
 } from "react";
 
+import { celdaParaExcel } from "@/lib/celda-de-excel";
 import { Desplegable } from "./desplegable";
 import {
   IconoAbajo,
@@ -1582,11 +1583,10 @@ function bajarCsv<T>(
   /// no el valor de siempre. Ver el porqué en `Columna.exporta`.
   const celda = (c: Columna<T>, f: { f: T; v: Record<string, string | number | null> }) =>
     c.exporta ? c.exporta(f.f) : f.v[c.clave];
-  const escapar = (v: string | number | null) => {
-    const t = v === null || v === undefined ? "" : String(v);
-    // comilla doble dentro se duplica, que es como lo lee Excel
-    return `"${t.replace(/"/g, '""')}"`;
-  };
+  /// La marca de texto para los identificadores va en su propio
+  /// modulo: «1,20E+17» en la columna de campaña (cliente, 7 oct
+  /// 2026). Ver `celda-de-excel.ts`.
+  const escapar = celdaParaExcel;
 
   const lineas = [
     columnas.map((c) => escapar(c.titulo)).join(";"),
