@@ -854,7 +854,73 @@ export class CrmService {
       where: donde,
       select: SELECT_RESUMEN_GENERAL,
     });
-    return resumenGeneral(filas as FilaCruda[]);
+    return resumenGeneral(
+      filas as FilaCruda[],
+      await this.inscritosDelPeriodoPorAccion(filtros),
+    );
+  }
+
+  /**
+   * POR ACCIÓN, CUÁNTOS QUEDARON INSCRITOS DENTRO DEL PERIODO.
+   *
+   * «Filtro por ayer: voy a ver leads, inscritos y demás de solo ayer.
+   * Así para todo» (cliente, 7 oct 2026).
+   *
+   * El Resumen General contaba sus inscritos sobre la cohorte ---los
+   * que LLEGARON en el periodo--- y la tabla de abajo, en la misma
+   * pantalla, ya los contaba por cuándo se inscribieron. Dos cifras
+   * distintas para la misma pregunta, que es lo que el cliente señaló
+   * en Tráfico y lo que este bloque existe para no hacer.
+   *
+   * Las mismas dos condiciones que la tabla: el movimiento a INSCRITO
+   * dentro de la ventana pone la fecha, y la etapa de hoy decide si
+   * cuenta.
+   */
+  private async inscritosDelPeriodoPorAccion(
+    filtros: Filtros,
+  ): Promise<Map<string, number> | undefined> {
+    const desde = filtros.llegoDesde ? new Date(filtros.llegoDesde) : null;
+    const hasta = filtros.llegoHasta ? new Date(filtros.llegoHasta) : null;
+    /// Sin periodo manda el conteo de siempre, que es el total.
+    if (!desde && !hasta) return undefined;
+
+    /// Los MISMOS cortes de la pantalla menos la ventana: la ventana
+    /// de aquí va sobre el movimiento, no sobre `creadoEn`.
+    const donde = this.donde({
+      ...filtros,
+      etapa: undefined,
+      tramo: undefined,
+      llegoDesde: undefined,
+      llegoHasta: undefined,
+    });
+
+    const movimientos = await this.prisma.movimientoParticipante.findMany({
+      where: {
+        creadoEn: {
+          ...(desde ? { gte: desde } : {}),
+          ...(hasta ? { lt: hasta } : {}),
+        },
+        etapaDespues: 'INSCRITO',
+        participante: { AND: [donde, { etapa: { in: OCUPAN_SILLA } }] },
+      },
+      select: {
+        participanteId: true,
+        participante: { select: { accionFormacionId: true } },
+      },
+      orderBy: { creadoEn: 'asc' },
+    });
+
+    /// Personas distintas y no movimientos: quien entra, sale y
+    /// vuelve a entrar es una inscripción, no dos.
+    const vistos = new Set<string>();
+    const por = new Map<string, number>();
+    for (const m of movimientos) {
+      const af = m.participante?.accionFormacionId;
+      if (!af || vistos.has(m.participanteId)) continue;
+      vistos.add(m.participanteId);
+      por.set(af, (por.get(af) ?? 0) + 1);
+    }
+    return por;
   }
 
   /**

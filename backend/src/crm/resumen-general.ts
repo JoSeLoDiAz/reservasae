@@ -124,7 +124,39 @@ export function fueGestionada(f: FilaCruda): boolean {
  * que sí tienen movimiento. Los leads sin acción tampoco: no hay
  * barra donde ponerlos.
  */
-export function resumenGeneral(filas: FilaCruda[]): FilaResumenGeneral[] {
+/**
+ * CADA CIFRA SE MIDE POR LA FECHA DE SU PROPIO HECHO.
+ *
+ * «Filtro por ayer: voy a ver leads, inscritos y demás de solo
+ * ayer. Así para todo» (cliente, 7 oct 2026).
+ *
+ * Las barras de este bloque son un corte de los leads que
+ * LLEGARON en el periodo ---cuántos tienen los datos completos,
+ * cuántos están en proceso, cuántos dijeron que no---, y eso está
+ * bien para todas menos para una: «inscritos» respondía «de los
+ * que llegaron ayer, cuántos están inscritos hoy», que no es lo
+ * que se pregunta y, peor, NO ES LO QUE DICE LA TABLA DE ABAJO en
+ * esta misma pantalla. Dos cifras distintas para la misma
+ * pregunta, que es justo lo que el cliente señaló en Tráfico.
+ *
+ * `inscritosDelPeriodo` llega de una consulta aparte ---por el
+ * ancla y exigiendo que siga inscrito, igual que la tabla--- y
+ * manda sobre el conteo de la cohorte cuando hay periodo puesto.
+ *
+ * LO QUE SE PIERDE, Y HAY QUE SABERLO: con periodo, las barras
+ * dejan de sumar los leads. Son conteos de hechos y no las partes
+ * de una tarta: alguien que llegó en agosto y se inscribió ayer
+ * cuenta en «inscritos de ayer» y no en «leads de ayer». Es el
+ * mismo trato que ya tiene la tabla de abajo, y preferible a dos
+ * cifras que se contradicen.
+ */
+export function resumenGeneral(
+  filas: FilaCruda[],
+  /// Por acción, cuántos quedaron inscritos DENTRO del periodo.
+  /// `undefined` = no hay periodo puesto, y entonces manda el
+  /// conteo de siempre.
+  inscritosDelPeriodo?: Map<string, number>,
+): FilaResumenGeneral[] {
   const porAccion = new Map<string, FilaResumenGeneral>();
 
   for (const f of filas) {
@@ -168,6 +200,15 @@ export function resumenGeneral(filas: FilaCruda[]): FilaResumenGeneral[] {
     /// donde el cliente las busca.
 
     porAccion.set(af.id, fila);
+  }
+
+  /// Y si hay periodo, los inscritos son los del periodo. Las
+  /// acciones que no estén en el mapa se quedan en cero: nadie se
+  /// inscribió ahí dentro de la ventana.
+  if (inscritosDelPeriodo) {
+    for (const [id, fila] of porAccion) {
+      fila.inscritos = inscritosDelPeriodo.get(id) ?? 0;
+    }
   }
 
   return [...porAccion.values()].sort((a, b) =>

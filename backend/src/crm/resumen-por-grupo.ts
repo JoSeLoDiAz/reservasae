@@ -134,10 +134,15 @@ export function resumenPorGrupoSql(
   /// el estado del lead sea inscrito, porque si lo estuvo y cambió
   /// su estado no aplica» (cliente, 7 oct 2026). El porqué largo
   /// está en `resumen-por-accion.ts`.
+  /// SIN VENTANA NO HACE FALTA EL ANCLA: el movimiento sirve para
+  /// fechar, y sin periodo no hay nada que fechar. El porqué largo
+  /// está en `resumen-por-accion.ts`.
   const seInscribio = Prisma.join(
     [
-      Prisma.sql`an."momento" IS NOT NULL`,
       Prisma.sql`pa."etapa"::text IN ${INSCRITAS}`,
+      recorte.desde || recorte.hasta
+        ? Prisma.sql`an."momento" IS NOT NULL`
+        : null,
       recorte.desde
         ? Prisma.sql`an."momento" >= ${recorte.desde}::timestamptz`
         : null,

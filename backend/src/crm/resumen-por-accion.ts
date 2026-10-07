@@ -198,10 +198,24 @@ export function resumenPorAccionSql(
    * inscribió en septiembre y desertó sale de las dos cifras a la
    * vez, que es lo coherente.
    */
+  /**
+   * SIN VENTANA NO HACE FALTA EL ANCLA, y exigirla costaba gente.
+   *
+   * El movimiento sirve para FECHAR una inscripción. Sin periodo no
+   * hay nada que fechar: la pregunta es «cuántos hay», y eso lo dice
+   * la etapa. Pidiendo además el movimiento, una ficha inscrita a la
+   * que le falte ---las hay: el sondeo de integridad las lista--- se
+   * caía del total sin que nadie lo notara, y el Resumen General de
+   * la misma pantalla decía doce más.
+   *
+   * Con periodo sí se exige, porque ahí el movimiento ES la fecha.
+   */
   const seInscribioEnLaVentana = Prisma.join(
     [
-      Prisma.sql`an."momento" IS NOT NULL`,
       Prisma.sql`pa."etapa"::text IN ${INSCRITAS}`,
+      recorte.desde || recorte.hasta
+        ? Prisma.sql`an."momento" IS NOT NULL`
+        : null,
       recorte.desde
         ? Prisma.sql`an."momento" >= ${recorte.desde}::timestamptz`
         : null,

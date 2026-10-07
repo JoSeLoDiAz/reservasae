@@ -282,7 +282,10 @@ describe('el recorte llega a la consulta', () => {
    * nunca--- pone la FECHA, y la etapa de hoy decide si CUENTA.
    */
   it('los dos conteos de inscritos piden que siga inscrito', () => {
-    const q = sql({});
+    const q = sql({
+      desde: '2026-10-01T05:00:00.000Z',
+      hasta: '2026-10-02T05:00:00.000Z',
+    });
     const bloque = q.slice(
       q.indexOf('LOS INSCRITOS'),
       q.indexOf('LOS QUE OCUPAN SILLA'),
@@ -292,6 +295,27 @@ describe('el recorte llega a la consulta', () => {
     /// La etapa de hoy, además del ancla.
     expect(bloque).toContain('pa."etapa"');
     expect(bloque).toContain('an."momento"');
+  });
+
+  /**
+   * Y SIN VENTANA NO SE EXIGE EL ANCLA, que es lo que costaba gente.
+   *
+   * El movimiento sirve para FECHAR una inscripción; sin periodo no
+   * hay nada que fechar y la pregunta es «cuántos hay», que lo dice la
+   * etapa. Pidiéndolo igual, una ficha inscrita a la que le falte el
+   * movimiento ---las hay, el sondeo de integridad las lista--- se
+   * caía del total, y el Resumen General de la misma pantalla decía
+   * doce más. Medido: con este cambio los dos bloques coinciden en las
+   * cuatro ventanas que se probaron.
+   */
+  it('sin ventana basta la etapa: el ancla no se pide', () => {
+    const q = sql({});
+    const bloque = q.slice(
+      q.indexOf('LOS INSCRITOS'),
+      q.indexOf('LOS QUE OCUPAN SILLA'),
+    );
+    expect(bloque).toContain('pa."etapa"');
+    expect(bloque).not.toContain('an."momento"');
   });
 
   /**

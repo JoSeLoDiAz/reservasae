@@ -139,3 +139,47 @@ describe('resumenGeneral', () => {
     );
   });
 });
+
+/**
+ * CADA CIFRA POR LA FECHA DE SU PROPIO HECHO.
+ *
+ * «Filtro por ayer: voy a ver leads, inscritos y demás de solo ayer.
+ * Así para todo» (cliente, 7 oct 2026).
+ *
+ * «Inscritos» contaba sobre la cohorte ---de los que LLEGARON en el
+ * periodo, cuántos están inscritos hoy--- y la tabla de abajo, en la
+ * MISMA pantalla, ya los contaba por cuándo se inscribieron. Dos
+ * cifras distintas para la misma pregunta.
+ */
+describe('los inscritos del periodo mandan sobre los de la cohorte', () => {
+  const dosFichas = [
+    fila({ etapa: 'INSCRITO' }),
+    fila({ etapa: 'INSCRITO' }),
+  ];
+
+  it('sin periodo, cuenta la cohorte como siempre', () => {
+    const [fila] = resumenGeneral(dosFichas);
+    expect(fila.inscritos).toBe(2);
+  });
+
+  it('con periodo, manda lo que se inscribió dentro', () => {
+    const [fila] = resumenGeneral(dosFichas, new Map([['af1', 5]]));
+    /// Cinco y no dos: tres de ellos llegaron antes del periodo, así
+    /// que no están entre las fichas de la cohorte.
+    expect(fila.inscritos).toBe(5);
+  });
+
+  /// Y una acción que no está en el mapa se queda en cero: nadie se
+  /// inscribió ahí dentro de la ventana. Dejarle el conteo de la
+  /// cohorte diría que sí.
+  it('una acción sin inscripciones dentro del periodo queda en cero', () => {
+    const [fila] = resumenGeneral(dosFichas, new Map());
+    expect(fila.inscritos).toBe(0);
+  });
+
+  /// Lo demás no se toca: siguen siendo el corte de quien llegó.
+  it('las otras barras siguen siendo de la cohorte', () => {
+    const [fila] = resumenGeneral(dosFichas, new Map([['af1', 5]]));
+    expect(fila.leads).toBe(2);
+  });
+});
