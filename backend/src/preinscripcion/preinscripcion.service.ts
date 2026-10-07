@@ -1858,7 +1858,7 @@ export class PreinscripcionService {
       );
       await this.notificaciones.avisar({
         participanteId: enlace.participanteId,
-        tipo: 'DATOS_DE_EMPRESA',
+        tipo: 'SIN_ORGANIZACION',
         detalle: 'Terminó: declaró que no tiene organización.',
         claveEvento: enlace.id,
       });
