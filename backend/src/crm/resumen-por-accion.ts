@@ -180,9 +180,28 @@ export function resumenPorAccionSql(
   /// Cada punta por su lado, igual que la de los leads: con media
   /// ventana ---solo `desde`--- el otro extremo queda abierto, y no
   /// como «todo el histórico».
+  /**
+   * Y SIGUE INSCRITO HOY. Es la corrección del cliente (7 oct 2026):
+   * «toma esto del historial, pero siempre y cuando el estado del
+   * lead sea inscrito, porque si lo estuvo y cambió su estado no
+   * aplica».
+   *
+   * Yo lo había dejado al revés ---quien se inscribió ese día cuenta
+   * ese día, aunque después se fuera--- razonando que la historia no
+   * se reescribe. Pero la pregunta que contesta esta tabla no es
+   * «cuántas inscripciones se firmaron»: es cuántas personas tiene
+   * hoy esa acción, que es con lo que se responde ante el SENA y lo
+   * que tiene que cuadrar con los cupos disponibles de al lado.
+   *
+   * Así que la fecha sale del historial ---el movimiento, que no se
+   * reescribe nunca--- y la etapa de HOY decide si cuenta. Quien se
+   * inscribió en septiembre y desertó sale de las dos cifras a la
+   * vez, que es lo coherente.
+   */
   const seInscribioEnLaVentana = Prisma.join(
     [
       Prisma.sql`an."momento" IS NOT NULL`,
+      Prisma.sql`pa."etapa"::text IN ${INSCRITAS}`,
       recorte.desde
         ? Prisma.sql`an."momento" >= ${recorte.desde}::timestamptz`
         : null,
@@ -324,31 +343,39 @@ export function completarFila(f: Cruda): FilaDeAccion {
     totalLeads,
     totalInscritos,
     /**
-     * Sobre los leads --reservados más campaña-- y no sobre la meta:
-     * la conversión responde «de los que llegaron, cuántos entraron».
+     * SOBRE LA META, NO SOBRE LOS LEADS. Es la fórmula del cliente:
+     * «total de inscritos dividido la meta» (7 oct 2026).
      *
-     * CON VENTANA PUESTA SON DOS GRUPOS DISTINTOS, y hay que saberlo:
-     * arriba van las inscripciones HECHAS en el periodo ---que pueden
-     * ser de gente que llegó en agosto--- y abajo los leads LLEGADOS
-     * en el periodo. No es la conversión de una cohorte, es «cuánto
-     * entró y cuánto se inscribió este mes», que es la cuenta con la
-     * que se trabaja en el comité. Sin ventana, las dos son de todo
-     * el histórico y la división vuelve a ser la de siempre.
+     * Dividía por los leads ---«de los que llegaron, cuántos
+     * entraron»--- y esa cuenta dejó de servir cuando las
+     * inscripciones pasaron a contarse por cuándo se hicieron: en la
+     * tabla de grupos de AF1, las diez filas salían al 100 % porque
+     * 249 inscritos sobre 250 leads es 100 %, y una columna que dice
+     * lo mismo en todas las filas no se mira.
      *
-     * Y POR ESO MISMO PUEDE PASARSE, así que cuando se pasa no se
-     * imprime. Antes era aritméticamente imposible ---los inscritos
-     * eran un subconjunto de los llegados---; desde que son dos
-     * poblaciones, un día de dos leads y veinte inscripciones da
-     * «1.000 %» en una columna que se llama Conversión. Medido contra
-     * producción: 20 celdas acción-día en los últimos siete. Sale
-     * nulo, que la pantalla ya pinta como «—», porque la cifra que
-     * habría que imprimir no existe: recortarla a 100 % sería inventar
-     * una que sí parece cierta.
+     * Contra la meta sí dice algo que cambia por fila y que se puede
+     * decidir con ello: cuánto le falta a ese grupo para llenarse. Y
+     * cuadra con la columna de al lado, porque `cupos disponibles` es
+     * meta menos quien ocupa silla: las dos cuentan contra lo mismo.
+     *
+     * PASARSE DEL 100 % AQUÍ SÍ SIGNIFICA ALGO, al revés que antes:
+     * es sobrecupo, y su propio Excel lo tiene ---AF2 con 520 de meta
+     * y 524 inscritos, −4 disponibles---. Por eso ya no se corta. Lo
+     * que José frenó era otra cosa: un «1.000 %» de dividir dos
+     * poblaciones distintas, que con la meta debajo no puede salir.
+     *
+     * LO QUE HAY QUE SABER PARA LEERLA: con un periodo puesto, arriba
+     * van las inscripciones HECHAS en ese periodo y abajo la meta
+     * entera, que no se recorta nunca. Así que con «Hoy» la cifra es
+     * pequeña a propósito: es «cuánto de la meta se llenó hoy», no
+     * «cuán llena está». Para lo segundo, la columna es `cupos
+     * disponibles`.
+     *
+     * Nulo cuando no hay meta: una acción sin grupos todavía no tiene
+     * contra qué medirse, y un porcentaje sobre cero es el `#DIV/0!`
+     * que su Excel enseña en tres filas.
      */
-    conversion:
-      totalLeads > 0 && totalInscritos <= totalLeads
-        ? totalInscritos / totalLeads
-        : null,
+    conversion: columnas.meta > 0 ? totalInscritos / columnas.meta : null,
     cuposDisponibles,
     /// Cerrada cuando no queda cupo. Sin fecha de por medio: una acción
     /// con cupos y sin grupos abiertos sigue admitiendo gente, y las

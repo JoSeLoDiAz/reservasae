@@ -130,9 +130,14 @@ export function resumenPorGrupoSql(
   );
 
   /// Cuándo SE INSCRIBIÓ, para los inscritos.
+  /// Y SIGUE INSCRITO HOY, igual que su gemela: «siempre y cuando
+  /// el estado del lead sea inscrito, porque si lo estuvo y cambió
+  /// su estado no aplica» (cliente, 7 oct 2026). El porqué largo
+  /// está en `resumen-por-accion.ts`.
   const seInscribio = Prisma.join(
     [
       Prisma.sql`an."momento" IS NOT NULL`,
+      Prisma.sql`pa."etapa"::text IN ${INSCRITAS}`,
       recorte.desde
         ? Prisma.sql`an."momento" >= ${recorte.desde}::timestamptz`
         : null,
@@ -276,13 +281,12 @@ export function completarGrupo(f: Cruda): FilaDeGrupo {
     ...columnas,
     totalLeads,
     totalInscritos,
-    /// Con ventana son dos poblaciones distintas y puede pasarse del
-    /// 100 %: ahí sale nulo. El porqué largo está en su gemela,
-    /// `resumen-por-accion.ts`.
-    conversion:
-      totalLeads > 0 && totalInscritos <= totalLeads
-        ? totalInscritos / totalLeads
-        : null,
+    /// SOBRE LA META, igual que su gemela: «total de inscritos
+    /// dividido la meta» (cliente, 7 oct 2026). Dividiendo por los
+    /// leads, las diez filas de los grupos de AF1 salían al 100 %, y
+    /// una columna que dice lo mismo en todas no se mira. El porqué
+    /// largo está en `resumen-por-accion.ts`.
+    conversion: columnas.meta > 0 ? totalInscritos / columnas.meta : null,
     cuposDisponibles,
     estado: cuposDisponibles <= 0 ? 'CERRADO' : 'ABIERTO',
   };

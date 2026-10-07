@@ -70,15 +70,21 @@ describe('completarGrupo', () => {
     ).toBe('ABIERTO');
   });
 
-  it('sin leads la conversión es nula: no es un 0 %, es que no hay de qué', () => {
-    expect(completarGrupo(cruda()).conversion).toBeNull();
+  /// Sin meta no hay contra qué medirse: un grupo sin coberturas
+  /// todavía.
+  it('sin meta la conversión es nula: no es un 0 %, es que no hay de qué', () => {
+    expect(completarGrupo(cruda({ meta: 0 })).conversion).toBeNull();
   });
 
-  it('con leads la conversión es inscritos sobre leads', () => {
+  /// «Total de inscritos dividido la meta» (cliente, 7 oct 2026).
+  /// Sobre los leads, las diez filas de los grupos de AF1 salían al
+  /// 100 % y la columna no decía nada.
+  it('la conversión es inscritos sobre META', () => {
     const f = completarGrupo(
-      cruda({ campanaDigital: 40, inscritosCampana: 10 }),
+      cruda({ meta: 65, campanaDigital: 51, inscritosCampana: 51 }),
     );
-    expect(f.conversion).toBeCloseTo(0.25);
+    /// 51/65 = 78 %. Sobre los leads habría dado 100 %.
+    expect(Math.round((f.conversion ?? 0) * 100)).toBe(78);
   });
 
   it('un grupo sin coberturas da meta cero y disponibles negativos si hay inscritos', () => {
