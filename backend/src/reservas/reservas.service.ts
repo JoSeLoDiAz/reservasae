@@ -678,6 +678,29 @@ export class ReservasService {
       /// «900123456-7» dejaba el 7 aunque a ese NIT le toque otro.
       /// Para cada NIT hay un solo DV (cliente, 11 sep 2026).
       digitoVerificacion: calcularDigitoVerificacion(nit.nit),
+      /**
+       * EL JEFE DIRECTO, TAMBIÉN EN LA ORGANIZACIÓN.
+       *
+       * «Las personas llenan los datos de empresa en el formulario
+       * personalizado y queda la notificación, pero no queda»
+       * (cliente, 7 oct 2026).
+       *
+       * Y era cierto. Estos tres se guardaban SOLO en la reserva,
+       * y `faltaDeLaEmpresa` ---la regla que decide si una ficha
+       * pasa a datos completos, y la que llena el F7--- los busca
+       * en la ORGANIZACIÓN. Resultado: la empresa los escribía, el
+       * sistema avisaba de la reserva, y todas las fichas de esa
+       * empresa se quedaban en «Interesado» pidiendo «nombre del
+       * jefe directo» para siempre. El dato estaba guardado, a un
+       * palmo de donde se buscaba.
+       *
+       * Se quedan ADEMÁS en la reserva: ahí son el contacto de ESA
+       * reserva, que puede cambiar entre una y otra. En la
+       * organización son el jefe que viaja al F7.
+       */
+      contactoNombre: dto.contactoNombre,
+      contactoCargo: dto.contactoCargo ?? null,
+      contactoCorreo: dto.contactoCorreo,
     };
 
     /// Si la empresa YA EXISTE, lo guardado manda.
@@ -709,12 +732,23 @@ export class ReservasService {
         redAsociada: true,
         redAsociadaOtra: true,
         digitoVerificacion: true,
+        contactoNombre: true,
+        contactoCargo: true,
+        contactoCorreo: true,
       },
     });
 
     const soloHuecos = yaExiste
       ? {
           razonSocial: yaExiste.razonSocial || datos.razonSocial,
+        /// SOLO HUECOS, igual que los de arriba y por lo mismo: la
+        /// ruta es pública y sin sesión, así que una reserva con el
+        /// NIT de una empresa real no puede reescribirle su jefe
+        /// directo. Rellenarlo cuando está vacío sí, que es lo que
+        /// hace falta.
+        contactoNombre: yaExiste.contactoNombre || datos.contactoNombre,
+        contactoCargo: yaExiste.contactoCargo || datos.contactoCargo,
+        contactoCorreo: yaExiste.contactoCorreo || datos.contactoCorreo,
           numeroColaboradores:
             yaExiste.numeroColaboradores ?? datos.numeroColaboradores,
           redAsociada: yaExiste.redAsociada ?? datos.redAsociada,
