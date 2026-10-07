@@ -1182,11 +1182,9 @@ function TarjetaAccion({
           {oferta.tipo === "CIUDAD" && (
             <span className="text-texto-suave">Sede {oferta.ubicacion}</span>
           )}
-          {oferta.libres <= 10 && (
-            <span className="font-medium text-error">
-              Disponibilidad: {oferta.libres} cupos
-            </span>
-          )}
+          {/* NO se pinta la disponibilidad, y es deliberado: la
+              preinscripcion da prevalencia y no consume cupo, asi
+              que un aviso de cupos aqui espanta sin impedir nada. */}
           {elegida && (
             <span className="ml-auto font-semibold text-marca">Seleccionada</span>
           )}
