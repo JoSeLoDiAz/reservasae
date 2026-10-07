@@ -207,13 +207,43 @@ export function resumenPorAccionSql(
    *     septiembre cambiaba en octubre.
    *
    * Ahora se cuenta por el ancla ---la PRIMERA vez que la ficha llegó
-   * a INSCRITO, que es un movimiento y no se reescribe nunca--- y sin
-   * mirar la etapa de hoy: quien se inscribió ese día se inscribió ese
-   * día, aunque después desertara. Es lo mismo que ya hacen el control
-   * de inscripciones y el informe de reservas; esta tabla era la que
-   * iba por su cuenta.
+   * a INSCRITO, que es un movimiento y no se reescribe nunca---, y eso
+   * arregla las dos primeras. Es lo mismo que ya hacen el control de
+   * inscripciones y el informe de reservas; esta tabla era la que iba
+   * por su cuenta.
    *
-   * Sin ventana, cuenta a todo el que tenga ancla.
+   * LA TERCERA SE QUEDA, Y ES A PROPÓSITO.
+   *
+   * Aquí decía yo que una inscripción no se borra del pasado al
+   * desertar la persona, y que mirar la etapa de hoy era el defecto.
+   * Era mi razonamiento, y el cliente lo corrigió:
+   *
+   *   «Toma esto del historial, pero siempre y cuando el estado del
+   *   lead sea inscrito, porque si lo estuvo y cambió su estado no
+   *   aplica. Esto ya lo había solicitado reiteradamente pero no
+   *   quedó» (cliente, 7 oct 2026).
+   *
+   * Y tiene razón, porque la pregunta que contesta esta tabla no es
+   * «cuántas inscripciones se firmaron ese día»: es cuánta gente tiene
+   * HOY esa acción, que es con lo que se responde ante el SENA y lo
+   * que tiene que cuadrar con los cupos disponibles de al lado.
+   *
+   * Así que son DOS condiciones y cada una hace su parte: EL ANCLA
+   * PONE LA FECHA Y LA ETAPA DE HOY DECIDE SI CUENTA. Quien se
+   * inscribió en septiembre y desertó en octubre deja de salir en el
+   * comité de septiembre, y eso es lo pedido.
+   *
+   * SI ESTO VUELVE A PARECER UN FALLO, NO LO REVIERTA. Está fijado en
+   * `resumen-por-accion.spec.ts` con el porqué dentro, y el Resumen General
+   * de esta misma pantalla cuadra con esta regla y no con la otra
+   * ---comprobado en cuatro ventanas: 1292/1292, 1212/1212, 0/0 y
+   * 1221/1221---.
+   *
+   * Y SIN VENTANA NO SE EXIGE EL ANCLA, solo la etapa: el movimiento
+   * sirve para FECHAR, y sin periodo no hay nada que fechar. Pidiéndolo
+   * igual, una ficha inscrita a la que le falte el movimiento ---las
+   * hay, el sondeo las lista--- se caía del total, y el Resumen General
+   * decía doce más.
    */
   /// Cada punta por su lado, igual que la de los leads: con media
   /// ventana ---solo `desde`--- el otro extremo queda abierto, y no
@@ -294,9 +324,12 @@ export function resumenPorAccionSql(
                  WHERE pa."origen"::text <> ${DE_RESERVA}
                    AND ${llegoEnLaVentana}
                )::int AS campana,
-               -- LOS INSCRITOS, por cuando SE INSCRIBIO. Sin mirar la
-               -- etapa de hoy: quien se inscribio ese dia se
-               -- inscribio ese dia, aunque despues desertara.
+               -- LOS INSCRITOS: el ancla pone la FECHA y la etapa de
+               -- hoy decide si CUENTA. Quien se inscribio en
+               -- septiembre y deserto en octubre deja de salir en el
+               -- comite de septiembre, que es lo que pidio el cliente
+               -- el 7 oct 2026. El docblock de arriba lo explica, y
+               -- el spec lo sujeta: no lo revierta.
                COUNT(*) FILTER (
                  WHERE pa."origen"::text = ${DE_RESERVA}
                    AND ${seInscribioEnLaVentana}
