@@ -7010,8 +7010,70 @@ export class CrmService {
     // como al crear con sobrecupo
     if (sobrecupo) partes.push(`Sobrecupo autorizado: ${sobrecupo.motivo}`);
 
-    const escrituras: Prisma.PrismaPromise<unknown>[] = [
-      this.prisma.participante.update({
+    /**
+     * EL CANDADO DEL AFORO, con la misma forma que `cambiarEtapa`.
+     *
+     * Las comprobaciones de arriba se quedan: fallan antes y con
+     * mejores mensajes. Pero leen FUERA de toda transaccion, asi que
+     * entre lo que ven y lo que escriben cabe otro asesor haciendo lo
+     * mismo: los dos ven la ultima silla y los dos entran. El tope de
+     * celda que entro el 7 oct seria un control en pie y vacio de
+     * efecto en cuanto algo mueva el tope al lado.
+     *
+     * Se vuelve a contar aqui dentro, con las filas tomadas. Esta es
+     * la que no se puede saltar.
+     *
+     * EL ORDEN DE LOS DOS CANDADOS NO ES LIBRE: siempre la oferta y
+     * despues la cobertura. Dos peticiones que los tomaran al reves
+     * se bloquearian la una a la otra.
+     */
+    await this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT "id" FROM "ofertas" WHERE "id" = ${oferta.id} FOR UPDATE`;
+
+      const ocupadasAhora = await tx.participante.count({
+        where: {
+          ofertaId: oferta.id,
+          etapa: { in: ETAPAS_VIVAS },
+          id: { not: id },
+        },
+      });
+      if (ocupadasAhora >= oferta.cuposMaximos && !sobrecupo) {
+        throw new ConflictException(
+          `«${oferta.accionFormacion.nombre}» se acaba de llenar ` +
+            `(${ocupadasAhora} de ${oferta.cuposMaximos}). ` +
+            'Para colocar por encima del cupo hay que indicar el motivo.',
+        );
+      }
+
+      if (cobertura && cobertura !== p.coberturaId) {
+        await tx.$queryRaw`SELECT "id" FROM "grupos_cobertura" WHERE "id" = ${cobertura} FOR UPDATE`;
+
+        /// Se RELEE el tope, no se reusa el de arriba: el candado no
+        /// sirve de nada si la cifra que se compara se leyo antes de
+        /// tomarlo. Es el mismo defecto que el lote tiene hoy.
+        const celda = await tx.grupoCobertura.findUnique({
+          where: { id: cobertura },
+          select: { cuposMaximos: true, grupo: { select: { numero: true } } },
+        });
+        /// Y la cuenta es la MISMA de fuera, con el `tx`: dos formas de
+        /// contar lo mismo acaban discrepando, y aqui la que sobra
+        /// seria justo la que manda.
+        const quedan = celda
+          ? await cabenEnLaCobertura(
+              tx as never,
+              { id: cobertura, cuposMaximos: celda.cuposMaximos },
+              id,
+            )
+          : 1;
+        if (quedan <= 0 && !sobrecupo) {
+          throw new ConflictException(
+            `El grupo ${celda!.grupo.numero} se acaba de llenar ` +
+              `(${celda!.cuposMaximos} cupos). Elija otro grupo.`,
+          );
+        }
+      }
+
+      await tx.participante.update({
         where: { id },
         data: {
           ofertaId: oferta.id,
@@ -7020,12 +7082,10 @@ export class CrmService {
           sobrecupoPorId: sobrecupo?.porId ?? null,
           sobrecupoMotivo: sobrecupo?.motivo ?? null,
         },
-      }),
-    ];
+      });
 
-    if (partes.length > 0) {
-      escrituras.push(
-        this.prisma.movimientoParticipante.create({
+      if (partes.length > 0) {
+        await tx.movimientoParticipante.create({
           data: {
             participanteId: id,
             // misma etapa: no es una transicion
@@ -7040,11 +7100,9 @@ export class CrmService {
             nota: partes.join('. '),
             ip: ip ?? null,
           },
-        }),
-      );
-    }
-
-    await this.prisma.$transaction(escrituras);
+        });
+      }
+    });
 
     return this.obtener(id, ambito);
   }
