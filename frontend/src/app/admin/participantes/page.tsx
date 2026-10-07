@@ -661,6 +661,25 @@ function AsignarLote({
           ]}
         />
       </div>
+      {/**
+       * Y SE DICE POR QUÉ NO ESTÁN TODOS.
+       *
+       * «Que los asesores que tengo en Gestión de leads también me
+       * salgan» (cliente, 7 oct 2026), viendo dos nombres aquí y
+       * siete en la columna Asesor.
+       *
+       * Las dos listas son correctas y son DISTINTAS: la columna
+       * enseña a quien YA lleva leads, y esto a quien PUEDE
+       * recibirlos, que desde el 2 oct 2026 ---y a petición suya---
+       * son solo Gestor y Líder de Inscripciones. Un académico o una
+       * cuenta de consulta no atienden captación.
+       *
+       * Sin esta línea las dos listas se leen como una sola rota, y
+       * eso ya costó una discusión entera.
+       */}
+      <span className="text-xs text-texto-suave">
+        Solo Gestor y Líder de Inscripciones
+      </span>
     </div>
   );
 }
