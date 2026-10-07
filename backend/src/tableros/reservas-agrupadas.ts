@@ -369,6 +369,10 @@ export async function reservasAgrupadas(
     prisma,
     [...new Set(reservas.map((r) => r.empresa.id))],
     filtros.ambito,
+    /// El mismo periodo que ya llevan las reservas de arriba. Si las
+    /// dos mitades de la fila no miran la misma ventana, la resta de
+    /// «Cupos pendientes» no significa nada.
+    { desde: filtros.llegoDesde, hasta: filtros.llegoHasta },
   );
 
   return armarAgrupadas(reservas, conNombre, leads);
@@ -458,10 +462,45 @@ export async function cifrasDeLeadsPorEmpresa(
   prisma: PrismaService,
   empresaIds: string[],
   ambito: string[],
+  /**
+   * EL PERIODO, el mismo que ya se aplica a las reservas.
+   *
+   * Sin esto, las cuatro columnas de leads de cada organización
+   * eran SIEMPRE el total histórico, pusiera lo que pusiera el
+   * filtro de fechas. Con «Ayer» arriba, la fila ponía los cupos de
+   * ayer al lado de los leads de toda la vida, y «Cupos pendientes»
+   * ---que los resta--- salía casi siempre en cero.
+   *
+   * Es el MISMO defecto que el de «cupos reservados» del 7 oct: una
+   * mitad de la fila obedece al periodo y la otra no, que es peor
+   * que si no obedeciera ninguna, porque parece que sí.
+   *
+   * Se fecha por `p."creadoEn"` ---cuándo LLEGÓ la persona--- igual
+   * que la lista de reservas se fecha por cuándo se hizo la reserva,
+   * y los cubos de dentro son subconjuntos de esa misma cohorte: de
+   * los que llegaron en el periodo, cuántos están inscritos,
+   * descartados o no contactables.
+   */
+  ventana: { desde?: string | null; hasta?: string | null } = {},
 ): Promise<Map<string, LeadsCrudos>> {
   /// `Prisma.join` de una lista vacía es un SQL roto, y sin
   /// organizaciones --o sin ámbito-- no hay nada que contar.
   if (empresaIds.length === 0 || ambito.length === 0) return new Map();
+
+  /// Cada punta por su lado: con media ventana ---solo `desde`--- el
+  /// otro extremo queda abierto, y no como «todo el histórico».
+  const llegoEnLaVentana = Prisma.join(
+    [
+      Prisma.sql`TRUE`,
+      ventana.desde
+        ? Prisma.sql`p."creadoEn" >= ${ventana.desde}::timestamptz`
+        : null,
+      ventana.hasta
+        ? Prisma.sql`p."creadoEn" < ${ventana.hasta}::timestamptz`
+        : null,
+    ].filter((x): x is Prisma.Sql => x !== null),
+    ' AND ',
+  );
 
   const filas = await prisma.$queryRaw<
     Array<{
@@ -489,6 +528,7 @@ export async function cifrasDeLeadsPorEmpresa(
       LEFT JOIN gestion sg     ON sg."pid" = p."id"
      WHERE COALESCE(p."empresaId", res."empresaId") IN (${Prisma.join(empresaIds)})
        AND p."convenioId" IN (${Prisma.join(ambito)})
+       AND ${llegoEnLaVentana}
      GROUP BY 1
   `);
 

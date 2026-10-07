@@ -856,9 +856,14 @@ export class CrmService {
       where: donde,
       select: SELECT_RESUMEN_GENERAL,
     });
+    /// Las dos cosas salen de la misma consulta: el conteo y los
+    /// rotulos con que dibujar la barra de una accion que tuvo
+    /// inscripciones y ningun lead nuevo.
+    const delPeriodo = await this.inscritosDelPeriodoPorAccion(filtros);
     return resumenGeneral(
       filas as FilaCruda[],
-      await this.inscritosDelPeriodoPorAccion(filtros),
+      delPeriodo?.conteo,
+      delPeriodo?.rotulos,
     );
   }
 
@@ -878,9 +883,17 @@ export class CrmService {
    * dentro de la ventana pone la fecha, y la etapa de hoy decide si
    * cuenta.
    */
-  private async inscritosDelPeriodoPorAccion(
-    filtros: Filtros,
-  ): Promise<Map<string, number> | undefined> {
+  private async inscritosDelPeriodoPorAccion(filtros: Filtros): Promise<
+    | {
+        conteo: Map<string, number>;
+        /// Los rótulos de esas mismas acciones, que salen de la
+        /// MISMA consulta. Van juntos y no en un campo del servicio
+        /// porque esto es un singleton: un campo se quedaría puesto
+        /// entre peticiones de cuentas distintas.
+        rotulos: Map<string, { codigo: string; nombre: string; gremio: string }>;
+      }
+    | undefined
+  > {
     const desde = filtros.llegoDesde ? new Date(filtros.llegoDesde) : null;
     const hasta = filtros.llegoHasta ? new Date(filtros.llegoHasta) : null;
     /// Sin periodo manda el conteo de siempre, que es el total.
@@ -907,7 +920,22 @@ export class CrmService {
       },
       select: {
         participanteId: true,
-        participante: { select: { accionFormacionId: true } },
+        participante: {
+          select: {
+            accionFormacionId: true,
+            /// Los rótulos, aquí mismo: hacen falta para dibujar la
+            /// barra de una acción que tuvo inscripciones y ningún
+            /// lead nuevo, y pedirlos aparte sería un segundo viaje
+            /// por tres cadenas.
+            accionFormacion: {
+              select: {
+                codigo: true,
+                nombre: true,
+                convenio: { select: { sigla: true, nombre: true } },
+              },
+            },
+          },
+        },
       },
       orderBy: { creadoEn: 'asc' },
     });
@@ -916,13 +944,25 @@ export class CrmService {
     /// vuelve a entrar es una inscripción, no dos.
     const vistos = new Set<string>();
     const por = new Map<string, number>();
+    const rotulos = new Map<
+      string,
+      { codigo: string; nombre: string; gremio: string }
+    >();
     for (const m of movimientos) {
       const af = m.participante?.accionFormacionId;
       if (!af || vistos.has(m.participanteId)) continue;
       vistos.add(m.participanteId);
       por.set(af, (por.get(af) ?? 0) + 1);
+      const a = m.participante?.accionFormacion;
+      if (a && !rotulos.has(af)) {
+        rotulos.set(af, {
+          codigo: a.codigo,
+          nombre: a.nombre,
+          gremio: a.convenio?.sigla || a.convenio?.nombre || '',
+        });
+      }
     }
-    return por;
+    return { conteo: por, rotulos };
   }
 
   /**
@@ -1002,6 +1042,15 @@ export class CrmService {
       }),
     ]);
 
+    /// Las dos de ventana se resuelven aquí y no dentro de la
+    /// llamada: hacen falta sus CLAVES para saber a qué cuentas hay
+    /// que pedirles el nombre. Y de paso van en paralelo, que antes
+    /// se encadenaban por estar cada una en su `await`.
+    const [tocados, inscribio] = await Promise.all([
+      this.tocadosEnLaVentana(ambito, ventana),
+      this.inscribioEnLaVentana(ambito, ventana),
+    ]);
+
     return repartirInscripciones(
       leads.map((l) => ({
         asesorId: l.asesorId,
@@ -1016,9 +1065,38 @@ export class CrmService {
       })),
       cierrePorAccion(grupos),
       ahora,
-      await this.tocadosEnLaVentana(ambito, ventana),
-      await this.inscribioEnLaVentana(ambito, ventana),
+      tocados,
+      inscribio,
+      /**
+       * Y LOS NOMBRES, para poder darle fila a quien trabajó sin que
+       * le llegara ningún lead nuevo en el periodo.
+       *
+       * Se piden SOLO los ids que salen en esos dos mapas: traer la
+       * tabla de cuentas entera para rellenar dos o tres nombres
+       * sería pagar una consulta grande por un caso pequeño.
+       */
+      await this.nombresDeEsosAsesores([
+        /// Sin ventana los dos vienen indefinidos a proposito, y
+        /// entonces tampoco hay filas que añadir: «gestionado en el
+        /// periodo» no quiere decir nada sin periodo.
+        ...(tocados?.keys() ?? []),
+        ...(inscribio?.keys() ?? []),
+      ]),
     );
+  }
+
+  /// Cómo se llama cada uno de esos ids. `SIN_ASESOR` no es una
+  /// cuenta, así que se aparta antes de preguntar.
+  private async nombresDeEsosAsesores(
+    ids: string[],
+  ): Promise<Map<string, string>> {
+    const limpios = [...new Set(ids)].filter((x) => x !== 'SIN_ASESOR');
+    if (limpios.length === 0) return new Map();
+    const cuentas = await this.prisma.admin.findMany({
+      where: { id: { in: limpios } },
+      select: { id: true, nombre: true },
+    });
+    return new Map(cuentas.map((a) => [a.id, a.nombre]));
   }
 
   /**
