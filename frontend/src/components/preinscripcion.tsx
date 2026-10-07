@@ -257,11 +257,35 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
   /// faltara algo por cargar.
   const unaSola = catalogo.formulario?.accionUnica === true;
 
-  /// SI ENTRE LO QUE SE LE OFRECE HAY FORO. Se mira sobre
-  /// `conCobertura` y no sobre el catálogo entero: anunciar la
-  /// excepción a quien no tiene foro disponible es prometer algo que
-  /// no va a poder hacer.
-  const hayForo = conCobertura.some((x) => esForo(x.accion.evento));
+  /**
+   * SI ENTRE LO QUE SE LE OFRECE HAY UNA PAREJA QUE SE CURSE JUNTA.
+   *
+   * Y se pregunta por la PAREJA, no por «¿hay foro?», que fue mi
+   * error de esta misma mañana: con `esForo` a secas, a quien
+   * eligiera AF3 se le prometía que podría sumar el foro después, y
+   * el panel se lo va a negar ---AF3 no combina con nada---. Una
+   * promesa que otra pantalla incumple es peor que no decir nada.
+   *
+   * Basta con que UNA de las dos nombre a la otra, igual que en
+   * `seCursanJuntas` del servidor.
+   *
+   * Se mira sobre `conCobertura` y no sobre el catálogo entero:
+   * anunciar la excepción a quien no tiene las dos disponibles en su
+   * zona es otra forma de prometer de más.
+   */
+  const pareja = (() => {
+    const hay = conCobertura.map((x) => x.accion);
+    for (const a of hay) {
+      for (const b of hay) {
+        if (a.id === b.id) continue;
+        if (a.combinaConAccionId === b.id || b.combinaConAccionId === a.id) {
+          /// El foro primero en la frase, que es el que se suma.
+          return esForo(b.evento) ? { suma: b, base: a } : { suma: a, base: b };
+        }
+      }
+    }
+    return null;
+  })();
 
   const accionElegida = catalogo.acciones.find((a) => a.id === accionId) ?? null;
   const nombreAccion = accionElegida?.nombre ?? "";
@@ -565,8 +589,8 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
                   */}
                 {unaSola
                   ? "Continúe con la acción de formación para registrar sus datos."
-                  : hayForo
-                    ? "Seleccione la que sea de su mayor interés: solo puede preinscribirse en una. El foro es la excepción y se suma a la que elija: preinscríbase primero en una, y vuelva después por el foro."
+                  : pareja
+                    ? `Seleccione la que sea de su mayor interés: solo puede preinscribirse en una. La única excepción es ${pareja.suma.codigo}, que sí se puede sumar a ${pareja.base.codigo}: preinscríbase primero en una y vuelva después por la otra.`
                     : "Seleccione la que sea de su mayor interés, considerando que solo puede preinscribirse en una."}
               </p>
             )}
@@ -616,6 +640,15 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
                   key={accion.id}
                   accion={accion}
                   oferta={oferta!}
+                  /// Si ESTA es una de las dos de la pareja. Se pasa
+                  /// resuelto y no se recalcula dentro: la tarjeta no
+                  /// ve a sus hermanas, y una pareja a medias ---el
+                  /// foro rotulado y su curso no--- se lee como que
+                  /// el foro se suma a cualquiera.
+                  combina={
+                    pareja != null &&
+                    (accion.id === pareja.suma.id || accion.id === pareja.base.id)
+                  }
                   elegida={accionId === accion.id}
                   /* elegir es avanzar: la lista se guarda y
                      salen los datos personales */
@@ -1130,11 +1163,16 @@ const ETIQUETA_MODALIDAD: Record<string, string> = {
 function TarjetaAccion({
   accion,
   oferta,
+  combina,
   elegida,
   alElegir,
 }: {
   accion: AccionPublica;
   oferta: OfertaPublica;
+  /// Si esta acción forma pareja con otra de las que se le enseñan a
+  /// ESTA persona. No basta con ser foro: la pareja está declarada en
+  /// el dato y hoy solo AF1 y AF2 de ADECOPRIA nombran al suyo.
+  combina: boolean;
   elegida: boolean;
   alElegir: () => void;
 }) {
@@ -1208,9 +1246,9 @@ function TarjetaAccion({
             salía como «HÍBRIDA · 2 horas» y nada más. Va aparte de la
             modalidad porque son dos cosas ---aquella dice CÓMO se
             dicta y esta QUÉ es--- y un foro puede ser híbrido o no. */}
-        {esForo(accion.evento) && (
+        {combina && (
           <span className="rounded-md bg-exito-suave px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-exito">
-            Foro · se suma a otra
+            {esForo(accion.evento) ? "Foro · se suma a otra" : "Se le puede sumar el foro"}
           </span>
         )}
       </div>

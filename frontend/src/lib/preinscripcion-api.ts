@@ -34,6 +34,18 @@ export type AccionPublica = {
    * puede ser híbrido, virtual o presencial.
    */
   evento: string | null;
+  /**
+   * CON CUÁL se puede cursar a la vez, o null si con ninguna.
+   *
+   * No es lo mismo que ser foro: la pareja está declarada en el dato
+   * ---`AccionFormacion.combinaConAccionId`--- y hoy, en ADECOPRIA,
+   * solo AF1 y AF2 nombran al foro. AF3 a AF6 no combinan con nada, y
+   * en BRITCHAM no combina ninguna.
+   *
+   * Basta con que UNA de las dos nombre a la otra: así la pareja es
+   * simétrica sin escribirla dos veces.
+   */
+  combinaConAccionId: string | null;
   /// Lo que se lleva quien haga el curso. Se edita en
   /// el panel, en Formularios. Null mientras nadie lo escriba.
   ///
