@@ -25,6 +25,7 @@ import { Prisma } from '../../generated/prisma';
 
 import { PRIMERA_MATRICULA } from './anclas';
 import type { RecorteDelResumen } from './resumen-por-accion';
+import { cumplimiento } from './proyeccion-metas';
 
 export type FilaDeGrupo = {
   grupoId: string;
@@ -276,13 +277,27 @@ export function completarGrupo(f: Cruda): FilaDeGrupo {
     ...columnas,
     totalLeads,
     totalInscritos,
-    /// Con ventana son dos poblaciones distintas y puede pasarse del
-    /// 100 %: ahí sale nulo. El porqué largo está en su gemela,
-    /// `resumen-por-accion.ts`.
-    conversion:
-      totalLeads > 0 && totalInscritos <= totalLeads
-        ? totalInscritos / totalLeads
-        : null,
+    /**
+     * CONVERSION = INSCRITOS SOBRE LA META, no sobre los leads.
+     *
+     * Lo pidio Josse el 7 oct 2026 mirando la pantalla: «la conversion
+     * debe ser el total de inscritos sobre la meta, porque el porcentaje
+     * que esta actualmente esta mal». La pregunta que se hace con esta
+     * tabla es si se va a cumplir, no que parte de los leads cuaja.
+     *
+     * Y POR ESO DESAPARECE EL GUARD DE «NO PASARSE». Con los leads de
+     * denominador, pasar del 100 % era un sinsentido ---dos poblaciones
+     * distintas bajo una ventana--- y se imprimia nulo. Contra la meta
+     * es al reves: 120 % es la noticia buena y esconderla seria esconder
+     * justo lo que se mira. Lo unico que sigue siendo nulo es la meta en
+     * cero, porque ahi no hay contra que medir.
+     *
+     * La regla vive en cumplimiento() y no aqui: su gemela por grupo
+     * hacia la misma division con su propia copia, y el panel una
+     * tercera sin el guard. Tres copias de una cifra que tiene que ser
+     * la misma en dos pantallas.
+     */
+    conversion: cumplimiento(totalInscritos, columnas.meta),
     cuposDisponibles,
     estado: cuposDisponibles <= 0 ? 'CERRADO' : 'ABIERTO',
   };

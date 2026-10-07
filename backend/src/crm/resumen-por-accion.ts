@@ -43,6 +43,7 @@
 import { Prisma } from '../../generated/prisma';
 
 import { PRIMERA_MATRICULA } from './anclas';
+import { cumplimiento } from './proyeccion-metas';
 
 export type FilaDeAccion = {
   accionFormacionId: string;
@@ -324,31 +325,26 @@ export function completarFila(f: Cruda): FilaDeAccion {
     totalLeads,
     totalInscritos,
     /**
-     * Sobre los leads --reservados más campaña-- y no sobre la meta:
-     * la conversión responde «de los que llegaron, cuántos entraron».
+     * CONVERSION = INSCRITOS SOBRE LA META, no sobre los leads.
      *
-     * CON VENTANA PUESTA SON DOS GRUPOS DISTINTOS, y hay que saberlo:
-     * arriba van las inscripciones HECHAS en el periodo ---que pueden
-     * ser de gente que llegó en agosto--- y abajo los leads LLEGADOS
-     * en el periodo. No es la conversión de una cohorte, es «cuánto
-     * entró y cuánto se inscribió este mes», que es la cuenta con la
-     * que se trabaja en el comité. Sin ventana, las dos son de todo
-     * el histórico y la división vuelve a ser la de siempre.
+     * Lo pidio Josse el 7 oct 2026 mirando la pantalla: «la conversion
+     * debe ser el total de inscritos sobre la meta, porque el porcentaje
+     * que esta actualmente esta mal». La pregunta que se hace con esta
+     * tabla es si se va a cumplir, no que parte de los leads cuaja.
      *
-     * Y POR ESO MISMO PUEDE PASARSE, así que cuando se pasa no se
-     * imprime. Antes era aritméticamente imposible ---los inscritos
-     * eran un subconjunto de los llegados---; desde que son dos
-     * poblaciones, un día de dos leads y veinte inscripciones da
-     * «1.000 %» en una columna que se llama Conversión. Medido contra
-     * producción: 20 celdas acción-día en los últimos siete. Sale
-     * nulo, que la pantalla ya pinta como «—», porque la cifra que
-     * habría que imprimir no existe: recortarla a 100 % sería inventar
-     * una que sí parece cierta.
+     * Y POR ESO DESAPARECE EL GUARD DE «NO PASARSE». Con los leads de
+     * denominador, pasar del 100 % era un sinsentido ---dos poblaciones
+     * distintas bajo una ventana--- y se imprimia nulo. Contra la meta
+     * es al reves: 120 % es la noticia buena y esconderla seria esconder
+     * justo lo que se mira. Lo unico que sigue siendo nulo es la meta en
+     * cero, porque ahi no hay contra que medir.
+     *
+     * La regla vive en cumplimiento() y no aqui: su gemela por grupo
+     * hacia la misma division con su propia copia, y el panel una
+     * tercera sin el guard. Tres copias de una cifra que tiene que ser
+     * la misma en dos pantallas.
      */
-    conversion:
-      totalLeads > 0 && totalInscritos <= totalLeads
-        ? totalInscritos / totalLeads
-        : null,
+    conversion: cumplimiento(totalInscritos, columnas.meta),
     cuposDisponibles,
     /// Cerrada cuando no queda cupo. Sin fecha de por medio: una acción
     /// con cupos y sin grupos abiertos sigue admitiendo gente, y las

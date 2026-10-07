@@ -70,15 +70,20 @@ describe('completarGrupo', () => {
     ).toBe('ABIERTO');
   });
 
-  it('sin leads la conversión es nula: no es un 0 %, es que no hay de qué', () => {
-    expect(completarGrupo(cruda()).conversion).toBeNull();
+  it('sin META el cumplimiento es nulo; con meta y sin inscritos es 0 %', () => {
+    /// La raya significa «no hay contra que medir», no «no inscribio
+    /// a nadie»: eso ultimo SI es un dato y vale 0 %.
+    expect(completarGrupo(cruda({ meta: 0 })).conversion).toBeNull();
+    expect(completarGrupo(cruda()).conversion).toBe(0);
   });
 
-  it('con leads la conversión es inscritos sobre leads', () => {
+  it('el cumplimiento es inscritos sobre la META', () => {
     const f = completarGrupo(
       cruda({ campanaDigital: 40, inscritosCampana: 10 }),
     );
-    expect(f.conversion).toBeCloseTo(0.25);
+    /// 10 de una meta de 65 --no 10 de 40 leads, que era la regla
+    /// vieja y daba 25 %--.
+    expect(f.conversion).toBeCloseTo(10 / 65, 5);
   });
 
   it('un grupo sin coberturas da meta cero y disponibles negativos si hay inscritos', () => {

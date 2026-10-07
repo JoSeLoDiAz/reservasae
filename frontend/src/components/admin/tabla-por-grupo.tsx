@@ -23,6 +23,7 @@ import { useDatosVivos } from "@/lib/datos-vivos";
 
 import { Aviso } from "./marco-admin";
 import { Bloque, Esqueleto, Vacio } from "./piezas";
+import { cumplimiento } from "@/lib/cumplimiento";
 
 const n = (v: number) => v.toLocaleString("es-CO");
 
@@ -222,7 +223,7 @@ export function TablaPorGrupo({
                 {n(t.totalInscritos)}
               </td>
               <td className="text-center tabular-nums">
-                {tasa(t.totalLeads > 0 ? t.totalInscritos / t.totalLeads : null)}
+                {tasa(cumplimiento(t.totalInscritos, t.meta))}
               </td>
               <td className="text-center tabular-nums">{n(t.cuposDisponibles)}</td>
               <td />

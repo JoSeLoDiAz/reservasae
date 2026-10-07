@@ -52,7 +52,11 @@ describe('la tabla por acción de formación', () => {
       expect(f.totalInscritos).toBe(524);
       expect(f.cuposDisponibles).toBe(-4);
       expect(f.estado).toBe('CERRADO');
-      expect(Math.round((f.conversion ?? 0) * 100)).toBe(40);
+      /// CONTRATO NUEVO (7 oct 2026): la conversion es INSCRITOS
+      /// SOBRE LA META, no sobre los leads. 524 de 520 es 101 %, y
+      /// que se pase del 100 % es justo lo que hay que ver: con la
+      /// regla vieja esta misma fila decia 40 %.
+      expect(Math.round((f.conversion ?? 0) * 100)).toBe(101);
     });
 
     it('AF4: 163 de meta, 68 inscritos y 95 disponibles', () => {
@@ -93,11 +97,15 @@ describe('la tabla por acción de formación', () => {
     expect(f.cuposDisponibles).toBe(90);
   });
 
-  /// Su Excel enseña «#DIV/0!» en tres filas. Aquí es nulo, y la
-  /// pantalla escribe una raya: una tasa inventada sobre cero leads es
-  /// peor que decir que no hay.
-  it('sin leads no hay conversión que calcular', () => {
-    expect(completarFila(cruda({ meta: 52 })).conversion).toBeNull();
+  /// Su Excel ensena «#DIV/0!» en tres filas. Aqui es nulo cuando no
+  /// hay META, y la pantalla escribe una raya: no hay contra que
+  /// medir. Con meta y cero inscritos si hay cifra, y es 0 %.
+  it('sin META no hay cumplimiento que calcular', () => {
+    /// Con meta y sin inscritos el cumplimiento es 0 %, que es un
+    /// dato: no ha inscrito a nadie. Lo que no se puede medir es
+    /// cuando no hay meta contra que medir.
+    expect(completarFila(cruda({ meta: 0 })).conversion).toBeNull();
+    expect(completarFila(cruda({ meta: 52 })).conversion).toBe(0);
   });
 
   /**
