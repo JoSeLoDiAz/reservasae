@@ -401,6 +401,21 @@ export default function PaginaBbddLeads({
 
       {error && <Aviso tipo="error">{error}</Aviso>}
 
+      {/* LA OTRA PUERTA, nombrada. Ver el porqué en
+          `participantes/carga/page.tsx`: hay dos cargadores y los
+          dos dicen «suba un archivo de personas». */}
+      {enElCargue && (
+        <p className="text-[12.5px] text-texto-suave">
+          Lo que entra por aquí queda como <strong>lead</strong> y se
+          queda en esta base hasta que alguien lo trabaje. Si lo que
+          tiene son personas que ya van a inscribirse,{" "}
+          <Link href="/admin/participantes/carga" className="underline">
+            eso se carga en Participantes
+          </Link>
+          .
+        </p>
+      )}
+
       <div className="flex flex-wrap items-stretch gap-2">
         <Cifra
           etiqueta="En la BBDD"

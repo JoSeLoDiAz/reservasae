@@ -205,6 +205,33 @@ export default function PaginaCarga() {
         </div>
       )}
 
+      {/**
+        * HAY DOS CARGADORES Y NADA DECÍA EN QUÉ SE DIFERENCIAN.
+        *
+        * «No ha quedado que cuando suba una base pueda ver esos
+        * leads, ¿qué pasa?» (cliente, 7 oct 2026), estando en ESTA
+        * pantalla. Y no es un fallo: lo que entra por aquí nace
+        * FICHA y aparece en Gestión de leads; lo que entra por BBDD
+        * Leads nace lead y se queda allí hasta que alguien lo
+        * trabaje.
+        *
+        * Las dos dicen «cargar un archivo de personas», así que la
+        * confusión no es suya. Cada una nombra a la otra, con el
+        * enlace puesto: enterarse de que existe la otra puerta
+        * DESPUÉS de importar cuesta una importación mal hecha.
+        */}
+      <div className="px-7 pt-4">
+        <p className="text-[12.5px] text-texto-suave">
+          Lo que entra por aquí queda como <strong>ficha</strong> y
+          aparece en Gestión de leads. Si lo que quiere es subir una
+          base para trabajarla después,{" "}
+          <Link href="/admin/bbdd-leads/cargar" className="underline">
+            eso se hace en BBDD Leads
+          </Link>
+          .
+        </p>
+      </div>
+
       <Tarjeta
         titulo="Paso 1 · Destino de los registros"
         descripcion="Determina a qué convenio quedan asociados los participantes. La acción de formación puede asignarse ahora o más adelante, desde cada lead."
