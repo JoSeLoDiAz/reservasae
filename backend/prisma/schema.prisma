@@ -1260,6 +1260,20 @@ model MovimientoParticipante {
   participanteId String
   etapaAntes     EtapaParticipante?
   etapaDespues   EtapaParticipante
+  /// DE QUE COHORTE VENIA Y A CUAL FUE.
+  ///
+  /// La nota decia solo el destino ---«Grupo 4»---, asi que mover a
+  /// cincuenta personas de un grupo a otro no dejaba de donde
+  /// recuperar en cual estaban. Lo pidio Josse el 7 oct 2026 al
+  /// autorizar que se pueda cambiar de grupo: «guarda de manera que
+  /// si se llegan a perder datos, tengamos de donde recuperarlo».
+  ///
+  /// Nulables las dos, y significan cosas distintas: null en
+  /// `antes` es «no tenia cohorte», y los dos null a la vez es un
+  /// movimiento que no toco el grupo ---la inmensa mayoria---.
+  coberturaAntes   String?
+  coberturaDespues String?
+
   motivo         String?
   adminId        String?
   nota           String?

@@ -20,6 +20,8 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 
 import type { PrismaService } from '../prisma/prisma.service';
+import { RETIENEN_ASIENTO } from './etapas';
+import { cuantosCaben } from './elegibles-del-grupo';
 
 export type DondeSeDicta = {
   /// Como se llama la ubicación del grupo.
@@ -184,4 +186,32 @@ export async function exigirCoberturaDeLaOferta(
     cuposMaximos: cobertura.cuposMaximos,
     nombre: cobertura.ubicacion.nombre,
   };
+}
+
+/**
+ * Cuántos caben todavía en esa cohorte, con esta ficha fuera de la cuenta.
+ *
+ * LA CUENTA VIVE AQUÍ Y LA POLÍTICA EN CADA PUERTA, que no es lo mismo:
+ * `asignar` deja pasarse con motivo ---su DTO lleva `sobrecupoMotivo`---
+ * y `actualizar` no puede, porque el suyo no lo lleva. Lo que no puede
+ * haber son dos formas de contar: ya pasó con el tope de la oferta,
+ * donde el lote contaba y la ficha no.
+ *
+ * `RETIENEN_ASIENTO` y no `OCUPAN_SILLA`: un interesado apuntado a la
+ * cohorte ya la está llenando. Con la otra lista, un grupo con
+ * doscientos dentro se vería vacío.
+ */
+export async function cabenEnLaCobertura(
+  prisma: PrismaService,
+  cobertura: { id: string; cuposMaximos: number },
+  salvoEsteParticipante: string,
+): Promise<number> {
+  const apuntados = await prisma.participante.count({
+    where: {
+      coberturaId: cobertura.id,
+      etapa: { in: RETIENEN_ASIENTO },
+      id: { not: salvoEsteParticipante },
+    },
+  });
+  return cuantosCaben({ cuposMaximos: cobertura.cuposMaximos, apuntados });
 }

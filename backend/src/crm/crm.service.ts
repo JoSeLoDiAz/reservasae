@@ -60,6 +60,7 @@ import {
 } from './escalera';
 import {
   cubreA,
+  cabenEnLaCobertura,
   exigirCoberturaDeLaOferta,
   repartirPorCobertura,
 } from './cobertura';
@@ -2656,14 +2657,16 @@ export class CrmService {
     const coberturaPedida = dto.coberturaId ? dto.coberturaId : null;
 
     if (pidioCobertura && coberturaPedida !== (p.coberturaId ?? null)) {
-      /// El paso imposible se juzga primero: decirle «no puede» a
-      /// quien de todas formas no podría hacerlo manda a buscar un
-      /// permiso que no arregla nada.
-      if (p.coberturaId) {
-        throw new ConflictException(
-          'Esta persona ya tiene grupo asignado, y el grupo no se cambia una vez puesto.',
-        );
-      }
+      /// SE PUEDE CAMBIAR DE GRUPO, y hasta hoy esta puerta decia
+      /// que no mientras la otra lo hacia: 409 aqui y 200 por
+      /// `/formacion`. Lo zanjo Josse el 7 oct 2026 ---«la persona
+      /// puede cambiar de grupo, no hay problema por eso»--- y hoy
+      /// la razon de la prohibicion todavia no aplica: cero fichas
+      /// reportadas al SEP, asi que nadie ha viajado con su cohorte
+      /// a ningun sitio. El dia que se reporte, el candado va
+      /// colgado de ESO y no de tener grupo.
+      ///
+      /// Lo que si se exige es el permiso, igual que la otra puerta.
       await exigirQuienAsignaGrupo(this.prisma, admin, p.convenioId);
     }
 
@@ -2688,25 +2691,48 @@ export class CrmService {
       }
 
       /**
-       * EL GRUPO NO SE CAMBIA. Encargo de Mauricio.
+       * EL GRUPO SI SE CAMBIA, desde el 7 oct 2026.
        *
-       * Se ponia sin mas y se podia volver a poner cuantas veces
-       * hiciera falta. El grupo es lo que viaja al SENA junto a
-       * la persona, y moverlo despues de reportarla deja dos
-       * verdades: la que se entrego y la que hay.
+       * El encargo de Mauricio decia que no, y su razon era buena:
+       * el grupo viaja al SENA junto a la persona, y moverlo
+       * despues de reportarla deja dos verdades, la entregada y la
+       * que hay. Pero esa razon cuelga de HABER REPORTADO, no de
+       * tener grupo, y hoy no hay una sola ficha cargada al SEP.
        *
-       * Poner el MISMO no es cambiarlo y se deja pasar: la ficha
-       * se manda entera desde la pantalla, asi que si no,
-       * guardar cualquier otro campo fallaria.
+       * Josse lo autorizo al pedir unir dos grupos: «la persona
+       * puede cambiar de grupo, no hay problema por eso». Y el
+       * movimiento guarda ahora de que cohorte venia, asi que un
+       * traslado se puede deshacer, que es lo que faltaba.
        */
-      /// El permiso y la regla de «no se cambia» se comprueban ya
-      /// arriba, y para las TRES operaciones: poner, cambiar y
-      /// quitar. Aquí solo queda validar que la cobertura sea de su
-      /// curso y de su sede.
-      await exigirCoberturaDeLaOferta(this.prisma, coberturaPedida, {
-        accionFormacionId: suya.accionFormacionId,
-        ubicacionId: suya.oferta?.ubicacionId ?? null,
-      });
+      /// La cobertura tiene que ser de su curso y de su sede, Y CABER.
+      ///
+      /// Las dos cosas en la misma rama: separarlas daria dos
+      /// llamadas a `exigirCoberturaDeLaOferta` por peticion, y la
+      /// segunda cuenta es la que acaba discrepando.
+      ///
+      /// Aqui NO hay salida de sobrecupo, y es a proposito: este DTO
+      /// no lleva `sobrecupoMotivo`, asi que autorizarlo por esta
+      /// puerta seria inventarse una firma que nadie puso. Se dice
+      /// donde se hace.
+      const destino = await exigirCoberturaDeLaOferta(
+        this.prisma,
+        coberturaPedida,
+        {
+          accionFormacionId: suya.accionFormacionId,
+          ubicacionId: suya.oferta?.ubicacionId ?? null,
+        },
+      );
+
+      if (
+        coberturaPedida !== (p.coberturaId ?? null) &&
+        (await cabenEnLaCobertura(this.prisma, destino, id)) <= 0
+      ) {
+        throw new ConflictException(
+          `El grupo ${destino.numero} de ${destino.nombre} ya tiene sus ` +
+            `${destino.cuposMaximos} cupos. Para colocar por encima, ` +
+            'hagalo desde la ficha, en Accion de formacion.',
+        );
+      }
     }
 
     if (dto.fechaNacimiento) {
@@ -2923,6 +2949,12 @@ export class CrmService {
             etapaAntes: p.etapa,
             etapaDespues: p.etapa,
             adminId: admin.id,
+            /// LOS IDS, no el numero: el numero del grupo se puede
+            /// renombrar y entonces la huella dejaria de apuntar a
+            /// nada. Con el id se recupera exactamente la cohorte,
+            /// que es lo que se pidio poder deshacer.
+            coberturaAntes: pidioCobertura ? (p.coberturaId ?? null) : null,
+            coberturaDespues: pidioCobertura ? coberturaPedida : null,
             nota: partes.join('. '),
             ip: ip ?? null,
           },
@@ -6741,6 +6773,10 @@ export class CrmService {
         etapa: true,
         ofertaId: true,
         coberturaId: true,
+        /// De donde VIENE, para poder decirlo en la huella: la nota
+        /// solo nombraba el destino, asi que un traslado no dejaba
+        /// de donde recuperar la cohorte anterior.
+        cobertura: { select: { grupo: { select: { numero: true } } } },
       },
     });
     if (!p) throw new NotFoundException('Ese participante no existe.');
@@ -6925,17 +6961,9 @@ export class CrmService {
       /// MISMOS que el lote: dos cuentas de lo mismo acaban
       /// discrepando, y la que sobra es la nueva.
       if (dto.coberturaId !== p.coberturaId) {
-        const apuntados = await this.prisma.participante.count({
-          where: {
-            coberturaId: dto.coberturaId,
-            etapa: { in: RETIENEN_ASIENTO },
-            id: { not: id },
-          },
-        });
+        const caben = await cabenEnLaCobertura(this.prisma, cobertura, id);
 
-        if (
-          cuantosCaben({ cuposMaximos: cobertura.cuposMaximos, apuntados }) <= 0
-        ) {
+        if (caben <= 0) {
           /// Se permite pasarse, pero con motivo: es la misma salida
           /// que ya tiene el tope de la oferta tres lineas arriba, y
           /// negarlo en seco cerraria un movimiento legitimo.
@@ -6972,9 +7000,12 @@ export class CrmService {
       );
     }
     if (cobertura !== p.coberturaId) {
-      partes.push(
-        numeroDeGrupo === null ? 'Sin grupo' : `Grupo ${numeroDeGrupo}`,
-      );
+      const venia = p.cobertura?.grupo.numero ?? null;
+      const nombra = (g: number | null) =>
+        g === null ? 'Sin grupo' : 'Grupo ' + String(g);
+      /// EL ANTES Y EL DESPUES, no solo el destino: es lo que deja
+      /// deshacer un traslado de cincuenta personas.
+      partes.push(nombra(venia) + ' -> ' + nombra(numeroDeGrupo));
     }
     // como al crear con sobrecupo
     if (sobrecupo) partes.push(`Sobrecupo autorizado: ${sobrecupo.motivo}`);
@@ -7001,6 +7032,11 @@ export class CrmService {
             etapaAntes: p.etapa,
             etapaDespues: p.etapa,
             adminId: admin.id,
+            /// LOS IDS, no el numero: un grupo se puede renombrar y
+            /// entonces la huella dejaria de apuntar a nada. Con el
+            /// id se recupera exactamente la cohorte.
+            coberturaAntes: p.coberturaId ?? null,
+            coberturaDespues: cobertura,
             nota: partes.join('. '),
             ip: ip ?? null,
           },
