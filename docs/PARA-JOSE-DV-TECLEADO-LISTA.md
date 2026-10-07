@@ -1,85 +1,106 @@
-# `jose/dv-tecleado` · dos commits, y uno es para antes del 13
+# `jose/dv-tecleado` · la ronda del 7 de octubre
 
-Josse: aceptadas las dos peticiones de proceso, y van arriba porque son las que
-cambian cómo trabajamos.
+Josse: ocho commits, **ninguna migración**, y la rama queda congelada desde aquí.
 
-**La rama queda CONGELADA desde este documento.** No empujo nada más hasta que
-digas. Si hace falta algo urgente, lo digo antes de subirlo.
-
-**Y el aviso de migraciones va en la tabla de aquí abajo, siempre**, en la misma
-línea que el recuento. Esta ronda trae una: es lo que decide si el despliegue
-necesita copia previa.
+Rompí la congelación de ayer por lo de los nombres del cargue y te lo dije en su
+momento; desde este documento no empujo nada más hasta que digas.
 
 | | |
 |---|---|
 | Rama | `jose/dv-tecleado`, subida y **congelada** |
-| Desplegado | `v0.22.0-JD` (6 oct, 11:10) |
-| Sin desplegar | **4 commits**: 2 de contenido, un merge y este documento |
-| **Migraciones** | **1** — `20261006120000_cuando_el_correo_no_sale`. **Pide copia previa.** |
+| Desplegado | `v0.23.0-JD` (6 oct, 14:57) |
+| Sin desplegar | **8 commits de contenido**, de `b6f42b8` a `bb4e5ba`, más este documento |
+| **Migraciones** | **ninguna.** No hace falta copia previa. |
 | De lo tuyo que falte traer | **nada**: `origin/dev` fundida |
-| Línea base | `tsc` limpio en backend y frontend · **269 suites, 2.847 pruebas**, verde |
+| Línea base | `tsc` limpio en los dos lados · **269 suites, 2.883 pruebas**, verde · `next build` completo |
 
 ---
 
-## 0 · Lo que entra
+## 0 · Lo que entra, por orden de lo que hace daño hoy
 
-### a) El 13 de octubre, y por eso va primero
+### a) `299dd74` · El jefe directo no llegaba a donde se busca
 
-`968e738` · **«No entró» y «no se sabe» ya no se dicen igual en el aula.**
+El formulario personalizado escribía el nombre, el cargo y el correo del jefe
+directo **solo en la reserva**, y `faltaDeLaEmpresa` ---la regla que decide si una
+ficha pasa a datos completos, y la que llena el F7--- los busca en la
+**organización**.
 
-Tu aviso era bueno y el defecto era real: el tablero decía las dos cosas con la misma
-palabra ---«Sin ingreso»--- y pintaba la segunda del rojo de PERDIDO. El día que
-arranquen los cuatro grupos de AF1, sus 116 personas salían señaladas por algo que no
-han hecho.
+La empresa los escribía, el sistema avisaba de la reserva, y todas las fichas de esa
+empresa se quedaban en «Interesado» pidiendo «nombre del jefe directo» para siempre.
+El dato estaba guardado a un palmo de donde se buscaba.
 
-El aula alimenta las dos cosas que esa pantalla mide: las actividades y los accesos. Si
-de una acción no hay NI UNA actividad publicada NI UN acceso de nadie, lo que falta son
-los datos. Ahora se dice así, en gris y con su propia tarjeta.
+Ahora va a los dos sitios y **solo en hueco**: esa ruta es pública y sin sesión, así
+que una reserva con el NIT de una empresa real no puede reescribirle su jefe directo
+---que es el correo al que después va el reporte---. Misma regla que ya protegía la
+razón social.
 
-**Se apaga solo** en cuanto llegue la primera actividad o el primer acceso: nadie tiene
-que acordarse de quitarlo.
+**Y hay un guion para lo ya escrito**: `pnpm db:jefe-directo`. Copia a cada
+organización el contacto de su propia reserva más reciente, solo donde esté vacío.
+Por defecto solo cuenta; `--aplicar` escribe. **Córrelo sin `--aplicar` primero y
+mándame el número.**
 
-**Sin migración**, y **la regla vive en su propio fichero** con prueba que la ejercita
----tu corrección de `acreditar-gestion.ts` aplicada antes de que me lo tuvieras que
-decir dos veces---.
+### b) `75bf60a` · El aviso ahora dice qué falta
 
-### b) Cuando un correo no sale, queda constancia
+«Las personas están completando pero es como si no migrara la información», con un
+aviso delante que decía «Marcela Acalo · Interesado — Completó los datos de su
+organización». Las dos cosas eran ciertas: completó lo que el formulario le pidió, y
+la ficha no avanzó por otra cosa. El sistema lo sabía y no lo decía.
 
-`5fb727b`. El último de la lista del 5 de octubre, y el que **trae la migración**.
+`loQueLeFaltaALaFicha` usa **la misma** `faltaDeLaFicha` que la compuerta, y la
+prueba fija que las dos consultas piden los mismos campos. Dos listas distintas
+acabarían diciendo «no falta nada» mientras la compuerta no deja pasar.
 
-Lo tuyo de los 88 acuses quemados es exactamente lo que esto registra: 67 del domingo y
-21 del lunes agotaron sus cinco intentos y no hubo constancia en ninguna ficha.
+### c) Las cifras de Control de inscritos
 
-**La migración**: `personas.correoFallaEn` y `personas.correoFalloMotivo`, nulables,
-**sin relleno** ---no se les inventa un estado a las direcciones de antes--- más un
-índice, declarado también en el schema y sin `WHERE` porque Prisma no sabe declarar
-índices parciales. Rollback: soltar las dos columnas y el índice.
+`474fda7`, `aed6a60`, `d1e5038`. Cada cifra medida por la fecha de su propio hecho,
+que es la regla que pidió el cliente: «filtro por ayer, veo leads e inscritos de solo
+ayer».
 
-Lo que mirarías tú: no tumba el envío; **con el correo desviado no se apunta nada**
----lo cazó una prueba: la primera versión marcaba `proyectosena@grupo-ae.com.co` como
-dirección mala--- y la marca se borra sola cuando un correo a esa dirección vuelve a
-salir.
+- **La conversión pasa a inscritos ÷ meta.** Dividiendo por los leads, las diez filas
+  de los grupos de AF1 salían al 100 %. Tu guardia contra el «1.000 %» de `11f0494`
+  ya no hace falta: con la meta debajo no puede salir, y pasarse del 100 % ahora sí
+  es información ---sobrecupo, que su Excel tiene---.
+- **Los inscritos del periodo exigen que la ficha siga inscrita**, por pedido suyo
+  expreso. Yo lo había dejado al revés.
+- **Seguimiento de asesores** tenía el mismo defecto que arreglamos ayer en la tabla:
+  el periodo recortaba por `creadoEn`. Columna nueva, y la regla de acreditación en
+  `acreditar-inscripcion.ts` con ocho pruebas que la ejercitan ---siguiendo lo que me
+  corregiste en `acreditar-gestion.ts`---.
 
-**No es el rebote de verdad**, y conviene que el cliente lo oiga de los dos: eso pide el
-webhook de SendGrid y el grueso es tuyo ---cuenta, dominio verificado y URL---. Son unas
-20 horas mías cuando lo tengas.
+Medido contra el backend: Resumen General y la tabla del comité coinciden en las
+cuatro ventanas que probé. Antes, sin ventana, decían 1.292 y 1.280.
+
+### d) `b6f42b8` · Excel estropeaba identificadores
+
+Los ids de campaña de Meta salían como `1,20E+17` ---pierde las cifras de en
+medio--- y un documento que empiece por cero perdía el cero. Van como texto, solo
+donde hace falta: once pruebas, y la mitad son de los casos que **no** hay que tocar.
+
+### e) `bb4e5ba` · Las dos puertas de carga se nombran
+
+El cliente subió por Carga de participantes y buscó los leads en BBDD Leads. No es un
+fallo: una crea fichas y la otra leads, y nada lo decía.
+
+### f) `8a75b7f` · La comprobación del «parece cerrado»
+
+El formulario público dice «0 cupos» en AF1 Medellín y la tabla del comité dice 419
+libres. Son dos números de sitios distintos ---la oferta, a mano; las coberturas de
+los grupos, del cronograma--- y nada los obliga a cuadrar.
+
+`pnpm db:cupos-vs-grupos` los compara. **Solo lee.** Mándame la salida: **no toco la
+disponibilidad del formulario público sin verla**, porque equivocarme ahí cierra
+inscripciones de verdad o promete plazas que no existen.
 
 ---
 
-## 0.bis · Respuesta a lo que me contaste
+## 0.bis · Lo que te pido, además de desplegar
 
-- **Producción limpia**: 0 de 319 sin el movimiento que las fecha. Entonces no hay nada
-  que mover a mano y las cifras de octubre están completas. Gracias por correr la
-  consulta literal.
-- **Tus cuatro correcciones, todas buenas.** La de «Gestionados en el periodo» era un
-  defecto de verdad: acreditar al dueño actual habría sumado 83 a quien recibe un
-  reparto. Tu `acreditar-gestion.ts` acredita a quien tocó, cuenta fichas distintas y
-  deja claro por qué `datos` es la excepción. No la toco.
-- **Lo de los índices en el schema**: tercera vez, y la tuya. El de esta ronda va
-  declarado.
-- **Los 100 minutos sin Docker del domingo** no los sabía, y explican por qué el
-  diagnóstico del correo tardó: estuve mirando credenciales mientras la máquina iba y
-  venía.
+1. `pnpm db:cupos-vs-grupos` y mándame la salida.
+2. `pnpm db:jefe-directo` sin `--aplicar`, y el número.
+3. **Una llave nueva de la cuenta de servicio de Google**, como variable de entorno
+   en el servidor. La que hay se pegó en un chat y está quemada; no la voy a usar.
+   Con la nueva conecto el cronograma el mismo día, y es lo que mantiene los cupos de
+   la oferta y los de los grupos diciendo lo mismo.
 
 ---
 
