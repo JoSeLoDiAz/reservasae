@@ -1694,6 +1694,18 @@ export type FilaDeAsesor = {
    * reiniciar no lo manda.
    */
   gestionadosEnElPeriodo?: number | null;
+  /**
+   * A CUÁNTA GENTE INSCRIBIÓ DENTRO DEL PERIODO.
+   *
+   * «Debo saber cuánto hizo cada asesora ayer, antier, hoy»
+   * (cliente, 7 oct 2026). La columna `inscritos` no lo contesta:
+   * cuenta, de los leads que LLEGARON en el periodo, cuántos están
+   * inscritos hoy.
+   *
+   * Nulo sin periodo puesto. Opcional porque un backend sin
+   * reiniciar no lo manda.
+   */
+  inscritosEnElPeriodo?: number | null;
   limite: string | null;
   /// SU CARGA REPARTIDA POR ACCIÓN, que es el desglose que se abre al
   /// pulsar la fila: «con al menos dos métricas, y como la tablita

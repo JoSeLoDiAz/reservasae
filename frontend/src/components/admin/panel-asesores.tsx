@@ -707,6 +707,38 @@ function DeInscripciones({
      * está partida por acción, y un cero diría que en esa acción no
      * se trabajó.
      */
+    /**
+     * LO QUE INSCRIBIÓ DENTRO DEL PERIODO.
+     *
+     * «Debo saber cuánto hizo cada asesora ayer, antier, hoy.
+     * Vuelvo y reitero: los filtros de tiempo o de fecha no
+     * funcionan» (cliente, 7 oct 2026).
+     *
+     * La columna «Inscritos» de más arriba no lo contesta: cuenta,
+     * de los leads que LLEGARON en el periodo, cuántos están
+     * inscritos hoy. Con una base que lleva meses creciendo, poner
+     * «ayer» daba casi cero siempre, y la columna parecía rota
+     * porque lo estaba para la pregunta que se le hacía.
+     *
+     * VA PEGADA A «Gestionados en el periodo», que es su pareja:
+     * las dos cuentan lo HECHO dentro de la ventana, una tocar y
+     * otra inscribir. Y las dos salen en raya con una acción
+     * elegida, porque ninguna está partida por acción.
+     */
+    {
+      clave: "inscritosEnElPeriodo",
+      titulo: "Inscritos en el periodo",
+      ancho: "150px",
+      numerica: true,
+      valor: (f) => (accion ? "" : (f.inscritosEnElPeriodo ?? "")),
+      pinta: (f) => (
+        <span className="tabular-nums">
+          {accion || f.inscritosEnElPeriodo == null
+            ? "—"
+            : f.inscritosEnElPeriodo}
+        </span>
+      ),
+    },
     {
       clave: "gestionadosEnElPeriodo",
       titulo: "Gestionados en el periodo",

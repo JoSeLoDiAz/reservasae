@@ -97,6 +97,20 @@ export type FilaDeAsesor = {
    * que el asesor no hizo nada.
    */
   gestionadosEnElPeriodo: number | null;
+  /**
+   * A CUÁNTA GENTE INSCRIBIÓ DENTRO DEL PERIODO.
+   *
+   * «Debo saber cuánto hizo cada asesora ayer, antier, hoy»
+   * (cliente, 7 oct 2026). `inscritos` no lo contesta: cuenta, de
+   * los leads que LLEGARON en el periodo, cuántos están inscritos
+   * hoy, y con una base que lleva meses creciendo eso da casi cero
+   * al poner «ayer».
+   *
+   * Esta cuenta las inscripciones HECHAS dentro del periodo, que
+   * es lo que se preguntaba. Nulo sin periodo puesto: ahí ya está
+   * `inscritos`, que es el total.
+   */
+  inscritosEnElPeriodo: number | null;
   /// La fecha contra la que corre, para poder decirla en pantalla.
   limite: string | null;
   /// Su carga partida por accion: el desglose que se abre al pulsar
@@ -253,6 +267,13 @@ export function repartirInscripciones(
    * nula en vez de cero: un cero se leería como que no hizo nada.
    */
   tocadosEnLaVentana?: Map<string, number>,
+  /**
+   * Y a cuánta gente inscribió cada quien DENTRO de la ventana,
+   * por su id. Viene de otra consulta por lo mismo que la de
+   * arriba: estas filas son las de los leads que LLEGARON en la
+   * ventana, e inscribir es otra cosa que llegar.
+   */
+  inscritosEnLaVentana?: Map<string, number>,
 ): FilaDeAsesor[] {
   const por = new Map<
     string,
@@ -384,6 +405,9 @@ export function repartirInscripciones(
           gestionadosEnElPeriodo: tocadosEnLaVentana
             ? (tocadosEnLaVentana.get(id) ?? 0)
             : null,
+          inscritosEnElPeriodo: inscritosEnLaVentana
+            ? (inscritosEnLaVentana.get(id) ?? 0)
+            : null,
           limite: limite ? limite.toISOString().slice(0, 10) : null,
           /// En el mismo orden que la tabla de fuera: los que más
           /// pendientes tienen, arriba. Quien abre una fila busca dónde
@@ -504,6 +528,8 @@ export function repartirAcademicos(
         /// alimenta el LMS, así que tocar una ficha no es lo que
         /// mide el trabajo de un académico.
         gestionadosEnElPeriodo: null,
+        /// Tampoco: en el aula nadie «inscribe», la gente ya entró.
+        inscritosEnElPeriodo: null,
         limite: limite ? limite.toISOString().slice(0, 10) : null,
       };
     })

@@ -52,6 +52,7 @@ import {
 import { lugarDeUbicacion } from './plantilla-de-carga';
 import { elegirOferta, type OfertaParaCarga } from './accion-de-la-fila';
 import { acreditarPorQuienToco } from './acreditar-gestion';
+import { acreditarPorQuienInscribio } from './acreditar-inscripcion';
 import {
   saleDelCupo,
   exigeCupo,
@@ -948,6 +949,7 @@ export class CrmService {
       cierrePorAccion(grupos),
       ahora,
       await this.tocadosEnLaVentana(ambito, ventana),
+      await this.inscribioEnLaVentana(ambito, ventana),
     );
   }
 
@@ -1032,6 +1034,70 @@ export class CrmService {
     ]);
 
     return acreditarPorQuienToco(notas, movimientos, datos);
+  }
+
+  /**
+   * A CUÁNTA GENTE INSCRIBIÓ CADA QUIEN DENTRO DE LA VENTANA.
+   *
+   * «Debo saber cuánto hizo cada asesora ayer, antier, hoy. Vuelvo y
+   * reitero: los filtros de tiempo o de fecha no funcionan» (cliente,
+   * 7 oct 2026).
+   *
+   * Y no funcionaban aquí. El periodo de esta pantalla recorta por
+   * `creadoEn` ---cuándo LLEGÓ el lead--- así que su columna de
+   * inscritos respondía «de los leads que llegaron ayer, cuántos están
+   * inscritos hoy». Con una base que lleva meses creciendo, «ayer»
+   * daba casi cero siempre.
+   *
+   * LAS DOS CONDICIONES, las mismas que la tabla del comité desde hoy:
+   * el movimiento a INSCRITO dentro de la ventana pone la FECHA, y la
+   * etapa de hoy decide si CUENTA ---«siempre y cuando el estado del
+   * lead sea inscrito, porque si lo estuvo y cambió su estado no
+   * aplica»---.
+   */
+  private async inscribioEnLaVentana(
+    ambito: Ambito,
+    ventana: VentanaDeLlegada,
+  ): Promise<Map<string, number> | undefined> {
+    const desde = ventana.llegoDesde ? new Date(ventana.llegoDesde) : null;
+    const hasta = ventana.llegoHasta ? new Date(ventana.llegoHasta) : null;
+    /// Sin ventana la cifra no quiere decir nada: la columna de
+    /// siempre ya dice cuántos lleva inscritos en total.
+    if (!desde && !hasta) return undefined;
+
+    const dentro = {
+      ...(desde ? { gte: desde } : {}),
+      ...(hasta ? { lt: hasta } : {}),
+    };
+    const suyas = { convenioId: { in: ambito.convenios } };
+
+    const [inscripciones, duenos] = await Promise.all([
+      this.prisma.movimientoParticipante.findMany({
+        where: {
+          creadoEn: dentro,
+          etapaDespues: 'INSCRITO',
+          /// Y que la ficha SIGA ocupando silla. Es la corrección del
+          /// cliente, y hace que esta cifra cuadre con la tabla del
+          /// comité: quien se inscribió el lunes y desertó el martes
+          /// no le suma a nadie.
+          participante: { ...suyas, etapa: { in: OCUPAN_SILLA } },
+        },
+        select: { adminId: true, participanteId: true },
+        /// Por si alguien entró, salió y volvió a entrar: la primera
+        /// se queda, que es la que `acreditarPorQuienInscribio`
+        /// cuenta.
+        orderBy: { creadoEn: 'asc' },
+      }),
+      /// De quién es cada ficha hoy, SOLO como respaldo: se usa
+      /// cuando el movimiento no lleva admin, que es la persona
+      /// inscribiéndose sola por el formulario público.
+      this.prisma.participante.findMany({
+        where: { ...suyas, etapa: { in: OCUPAN_SILLA } },
+        select: { id: true, asesorId: true },
+      }),
+    ]);
+
+    return acreditarPorQuienInscribio(inscripciones, duenos);
   }
 
   /**
