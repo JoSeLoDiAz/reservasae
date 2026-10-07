@@ -43,6 +43,7 @@
 import { Prisma } from '../../generated/prisma';
 
 import { PRIMERA_MATRICULA } from './anclas';
+import { cumplimiento } from './proyeccion-metas';
 
 export type FilaDeAccion = {
   accionFormacionId: string;
@@ -152,6 +153,43 @@ export function resumenPorAccionSql(
   );
 
   /**
+   * CUÁNDO SE APARTARON LOS CUPOS, para la columna de reservas.
+   *
+   * «Los filtros de tiempo o de fecha no funcionan, y ya lo había
+   * reiterado en muchas ocasiones» (cliente, 7 oct 2026). Tenía razón
+   * y el defecto estaba AQUÍ, no en la pantalla: la subconsulta de
+   * reservas no llevaba ventana ninguna.
+   *
+   * Con «Ayer» puesto, AF1 enseñaba «Leads por su cuenta 0, Inscritos
+   * 0, Cupos reservados 33» ---los 33 de siempre, los de toda la
+   * vida---, y como `totalLeads` los suma, la fila decía 33 leads de
+   * un día en que no entró nadie. Medido en el navegador.
+   *
+   * Se fecha por `creadoEn` y no por una fecha de confirmación porque
+   * no la hay: una reserva NACE confirmada ---`estado` tiene
+   * `@default(CONFIRMADA)`---, así que el día en que se creó es el día
+   * en que esa empresa apartó esos cupos.
+   *
+   * Y NO ES LO MISMO QUE `cuposDisponibles`, que es la confusión que
+   * costó esta columna: aquello es un SALDO ---cuántas sillas quedan
+   * libres hoy--- y por eso no lleva ventana nunca, decisión tomada a
+   * propósito y escrita en `completarFila`. Esto es un FLUJO: cuántos
+   * cupos se apartaron EN EL PERIODO.
+   */
+  const seReservoEnLaVentana = Prisma.join(
+    [
+      Prisma.sql`res."estado" = 'CONFIRMADA'`,
+      recorte.desde
+        ? Prisma.sql`res."creadoEn" >= ${recorte.desde}::timestamptz`
+        : null,
+      recorte.hasta
+        ? Prisma.sql`res."creadoEn" < ${recorte.hasta}::timestamptz`
+        : null,
+    ].filter((x): x is Prisma.Sql => x !== null),
+    ' AND ',
+  );
+
+  /**
    * CUÁNDO SE INSCRIBIÓ, para los inscritos. Y es OTRA fecha.
    *
    * «No tengo certeza de inscripciones realizadas en control de
@@ -186,29 +224,17 @@ export function resumenPorAccionSql(
    * lead sea inscrito, porque si lo estuvo y cambió su estado no
    * aplica».
    *
-   * Yo lo había dejado al revés ---quien se inscribió ese día cuenta
-   * ese día, aunque después se fuera--- razonando que la historia no
-   * se reescribe. Pero la pregunta que contesta esta tabla no es
-   * «cuántas inscripciones se firmaron»: es cuántas personas tiene
-   * hoy esa acción, que es con lo que se responde ante el SENA y lo
-   * que tiene que cuadrar con los cupos disponibles de al lado.
+   * La fecha sale del historial ---el movimiento, que no se reescribe
+   * nunca--- y la etapa de HOY decide si cuenta. Quien se inscribió en
+   * septiembre y desertó sale de esta cifra y de los cupos
+   * disponibles a la vez, que es lo coherente: la tabla responde
+   * cuánta gente tiene hoy esa acción.
    *
-   * Así que la fecha sale del historial ---el movimiento, que no se
-   * reescribe nunca--- y la etapa de HOY decide si cuenta. Quien se
-   * inscribió en septiembre y desertó sale de las dos cifras a la
-   * vez, que es lo coherente.
-   */
-  /**
-   * SIN VENTANA NO HACE FALTA EL ANCLA, y exigirla costaba gente.
-   *
-   * El movimiento sirve para FECHAR una inscripción. Sin periodo no
-   * hay nada que fechar: la pregunta es «cuántos hay», y eso lo dice
-   * la etapa. Pidiendo además el movimiento, una ficha inscrita a la
-   * que le falte ---las hay: el sondeo de integridad las lista--- se
-   * caía del total sin que nadie lo notara, y el Resumen General de
-   * la misma pantalla decía doce más.
-   *
-   * Con periodo sí se exige, porque ahí el movimiento ES la fecha.
+   * SIN VENTANA NO SE EXIGE EL ANCLA, y exigirla costaba gente: el
+   * movimiento sirve para FECHAR, y sin periodo no hay nada que
+   * fechar. Pidiéndolo igual, una ficha inscrita a la que le falte
+   * ---las hay, el sondeo de integridad las lista--- se caía del
+   * total, y el Resumen General de la misma pantalla decía doce más.
    */
   const seInscribioEnLaVentana = Prisma.join(
     [
@@ -249,13 +275,13 @@ export function resumenPorAccionSql(
          GROUP BY 1
       ) m ON m.aid = a."id"
 
-      -- LOS CUPOS APARTADOS, solo de reservas confirmadas: los de una
-      -- cancelada volvieron a la oferta.
+      -- LOS CUPOS APARTADOS EN EL PERIODO, solo de reservas
+      -- confirmadas: los de una cancelada volvieron a la oferta.
       LEFT JOIN (
         SELECT o."accionFormacionId" AS aid, SUM(res."cuposConfirmados")::int AS reservados
           FROM "reservas" res
           JOIN "ofertas" o ON o."id" = res."ofertaId"
-         WHERE res."estado" = 'CONFIRMADA'
+         WHERE ${seReservoEnLaVentana}
          GROUP BY 1
       ) r ON r.aid = a."id"
 
@@ -357,39 +383,26 @@ export function completarFila(f: Cruda): FilaDeAccion {
     totalLeads,
     totalInscritos,
     /**
-     * SOBRE LA META, NO SOBRE LOS LEADS. Es la fórmula del cliente:
-     * «total de inscritos dividido la meta» (7 oct 2026).
+     * CONVERSION = INSCRITOS SOBRE LA META, no sobre los leads.
      *
-     * Dividía por los leads ---«de los que llegaron, cuántos
-     * entraron»--- y esa cuenta dejó de servir cuando las
-     * inscripciones pasaron a contarse por cuándo se hicieron: en la
-     * tabla de grupos de AF1, las diez filas salían al 100 % porque
-     * 249 inscritos sobre 250 leads es 100 %, y una columna que dice
-     * lo mismo en todas las filas no se mira.
+     * Lo pidio Josse el 7 oct 2026 mirando la pantalla: «la conversion
+     * debe ser el total de inscritos sobre la meta, porque el porcentaje
+     * que esta actualmente esta mal». La pregunta que se hace con esta
+     * tabla es si se va a cumplir, no que parte de los leads cuaja.
      *
-     * Contra la meta sí dice algo que cambia por fila y que se puede
-     * decidir con ello: cuánto le falta a ese grupo para llenarse. Y
-     * cuadra con la columna de al lado, porque `cupos disponibles` es
-     * meta menos quien ocupa silla: las dos cuentan contra lo mismo.
+     * Y POR ESO DESAPARECE EL GUARD DE «NO PASARSE». Con los leads de
+     * denominador, pasar del 100 % era un sinsentido ---dos poblaciones
+     * distintas bajo una ventana--- y se imprimia nulo. Contra la meta
+     * es al reves: 120 % es la noticia buena y esconderla seria esconder
+     * justo lo que se mira. Lo unico que sigue siendo nulo es la meta en
+     * cero, porque ahi no hay contra que medir.
      *
-     * PASARSE DEL 100 % AQUÍ SÍ SIGNIFICA ALGO, al revés que antes:
-     * es sobrecupo, y su propio Excel lo tiene ---AF2 con 520 de meta
-     * y 524 inscritos, −4 disponibles---. Por eso ya no se corta. Lo
-     * que José frenó era otra cosa: un «1.000 %» de dividir dos
-     * poblaciones distintas, que con la meta debajo no puede salir.
-     *
-     * LO QUE HAY QUE SABER PARA LEERLA: con un periodo puesto, arriba
-     * van las inscripciones HECHAS en ese periodo y abajo la meta
-     * entera, que no se recorta nunca. Así que con «Hoy» la cifra es
-     * pequeña a propósito: es «cuánto de la meta se llenó hoy», no
-     * «cuán llena está». Para lo segundo, la columna es `cupos
-     * disponibles`.
-     *
-     * Nulo cuando no hay meta: una acción sin grupos todavía no tiene
-     * contra qué medirse, y un porcentaje sobre cero es el `#DIV/0!`
-     * que su Excel enseña en tres filas.
+     * La regla vive en cumplimiento() y no aqui: su gemela por grupo
+     * hacia la misma division con su propia copia, y el panel una
+     * tercera sin el guard. Tres copias de una cifra que tiene que ser
+     * la misma en dos pantallas.
      */
-    conversion: columnas.meta > 0 ? totalInscritos / columnas.meta : null,
+    conversion: cumplimiento(totalInscritos, columnas.meta),
     cuposDisponibles,
     /// Cerrada cuando no queda cupo. Sin fecha de por medio: una acción
     /// con cupos y sin grupos abiertos sigue admitiendo gente, y las

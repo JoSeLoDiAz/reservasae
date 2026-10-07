@@ -20,6 +20,8 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 
 import type { PrismaService } from '../prisma/prisma.service';
+import { RETIENEN_ASIENTO } from './etapas';
+import { cuantosCaben } from './elegibles-del-grupo';
 
 export type DondeSeDicta = {
   /// Como se llama la ubicación del grupo.
@@ -136,6 +138,12 @@ export type CoberturaValida = {
   id: string;
   numero: number;
   ubicacionId: string;
+  /// El tope de ESA sede en ESE grupo, que es otro distinto del de
+  /// la oferta: la oferta es la accion en el departamento y la
+  /// cobertura es el trozo que le toca a este grupo. Se devuelve
+  /// porque quien asigna tiene que respetarlo, y no lo hacia.
+  cuposMaximos: number;
+  nombre: string;
 };
 
 /**
@@ -154,6 +162,7 @@ export async function exigirCoberturaDeLaOferta(
       id: true,
       ubicacionId: true,
       ubicacion: { select: { nombre: true } },
+      cuposMaximos: true,
       grupo: { select: { accionFormacionId: true, numero: true } },
     },
   });
@@ -174,5 +183,35 @@ export async function exigirCoberturaDeLaOferta(
     id: cobertura.id,
     numero: cobertura.grupo.numero,
     ubicacionId: cobertura.ubicacionId,
+    cuposMaximos: cobertura.cuposMaximos,
+    nombre: cobertura.ubicacion.nombre,
   };
+}
+
+/**
+ * Cuántos caben todavía en esa cohorte, con esta ficha fuera de la cuenta.
+ *
+ * LA CUENTA VIVE AQUÍ Y LA POLÍTICA EN CADA PUERTA, que no es lo mismo:
+ * `asignar` deja pasarse con motivo ---su DTO lleva `sobrecupoMotivo`---
+ * y `actualizar` no puede, porque el suyo no lo lleva. Lo que no puede
+ * haber son dos formas de contar: ya pasó con el tope de la oferta,
+ * donde el lote contaba y la ficha no.
+ *
+ * `RETIENEN_ASIENTO` y no `OCUPAN_SILLA`: un interesado apuntado a la
+ * cohorte ya la está llenando. Con la otra lista, un grupo con
+ * doscientos dentro se vería vacío.
+ */
+export async function cabenEnLaCobertura(
+  prisma: PrismaService,
+  cobertura: { id: string; cuposMaximos: number },
+  salvoEsteParticipante: string,
+): Promise<number> {
+  const apuntados = await prisma.participante.count({
+    where: {
+      coberturaId: cobertura.id,
+      etapa: { in: RETIENEN_ASIENTO },
+      id: { not: salvoEsteParticipante },
+    },
+  });
+  return cuantosCaben({ cuposMaximos: cobertura.cuposMaximos, apuntados });
 }

@@ -118,6 +118,9 @@ export default function PaginaMesa() {
     try {
       setDatos(
         await mesaApi.listar({
+          /// El buzon es lo que nos mandan de FUERA: lo cargado
+          /// desde una base del cliente se mira en «BBDD Leads».
+          soloDeFuera: true,
           estado: estado || undefined,
           buscar: buscado,
           pagina,

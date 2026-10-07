@@ -37,6 +37,7 @@ import { puedoContactar } from './puedo-contactar';
 import { sedeQueTendra } from './sede-que-tendra';
 import { ArreglarLeadDto } from './dto';
 import { autorizoAlRegistrarse, loQueLeFaltaAlLead } from './listo-para-ficha';
+import { ORIGENES_PROPIOS } from './cargue/llave-de-la-fila';
 
 /// Cuántos por página. La mesa se mira, no se estudia.
 const POR_PAGINA = 50;
@@ -58,6 +59,20 @@ export type FiltrosDeLaMesa = {
    * `porDonde`; lo que faltaba era poder PEDIRLO.
    */
   origenSistema?: string;
+  /**
+   * SOLO LO QUE LLEGO DE FUERA: aparta lo que subimos nosotros.
+   *
+   * Lo pidio Josse el 7 oct 2026: «en mesa de entrada necesito
+   * dejar solamente los links que Mauricio nos envia; se subio una
+   * base de datos y me la esta uniendo aqui». Eran 1.252 filas del
+   * cargue contra 101 del orquestador, todas en PENDIENTE, asi que
+   * el buzon de lo que hay que atender quedaba sepultado.
+   *
+   * Es EXCLUSION y no lista blanca; el porque esta en
+   * `ORIGENES_PROPIOS`. Y un `origenSistema` pedido a mano manda
+   * sobre esto: quien quiera mirar el cargue por esta puerta, puede.
+   */
+  soloDeFuera?: boolean;
   /// Documento, nombre, correo o celular.
   buscar?: string;
   pagina?: number;
@@ -79,17 +94,35 @@ export class MesaDeEntrada {
     /// no completa: pedir uno que no es suyo no puede devolverlo
     /// todo. Es la misma regla que en tableros, y el defecto que
     /// ya apareció dos veces por escribirla con un spread.
-    const donde: Prisma.LeadEntranteWhereInput = {
+    /// SE ARMA UNA VEZ Y SE USA DOS, con y sin la rama de estado.
+    ///
+    /// El recuento de arriba corria con el ambito a secas: ignoraba
+    /// el origen, el gremio pedido y la busqueda, asi que en cuanto
+    /// la mesa filtre, las fichas contarian leads que la tabla ya no
+    /// enseña. Es la «cifra que parece exacta y no lo es» que la
+    /// pantalla de BBDD documento al rodearla en vez de arreglarla.
+    ///
+    /// Y el contador NO lleva su propio filtro de estado: uno que
+    /// contara por estado filtrando por estado daria una sola barra.
+    const condiciones = (conEstado: boolean): Prisma.LeadEntranteWhereInput => ({
       AND: [
         { convenioId: { in: ambito } },
         ...(filtros.convenioId ? [{ convenioId: filtros.convenioId }] : []),
-        ...(filtros.estado ? [{ estado: filtros.estado as never }] : []),
+        ...(conEstado && filtros.estado
+          ? [{ estado: filtros.estado as never }]
+          : []),
+        ...(filtros.soloDeFuera && !filtros.origenSistema
+          ? [{ origenSistema: { notIn: [...ORIGENES_PROPIOS] } }]
+          : []),
         ...(filtros.origenSistema
           ? [{ origenSistema: filtros.origenSistema }]
           : []),
         ...(filtros.buscar?.trim() ? [this.comoSeBusca(filtros.buscar)] : []),
       ],
-    };
+    });
+
+    const donde = condiciones(true);
+    const dondeSinEstado = condiciones(false);
 
     const pagina = Math.max(1, filtros.pagina ?? 1);
     const porPagina = Math.min(filtros.limite ?? POR_PAGINA, TOPE);
@@ -141,14 +174,14 @@ export class MesaDeEntrada {
           accionFormacion: { select: { codigo: true, nombre: true } },
         },
       }),
-      /// El recuento por estado, con el MISMO ámbito.
+      /// El recuento por estado, con los MISMOS filtros que la tabla.
       ///
       /// Sin el ámbito, las cifras de arriba contarían los dos
       /// gremios mientras la tabla enseña uno — que es la clase
       /// de número que parece exacto y no lo es.
       this.prisma.leadEntrante.groupBy({
         by: ['estado'],
-        where: { convenioId: { in: ambito } },
+        where: dondeSinEstado,
         _count: { _all: true },
       }),
     ]);
@@ -274,6 +307,31 @@ export class MesaDeEntrada {
           ? `${l.accionFormacion.codigo} · ${l.accionFormacion.nombre}`
           : null,
         recibidoEn: l.recibidoEn,
+        /**
+         * DÓNDE VIVE, con nombre y no con el número del SEP.
+         *
+         * «Si tengo departamento no queda ni nada» (cliente, 7 oct
+         * 2026), mirando su base de 1.252 recién cargada.
+         *
+         * El dato SÍ se guardaba ---`departamentoSepId` y
+         * `municipioSepId` llevan ahí desde el principio, y son los
+         * que deciden qué sede le toca--- pero no salía por ninguna
+         * parte: solo viajaba dentro de `crudo`, que es lo que
+         * rellena el formulario de corrección y no se enseña.
+         *
+         * Desde fuera eso es idéntico a no haberlo cargado.
+         *
+         * Van resueltos a nombre aquí y no en el navegador: el
+         * catálogo del SEP vive en el servidor, y mandar el número
+         * obligaría a la pantalla a tener su propia copia ---una
+         * segunda verdad que envejece sola---.
+         */
+        departamento: l.departamentoSepId
+          ? (DEPARTAMENTO_POR_ID.get(l.departamentoSepId)?.etiqueta ?? null)
+          : null,
+        ciudad: l.municipioSepId
+          ? (MUNICIPIO_POR_ID.get(l.municipioSepId)?.[2] ?? null)
+          : null,
         /// Si ya tiene ficha, para poder saltar a ella.
         participanteId: l.participanteId,
         /// Los valores EN CRUDO, para poder rellenar el

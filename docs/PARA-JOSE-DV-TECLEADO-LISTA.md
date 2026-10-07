@@ -1,6 +1,7 @@
 # `jose/dv-tecleado` · la ronda del 7 de octubre
 
-Josse: ocho commits, **ninguna migración**, y la rama queda congelada desde aquí.
+Josse: nueve commits míos, **tu `origin/dev` ya fundida dentro**, una migración
+---la tuya--- y la rama queda congelada desde aquí.
 
 Rompí la congelación de ayer por lo de los nombres del cargue y te lo dije en su
 momento; desde este documento no empujo nada más hasta que digas.
@@ -9,10 +10,10 @@ momento; desde este documento no empujo nada más hasta que digas.
 |---|---|
 | Rama | `jose/dv-tecleado`, subida y **congelada** |
 | Desplegado | `v0.23.0-JD` (6 oct, 14:57) |
-| Sin desplegar | **8 commits de contenido**, de `b6f42b8` a `bb4e5ba`, más este documento |
-| **Migraciones** | **ninguna.** No hace falta copia previa. |
-| De lo tuyo que falte traer | **nada**: `origin/dev` fundida |
-| Línea base | `tsc` limpio en los dos lados · **269 suites, 2.883 pruebas**, verde · `next build` completo |
+| Sin desplegar | **21 commits**: tus 12 de `origin/dev` ---incluido el `v0.23.0-JD` que ya está arriba--- y mis 9 |
+| **Migraciones** | **una, y es tuya**: `20261007180000_de_que_grupo_venia`. Dos columnas nuevas, `TEXT` y nulables, en `movimientos_participante`. Hacia atrás no rompe: el código de hoy no las mira. Yo no traigo ninguna. |
+| De lo tuyo que falte traer | **nada**: `origin/dev` fundida hasta `7a75aad` |
+| Línea base | `tsc` limpio en los dos lados · **277 suites, 2.910 pruebas**, verde |
 
 ---
 

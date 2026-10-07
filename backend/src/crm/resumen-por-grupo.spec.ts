@@ -70,21 +70,20 @@ describe('completarGrupo', () => {
     ).toBe('ABIERTO');
   });
 
-  /// Sin meta no hay contra qué medirse: un grupo sin coberturas
-  /// todavía.
-  it('sin meta la conversión es nula: no es un 0 %, es que no hay de qué', () => {
+  it('sin META el cumplimiento es nulo; con meta y sin inscritos es 0 %', () => {
+    /// La raya significa «no hay contra que medir», no «no inscribio
+    /// a nadie»: eso ultimo SI es un dato y vale 0 %.
     expect(completarGrupo(cruda({ meta: 0 })).conversion).toBeNull();
+    expect(completarGrupo(cruda()).conversion).toBe(0);
   });
 
-  /// «Total de inscritos dividido la meta» (cliente, 7 oct 2026).
-  /// Sobre los leads, las diez filas de los grupos de AF1 salían al
-  /// 100 % y la columna no decía nada.
-  it('la conversión es inscritos sobre META', () => {
+  it('el cumplimiento es inscritos sobre la META', () => {
     const f = completarGrupo(
-      cruda({ meta: 65, campanaDigital: 51, inscritosCampana: 51 }),
+      cruda({ campanaDigital: 40, inscritosCampana: 10 }),
     );
-    /// 51/65 = 78 %. Sobre los leads habría dado 100 %.
-    expect(Math.round((f.conversion ?? 0) * 100)).toBe(78);
+    /// 10 de una meta de 65 --no 10 de 40 leads, que era la regla
+    /// vieja y daba 25 %--.
+    expect(f.conversion).toBeCloseTo(10 / 65, 5);
   });
 
   it('un grupo sin coberturas da meta cero y disponibles negativos si hay inscritos', () => {

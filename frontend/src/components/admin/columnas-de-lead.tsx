@@ -2,7 +2,7 @@ import Link from "next/link";
 
 import {
   ETIQUETA_ESTADO_LEAD,
-  TONO_ESTADO_LEAD,
+  COLOR_ESTADO_LEAD,
   type EstadoLead,
   type LeadDeLaMesa,
 } from "@/lib/mesa-api";
@@ -111,8 +111,8 @@ export function columnasDeLead(): Array<Columna<LeadDeLaMesa>> {
         <span
           className="rounded-md px-2 py-0.5 text-xs font-semibold"
           style={{
-            background: `color-mix(in oklab, ${TONO_ESTADO_LEAD[l.estado]} 16%, transparent)`,
-            color: TONO_ESTADO_LEAD[l.estado],
+            background: `color-mix(in oklab, ${COLOR_ESTADO_LEAD[l.estado]} 16%, transparent)`,
+            color: COLOR_ESTADO_LEAD[l.estado],
           }}
         >
           {ETIQUETA_ESTADO_LEAD[l.estado]}
@@ -175,6 +175,34 @@ export function columnasDeLead(): Array<Columna<LeadDeLaMesa>> {
       valor: (l) => l.pidio ?? "",
       pinta: (l) => oRaya(l.pidio),
       filtro: "texto",
+    },
+    {
+      /**
+       * DÓNDE VIVE. Dos columnas y no una, porque filtran distinto:
+       * el departamento es con lo que se reparte el trabajo entre
+       * asesoras, y la ciudad es lo que decide si le queda cerca.
+       *
+       * «Si tengo departamento no queda ni nada» (cliente, 7 oct
+       * 2026): el dato se cargaba y no tenía dónde salir.
+       *
+       * Van ANTES de la sede a propósito: la sede se DEDUCE de
+       * aquí, así que leer «CESAR → sin cobertura» explica solo lo
+       * que de otro modo parece un fallo.
+       */
+      clave: "departamento",
+      titulo: "Departamento",
+      ancho: "160px",
+      valor: (l) => l.departamento ?? "",
+      pinta: (l) => oRaya(l.departamento),
+      filtro: "opciones",
+    },
+    {
+      clave: "ciudad",
+      titulo: "Ciudad o municipio",
+      ancho: "170px",
+      valor: (l) => l.ciudad ?? "",
+      pinta: (l) => oRaya(l.ciudad),
+      filtro: "opciones",
     },
     {
       clave: "sede",

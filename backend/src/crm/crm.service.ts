@@ -61,6 +61,7 @@ import {
 } from './escalera';
 import {
   cubreA,
+  cabenEnLaCobertura,
   exigirCoberturaDeLaOferta,
   repartirPorCobertura,
 } from './cobertura';
@@ -162,6 +163,7 @@ import { enPalabras, moverLaGestion } from './unir-participaciones';
 /// `ETAPAS_DEL_AULA` NO se importa: este fichero tiene la suya propia
 /// unas líneas más abajo, y traerla además la duplicaba.
 import { HISTORIA_CERRADA, OCUPAN_SILLA, RETIENEN_ASIENTO } from './etapas';
+import { cuantosCaben } from './elegibles-del-grupo';
 import { fraseDeHorario } from '../comun/horario-de-grupo';
 import { PrismaService } from '../prisma/prisma.service';
 import {
@@ -2787,14 +2789,16 @@ export class CrmService {
     const coberturaPedida = dto.coberturaId ? dto.coberturaId : null;
 
     if (pidioCobertura && coberturaPedida !== (p.coberturaId ?? null)) {
-      /// El paso imposible se juzga primero: decirle «no puede» a
-      /// quien de todas formas no podría hacerlo manda a buscar un
-      /// permiso que no arregla nada.
-      if (p.coberturaId) {
-        throw new ConflictException(
-          'Esta persona ya tiene grupo asignado, y el grupo no se cambia una vez puesto.',
-        );
-      }
+      /// SE PUEDE CAMBIAR DE GRUPO, y hasta hoy esta puerta decia
+      /// que no mientras la otra lo hacia: 409 aqui y 200 por
+      /// `/formacion`. Lo zanjo Josse el 7 oct 2026 ---«la persona
+      /// puede cambiar de grupo, no hay problema por eso»--- y hoy
+      /// la razon de la prohibicion todavia no aplica: cero fichas
+      /// reportadas al SEP, asi que nadie ha viajado con su cohorte
+      /// a ningun sitio. El dia que se reporte, el candado va
+      /// colgado de ESO y no de tener grupo.
+      ///
+      /// Lo que si se exige es el permiso, igual que la otra puerta.
       await exigirQuienAsignaGrupo(this.prisma, admin, p.convenioId);
     }
 
@@ -2819,25 +2823,48 @@ export class CrmService {
       }
 
       /**
-       * EL GRUPO NO SE CAMBIA. Encargo de Mauricio.
+       * EL GRUPO SI SE CAMBIA, desde el 7 oct 2026.
        *
-       * Se ponia sin mas y se podia volver a poner cuantas veces
-       * hiciera falta. El grupo es lo que viaja al SENA junto a
-       * la persona, y moverlo despues de reportarla deja dos
-       * verdades: la que se entrego y la que hay.
+       * El encargo de Mauricio decia que no, y su razon era buena:
+       * el grupo viaja al SENA junto a la persona, y moverlo
+       * despues de reportarla deja dos verdades, la entregada y la
+       * que hay. Pero esa razon cuelga de HABER REPORTADO, no de
+       * tener grupo, y hoy no hay una sola ficha cargada al SEP.
        *
-       * Poner el MISMO no es cambiarlo y se deja pasar: la ficha
-       * se manda entera desde la pantalla, asi que si no,
-       * guardar cualquier otro campo fallaria.
+       * Josse lo autorizo al pedir unir dos grupos: «la persona
+       * puede cambiar de grupo, no hay problema por eso». Y el
+       * movimiento guarda ahora de que cohorte venia, asi que un
+       * traslado se puede deshacer, que es lo que faltaba.
        */
-      /// El permiso y la regla de «no se cambia» se comprueban ya
-      /// arriba, y para las TRES operaciones: poner, cambiar y
-      /// quitar. Aquí solo queda validar que la cobertura sea de su
-      /// curso y de su sede.
-      await exigirCoberturaDeLaOferta(this.prisma, coberturaPedida, {
-        accionFormacionId: suya.accionFormacionId,
-        ubicacionId: suya.oferta?.ubicacionId ?? null,
-      });
+      /// La cobertura tiene que ser de su curso y de su sede, Y CABER.
+      ///
+      /// Las dos cosas en la misma rama: separarlas daria dos
+      /// llamadas a `exigirCoberturaDeLaOferta` por peticion, y la
+      /// segunda cuenta es la que acaba discrepando.
+      ///
+      /// Aqui NO hay salida de sobrecupo, y es a proposito: este DTO
+      /// no lleva `sobrecupoMotivo`, asi que autorizarlo por esta
+      /// puerta seria inventarse una firma que nadie puso. Se dice
+      /// donde se hace.
+      const destino = await exigirCoberturaDeLaOferta(
+        this.prisma,
+        coberturaPedida,
+        {
+          accionFormacionId: suya.accionFormacionId,
+          ubicacionId: suya.oferta?.ubicacionId ?? null,
+        },
+      );
+
+      if (
+        coberturaPedida !== (p.coberturaId ?? null) &&
+        (await cabenEnLaCobertura(this.prisma, destino, id)) <= 0
+      ) {
+        throw new ConflictException(
+          `El grupo ${destino.numero} de ${destino.nombre} ya tiene sus ` +
+            `${destino.cuposMaximos} cupos. Para colocar por encima, ` +
+            'hagalo desde la ficha, en Accion de formacion.',
+        );
+      }
     }
 
     if (dto.fechaNacimiento) {
@@ -3054,6 +3081,12 @@ export class CrmService {
             etapaAntes: p.etapa,
             etapaDespues: p.etapa,
             adminId: admin.id,
+            /// LOS IDS, no el numero: el numero del grupo se puede
+            /// renombrar y entonces la huella dejaria de apuntar a
+            /// nada. Con el id se recupera exactamente la cohorte,
+            /// que es lo que se pidio poder deshacer.
+            coberturaAntes: pidioCobertura ? (p.coberturaId ?? null) : null,
+            coberturaDespues: pidioCobertura ? coberturaPedida : null,
             nota: partes.join('. '),
             ip: ip ?? null,
           },
@@ -6872,6 +6905,10 @@ export class CrmService {
         etapa: true,
         ofertaId: true,
         coberturaId: true,
+        /// De donde VIENE, para poder decirlo en la huella: la nota
+        /// solo nombraba el destino, asi que un traslado no dejaba
+        /// de donde recuperar la cohorte anterior.
+        cobertura: { select: { grupo: { select: { numero: true } } } },
       },
     });
     if (!p) throw new NotFoundException('Ese participante no existe.');
@@ -7041,6 +7078,37 @@ export class CrmService {
         },
       );
       numeroDeGrupo = cobertura.numero;
+
+      /// Y EL TOPE DEL GRUPO, que es otro distinto del de la oferta.
+      ///
+      /// La oferta es la accion en el departamento; la cobertura es
+      /// el trozo que le toca a ESTE grupo, y es el numero que el
+      /// panel ensena y deja editar en Cronograma. Esta puerta no lo
+      /// miraba: se podia pasar la meta de un grupo de uno en uno y
+      /// en silencio, mientras el lote de al lado lo impedia. Un
+      /// control en pie y vacio de efecto, y justo el camino por el
+      /// que se mueve gente a mano.
+      ///
+      /// Se cuenta con RETIENEN_ASIENTO y con cuantosCaben(), los
+      /// MISMOS que el lote: dos cuentas de lo mismo acaban
+      /// discrepando, y la que sobra es la nueva.
+      if (dto.coberturaId !== p.coberturaId) {
+        const caben = await cabenEnLaCobertura(this.prisma, cobertura, id);
+
+        if (caben <= 0) {
+          /// Se permite pasarse, pero con motivo: es la misma salida
+          /// que ya tiene el tope de la oferta tres lineas arriba, y
+          /// negarlo en seco cerraria un movimiento legitimo.
+          if (!dto.sobrecupoMotivo) {
+            throw new ConflictException(
+              `El grupo ${cobertura.numero} de ${cobertura.nombre} ya tiene ` +
+                `sus ${cobertura.cuposMaximos} cupos. Para colocar por encima ` +
+                'hay que indicar el motivo.',
+            );
+          }
+          sobrecupo = { porId: admin.id, motivo: dto.sobrecupoMotivo };
+        }
+      }
     }
 
     const cobertura = dto.coberturaId ?? null;
@@ -7064,15 +7132,80 @@ export class CrmService {
       );
     }
     if (cobertura !== p.coberturaId) {
-      partes.push(
-        numeroDeGrupo === null ? 'Sin grupo' : `Grupo ${numeroDeGrupo}`,
-      );
+      const venia = p.cobertura?.grupo.numero ?? null;
+      const nombra = (g: number | null) =>
+        g === null ? 'Sin grupo' : 'Grupo ' + String(g);
+      /// EL ANTES Y EL DESPUES, no solo el destino: es lo que deja
+      /// deshacer un traslado de cincuenta personas.
+      partes.push(nombra(venia) + ' -> ' + nombra(numeroDeGrupo));
     }
     // como al crear con sobrecupo
     if (sobrecupo) partes.push(`Sobrecupo autorizado: ${sobrecupo.motivo}`);
 
-    const escrituras: Prisma.PrismaPromise<unknown>[] = [
-      this.prisma.participante.update({
+    /**
+     * EL CANDADO DEL AFORO, con la misma forma que `cambiarEtapa`.
+     *
+     * Las comprobaciones de arriba se quedan: fallan antes y con
+     * mejores mensajes. Pero leen FUERA de toda transaccion, asi que
+     * entre lo que ven y lo que escriben cabe otro asesor haciendo lo
+     * mismo: los dos ven la ultima silla y los dos entran. El tope de
+     * celda que entro el 7 oct seria un control en pie y vacio de
+     * efecto en cuanto algo mueva el tope al lado.
+     *
+     * Se vuelve a contar aqui dentro, con las filas tomadas. Esta es
+     * la que no se puede saltar.
+     *
+     * EL ORDEN DE LOS DOS CANDADOS NO ES LIBRE: siempre la oferta y
+     * despues la cobertura. Dos peticiones que los tomaran al reves
+     * se bloquearian la una a la otra.
+     */
+    await this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT "id" FROM "ofertas" WHERE "id" = ${oferta.id} FOR UPDATE`;
+
+      const ocupadasAhora = await tx.participante.count({
+        where: {
+          ofertaId: oferta.id,
+          etapa: { in: ETAPAS_VIVAS },
+          id: { not: id },
+        },
+      });
+      if (ocupadasAhora >= oferta.cuposMaximos && !sobrecupo) {
+        throw new ConflictException(
+          `«${oferta.accionFormacion.nombre}» se acaba de llenar ` +
+            `(${ocupadasAhora} de ${oferta.cuposMaximos}). ` +
+            'Para colocar por encima del cupo hay que indicar el motivo.',
+        );
+      }
+
+      if (cobertura && cobertura !== p.coberturaId) {
+        await tx.$queryRaw`SELECT "id" FROM "grupos_cobertura" WHERE "id" = ${cobertura} FOR UPDATE`;
+
+        /// Se RELEE el tope, no se reusa el de arriba: el candado no
+        /// sirve de nada si la cifra que se compara se leyo antes de
+        /// tomarlo. Es el mismo defecto que el lote tiene hoy.
+        const celda = await tx.grupoCobertura.findUnique({
+          where: { id: cobertura },
+          select: { cuposMaximos: true, grupo: { select: { numero: true } } },
+        });
+        /// Y la cuenta es la MISMA de fuera, con el `tx`: dos formas de
+        /// contar lo mismo acaban discrepando, y aqui la que sobra
+        /// seria justo la que manda.
+        const quedan = celda
+          ? await cabenEnLaCobertura(
+              tx as never,
+              { id: cobertura, cuposMaximos: celda.cuposMaximos },
+              id,
+            )
+          : 1;
+        if (quedan <= 0 && !sobrecupo) {
+          throw new ConflictException(
+            `El grupo ${celda!.grupo.numero} se acaba de llenar ` +
+              `(${celda!.cuposMaximos} cupos). Elija otro grupo.`,
+          );
+        }
+      }
+
+      await tx.participante.update({
         where: { id },
         data: {
           ofertaId: oferta.id,
@@ -7081,26 +7214,27 @@ export class CrmService {
           sobrecupoPorId: sobrecupo?.porId ?? null,
           sobrecupoMotivo: sobrecupo?.motivo ?? null,
         },
-      }),
-    ];
+      });
 
-    if (partes.length > 0) {
-      escrituras.push(
-        this.prisma.movimientoParticipante.create({
+      if (partes.length > 0) {
+        await tx.movimientoParticipante.create({
           data: {
             participanteId: id,
             // misma etapa: no es una transicion
             etapaAntes: p.etapa,
             etapaDespues: p.etapa,
             adminId: admin.id,
+            /// LOS IDS, no el numero: un grupo se puede renombrar y
+            /// entonces la huella dejaria de apuntar a nada. Con el
+            /// id se recupera exactamente la cohorte.
+            coberturaAntes: p.coberturaId ?? null,
+            coberturaDespues: cobertura,
             nota: partes.join('. '),
             ip: ip ?? null,
           },
-        }),
-      );
-    }
-
-    await this.prisma.$transaction(escrituras);
+        });
+      }
+    });
 
     return this.obtener(id, ambito);
   }

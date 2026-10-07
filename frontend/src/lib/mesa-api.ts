@@ -27,6 +27,10 @@ export type LeadDeLaMesa = {
   /// ese curso, así que no se la puede inscribir.
   sede: string | null;
   recibidoEn: string;
+  /// Dónde vive, ya resuelto a nombre por el servidor: el
+  /// catálogo del SEP vive allí. Null: no vino en el archivo.
+  departamento: string | null;
+  ciudad: string | null;
   /// Si ya tiene ficha, para poder saltar a ella.
   participanteId: string | null;
   /// Qué le falta para poder ser ficha. Vacío: está listo.
@@ -109,11 +113,26 @@ export const ETIQUETA_ESTADO_LEAD: Record<EstadoLead, string> = {
 
 /// El color dice urgencia, no categoría: lo pendiente es lo
 /// único que le pide algo a alguien.
-export const TONO_ESTADO_LEAD: Record<EstadoLead, string> = {
-  PENDIENTE: "text-aviso",
-  CONVERTIDO: "text-exito",
-  DESCARTADO: "text-texto-suave",
+/// EL TOKEN, ni la clase ni la variable: de aqui salen las dos
+/// formas. Estaban escritas como clases de Tailwind y una pantalla
+/// las metia en un style ---donde color: "text-aviso" no es un
+/// color y el navegador tira la declaracion---, asi que la pildora
+/// de estado salia sin tenir. El codigo decia que tenia y no tenia.
+const TOKEN_ESTADO_LEAD: Record<EstadoLead, string> = {
+  PENDIENTE: "aviso",
+  CONVERTIDO: "exito",
+  DESCARTADO: "texto-suave",
 };
+
+/// Para className.
+export const TONO_ESTADO_LEAD: Record<EstadoLead, string> = Object.fromEntries(
+  Object.entries(TOKEN_ESTADO_LEAD).map(([k, t]) => [k, `text-${t}`]),
+) as Record<EstadoLead, string>;
+
+/// Para style, incluido dentro de un color-mix.
+export const COLOR_ESTADO_LEAD: Record<EstadoLead, string> = Object.fromEntries(
+  Object.entries(TOKEN_ESTADO_LEAD).map(([k, t]) => [k, `var(--${t})`]),
+) as Record<EstadoLead, string>;
 
 export const mesaApi = {
   listar: (q: {
@@ -127,6 +146,10 @@ export const mesaApi = {
     /// filtro vive aquí y no en una segunda función que repetiría
     /// los otros cuatro parámetros.
     origenSistema?: string;
+    /// Aparta lo que subimos nosotros, para que el buzon sea lo
+    /// que nos mandan de fuera. Lo manda la mesa; la BBDD no, que
+    /// es justo la pantalla donde hay que ver lo cargado.
+    soloDeFuera?: boolean;
     convenioId?: string;
     buscar?: string;
     pagina?: number;
@@ -135,6 +158,7 @@ export const mesaApi = {
     const p = new URLSearchParams();
     if (q.estado) p.set("estado", q.estado);
     if (q.origenSistema) p.set("origenSistema", q.origenSistema);
+    if (q.soloDeFuera) p.set("soloDeFuera", "si");
     if (q.convenioId) p.set("convenioId", q.convenioId);
     if (q.buscar?.trim()) p.set("buscar", q.buscar.trim());
     if (q.pagina) p.set("pagina", String(q.pagina));

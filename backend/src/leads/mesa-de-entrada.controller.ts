@@ -217,6 +217,8 @@ export class MesaDeEntradaController {
     @Query('convenioId') convenioId?: string,
     /// Por donde entro: 'cargue-masivo' para la pantalla de la BBDD.
     @Query('origenSistema') origenSistema?: string,
+    /// La mesa lo manda; la pantalla de la BBDD no.
+    @Query('soloDeFuera') soloDeFuera?: string,
     @Query('buscar') buscar?: string,
     @Query('pagina') pagina?: string,
     @Query('limite') limite?: string,
@@ -226,6 +228,7 @@ export class MesaDeEntradaController {
         estado,
         convenioId,
         origenSistema,
+        soloDeFuera: soloDeFuera === 'si',
         buscar,
         pagina: pagina ? Number(pagina) : undefined,
         limite: limite ? Number(limite) : undefined,

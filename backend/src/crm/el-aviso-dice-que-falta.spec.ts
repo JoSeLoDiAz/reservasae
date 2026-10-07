@@ -63,15 +63,20 @@ describe('los dos avisos del enlace público lo dicen', () => {
     expect(PREINSCRIPCION.slice(i, i + 220)).toContain('conLoQueFalte');
   });
 
-  /// Y LOS DOS DE ORGANIZACIÓN, que son dos: el de quien la completó
-  /// y el de quien declaró que no tiene. Al segundo también le puede
-  /// faltar algo ---lo suyo propio--- y quien lleva la ficha necesita
-  /// saberlo igual.
-  it('y los dos de su organización, incluido el de quien no tiene', () => {
-    const todos = PREINSCRIPCION.split("tipo: 'DATOS_DE_EMPRESA'").slice(1);
-    expect(todos).toHaveLength(2);
-    for (const trozo of todos) {
-      expect(trozo.slice(0, 260)).toContain('conLoQueFalte');
+  /**
+   * Y LOS DOS DE ORGANIZACIÓN, que llevan tipos DISTINTOS desde que
+   * Josse separó el de quien declara que NO tiene ---antes se
+   * anunciaba como que la había completado, que era mentira---.
+   *
+   * A los dos les puede faltar algo, así que los dos lo dicen: el
+   * que no tiene organización puede seguir sin su propia fecha de
+   * nacimiento, y quien lleva la ficha necesita saberlo igual.
+   */
+  it('y los dos de organización, con sus dos tipos', () => {
+    for (const tipo of ["DATOS_DE_EMPRESA", "SIN_ORGANIZACION"]) {
+      const i = PREINSCRIPCION.indexOf(`tipo: '${tipo}'`);
+      expect(i).toBeGreaterThan(-1);
+      expect(PREINSCRIPCION.slice(i, i + 260)).toContain('conLoQueFalte');
     }
   });
 

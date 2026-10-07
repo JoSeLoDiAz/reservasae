@@ -147,3 +147,136 @@ describe('con ámbito vacío no se ve nada', () => {
     expect(acotanPor(vistos[0].where)).toContainEqual([]);
   });
 });
+
+/**
+ * EL RECUENTO DE ARRIBA CUENTA LO MISMO QUE LA TABLA DE ABAJO.
+ *
+ * Corría con el ámbito a secas: ignoraba el origen, el gremio pedido y
+ * la búsqueda. Mientras la mesa enseñaba TODO daba igual --su cifra
+ * cuadraba por casualidad--, pero en cuanto filtre, las fichas de
+ * arriba contarían leads que la tabla ya no muestra. Es la «cifra que
+ * parece exacta y no lo es», y la pantalla de BBDD la rodeó con tres
+ * consultas extra en vez de arreglarla.
+ *
+ * Lo único que el recuento NO lleva es el filtro de estado: uno que
+ * contara por estado filtrando por estado daría una sola barra.
+ */
+describe('el recuento por estado cuenta lo mismo que la tabla', () => {
+  /// El `groupBy` es el unico que manda `by`.
+  const delRecuento = (vistos: { where?: unknown }[]) =>
+    vistos.filter((v) => 'by' in (v as object));
+
+  const ramas = (nodo: unknown): Record<string, unknown>[] => {
+    const o = nodo as { AND?: unknown[] } | undefined;
+    return Array.isArray(o?.AND) ? (o.AND as Record<string, unknown>[]) : [];
+  };
+
+  it('hereda el filtro de ORIGEN', async () => {
+    const { s, vistos } = armar();
+    await s.listar({ origenSistema: 'lucid' }, AMBITO);
+
+    const g = delRecuento(vistos);
+    expect(g).toHaveLength(1);
+    expect(ramas(g[0].where)).toContainEqual({ origenSistema: 'lucid' });
+  });
+
+  it('hereda el gremio pedido y la búsqueda', async () => {
+    const { s, vistos } = armar();
+    await s.listar({ convenioId: 'c-adecopria', buscar: 'perez' }, AMBITO);
+
+    const g = delRecuento(vistos);
+    expect(ramas(g[0].where)).toContainEqual({ convenioId: 'c-adecopria' });
+    /// La busqueda arma su propia rama; basta con que haya una mas
+    /// que el ambito y el gremio.
+    expect(ramas(g[0].where).length).toBeGreaterThanOrEqual(3);
+  });
+
+  /// EL CANDADO AL REVES, y es el que impide el arreglo excesivo:
+  /// alguien «unifica» pasandole el `donde` entero y el recuento
+  /// se queda con una sola barra sin que nada falle.
+  it('NO hereda el filtro de estado', async () => {
+    const { s, vistos } = armar();
+    await s.listar({ estado: 'PENDIENTE' }, AMBITO);
+
+    const g = delRecuento(vistos);
+    for (const r of ramas(g[0].where)) expect(r).not.toHaveProperty('estado');
+  });
+
+  it('pero la TABLA sí lo lleva', async () => {
+    const { s, vistos } = armar();
+    await s.listar({ estado: 'PENDIENTE' }, AMBITO);
+
+    const tabla = vistos.filter((v) => !('by' in (v as object)));
+    const conEstado = tabla.filter((v) =>
+      ramas(v.where).some((r) => 'estado' in r),
+    );
+    expect(conEstado.length).toBeGreaterThan(0);
+  });
+});
+
+/**
+ * EL BUZÓN ES LO QUE NOS MANDAN DE FUERA.
+ *
+ * Josse, 7 oct 2026: «en mesa de entrada necesito dejar solamente los
+ * links que Mauricio nos envía; se subió una base de datos y me la está
+ * uniendo aquí». Eran 1.252 filas del cargue contra 101 del
+ * orquestador, y las 1.252 en PENDIENTE: el buzón de lo que hay que
+ * atender quedaba sepultado.
+ *
+ * SE EXCLUYE LO NUESTRO, NO SE INCLUYE UNA LISTA BLANCA, y ese es el
+ * aserto que de verdad protege: `origenSistema` es texto libre --lo
+ * elige quien llama al webhook--, así que con lista blanca, el día que
+ * el orquestador cambie su valor, sus leads DESAPARECEN del buzón sin
+ * que nada falle.
+ */
+describe('la mesa enseña lo de fuera y aparta lo que subimos nosotros', () => {
+  const ramas = (nodo: unknown): Record<string, unknown>[] => {
+    const o = nodo as { AND?: unknown[] } | undefined;
+    return Array.isArray(o?.AND) ? (o.AND as Record<string, unknown>[]) : [];
+  };
+  const exclusiones = (vistos: { where?: unknown }[]) =>
+    vistos.flatMap((v) =>
+      ramas(v.where).filter(
+        (r) => (r.origenSistema as { notIn?: unknown })?.notIn !== undefined,
+      ),
+    );
+
+  it('aparta el cargue, y lo hace EXCLUYENDO: nada de lista blanca', async () => {
+    const { s, vistos } = armar();
+    await s.listar({ soloDeFuera: true }, AMBITO);
+
+    const ex = exclusiones(vistos);
+    expect(ex.length).toBeGreaterThan(0);
+    expect(ex[0]).toEqual({ origenSistema: { notIn: ['cargue-masivo'] } });
+
+    /// Y NO hay ninguna igualdad de origen: eso seria la lista
+    /// blanca, y haria desaparecer al orquestador si cambia su valor.
+    for (const v of vistos) {
+      for (const r of ramas(v.where)) {
+        expect(typeof r.origenSistema).not.toBe('string');
+      }
+    }
+  });
+
+  it('un origen pedido a mano MANDA sobre la exclusión', async () => {
+    const { s, vistos } = armar();
+    await s.listar(
+      { soloDeFuera: true, origenSistema: 'cargue-masivo' },
+      AMBITO,
+    );
+    /// Quien quiera mirar el cargue por esta puerta, puede.
+    expect(exclusiones(vistos)).toEqual([]);
+    expect(ramas(vistos[0].where)).toContainEqual({
+      origenSistema: 'cargue-masivo',
+    });
+  });
+
+  /// EL CANDADO AL REVES: la pantalla de BBDD usa ESTA MISMA ruta sin
+  /// `soloDeFuera`, y es donde hay que ver lo cargado. Aplicarlo
+  /// siempre la dejaria vacia.
+  it('sin pedirlo no aparta nada: la BBDD sigue viendo lo cargado', async () => {
+    const { s, vistos } = armar();
+    await s.listar({}, AMBITO);
+    expect(exclusiones(vistos)).toEqual([]);
+  });
+});

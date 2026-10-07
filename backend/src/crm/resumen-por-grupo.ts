@@ -25,6 +25,7 @@ import { Prisma } from '../../generated/prisma';
 
 import { PRIMERA_MATRICULA } from './anclas';
 import type { RecorteDelResumen } from './resumen-por-accion';
+import { cumplimiento } from './proyeccion-metas';
 
 export type FilaDeGrupo = {
   grupoId: string;
@@ -130,13 +131,9 @@ export function resumenPorGrupoSql(
   );
 
   /// Cuándo SE INSCRIBIÓ, para los inscritos.
-  /// Y SIGUE INSCRITO HOY, igual que su gemela: «siempre y cuando
-  /// el estado del lead sea inscrito, porque si lo estuvo y cambió
-  /// su estado no aplica» (cliente, 7 oct 2026). El porqué largo
-  /// está en `resumen-por-accion.ts`.
-  /// SIN VENTANA NO HACE FALTA EL ANCLA: el movimiento sirve para
-  /// fechar, y sin periodo no hay nada que fechar. El porqué largo
-  /// está en `resumen-por-accion.ts`.
+  /// Y SIGUE INSCRITO HOY, y sin ventana no se exige el ancla.
+  /// Las dos son del cliente (7 oct 2026) y el porqué largo está
+  /// en `resumen-por-accion.ts`.
   const seInscribio = Prisma.join(
     [
       Prisma.sql`pa."etapa"::text IN ${INSCRITAS}`,
@@ -286,12 +283,27 @@ export function completarGrupo(f: Cruda): FilaDeGrupo {
     ...columnas,
     totalLeads,
     totalInscritos,
-    /// SOBRE LA META, igual que su gemela: «total de inscritos
-    /// dividido la meta» (cliente, 7 oct 2026). Dividiendo por los
-    /// leads, las diez filas de los grupos de AF1 salían al 100 %, y
-    /// una columna que dice lo mismo en todas no se mira. El porqué
-    /// largo está en `resumen-por-accion.ts`.
-    conversion: columnas.meta > 0 ? totalInscritos / columnas.meta : null,
+    /**
+     * CONVERSION = INSCRITOS SOBRE LA META, no sobre los leads.
+     *
+     * Lo pidio Josse el 7 oct 2026 mirando la pantalla: «la conversion
+     * debe ser el total de inscritos sobre la meta, porque el porcentaje
+     * que esta actualmente esta mal». La pregunta que se hace con esta
+     * tabla es si se va a cumplir, no que parte de los leads cuaja.
+     *
+     * Y POR ESO DESAPARECE EL GUARD DE «NO PASARSE». Con los leads de
+     * denominador, pasar del 100 % era un sinsentido ---dos poblaciones
+     * distintas bajo una ventana--- y se imprimia nulo. Contra la meta
+     * es al reves: 120 % es la noticia buena y esconderla seria esconder
+     * justo lo que se mira. Lo unico que sigue siendo nulo es la meta en
+     * cero, porque ahi no hay contra que medir.
+     *
+     * La regla vive en cumplimiento() y no aqui: su gemela por grupo
+     * hacia la misma division con su propia copia, y el panel una
+     * tercera sin el guard. Tres copias de una cifra que tiene que ser
+     * la misma en dos pantallas.
+     */
+    conversion: cumplimiento(totalInscritos, columnas.meta),
     cuposDisponibles,
     estado: cuposDisponibles <= 0 ? 'CERRADO' : 'ABIERTO',
   };

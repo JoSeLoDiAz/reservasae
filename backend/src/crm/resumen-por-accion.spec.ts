@@ -52,8 +52,10 @@ describe('la tabla por acción de formación', () => {
       expect(f.totalInscritos).toBe(524);
       expect(f.cuposDisponibles).toBe(-4);
       expect(f.estado).toBe('CERRADO');
-      /// 524/520: sobrecupo, y es lo que su Excel enseña con −4
-      /// disponibles.
+      /// CONTRATO NUEVO (7 oct 2026): la conversion es INSCRITOS
+      /// SOBRE LA META, no sobre los leads. 524 de 520 es 101 %, y
+      /// que se pase del 100 % es justo lo que hay que ver: con la
+      /// regla vieja esta misma fila decia 40 %.
       expect(Math.round((f.conversion ?? 0) * 100)).toBe(101);
     });
 
@@ -95,46 +97,15 @@ describe('la tabla por acción de formación', () => {
     expect(f.cuposDisponibles).toBe(90);
   });
 
-  /**
-   * LA CONVERSIÓN ES SOBRE LA META: «total de inscritos dividido la
-   * meta» (cliente, 7 oct 2026).
-   *
-   * Dividía por los leads, y esa cuenta dejó de servir cuando las
-   * inscripciones pasaron a contarse por cuándo se hicieron: en los
-   * grupos de AF1 las diez filas salían al 100 %, porque 249
-   * inscritos sobre 250 leads es 100 %. Una columna que dice lo
-   * mismo en todas las filas no se mira.
-   */
-  it('la conversión es inscritos sobre META, no sobre leads', () => {
-    const f = completarFila(
-      cruda({ meta: 520, campanaDigital: 250, inscritosCampana: 249 }),
-    );
-    /// 249/520 = 48 %. Sobre los leads habría dado 100 %.
-    expect(Math.round((f.conversion ?? 0) * 100)).toBe(48);
-  });
-
-  /**
-   * Y PASARSE DEL 100 % AQUÍ SIGNIFICA ALGO: es sobrecupo, y su
-   * propio Excel lo tiene ---AF2 con 520 de meta y 524 inscritos---.
-   * Por eso no se corta. Lo que Josse frenó era otra cosa: un
-   * «1.000 %» de dividir dos poblaciones distintas, que con la meta
-   * debajo no puede salir.
-   */
-  it('con sobrecupo pasa del 100 %, y es correcto', () => {
-    const f = completarFila(
-      cruda({ meta: 520, campanaDigital: 1229, inscritosCampana: 524 }),
-    );
-    expect(Math.round((f.conversion ?? 0) * 100)).toBe(101);
-  });
-
-  /// Sin meta no hay contra qué medirse: una acción sin grupos
-  /// todavía. Nulo, y la pantalla escribe una raya ---que es el
-  /// «#DIV/0!» que su Excel enseña en tres filas, dicho mejor---.
-  it('sin meta no hay conversión que calcular', () => {
-    expect(
-      completarFila(cruda({ meta: 0, campanaDigital: 10, inscritosCampana: 3 }))
-        .conversion,
-    ).toBeNull();
+  /// Su Excel ensena «#DIV/0!» en tres filas. Aqui es nulo cuando no
+  /// hay META, y la pantalla escribe una raya: no hay contra que
+  /// medir. Con meta y cero inscritos si hay cifra, y es 0 %.
+  it('sin META no hay cumplimiento que calcular', () => {
+    /// Con meta y sin inscritos el cumplimiento es 0 %, que es un
+    /// dato: no ha inscrito a nadie. Lo que no se puede medir es
+    /// cuando no hay meta contra que medir.
+    expect(completarFila(cruda({ meta: 0 })).conversion).toBeNull();
+    expect(completarFila(cruda({ meta: 52 })).conversion).toBe(0);
   });
 
   /**
@@ -265,21 +236,65 @@ describe('el recorte llega a la consulta', () => {
   });
 
   /**
-   * LA FECHA SALE DEL HISTORIAL, PERO SOLO CUENTA SI SIGUE INSCRITO.
+   * Y LOS CUPOS RESERVADOS TAMBIÉN LLEVAN LA VENTANA.
    *
-   * «Toma esto del historial, pero siempre y cuando el estado del lead
-   * sea inscrito, porque si lo estuvo y cambió su estado no aplica»
-   * (cliente, 7 oct 2026).
+   * «Los filtros de tiempo o de fecha no funcionan, y ya lo había
+   * reiterado en muchas ocasiones» (cliente, 7 oct 2026). Era verdad,
+   * y no estaba en la pantalla: la subconsulta de reservas no llevaba
+   * ventana ninguna, así que esa columna enseñaba el total de toda la
+   * vida se pidiera el periodo que se pidiera.
    *
-   * Esto estuvo al revés, y era decisión mía: conté a quien se
-   * inscribió ese día aunque después se fuera, razonando que la
-   * historia no se reescribe. Pero la pregunta que contesta esta tabla
-   * no es «cuántas inscripciones se firmaron»: es cuántas personas
-   * tiene hoy esa acción, que es con lo que se responde ante el SENA y
-   * lo que tiene que cuadrar con los cupos disponibles de al lado.
+   * Con «Ayer» puesto, AF1 salía «Leads por su cuenta 0, Inscritos 0,
+   * Cupos reservados 33», y `totalLeads` ---que los suma--- decía 33
+   * leads de un día en que no entró nadie.
+   */
+  it('los cupos reservados se recortan al periodo', () => {
+    const q = sql({
+      desde: '2026-10-06T05:00:00.000Z',
+      hasta: '2026-10-07T05:00:00.000Z',
+    });
+    const bloque = q.slice(
+      q.indexOf('LOS CUPOS APARTADOS'),
+      q.indexOf('LAS PERSONAS'),
+    );
+    expect(bloque).toContain('res."creadoEn" >=');
+    expect(bloque).toContain('res."creadoEn" <');
+    /// Y sin perder lo que ya hacía: una reserva cancelada devolvió
+    /// sus cupos a la oferta y no cuenta en ningún periodo.
+    expect(bloque).toContain(`res."estado" = 'CONFIRMADA'`);
+  });
+
+  /**
+   * Y SIN PERIODO SIGUEN SIENDO TODOS. La ventana se añade, no
+   * sustituye: «Desde el principio» tiene que seguir dando el total
+   * de siempre, que es con lo que el cliente cuadra sus cifras.
+   */
+  it('sin periodo, los cupos reservados no se recortan', () => {
+    const bloque = sql({}).slice(
+      sql({}).indexOf('LOS CUPOS APARTADOS'),
+      sql({}).indexOf('LAS PERSONAS'),
+    );
+    expect(bloque).toContain(`res."estado" = 'CONFIRMADA'`);
+    expect(bloque).not.toContain('res."creadoEn"');
+  });
+
+  /**
+   * Y LA ETAPA DE HOY SÍ DECIDE SI CUENTA.
    *
-   * Las dos condiciones, entonces: el ancla ---que no se reescribe
-   * nunca--- pone la FECHA, y la etapa de hoy decide si CUENTA.
+   * «Toma esto del historial, pero siempre y cuando el estado del
+   * lead sea inscrito, porque si lo estuvo y cambió su estado no
+   * aplica. Esto ya lo había solicitado reiteradamente pero no
+   * quedó» (cliente, 7 oct 2026).
+   *
+   * Esta prueba decía lo contrario, y era decisión mía: conté a
+   * quien se inscribió ese día aunque después se fuera, razonando
+   * que la historia no se reescribe. Pero la pregunta que contesta
+   * esta tabla no es «cuántas inscripciones se firmaron»: es
+   * cuántas personas tiene hoy esa acción, que es con lo que se
+   * responde ante el SENA y lo que tiene que cuadrar con los cupos
+   * disponibles de al lado.
+   *
+   * El ancla pone la FECHA y la etapa decide si CUENTA.
    */
   it('los dos conteos de inscritos piden que siga inscrito', () => {
     const q = sql({
@@ -292,21 +307,16 @@ describe('el recorte llega a la consulta', () => {
     );
     expect(bloque).toContain('inscritosReserva');
     expect(bloque).toContain('inscritosCampana');
-    /// La etapa de hoy, además del ancla.
     expect(bloque).toContain('pa."etapa"');
     expect(bloque).toContain('an."momento"');
   });
 
   /**
-   * Y SIN VENTANA NO SE EXIGE EL ANCLA, que es lo que costaba gente.
-   *
-   * El movimiento sirve para FECHAR una inscripción; sin periodo no
-   * hay nada que fechar y la pregunta es «cuántos hay», que lo dice la
-   * etapa. Pidiéndolo igual, una ficha inscrita a la que le falte el
-   * movimiento ---las hay, el sondeo de integridad las lista--- se
-   * caía del total, y el Resumen General de la misma pantalla decía
-   * doce más. Medido: con este cambio los dos bloques coinciden en las
-   * cuatro ventanas que se probaron.
+   * Y SIN VENTANA NO SE EXIGE EL ANCLA, que es lo que costaba
+   * gente: el movimiento sirve para FECHAR, y sin periodo no hay
+   * nada que fechar. Pidiéndolo igual, una ficha inscrita a la que
+   * le falte ---las hay, el sondeo las lista--- se caía del total, y
+   * el Resumen General de la misma pantalla decía doce más.
    */
   it('sin ventana basta la etapa: el ancla no se pide', () => {
     const q = sql({});

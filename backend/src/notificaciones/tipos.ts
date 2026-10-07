@@ -22,6 +22,10 @@ export const TIPOS = [
   'AUTORIZACION_REVOCADA',
   /// Escribió por WhatsApp y la conversación se pegó a su ficha.
   'CONVERSACION_NUEVA',
+  /// Dijo que NO tiene organizacion, que es lo contrario de
+  /// haberla completado. Compartian aviso, y la campana pinta
+  /// solo el titulo: 44 fichas decian lo que no era.
+  'SIN_ORGANIZACION',
 ] as const;
 
 export type TipoDeAviso = (typeof TIPOS)[number];
@@ -36,6 +40,7 @@ export const ETIQUETA: Record<TipoDeAviso, string> = {
   FICHA_ASIGNADA: 'Le asignaron esta ficha',
   AUTORIZACION_REVOCADA: 'Revocó la autorización de sus datos',
   CONVERSACION_NUEVA: 'Escribió por WhatsApp',
+  SIN_ORGANIZACION: 'Declaró que no tiene organización',
 };
 
 export const esTipo = (v: string): v is TipoDeAviso =>
