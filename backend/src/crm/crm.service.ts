@@ -161,6 +161,7 @@ import { enPalabras, moverLaGestion } from './unir-participaciones';
 /// `ETAPAS_DEL_AULA` NO se importa: este fichero tiene la suya propia
 /// unas líneas más abajo, y traerla además la duplicaba.
 import { HISTORIA_CERRADA, OCUPAN_SILLA, RETIENEN_ASIENTO } from './etapas';
+import { cuantosCaben } from './elegibles-del-grupo';
 import { fraseDeHorario } from '../comun/horario-de-grupo';
 import { PrismaService } from '../prisma/prisma.service';
 import {
@@ -6909,6 +6910,45 @@ export class CrmService {
         },
       );
       numeroDeGrupo = cobertura.numero;
+
+      /// Y EL TOPE DEL GRUPO, que es otro distinto del de la oferta.
+      ///
+      /// La oferta es la accion en el departamento; la cobertura es
+      /// el trozo que le toca a ESTE grupo, y es el numero que el
+      /// panel ensena y deja editar en Cronograma. Esta puerta no lo
+      /// miraba: se podia pasar la meta de un grupo de uno en uno y
+      /// en silencio, mientras el lote de al lado lo impedia. Un
+      /// control en pie y vacio de efecto, y justo el camino por el
+      /// que se mueve gente a mano.
+      ///
+      /// Se cuenta con RETIENEN_ASIENTO y con cuantosCaben(), los
+      /// MISMOS que el lote: dos cuentas de lo mismo acaban
+      /// discrepando, y la que sobra es la nueva.
+      if (dto.coberturaId !== p.coberturaId) {
+        const apuntados = await this.prisma.participante.count({
+          where: {
+            coberturaId: dto.coberturaId,
+            etapa: { in: RETIENEN_ASIENTO },
+            id: { not: id },
+          },
+        });
+
+        if (
+          cuantosCaben({ cuposMaximos: cobertura.cuposMaximos, apuntados }) <= 0
+        ) {
+          /// Se permite pasarse, pero con motivo: es la misma salida
+          /// que ya tiene el tope de la oferta tres lineas arriba, y
+          /// negarlo en seco cerraria un movimiento legitimo.
+          if (!dto.sobrecupoMotivo) {
+            throw new ConflictException(
+              `El grupo ${cobertura.numero} de ${cobertura.nombre} ya tiene ` +
+                `sus ${cobertura.cuposMaximos} cupos. Para colocar por encima ` +
+                'hay que indicar el motivo.',
+            );
+          }
+          sobrecupo = { porId: admin.id, motivo: dto.sobrecupoMotivo };
+        }
+      }
     }
 
     const cobertura = dto.coberturaId ?? null;

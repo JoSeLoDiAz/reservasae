@@ -136,6 +136,12 @@ export type CoberturaValida = {
   id: string;
   numero: number;
   ubicacionId: string;
+  /// El tope de ESA sede en ESE grupo, que es otro distinto del de
+  /// la oferta: la oferta es la accion en el departamento y la
+  /// cobertura es el trozo que le toca a este grupo. Se devuelve
+  /// porque quien asigna tiene que respetarlo, y no lo hacia.
+  cuposMaximos: number;
+  nombre: string;
 };
 
 /**
@@ -154,6 +160,7 @@ export async function exigirCoberturaDeLaOferta(
       id: true,
       ubicacionId: true,
       ubicacion: { select: { nombre: true } },
+      cuposMaximos: true,
       grupo: { select: { accionFormacionId: true, numero: true } },
     },
   });
@@ -174,5 +181,7 @@ export async function exigirCoberturaDeLaOferta(
     id: cobertura.id,
     numero: cobertura.grupo.numero,
     ubicacionId: cobertura.ubicacionId,
+    cuposMaximos: cobertura.cuposMaximos,
+    nombre: cobertura.ubicacion.nombre,
   };
 }
