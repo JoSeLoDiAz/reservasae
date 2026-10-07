@@ -109,11 +109,26 @@ export const ETIQUETA_ESTADO_LEAD: Record<EstadoLead, string> = {
 
 /// El color dice urgencia, no categoría: lo pendiente es lo
 /// único que le pide algo a alguien.
-export const TONO_ESTADO_LEAD: Record<EstadoLead, string> = {
-  PENDIENTE: "text-aviso",
-  CONVERTIDO: "text-exito",
-  DESCARTADO: "text-texto-suave",
+/// EL TOKEN, ni la clase ni la variable: de aqui salen las dos
+/// formas. Estaban escritas como clases de Tailwind y una pantalla
+/// las metia en un style ---donde color: "text-aviso" no es un
+/// color y el navegador tira la declaracion---, asi que la pildora
+/// de estado salia sin tenir. El codigo decia que tenia y no tenia.
+const TOKEN_ESTADO_LEAD: Record<EstadoLead, string> = {
+  PENDIENTE: "aviso",
+  CONVERTIDO: "exito",
+  DESCARTADO: "texto-suave",
 };
+
+/// Para className.
+export const TONO_ESTADO_LEAD: Record<EstadoLead, string> = Object.fromEntries(
+  Object.entries(TOKEN_ESTADO_LEAD).map(([k, t]) => [k, `text-${t}`]),
+) as Record<EstadoLead, string>;
+
+/// Para style, incluido dentro de un color-mix.
+export const COLOR_ESTADO_LEAD: Record<EstadoLead, string> = Object.fromEntries(
+  Object.entries(TOKEN_ESTADO_LEAD).map(([k, t]) => [k, `var(--${t})`]),
+) as Record<EstadoLead, string>;
 
 export const mesaApi = {
   listar: (q: {

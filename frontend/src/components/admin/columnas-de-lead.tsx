@@ -2,7 +2,7 @@ import Link from "next/link";
 
 import {
   ETIQUETA_ESTADO_LEAD,
-  TONO_ESTADO_LEAD,
+  COLOR_ESTADO_LEAD,
   type EstadoLead,
   type LeadDeLaMesa,
 } from "@/lib/mesa-api";
@@ -111,8 +111,8 @@ export function columnasDeLead(): Array<Columna<LeadDeLaMesa>> {
         <span
           className="rounded-md px-2 py-0.5 text-xs font-semibold"
           style={{
-            background: `color-mix(in oklab, ${TONO_ESTADO_LEAD[l.estado]} 16%, transparent)`,
-            color: TONO_ESTADO_LEAD[l.estado],
+            background: `color-mix(in oklab, ${COLOR_ESTADO_LEAD[l.estado]} 16%, transparent)`,
+            color: COLOR_ESTADO_LEAD[l.estado],
           }}
         >
           {ETIQUETA_ESTADO_LEAD[l.estado]}

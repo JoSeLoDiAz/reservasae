@@ -79,17 +79,32 @@ export class MesaDeEntrada {
     /// no completa: pedir uno que no es suyo no puede devolverlo
     /// todo. Es la misma regla que en tableros, y el defecto que
     /// ya apareció dos veces por escribirla con un spread.
-    const donde: Prisma.LeadEntranteWhereInput = {
+    /// SE ARMA UNA VEZ Y SE USA DOS, con y sin la rama de estado.
+    ///
+    /// El recuento de arriba corria con el ambito a secas: ignoraba
+    /// el origen, el gremio pedido y la busqueda, asi que en cuanto
+    /// la mesa filtre, las fichas contarian leads que la tabla ya no
+    /// enseña. Es la «cifra que parece exacta y no lo es» que la
+    /// pantalla de BBDD documento al rodearla en vez de arreglarla.
+    ///
+    /// Y el contador NO lleva su propio filtro de estado: uno que
+    /// contara por estado filtrando por estado daria una sola barra.
+    const condiciones = (conEstado: boolean): Prisma.LeadEntranteWhereInput => ({
       AND: [
         { convenioId: { in: ambito } },
         ...(filtros.convenioId ? [{ convenioId: filtros.convenioId }] : []),
-        ...(filtros.estado ? [{ estado: filtros.estado as never }] : []),
+        ...(conEstado && filtros.estado
+          ? [{ estado: filtros.estado as never }]
+          : []),
         ...(filtros.origenSistema
           ? [{ origenSistema: filtros.origenSistema }]
           : []),
         ...(filtros.buscar?.trim() ? [this.comoSeBusca(filtros.buscar)] : []),
       ],
-    };
+    });
+
+    const donde = condiciones(true);
+    const dondeSinEstado = condiciones(false);
 
     const pagina = Math.max(1, filtros.pagina ?? 1);
     const porPagina = Math.min(filtros.limite ?? POR_PAGINA, TOPE);
@@ -141,14 +156,14 @@ export class MesaDeEntrada {
           accionFormacion: { select: { codigo: true, nombre: true } },
         },
       }),
-      /// El recuento por estado, con el MISMO ámbito.
+      /// El recuento por estado, con los MISMOS filtros que la tabla.
       ///
       /// Sin el ámbito, las cifras de arriba contarían los dos
       /// gremios mientras la tabla enseña uno — que es la clase
       /// de número que parece exacto y no lo es.
       this.prisma.leadEntrante.groupBy({
         by: ['estado'],
-        where: { convenioId: { in: ambito } },
+        where: dondeSinEstado,
         _count: { _all: true },
       }),
     ]);

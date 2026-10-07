@@ -151,11 +151,11 @@ export function TablaPorGrupo({
               <th className="w-full">Departamento</th>
               <th className="text-center whitespace-nowrap">Modalidad</th>
               <th className="text-center whitespace-nowrap">Meta</th>
-              <th className={ENTRO}>Cupos reservados</th>
-              <th className={ENTRO}>Leads Pauta</th>
+              <th className={ENTRO}>Nominados por la empresa</th>
+              <th className={ENTRO}>Leads por su cuenta</th>
               <th className={ENTRO}>Total leads</th>
               <th className={INSCRIBIO}>Inscritos reservas</th>
-              <th className={INSCRIBIO}>Inscritos Pauta</th>
+              <th className={INSCRIBIO}>Inscritos por su cuenta</th>
               <th className={INSCRIBIO}>Total inscritos</th>
               <th className="text-center whitespace-nowrap">Conversión</th>
               <th className="text-center whitespace-nowrap">Cupos disponibles</th>
@@ -232,6 +232,15 @@ export function TablaPorGrupo({
         </table>
       </div>
 
+      <p className="text-sm text-texto-suave mt-3 leading-relaxed">
+        La meta de cada grupo son sus cupos del cronograma, ya con el 30 % de sobrecupo, y
+        la <strong>conversión</strong> es sus inscritos sobre ella. «Nominados por la
+        empresa» <strong>no</strong> es lo mismo que «Cupos reservados» de la tabla de
+        arriba: una reserva se aparta sobre la acción y la ciudad, no sobre un grupo, así
+        que aquí se cuentan las personas que la empresa ya entregó con nombre propio. Por
+        eso los grupos pueden sumar menos que su acción mientras queden cupos apartados
+        sin nombre.
+      </p>
     </Bloque>
   );
 }
