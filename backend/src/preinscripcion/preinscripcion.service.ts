@@ -39,7 +39,10 @@ import {
   NIVELES_OCUPACIONALES_SEP,
 } from '../crm/catalogos-sep';
 import { faltaDeLaPersona } from '../crm/completitud';
-import { pasarSiNoLeFaltaNada } from '../crm/datos-completos';
+import {
+  loQueLeFaltaALaFicha,
+  pasarSiNoLeFaltaNada,
+} from '../crm/datos-completos';
 import { NotificacionesService } from '../notificaciones/notificaciones.service';
 import { documentoValido, normalizarDocumento } from '../comun/documento';
 import { calcularDigitoVerificacion, normalizarNit } from '../comun/nit';
@@ -1568,7 +1571,10 @@ export class PreinscripcionService {
     await this.notificaciones.avisar({
       participanteId: enlace.participanteId,
       tipo: 'DATOS_COMPLETADOS',
-      detalle: 'Actualizó sus datos desde el enlace que se le envió.',
+      detalle: await this.conLoQueFalte(
+        enlace.participanteId,
+        'Actualizó sus datos desde el enlace que se le envió.',
+      ),
       claveEvento: enlace.id,
     });
 
@@ -1859,7 +1865,10 @@ export class PreinscripcionService {
       await this.notificaciones.avisar({
         participanteId: enlace.participanteId,
         tipo: 'DATOS_DE_EMPRESA',
-        detalle: 'Terminó: declaró que no tiene organización.',
+        detalle: await this.conLoQueFalte(
+          enlace.participanteId,
+          'Terminó: declaró que no tiene organización.',
+        ),
         claveEvento: enlace.id,
       });
       return { guardado: true, enlaceCerrado: true, etapa: etapaFinal };
@@ -2288,7 +2297,10 @@ export class PreinscripcionService {
     await this.notificaciones.avisar({
       participanteId: enlace.participanteId,
       tipo: 'DATOS_DE_EMPRESA',
-      detalle: 'Completó los datos de su organización y cerró el enlace.',
+      detalle: await this.conLoQueFalte(
+        enlace.participanteId,
+        'Completó los datos de su organización y cerró el enlace.',
+      ),
       claveEvento: enlace.id,
     });
 
@@ -2310,6 +2322,31 @@ export class PreinscripcionService {
    * nada para poder reportarse, y esta listo para que un
    * lider lo inscriba.
    */
+  /**
+   * EL AVISO DICE QUÉ FALTA CUANDO LA FICHA NO AVANZÓ.
+   *
+   * «Las personas están completando pero es como si no migrara la
+   * información» (cliente, 7 oct 2026), con un aviso que decía
+   * «Completó los datos de su organización» sobre una ficha que
+   * seguía en Interesado.
+   *
+   * Las dos cosas eran ciertas: la persona completó lo que el
+   * formulario le pidió, y la ficha no avanzó porque le faltaba otra
+   * cosa. Visto desde fuera, el dato no llegaba.
+   *
+   * Ahora el mismo aviso lo dice, y así quien lleva esa ficha sabe
+   * qué pedirle a la persona en vez de abrir el expediente para
+   * descubrir que no pasó nada.
+   */
+  private async conLoQueFalte(
+    participanteId: string,
+    detalle: string,
+  ): Promise<string> {
+    const falta = await loQueLeFaltaALaFicha(this.prisma, participanteId);
+    if (falta.length === 0) return detalle;
+    return `${detalle} Le falta ${falta.join(", ")} para quedar en datos completos.`;
+  }
+
   private async inscribirSiEstaCompleto(participanteId: string) {
     /// La regla vive en `crm/datos-completos.ts`: la usan también
     /// el panel, el cargue y la conversión de leads.

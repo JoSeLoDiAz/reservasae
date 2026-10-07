@@ -838,52 +838,52 @@ export default function PaginaBbddLeads({
           lo que el cliente señaló. */}
       {!enElCargue && (
       <>
-      {/* LA MISMA BARRA QUE LA MESA: el filtro manda y el buscador
-          acompaña, con la misma caja los dos. */}
-      <div className="flex flex-wrap items-start gap-3">
-        <div className="w-[min(260px,100%)]">
-          <Campo
-            etiqueta="Qué lista ve"
-            comoDiv
-            ayuda={
-              datos
-                ? `${datos.total} ${datos.total === 1 ? "lead" : "leads"}${
-                    datos.paginas > 1 ? ` · viendo ${leads.length}` : ""
-                  }`
-                : undefined
-            }
-          >
-            <Desplegable
-              alto={38}
-              etiquetaAria="Estado del lead"
-              marcador="Todos, incluidos los ya atendidos"
-              valor={estado}
-              opciones={[
-                { valor: "", etiqueta: "Todos, incluidos los ya atendidos" },
-                ...ESTADOS.map((s) => ({
-                  valor: s,
-                  etiqueta: ETIQUETA_ESTADO_LEAD[s],
-                })),
-              ]}
-              alElegir={setEstado}
-            />
-          </Campo>
+      {/**
+        * UNA SOLA FILA, SIN RÓTULOS NI AYUDAS.
+        *
+        * «Qué lista ve / Buscar en toda la base: ¿esto qué significa?
+        * Ocupa mucho espacio» (cliente, 7 oct 2026). Y tenía razón:
+        * eran dos campos con rótulo arriba, una ayuda larga debajo y
+        * un recuento que ya dicen las cuatro tarjetas de encima. Tres
+        * renglones para dos controles.
+        *
+        * La ayuda que escribí para distinguir los dos buscadores era
+        * parte del problema: si hace falta un párrafo para explicar un
+        * campo, el campo está mal puesto. Ahora lo dice el propio
+        * hueco del buscador ---«Buscar en las 1.252…»--- y el de la
+        * tabla sigue diciendo «Buscar en la tabla…». Dos frases que se
+        * leen de un vistazo y no compiten.
+        */}
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="w-[min(240px,100%)]">
+          <Desplegable
+            alto={38}
+            etiquetaAria="Qué lista ve"
+            marcador="Todos, incluidos los ya atendidos"
+            valor={estado}
+            opciones={[
+              { valor: "", etiqueta: "Todos, incluidos los ya atendidos" },
+              ...ESTADOS.map((s) => ({
+                valor: s,
+                etiqueta: ETIQUETA_ESTADO_LEAD[s],
+              })),
+            ]}
+            alElegir={setEstado}
+          />
         </div>
 
-        <div className="min-w-[320px] flex-1">
-          <Campo
-            etiqueta="Buscar en toda la base"
-            ayuda="La tabla tiene el suyo, que filtra lo que ya se trajo. Este pregunta a las 1.252."
-          >
-            <input
-              style={{ height: 38 }}
-              className={CLASE_BUSCADOR + " w-full"}
-              placeholder="Documento, nombre, correo o celular"
-              value={buscar}
-              onChange={(e) => setBuscar(e.target.value)}
-            />
-          </Campo>
-        </div>
+        <input
+          style={{ height: 38 }}
+          className={CLASE_BUSCADOR + " min-w-[260px] flex-1"}
+          aria-label="Buscar en toda la base"
+          placeholder={
+            datos
+              ? `Buscar en ${datos.total.toLocaleString("es-CO")}: documento, nombre, correo o celular`
+              : "Buscar en toda la base: documento, nombre, correo o celular"
+          }
+          value={buscar}
+          onChange={(e) => setBuscar(e.target.value)}
+        />
       </div>
 
       {/**

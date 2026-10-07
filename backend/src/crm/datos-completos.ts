@@ -47,6 +47,62 @@ type Prisma = Pick<
  * `motivo` va al movimiento: dice POR QUÉ camino se completó, que
  * es lo que alguien va a querer saber mirando la historia.
  */
+/// Lo que mira `faltaDeLaPersona`, y nada más. En una constante para
+/// que las dos consultas de aquí abajo pidan exactamente lo mismo: si
+/// una pidiera menos, diría que falta algo que sí está.
+const CAMPOS_DE_LA_PERSONA = {
+  numeroDocumento: true,
+  correo: true,
+  celular: true,
+  fechaNacimiento: true,
+  generoSepId: true,
+  estrato: true,
+  departamentoSepId: true,
+  municipioSepId: true,
+  barrio: true,
+  direccion: true,
+} as const;
+
+/**
+ * QUÉ LE FALTA A ESA FICHA PARA QUEDAR EN DATOS COMPLETOS.
+ *
+ * «Las personas están completando pero es como si no migrara la
+ * información» (cliente, 7 oct 2026), con un aviso delante que decía
+ * «Completó los datos de su organización» sobre una ficha que seguía
+ * en Interesado.
+ *
+ * Las dos cosas eran ciertas, y por eso confundía: la persona SÍ
+ * completó lo que el formulario le pidió, y la ficha NO avanzó porque
+ * le faltaba otra cosa ---casi siempre el sector económico o el jefe
+ * directo---. El sistema lo sabía y no lo decía, así que desde fuera
+ * parecía que el dato no llegaba.
+ *
+ * LA MISMA REGLA, no una copia: llama a `faltaDeLaFicha` igual que la
+ * función de abajo. Una segunda lista escrita aparte acabaría diciendo
+ * que no falta nada mientras la otra no deja pasar.
+ */
+export async function loQueLeFaltaALaFicha(
+  prisma: Prisma,
+  participanteId: string,
+): Promise<string[]> {
+  const p = await prisma.participante.findUnique({
+    where: { id: participanteId },
+    select: {
+      nivelOcupacionalSepId: true,
+      persona: { select: CAMPOS_DE_LA_PERSONA },
+      empresa: { select: CAMPOS },
+      reserva: { select: { empresa: { select: CAMPOS } } },
+    },
+  });
+  if (!p) return [];
+  return faltaDeLaFicha({
+    persona: p.persona,
+    nivelOcupacionalSepId: p.nivelOcupacionalSepId,
+    empresa: p.empresa ?? p.reserva?.empresa ?? null,
+    documentoDeLaPersona: p.persona.numeroDocumento,
+  });
+}
+
 export async function pasarSiNoLeFaltaNada(
   prisma: Prisma,
   participanteId: string,
@@ -59,20 +115,7 @@ export async function pasarSiNoLeFaltaNada(
     select: {
       etapa: true,
       nivelOcupacionalSepId: true,
-      persona: {
-        select: {
-          numeroDocumento: true,
-          correo: true,
-          celular: true,
-          fechaNacimiento: true,
-          generoSepId: true,
-          estrato: true,
-          departamentoSepId: true,
-          municipioSepId: true,
-          barrio: true,
-          direccion: true,
-        },
-      },
+      persona: { select: CAMPOS_DE_LA_PERSONA },
       /// LA SUYA PROPIA Y, SI NO, LA DE LA RESERVA QUE LO NOMINÓ.
       ///
       /// Es la misma cadena que ya usan el F7 y la compuerta, y
