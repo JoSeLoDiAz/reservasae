@@ -126,6 +126,11 @@ export class PreinscripcionService {
         nombre: true,
         horas: true,
         modalidad: true,
+        /// QUE ES ---CURSO, TALLER, TALLER-BOOTCAMP, FORO---, que no
+        /// es lo mismo que COMO se dicta. Hace falta en la pantalla
+        /// para reconocer el foro, que es la excepcion de «una sola
+        /// accion de formacion».
+        evento: true,
         objetivo: true,
         contenido: true,
         competencia: true,
@@ -211,6 +216,21 @@ export class PreinscripcionService {
           nombre: a.nombre,
           horas: a.horas,
           modalidad: a.modalidad,
+          /**
+           * Y EL EVENTO, para que la pantalla pueda reconocer el foro.
+           *
+           * «Cuando es foro preguntan como lo inscribo a virtual y
+           * foro» (cliente, 7 oct 2026). El servidor SI permite las
+           * dos ---`motivoParaNoInscribir` exime al foro desde el 14
+           * sep--- pero esta ruta no mandaba `evento`, asi que el
+           * formulario no tenia como distinguirlo: lo pintaba como
+           * «HIBRIDA, 2 horas» igual que cualquier otra, y el aviso de
+           * arriba decia «solo puede preinscribirse en una».
+           *
+           * La regla estaba bien y la pantalla decia lo contrario, que
+           * para quien la lee es exactamente igual que no tenerla.
+           */
+          evento: a.evento,
           /// Lo que la tarjeta ensena. El `objetivo` del
           /// catalogo esta escrito para el convenio y no
           /// sirve aqui: solo se usa si nadie ha escrito el

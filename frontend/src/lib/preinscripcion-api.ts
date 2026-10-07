@@ -21,6 +21,19 @@ export type AccionPublica = {
   nombre: string;
   horas: number;
   modalidad: string;
+  /**
+   * QUÉ ES: CURSO, TALLER, TALLER-BOOTCAMP o FORO.
+   *
+   * El servidor ya lo mandaba ---`catalogo.service.ts`--- y este tipo
+   * no lo declaraba, así que la pantalla no podía distinguir el foro
+   * de lo demás: salía rotulado «HÍBRIDA · 2 horas» como cualquier
+   * otra y el aviso de arriba le decía a la persona que solo podía
+   * preinscribirse en una, cuando el foro es justo la excepción.
+   *
+   * No confundir con `modalidad`, que dice CÓMO se dicta: un foro
+   * puede ser híbrido, virtual o presencial.
+   */
+  evento: string | null;
   /// Lo que se lleva quien haga el curso. Se edita en
   /// el panel, en Formularios. Null mientras nadie lo escriba.
   ///

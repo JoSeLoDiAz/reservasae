@@ -53,6 +53,20 @@ const CAMPO =
  */
 const ALTO_CAMPO = 46;
 
+/**
+ * ¿ES EL FORO? Espejo de `esForo` del servidor
+ * (`backend/src/crm/una-sola-accion.ts`), por IGUALDAD y no por
+ * «contiene»: un futuro «FORO-TALLER» de cuarenta horas no puede
+ * colarse por la excepción de los de dos.
+ *
+ * Hay una prueba que compara las dos reglas: dos copias de esto
+ * acabarían discrepando, y el síntoma sería una pantalla que ofrece
+ * lo que el servidor después rechaza.
+ */
+function esForo(evento: string | null | undefined): boolean {
+  return (evento ?? "").trim().toUpperCase() === "FORO";
+}
+
 export function PreinscripcionPublica({ slug }: { slug: string }) {
   const [catalogo, setCatalogo] = useState<CatalogoPreinscripcion | null>(null);
   const [noExiste, setNoExiste] = useState(false);
@@ -242,6 +256,12 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
   /// que escoja delante de una sola tarjeta se lee como si
   /// faltara algo por cargar.
   const unaSola = catalogo.formulario?.accionUnica === true;
+
+  /// SI ENTRE LO QUE SE LE OFRECE HAY FORO. Se mira sobre
+  /// `conCobertura` y no sobre el catálogo entero: anunciar la
+  /// excepción a quien no tiene foro disponible es prometer algo que
+  /// no va a poder hacer.
+  const hayForo = conCobertura.some((x) => esForo(x.accion.evento));
 
   const accionElegida = catalogo.acciones.find((a) => a.id === accionId) ?? null;
   const nombreAccion = accionElegida?.nombre ?? "";
@@ -527,9 +547,27 @@ export function PreinscripcionPublica({ slug }: { slug: string }) {
             )}
             {conCobertura.length > 0 && (
               <p className="mt-3 rounded-xl bg-marca-suave px-4 py-3 text-sm text-marca">
+                {/**
+                  * Y EL FORO SE NOMBRA, porque si no el aviso MIENTE.
+                  *
+                  * «Cuando es foro preguntan cómo lo inscribo a
+                  * virtual y foro» (cliente, 7 oct 2026), y ahí está
+                  * el porqué de que se lo preguntaran: el servidor SÍ
+                  * permite las dos ---es la excepción que confirmó
+                  * Catalina el 14 sep, «si es de las virtuales se
+                  * puede inscribir al foro»--- y esta línea decía que
+                  * no. Nadie elegía las dos porque la pantalla les
+                  * decía que no podían.
+                  *
+                  * La tarjeta tampoco ayudaba: el foro sale rotulado
+                  * «HÍBRIDA · 2 horas» y en ningún sitio ponía
+                  * «foro», así que ni se le reconocía.
+                  */}
                 {unaSola
                   ? "Continúe con la acción de formación para registrar sus datos."
-                  : "Seleccione la que sea de su mayor interés, considerando que solo puede preinscribirse en una."}
+                  : hayForo
+                    ? "Seleccione la que sea de su mayor interés: solo puede preinscribirse en una. El foro es la excepción y se suma a la que elija: preinscríbase primero en una, y vuelva después por el foro."
+                    : "Seleccione la que sea de su mayor interés, considerando que solo puede preinscribirse en una."}
               </p>
             )}
 
@@ -1164,6 +1202,15 @@ function TarjetaAccion({
         {accion.horas != null && (
           <span className="rounded-md bg-superficie-alterna px-2 py-0.5 text-xs text-texto-suave">
             {accion.horas} horas
+          </span>
+        )}
+        {/* EL RÓTULO DE FORO, que es lo que faltaba para reconocerlo:
+            salía como «HÍBRIDA · 2 horas» y nada más. Va aparte de la
+            modalidad porque son dos cosas ---aquella dice CÓMO se
+            dicta y esta QUÉ es--- y un foro puede ser híbrido o no. */}
+        {esForo(accion.evento) && (
+          <span className="rounded-md bg-exito-suave px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-exito">
+            Foro · se suma a otra
           </span>
         )}
       </div>
