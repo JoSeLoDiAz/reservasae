@@ -45,6 +45,22 @@ import type { DatosDeLaFila } from './datos-de-la-fila';
 export const ORIGEN_DEL_CARGUE = 'cargue-masivo';
 
 /**
+ * LO QUE ESCRIBIMOS NOSOTROS, para poder apartarlo del buzon.
+ *
+ * La mesa de entrada es «lo que nos mandan de fuera», y eso NO se
+ * puede escribir como una lista blanca: `origenSistema` es texto
+ * libre ---lo elige quien llama al webhook--- asi que el dia que
+ * el orquestador cambie su valor, una lista blanca lo haria
+ * DESAPARECER de la mesa sin que nada fallara. Justo lo contrario
+ * de tener el control de lo que entra.
+ *
+ * Por eso se excluye lo nuestro, que es lo unico que conocemos con
+ * certeza: lo que no reconocemos aparece, que en un buzon es la
+ * respuesta correcta. Si manana hay otro cargue propio, va aqui.
+ */
+export const ORIGENES_PROPIOS: readonly string[] = [ORIGEN_DEL_CARGUE];
+
+/**
  * La llave de esta fila, o por qué no se puede reconocer.
  *
  * El convenio va SIEMPRE y el código de la acción también: los dos

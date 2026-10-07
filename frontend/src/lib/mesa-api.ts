@@ -142,6 +142,10 @@ export const mesaApi = {
     /// filtro vive aquí y no en una segunda función que repetiría
     /// los otros cuatro parámetros.
     origenSistema?: string;
+    /// Aparta lo que subimos nosotros, para que el buzon sea lo
+    /// que nos mandan de fuera. Lo manda la mesa; la BBDD no, que
+    /// es justo la pantalla donde hay que ver lo cargado.
+    soloDeFuera?: boolean;
     convenioId?: string;
     buscar?: string;
     pagina?: number;
@@ -150,6 +154,7 @@ export const mesaApi = {
     const p = new URLSearchParams();
     if (q.estado) p.set("estado", q.estado);
     if (q.origenSistema) p.set("origenSistema", q.origenSistema);
+    if (q.soloDeFuera) p.set("soloDeFuera", "si");
     if (q.convenioId) p.set("convenioId", q.convenioId);
     if (q.buscar?.trim()) p.set("buscar", q.buscar.trim());
     if (q.pagina) p.set("pagina", String(q.pagina));

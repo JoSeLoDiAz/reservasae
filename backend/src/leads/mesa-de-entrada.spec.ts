@@ -213,3 +213,70 @@ describe('el recuento por estado cuenta lo mismo que la tabla', () => {
     expect(conEstado.length).toBeGreaterThan(0);
   });
 });
+
+/**
+ * EL BUZÓN ES LO QUE NOS MANDAN DE FUERA.
+ *
+ * Josse, 7 oct 2026: «en mesa de entrada necesito dejar solamente los
+ * links que Mauricio nos envía; se subió una base de datos y me la está
+ * uniendo aquí». Eran 1.252 filas del cargue contra 101 del
+ * orquestador, y las 1.252 en PENDIENTE: el buzón de lo que hay que
+ * atender quedaba sepultado.
+ *
+ * SE EXCLUYE LO NUESTRO, NO SE INCLUYE UNA LISTA BLANCA, y ese es el
+ * aserto que de verdad protege: `origenSistema` es texto libre --lo
+ * elige quien llama al webhook--, así que con lista blanca, el día que
+ * el orquestador cambie su valor, sus leads DESAPARECEN del buzón sin
+ * que nada falle.
+ */
+describe('la mesa enseña lo de fuera y aparta lo que subimos nosotros', () => {
+  const ramas = (nodo: unknown): Record<string, unknown>[] => {
+    const o = nodo as { AND?: unknown[] } | undefined;
+    return Array.isArray(o?.AND) ? (o.AND as Record<string, unknown>[]) : [];
+  };
+  const exclusiones = (vistos: { where?: unknown }[]) =>
+    vistos.flatMap((v) =>
+      ramas(v.where).filter(
+        (r) => (r.origenSistema as { notIn?: unknown })?.notIn !== undefined,
+      ),
+    );
+
+  it('aparta el cargue, y lo hace EXCLUYENDO: nada de lista blanca', async () => {
+    const { s, vistos } = armar();
+    await s.listar({ soloDeFuera: true }, AMBITO);
+
+    const ex = exclusiones(vistos);
+    expect(ex.length).toBeGreaterThan(0);
+    expect(ex[0]).toEqual({ origenSistema: { notIn: ['cargue-masivo'] } });
+
+    /// Y NO hay ninguna igualdad de origen: eso seria la lista
+    /// blanca, y haria desaparecer al orquestador si cambia su valor.
+    for (const v of vistos) {
+      for (const r of ramas(v.where)) {
+        expect(typeof r.origenSistema).not.toBe('string');
+      }
+    }
+  });
+
+  it('un origen pedido a mano MANDA sobre la exclusión', async () => {
+    const { s, vistos } = armar();
+    await s.listar(
+      { soloDeFuera: true, origenSistema: 'cargue-masivo' },
+      AMBITO,
+    );
+    /// Quien quiera mirar el cargue por esta puerta, puede.
+    expect(exclusiones(vistos)).toEqual([]);
+    expect(ramas(vistos[0].where)).toContainEqual({
+      origenSistema: 'cargue-masivo',
+    });
+  });
+
+  /// EL CANDADO AL REVES: la pantalla de BBDD usa ESTA MISMA ruta sin
+  /// `soloDeFuera`, y es donde hay que ver lo cargado. Aplicarlo
+  /// siempre la dejaria vacia.
+  it('sin pedirlo no aparta nada: la BBDD sigue viendo lo cargado', async () => {
+    const { s, vistos } = armar();
+    await s.listar({}, AMBITO);
+    expect(exclusiones(vistos)).toEqual([]);
+  });
+});

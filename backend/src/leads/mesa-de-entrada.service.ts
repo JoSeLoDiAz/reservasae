@@ -37,6 +37,7 @@ import { puedoContactar } from './puedo-contactar';
 import { sedeQueTendra } from './sede-que-tendra';
 import { ArreglarLeadDto } from './dto';
 import { autorizoAlRegistrarse, loQueLeFaltaAlLead } from './listo-para-ficha';
+import { ORIGENES_PROPIOS } from './cargue/llave-de-la-fila';
 
 /// Cuántos por página. La mesa se mira, no se estudia.
 const POR_PAGINA = 50;
@@ -58,6 +59,20 @@ export type FiltrosDeLaMesa = {
    * `porDonde`; lo que faltaba era poder PEDIRLO.
    */
   origenSistema?: string;
+  /**
+   * SOLO LO QUE LLEGO DE FUERA: aparta lo que subimos nosotros.
+   *
+   * Lo pidio Josse el 7 oct 2026: «en mesa de entrada necesito
+   * dejar solamente los links que Mauricio nos envia; se subio una
+   * base de datos y me la esta uniendo aqui». Eran 1.252 filas del
+   * cargue contra 101 del orquestador, todas en PENDIENTE, asi que
+   * el buzon de lo que hay que atender quedaba sepultado.
+   *
+   * Es EXCLUSION y no lista blanca; el porque esta en
+   * `ORIGENES_PROPIOS`. Y un `origenSistema` pedido a mano manda
+   * sobre esto: quien quiera mirar el cargue por esta puerta, puede.
+   */
+  soloDeFuera?: boolean;
   /// Documento, nombre, correo o celular.
   buscar?: string;
   pagina?: number;
@@ -95,6 +110,9 @@ export class MesaDeEntrada {
         ...(filtros.convenioId ? [{ convenioId: filtros.convenioId }] : []),
         ...(conEstado && filtros.estado
           ? [{ estado: filtros.estado as never }]
+          : []),
+        ...(filtros.soloDeFuera && !filtros.origenSistema
+          ? [{ origenSistema: { notIn: [...ORIGENES_PROPIOS] } }]
           : []),
         ...(filtros.origenSistema
           ? [{ origenSistema: filtros.origenSistema }]
