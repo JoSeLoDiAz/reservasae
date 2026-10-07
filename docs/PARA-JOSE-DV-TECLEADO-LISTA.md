@@ -13,11 +13,80 @@ momento; desde este documento no empujo nada más hasta que digas.
 | Sin desplegar | **21 commits**: tus 12 de `origin/dev` ---incluido el `v0.23.0-JD` que ya está arriba--- y mis 9 |
 | **Migraciones** | **una, y es tuya**: `20261007180000_de_que_grupo_venia`. Dos columnas nuevas, `TEXT` y nulables, en `movimientos_participante`. Hacia atrás no rompe: el código de hoy no las mira. Yo no traigo ninguna. |
 | De lo tuyo que falte traer | **nada**: `origin/dev` fundida hasta `7a75aad` |
-| Línea base | `tsc` limpio en los dos lados · **277 suites, 2.910 pruebas**, verde |
+| Línea base | `tsc` limpio en los dos lados · **278 suites, 2.916 pruebas**, verde |
 
 ---
 
 ## 0 · Lo que entra, por orden de lo que hace daño hoy
+
+### 0) Los cupos reservados no llevaban ventana — **lo más urgente**
+
+Esto no estaba en la lista: salió de ejercitar la pantalla en el
+navegador para verificar la fusión, y es la queja que el cliente lleva
+repitiendo desde hace semanas.
+
+> «Los filtros de tiempo o de fecha no funcionan, y ya lo había
+> reiterado en muchas ocasiones» (cliente, 7 oct 2026).
+
+Tenía razón, y **no estaba en la pantalla**: la pantalla mandaba la
+ventana bien ---`?desde=2026-10-06T05:00Z&hasta=2026-10-07T05:00Z`, que
+es ayer en hora de Bogotá---. Lo que no la usaba era la subconsulta de
+reservas de `resumen-por-accion.ts`, que filtraba solo por
+`estado = 'CONFIRMADA'`.
+
+Con «Ayer» puesto, AF1 enseñaba:
+
+| Leads por su cuenta | Inscritos | **Cupos reservados** | Total leads |
+|---|---|---|---|
+| 0 | 0 | **33** | **33** |
+
+33 leads en un día en que no entró nadie, porque `totalLeads` suma esa
+columna. Lo mismo con «Hoy», con «Últimos 7 días» y con cualquier
+periodo: siempre los 33 de toda la vida.
+
+**Se fecha por `creadoEn`** y no por una fecha de confirmación porque
+no existe: `estado` tiene `@default(CONFIRMADA)`, así que una reserva
+nace confirmada y el día en que se creó es el día en que esa empresa
+apartó esos cupos.
+
+**Y OJO CON NO CONFUNDIRLO CON `cuposDisponibles`**, que es la trampa
+en la que cayó esta columna. Aquello es un **saldo** ---cuántas sillas
+quedan libres hoy--- y por eso **no lleva ventana nunca**: es una
+decisión tomada a propósito, está escrita en `completarFila`, y no la
+he tocado. Esto es un **flujo**: cuántos cupos se apartaron en el
+periodo.
+
+Medido en el navegador, antes y después:
+
+| Periodo | Cupos reservados |
+|---|---|
+| Desde el principio | 33 |
+| Ayer | 0 |
+| Últimos 12 meses | 33 |
+| El año anterior (la barra de comparación) | 0 |
+
+Es decir: filtra, y **no** apaga por apagar. Dos pruebas nuevas lo
+fijan, una por cada mitad ---con periodo se recorta, sin periodo no---,
+porque esta es justo la clase de regla que se pierde en la siguiente
+fusión.
+
+### 0 bis) El lead no decía dónde vive
+
+El departamento y el municipio **sí se cargaban y sí se guardaban**
+---son los que deciden qué sede le toca a cada quien--- pero solo
+viajaban dentro de `crudo`, que es lo que rellena el formulario de
+corrección y no se enseña en ninguna tabla.
+
+Desde fuera, un dato guardado que no sale por ninguna parte es
+exactamente igual que un dato que no se cargó, y así lo leyó el
+cliente: «si tengo departamento no queda ni nada».
+
+Salen como dos columnas en BBDD Leads, **resueltas a nombre en el
+servidor** y no en el navegador: el catálogo del SEP vive en el
+servidor, y mandar el número obligaría a la pantalla a tener su propia
+copia ---una segunda verdad que envejece sola---. Van antes de «Sede
+que le tocaría» a propósito, porque la sede se deduce de ellas.
+
 
 ### a) `299dd74` · El jefe directo no llegaba a donde se busca
 
