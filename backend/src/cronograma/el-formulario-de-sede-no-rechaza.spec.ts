@@ -206,3 +206,66 @@ describe('los tres hallazgos de la revisión', () => {
     expect(texto).toMatch(/onClick=\{\(\) => elegirGrupo\(grupoId\)\}/);
   });
 });
+
+/**
+ * EL BOTON DICE LA REGLA ANTES DEL CLIC (8 oct 2026).
+ *
+ * Lo tope probandolo en caliente: baje el tope de Antioquia a 20
+ * dejando su comprometido en 25 y el servidor contesto 400 ---«el
+ * sobrecupo suma, no resta»---, que es correcto. Lo que no estaba bien
+ * es que el formulario dejara pulsar: la unica respuesta era un toast
+ * que se va, y bajar el tope olvidando el comprometido es el PRIMER
+ * movimiento natural al repartir los 65 de un grupo.
+ *
+ * NO es una segunda verdad: la del navegador es comodidad y el
+ * servidor sigue imponiendola con el mismo mensaje. Es la regla que
+ * esta casa ya usa en la preinscripcion ---el boton apagado dice que
+ * falta---, y la misma distincion que `marcable()` frente a
+ * `comun/celular.ts`.
+ */
+describe('el boton dice por que no se puede guardar', () => {
+  const texto = readFileSync(TABLA, "utf8");
+  const formulario = texto.slice(
+    texto.indexOf("function AnadirSede("),
+    texto.indexOf("export function TablaPorGrupo("),
+  );
+
+  it('apaga el boton por la razon, no por un `listo` a secas', () => {
+    expect(formulario).toContain("disabled={falta !== null || guardando}");
+    /// y el `listo` viejo no se queda al lado: codigo muerto que
+    /// alguien reconectaria creyendo que es el candado
+    expect(formulario).not.toContain("const listo =");
+  });
+
+  it('la razon incluye el tope por debajo del comprometido', () => {
+    expect(formulario).toContain("Number(tope) < Number(base)");
+    expect(formulario).toContain("el sobrecupo suma, no resta");
+  });
+
+  /// Y SE LEE. Calculada y sin pintar seria un control en pie: el
+  /// boton apagado sin decir por que es peor que el 400.
+  it('y se pinta en pantalla', () => {
+    expect(formulario).toContain("{falta}");
+  });
+
+  /**
+   * LO QUE NO SE ADELANTA, Y ES DELIBERADO: el otro 400 del servidor
+   * es «ya tiene N personas dentro», y ese conteo NO lo tiene el
+   * formulario. Adivinarlo aqui seria inventar una cifra; el servidor
+   * la contesta nombrando el numero.
+   */
+  it('no se inventa el conteo de gente dentro', () => {
+    /// SIN LOS COMENTARIOS, y no es un detalle: este proyecto explica
+    /// sus decisiones en docblocks, asi que la frase que se busca
+    /// aparece citada en prosa justo para decir que NO se usa. Es la
+    /// misma leccion de `quien-crea-se-queda-la-ficha`, que acuso dos
+    /// docblocks de `preinscripcion.service` por lo mismo.
+    const codigo = formulario
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .replace(/\/\/\/?.*$/gm, '');
+    expect(codigo).not.toContain('personas dentro');
+    /// y la comprobacion vale algo: el docblock SI la nombra, asi que
+    /// sin quitar los comentarios este test fallaria siempre
+    expect(formulario).toContain('personas dentro');
+  });
+});

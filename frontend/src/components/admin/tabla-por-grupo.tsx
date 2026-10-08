@@ -263,8 +263,34 @@ function AnadirSede({
   const sede = sedes?.find((s) => s.ubicacionId === ubicacionId) ?? null;
   const grupo = grupos.find((g) => g.grupoId === grupoId) ?? null;
   const ajusta = sede?.puesta ?? null;
-  const listo =
-    grupoId !== "" && ubicacionId !== "" && base.trim() !== "" && tope.trim() !== "";
+  /**
+   * POR QUE TODAVIA NO SE PUEDE GUARDAR, EN PALABRAS.
+   *
+   * El servidor rechaza un tope por debajo de lo comprometido ---«el
+   * sobrecupo suma, no resta»--- y hacia bien, pero el formulario
+   * dejaba pulsar y la unica respuesta era un 400 con un toast que se
+   * va. Y es el primer movimiento natural al repartir: bajar el tope
+   * de una sede y olvidarse del comprometido. Lo topé probándolo.
+   *
+   * NO ES UNA SEGUNDA VERDAD: la del navegador es comodidad y la del
+   * servidor es la que manda ---sigue ahi, con el mismo mensaje---.
+   * Es la regla que esta casa ya usa en la preinscripcion: el boton
+   * apagado dice que falta.
+   *
+   * Lo que NO se adelanta es «ya tiene N personas dentro»: ese dato
+   * no lo tiene el formulario, y el servidor lo contesta nombrando
+   * el numero. Inventarlo aqui seria adivinar.
+   */
+  const falta =
+    grupoId === ""
+      ? "Elija el grupo."
+      : ubicacionId === ""
+        ? "Elija la ubicación."
+        : base.trim() === "" || tope.trim() === ""
+          ? "Falta el comprometido o el tope."
+          : Number(tope) < Number(base)
+            ? "El tope no puede quedar por debajo de lo comprometido: el sobrecupo suma, no resta."
+            : null;
 
   /**
    * LO QUE EL GRUPO SUMARIA CON LO QUE HAY TECLEADO.
@@ -400,7 +426,7 @@ function AnadirSede({
             como un alta y nadie sabría que está pisando un número. */}
         <button
           onClick={guardar}
-          disabled={!listo || guardando}
+          disabled={falta !== null || guardando}
           className="sin-aro rounded-lg bg-marca px-3 py-1.5 text-[0.78125rem] font-semibold text-blanco transition disabled:opacity-40"
         >
           {guardando
@@ -425,6 +451,13 @@ function AnadirSede({
           </button>
         )}
       </div>
+
+      {/* LA RAZON SE LEE, y solo cuando ya hay algo tecleado: con el
+          formulario recien abierto, «Elija el grupo» seria un regano
+          por no haber hecho nada todavia. */}
+      {falta !== null && grupoId !== "" && ubicacionId !== "" && (
+        <p className="mt-3 text-xs text-aviso">{falta}</p>
+      )}
 
       {falloSedes !== null && (
         <p className="mt-3 text-xs text-error">{falloSedes}</p>
