@@ -51,6 +51,7 @@
     "db:integridad": "ts-node prisma/integridad.ts",
     "db:jefe-directo": "ts-node prisma/jefe-directo-de-las-reservas.ts",
     "db:cupos-vs-grupos": "ts-node prisma/cupos-de-la-oferta-contra-los-grupos.ts",
+    "db:sondeo-cargue": "ts-node prisma/sondeo-cargue-genero.ts",
     "db:quien-recibe-leads": "ts-node prisma/quien-puede-recibir-leads.ts",
     "db:nit-pegado": "ts-node prisma/unir-nit-pegado.ts",
     "db:cronograma": "ts-node prisma/cronograma-a-los-grupos.ts"

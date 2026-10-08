@@ -241,9 +241,23 @@ const BRECHAS: Brecha[] = [
     abierta: () => {
       const t = leer('../frontend/src/components/admin/columnas-participante.tsx');
       if (!t) return false;
-      /// Abierta mientras `valor` devuelva la fecha cruda: ese es
-      /// exactamente el texto que acaba dentro del Excel.
-      return /valor:\s*\(f\)\s*=>\s*f\.creadoEn\b/.test(t);
+      /**
+       * MIRA `exporta` Y NO `valor`, que es lo que se corrigió.
+       *
+       * Este detector llevaba semanas denunciando una brecha ya
+       * cerrada, y lo cazó el barrido del 7 oct 2026.
+       *
+       * La confusión está en que la tabla da DOS lecturas de la misma
+       * celda: `valor` es la cruda ---la necesitan el filtro y el
+       * orden, que hacen `new Date(valor)`--- y `exporta` es la que
+       * acaba dentro del Excel. Lo que salía corrido cinco horas era
+       * el archivo, así que lo que se arregló fue `exporta`; `valor`
+       * sigue crudo A PROPÓSITO.
+       *
+       * Un detector que denuncia lo que ya está arreglado es peor que
+       * no tenerlo: enseña a no leer la lista de brechas.
+       */
+      return !/exporta:\s*\(f\)\s*=>\s*fechaOrdenable\(f\.creadoEn\)/.test(t);
     },
   },
   {

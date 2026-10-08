@@ -845,6 +845,10 @@ export class CargueDeLeads {
             accionFormacionId: f.datos.accionFormacionId,
             departamentoSepId: f.datos.departamentoSepId,
             municipioSepId: f.datos.municipioSepId,
+            /// El genero, que el lead ya tenia donde guardar y el
+            /// cargue no leia: su columna caia entre las «sin
+            /// reconocer» y el dato se tiraba.
+            generoSepId: f.datos.generoSepId,
             /// Nadie firmó nada en una hoja de cálculo.
             ///
             /// `null` es «no lo dijo» y es la verdad: la base del

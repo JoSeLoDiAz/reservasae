@@ -15,6 +15,7 @@ import {
   Tarjeta,
 } from "@/components/admin/marco-admin";
 import { Esqueleto } from "@/components/admin/piezas";
+import { useAdmin } from "@/components/admin/marco-admin";
 import { ErrorApi } from "@/lib/api";
 import {
   formulariosApi,
@@ -32,6 +33,10 @@ export default function PaginaConstructor({
 }) {
   const { id } = use(params);
 
+  /// Quién puede publicar y borrar. La MISMA llave que mira el
+  /// servidor ---`RolAdmin.SUPERADMIN`--- y no un permiso inventado
+  /// aquí: dos reglas para lo mismo acaban discrepando.
+  const esSuperadmin = useAdmin().admin.rol === "SUPERADMIN";
   const [formulario, setFormulario] = useState<FormularioAdmin | null>(null);
   const [campos, setCampos] = useState<DefinicionCampoNucleo[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -99,17 +104,39 @@ export default function PaginaConstructor({
           >
             {formulario.publicado ? "Publicado" : "Borrador"}
           </span>
-          <Boton
-            type="button"
-            disabled={ocupado || (!formulario.publicado && formulario.problemas.length > 0)}
-            onClick={() =>
-              accion(() =>
-                formulariosApi.actualizar(id, { publicado: !formulario.publicado }),
-              )
-            }
-          >
-            {formulario.publicado ? "Despublicar" : "Publicar"}
-          </Boton>
+          {/**
+            * PUBLICAR ES DEL ADMINISTRADOR DEL SISTEMA, y hasta hoy el
+            * botón se le enseñaba a todo el que podía construir.
+            *
+            * El servidor ya lo negaba ---`formularios.controller.ts`
+            * lanza «Publicar o retirar un formulario es del
+            * administrador del sistema»--- así que quien lo pulsaba se
+            * comía un error después de dar el clic. Un botón que
+            * siempre falla es peor que no tenerlo: enseña a desconfiar
+            * de los demás.
+            *
+            * NO SE ESCONDE A SECAS. Quien lo busca tiene que saber por
+            * qué no está y a quién pedírselo, igual que en la barra de
+            * repartir leads.
+            */}
+          {esSuperadmin ? (
+            <Boton
+              type="button"
+              disabled={ocupado || (!formulario.publicado && formulario.problemas.length > 0)}
+              onClick={() =>
+                accion(() =>
+                  formulariosApi.actualizar(id, { publicado: !formulario.publicado }),
+                )
+              }
+            >
+              {formulario.publicado ? "Despublicar" : "Publicar"}
+            </Boton>
+          ) : (
+            <span className="text-sm text-texto-suave">
+              {formulario.publicado ? "Retirarlo" : "Publicarlo"} lo hace el
+              administrador del sistema.
+            </span>
+          )}
 
           {/* BORRAR. El backend lo permitía desde siempre y la
               pantalla no lo ofrecía: quien creaba un
@@ -121,7 +148,11 @@ export default function PaginaConstructor({
               primer clic sobre algo que está en la calle. Y si
               tiene respuestas, el servidor se niega y lo dice
               —el histórico no se tira por limpiar la lista. */}
-          {!formulario.publicado && (
+          {/* Y BORRAR, solo al administrador del sistema: el `@Delete`
+              lo exige. Este sí se esconde en vez de explicarse, porque
+              es lo único de esta barra que no tiene vuelta y anunciarlo
+              a quien no puede solo invita a pedirlo. */}
+          {esSuperadmin && !formulario.publicado && (
             <button
               type="button"
               disabled={ocupado}
@@ -213,6 +244,7 @@ export default function PaginaConstructor({
           campos={campos}
           disponibles={disponibles}
           ocupado={ocupado}
+          borraSecciones={esSuperadmin}
           accion={accion}
         />
       ))}
@@ -352,6 +384,7 @@ function BloqueSeccion({
   campos,
   disponibles,
   ocupado,
+  borraSecciones,
   accion,
 }: {
   seccion: FormularioAdmin["secciones"][number];
@@ -361,6 +394,10 @@ function BloqueSeccion({
   campos: DefinicionCampoNucleo[];
   disponibles: DefinicionCampoNucleo[];
   ocupado: boolean;
+  /// Si esta cuenta puede borrar secciones. Se pasa ya resuelto y
+  /// no se vuelve a leer el rol aquí: una sola lectura, para que la
+  /// pantalla no pueda contradecirse a sí misma.
+  borraSecciones: boolean;
   accion: (fn: () => Promise<FormularioAdmin>) => Promise<void>;
 }) {
   const [editando, setEditando] = useState(false);
@@ -446,20 +483,26 @@ function BloqueSeccion({
               <button onClick={() => setEditando(true)} className="text-marca underline">
                 Editar
               </button>
-              <button
-                onClick={() => {
-                  if (
-                    !window.confirm(
-                      "Se borra la sección. Sus preguntas NO se borran: quedan al final del formulario.",
+              {/* Borrar la sección lo exige el servidor al
+                  administrador del sistema (`@Delete secciones/:id`).
+                  Ofrecerlo a quien va a recibir un 403 es enseñar a
+                  desconfiar de los botones. */}
+              {borraSecciones && (
+                <button
+                  onClick={() => {
+                    if (
+                      !window.confirm(
+                        "Se borra la sección. Sus preguntas NO se borran: quedan al final del formulario.",
+                      )
                     )
-                  )
-                    return;
-                  void accion(() => formulariosApi.eliminarSeccion(seccion.id));
-                }}
-                className="text-error underline"
-              >
-                Borrar
-              </button>
+                      return;
+                    void accion(() => formulariosApi.eliminarSeccion(seccion.id));
+                  }}
+                  className="text-error underline"
+                >
+                  Borrar
+                </button>
+              )}
             </div>
           </>
         )}
