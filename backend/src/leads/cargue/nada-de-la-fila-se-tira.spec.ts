@@ -32,7 +32,13 @@ async function leer(cabecera: string[], ...filas: string[][]) {
   return leerElCargue(Buffer.from(buffer), 'prueba.xlsx');
 }
 
-const CABECERA = ['Nombre', 'Correo', 'Género', 'Estrato', 'Barrio o vereda'];
+const CABECERA = [
+  'Nombre',
+  'Correo',
+  'Género',
+  'Talla de camiseta',
+  'Equipo de fútbol',
+];
 
 describe('el género se carga', () => {
   it('reconoce la palabra entera y la letra sola', async () => {
@@ -41,7 +47,9 @@ describe('el género se carga', () => {
       ['Ana Ruiz', 'ana@ejemplo.test', 'Femenino', '', ''],
       ['Carlos Pérez', 'carlos@ejemplo.test', 'M', '', ''],
     );
-    const g = leido.filas.map((f) => interpretarLaFila(f, []).datos.generoSepId);
+    const g = leido.filas.map(
+      (f) => interpretarLaFila(f, []).datos.generoSepId,
+    );
     expect(g).toEqual([2, 1]);
   });
 
@@ -80,16 +88,16 @@ describe('lo que no se reconoce queda archivado', () => {
       'Ana Ruiz',
       'ana@ejemplo.test',
       'Femenino',
-      '3',
-      'La Candelaria',
+      'M',
+      'Nacional',
     ]);
     expect(leido.columnasQueNoSeReconocen).toEqual([
-      'Estrato',
-      'Barrio o vereda',
+      'Talla de camiseta',
+      'Equipo de fútbol',
     ]);
     expect(leido.filas[0].extras).toEqual({
-      Estrato: '3',
-      'Barrio o vereda': 'La Candelaria',
+      'Talla de camiseta': 'M',
+      'Equipo de fútbol': 'Nacional',
     });
   });
 
@@ -99,11 +107,11 @@ describe('lo que no se reconoce queda archivado', () => {
       'Ana Ruiz',
       'ana@ejemplo.test',
       'Femenino',
-      '3',
-      'La Candelaria',
+      'M',
+      'Nacional',
     ]);
     const f = interpretarLaFila(leido.filas[0], []);
-    expect(f.crudo).toMatchObject({ Estrato: '3' });
+    expect(f.crudo).toMatchObject({ 'Talla de camiseta': 'M' });
     /// Y sin pisar lo reconocido, que es lo que de verdad se usa.
     expect(f.crudo).toMatchObject({ correo: 'ana@ejemplo.test' });
   });
@@ -114,7 +122,7 @@ describe('lo que no se reconoce queda archivado', () => {
    * celular: una ficha fantasma por cada renglón suelto del Excel.
    */
   it('pero una fila sin nada reconocible no entra', async () => {
-    const leido = await leer(CABECERA, ['', '', '', '3', 'La Candelaria']);
+    const leido = await leer(CABECERA, ['', '', '', 'M', 'Nacional']);
     expect(leido.filas).toHaveLength(0);
   });
 });

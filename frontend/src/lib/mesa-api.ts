@@ -31,6 +31,16 @@ export type LeadDeLaMesa = {
   /// catálogo del SEP vive allí. Null: no vino en el archivo.
   departamento: string | null;
   ciudad: string | null;
+  /// Las siete que trae su base. Null: no vino en el archivo.
+  /// La fecha ya en AAAA-MM-DD y el nivel ya con su nombre: el
+  /// catálogo del SEP vive en el servidor.
+  fechaNacimiento: string | null;
+  estrato: number | null;
+  barrio: string | null;
+  direccion: string | null;
+  cargoEnEmpresa: string | null;
+  nivelOcupacional: string | null;
+  beneficiarioPrevio: boolean | null;
   /// Si ya tiene ficha, para poder saltar a ella.
   participanteId: string | null;
   /// Qué le falta para poder ser ficha. Vacío: está listo.

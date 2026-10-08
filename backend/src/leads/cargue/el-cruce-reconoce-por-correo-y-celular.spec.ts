@@ -37,6 +37,13 @@ function trae(parcial: Partial<DatosDeLaFila>): DatosDeLaFila {
     departamentoSepId: null,
     municipioSepId: null,
     generoSepId: null,
+    fechaNacimiento: null,
+    estrato: null,
+    barrio: null,
+    direccion: null,
+    cargoEnEmpresa: null,
+    nivelOcupacionalSepId: null,
+    beneficiarioPrevio: null,
     ...parcial,
   };
 }

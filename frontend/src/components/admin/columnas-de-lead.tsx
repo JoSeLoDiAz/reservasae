@@ -64,6 +64,10 @@ const raya = <span className="text-texto-suave">—</span>;
 const oRaya = (v: string | null | undefined) =>
   v ? <span className="block truncate">{v}</span> : raya;
 
+/// Sí, No, o nulo cuando no lo dijo: el nulo se deja pasar para que
+/// cada punta decida si pinta la raya o «No lo dijo».
+const siONo = (v: boolean | null) => (v === null ? null : v ? "Sí" : "No");
+
 export function columnasDeLead(): Array<Columna<LeadDeLaMesa>> {
   return [
     {
@@ -202,6 +206,89 @@ export function columnasDeLead(): Array<Columna<LeadDeLaMesa>> {
       ancho: "170px",
       valor: (l) => l.ciudad ?? "Sin ciudad",
       pinta: (l) => oRaya(l.ciudad),
+      filtro: "opciones",
+    },
+    {
+      /**
+       * LAS SIETE QUE SU BASE TRAE.
+       *
+       * «Si no tiene información, de verdad eso me da ansiedad y de
+       * una sé que quedará mal» (cliente, 7 oct 2026). Tenía razón:
+       * hasta hoy estas siete se cargaban y se archivaban en el
+       * volcado crudo, sin columna donde mirarlas. Guardado donde no
+       * se ve es igual que perdido.
+       *
+       * Van APAGADAS de entrada ---`aparte`--- porque son siete sobre
+       * veinte y la tabla ya es ancha: quien las necesite las enciende
+       * en «Columnas», y el Excel las lleva igual. Enseñarlas todas de
+       * golpe sería cambiarle la pantalla a quien no las pidió.
+       */
+      clave: "fechaNacimiento",
+      titulo: "Fecha de nacimiento",
+      ancho: "150px",
+      aparte: true,
+      valor: (l) => l.fechaNacimiento ?? "",
+      pinta: (l) => oRaya(l.fechaNacimiento),
+      filtro: "texto",
+    },
+    {
+      clave: "estrato",
+      titulo: "Estrato",
+      ancho: "100px",
+      aparte: true,
+      /// NO numérica: «Sin estrato» es texto y Number() lo vuelve NaN,
+      /// que desordena la columna. Los estratos son de un dígito, así
+      /// que como texto ordenan igual.
+      valor: (l) => (l.estrato === null ? "Sin estrato" : String(l.estrato)),
+      pinta: (l) => oRaya(l.estrato === null ? null : String(l.estrato)),
+      filtro: "opciones",
+    },
+    {
+      clave: "barrio",
+      titulo: "Barrio o vereda",
+      ancho: "170px",
+      aparte: true,
+      valor: (l) => l.barrio ?? "",
+      pinta: (l) => oRaya(l.barrio),
+      filtro: "texto",
+    },
+    {
+      clave: "direccion",
+      titulo: "Dirección",
+      ancho: "190px",
+      aparte: true,
+      valor: (l) => l.direccion ?? "",
+      pinta: (l) => oRaya(l.direccion),
+      filtro: "texto",
+    },
+    {
+      clave: "cargoEnEmpresa",
+      titulo: "Cargo en la organización",
+      ancho: "190px",
+      aparte: true,
+      valor: (l) => l.cargoEnEmpresa ?? "",
+      pinta: (l) => oRaya(l.cargoEnEmpresa),
+      filtro: "texto",
+    },
+    {
+      clave: "nivelOcupacional",
+      titulo: "Nivel ocupacional",
+      ancho: "170px",
+      aparte: true,
+      valor: (l) => l.nivelOcupacional ?? "Sin nivel",
+      pinta: (l) => oRaya(l.nivelOcupacional),
+      filtro: "opciones",
+    },
+    {
+      /// SÍ, NO, o la raya de «no lo dijo», que son TRES cosas: una
+      /// base que no trae la columna no está declarando que nadie se
+      /// benefició antes.
+      clave: "beneficiarioPrevio",
+      titulo: "¿Se benefició antes?",
+      ancho: "160px",
+      aparte: true,
+      valor: (l) => siONo(l.beneficiarioPrevio) ?? "No lo dijo",
+      pinta: (l) => oRaya(siONo(l.beneficiarioPrevio)),
       filtro: "opciones",
     },
     {

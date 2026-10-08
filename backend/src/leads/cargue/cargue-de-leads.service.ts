@@ -849,6 +849,15 @@ export class CargueDeLeads {
             /// cargue no leia: su columna caia entre las «sin
             /// reconocer» y el dato se tiraba.
             generoSepId: f.datos.generoSepId,
+            /// Las siete de su base, que desde hoy tienen columna
+            /// propia en vez de quedarse en el volcado crudo.
+            fechaNacimiento: f.datos.fechaNacimiento,
+            estrato: f.datos.estrato,
+            barrio: f.datos.barrio,
+            direccion: f.datos.direccion,
+            cargoEnEmpresa: f.datos.cargoEnEmpresa,
+            nivelOcupacionalSepId: f.datos.nivelOcupacionalSepId,
+            beneficiarioPrevio: f.datos.beneficiarioPrevio,
             /// Nadie firmó nada en una hoja de cálculo.
             ///
             /// `null` es «no lo dijo» y es la verdad: la base del

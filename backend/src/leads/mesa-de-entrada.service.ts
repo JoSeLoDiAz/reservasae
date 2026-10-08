@@ -8,6 +8,12 @@
  */
 
 import { llevanFichasEn } from '../crm/quien-lleva-fichas';
+
+/// Los tres estados que existe un lead en la mesa. Se escriben a
+/// mano y no se sacan del enum de Prisma para que el compilador
+/// avise si alguno se añade: una lista que se rellena sola dejaría
+/// pasar el nuevo sin que nadie decida si se puede filtrar por él.
+const ESTADOS_DEL_LEAD = ['PENDIENTE', 'CONVERTIDO', 'DESCARTADO'];
 import {
   BadRequestException,
   ConflictException,
@@ -21,6 +27,7 @@ import {
   motivoDeIdInvalido,
   siglaDocumento,
   DEPARTAMENTO_POR_ID,
+  NIVEL_OCUPACIONAL_POR_ID,
   MUNICIPIO_POR_ID,
 } from '../crm/catalogos-sep';
 import { celularValido, normalizarCelular } from '../comun/celular';
@@ -104,6 +111,24 @@ export class MesaDeEntrada {
     ///
     /// Y el contador NO lleva su propio filtro de estado: uno que
     /// contara por estado filtrando por estado daria una sola barra.
+    /**
+     * EL ESTADO SE COMPRUEBA ANTES DE IR A LA BASE.
+     *
+     * Iba con un `as never`, así que un estado inventado en la
+     * dirección ---`?estado=LOQUESEA`--- llegaba tal cual a Postgres y
+     * salía un error del servidor en vez de «ese filtro no vale».
+     *
+     * No es una fuga de datos: el ámbito sigue puesto y no se ve nada
+     * de otro gremio. Es que la pantalla se rompe y parece un fallo
+     * del sistema cuando lo único que pasó es que el filtro no
+     * existe. Y un error 500 en el registro esconde los de verdad.
+     */
+    if (filtros.estado && !ESTADOS_DEL_LEAD.includes(filtros.estado)) {
+      throw new BadRequestException(
+        `«${filtros.estado}» no es un estado de la mesa. Los que hay son: ${ESTADOS_DEL_LEAD.join(', ')}.`,
+      );
+    }
+
     const condiciones = (conEstado: boolean): Prisma.LeadEntranteWhereInput => ({
       AND: [
         { convenioId: { in: ambito } },
@@ -160,6 +185,16 @@ export class MesaDeEntrada {
           sedePedida: true,
           departamentoSepId: true,
           municipioSepId: true,
+          /// Las siete de su base. Se traen para poder enseñarlas:
+          /// guardadas sin columna donde verlas es igual que
+          /// perderlas.
+          fechaNacimiento: true,
+          estrato: true,
+          barrio: true,
+          direccion: true,
+          cargoEnEmpresa: true,
+          nivelOcupacionalSepId: true,
+          beneficiarioPrevio: true,
           generoSepId: true,
           /// Lo que marco la persona: manda sobre el origen.
           aceptaHabeasData: true,
@@ -332,6 +367,24 @@ export class MesaDeEntrada {
         ciudad: l.municipioSepId
           ? (MUNICIPIO_POR_ID.get(l.municipioSepId)?.[2] ?? null)
           : null,
+        /// LAS SIETE DE SU BASE, para que se vean en la tabla.
+        ///
+        /// El nivel ocupacional va resuelto a NOMBRE aquí y no en el
+        /// navegador, por lo mismo que el departamento: el catálogo
+        /// del SEP vive en el servidor, y mandar el número obligaría
+        /// a la pantalla a tener su propia copia.
+        fechaNacimiento: l.fechaNacimiento
+          ? l.fechaNacimiento.toISOString().slice(0, 10)
+          : null,
+        estrato: l.estrato,
+        barrio: l.barrio,
+        direccion: l.direccion,
+        cargoEnEmpresa: l.cargoEnEmpresa,
+        nivelOcupacional: l.nivelOcupacionalSepId
+          ? (NIVEL_OCUPACIONAL_POR_ID.get(l.nivelOcupacionalSepId)
+              ?.etiqueta ?? null)
+          : null,
+        beneficiarioPrevio: l.beneficiarioPrevio,
         /// Si ya tiene ficha, para poder saltar a ella.
         participanteId: l.participanteId,
         /// Los valores EN CRUDO, para poder rellenar el

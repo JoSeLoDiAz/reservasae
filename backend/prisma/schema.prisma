@@ -936,6 +936,28 @@ model LeadEntrante {
   departamentoSepId Int?
   municipioSepId    Int?
   generoSepId       Int?
+
+  /// LO QUE SU BASE TRAE Y NO TENIA DONDE CAER.
+  ///
+  /// «Si no tiene informacion, de verdad eso me da ansiedad y de una
+  /// se que quedara mal» (cliente, 7 oct 2026), y tiene razon:
+  /// guardarlo en el volcado crudo sin columna donde verlo es lo
+  /// mismo que perderlo. Lo dije yo mismo esta manana de otra cosa.
+  ///
+  /// MISMO NOMBRE Y MISMA FORMA QUE EN LA FICHA ---Persona y
+  /// Participante--- para que al convertir el lead viajen solos y no
+  /// haya que traducir nada. Los del SEP van por id de catalogo,
+  /// como todo lo demas.
+  fechaNacimiento       DateTime?
+  estrato               Int? /// de 1 a 6, como en Persona
+  barrio                String?
+  direccion             String?
+  cargoEnEmpresa        String?
+  nivelOcupacionalSepId Int?
+  /// Si ya se formo antes con el convenio. Null es «no lo dijo»,
+  /// que NO es lo mismo que «no»: una base que no trae la columna
+  /// no esta declarando que nadie se beneficio.
+  beneficiarioPrevio    Boolean?
   /// Que marco la casilla al registrarse. Null: no lo dijo.
   aceptaHabeasData  Boolean?
 

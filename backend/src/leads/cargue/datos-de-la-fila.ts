@@ -32,7 +32,10 @@ import { correoValido, normalizarCorreo } from '../../comun/correo';
 import { normalizarDocumento } from '../../comun/documento';
 
 import { accionQuePidio, type AccionDelCatalogo } from '../accion-que-pidio';
-import { GENEROS_SEP } from '../../crm/catalogos-sep';
+import {
+  GENEROS_SEP,
+  NIVELES_OCUPACIONALES_SEP,
+} from '../../crm/catalogos-sep';
 import { tipoDeDocumento } from '../tipo-de-documento';
 import { ubicacionQueDijo } from '../ubicacion-que-dijo';
 
@@ -60,6 +63,16 @@ export type DatosDeLaFila = {
   /// cuando no vino o no casó: es columna del reporte y no se
   /// adivina.
   generoSepId: number | null;
+  /// Las siete de su base. Null es «no vino o no se entendió», y
+  /// NUNCA un valor inventado: casi todas son columna del reporte
+  /// al SENA.
+  fechaNacimiento: Date | null;
+  estrato: number | null;
+  barrio: string | null;
+  direccion: string | null;
+  cargoEnEmpresa: string | null;
+  nivelOcupacionalSepId: number | null;
+  beneficiarioPrevio: boolean | null;
 };
 
 export type FilaInterpretada = {
@@ -244,6 +257,78 @@ export function interpretarLaFila(
       .toUpperCase()
       .trim();
 
+  /**
+   * LAS SIETE DE SU BASE.
+   *
+   * Cada una con la misma regla: lo que no se entiende SE AVISA y
+   * entra vacío. Ninguna se adivina, porque casi todas viajan al
+   * SENA y meter un valor por parecido es reportarle al Estado algo
+   * que nadie dijo.
+   */
+  const fechaNacimiento = (() => {
+    const crudo = (v.fechaNacimiento ?? '').trim();
+    if (!crudo) return null;
+    /// Dos formas: la del ordenador (1990-04-12) y la de la gente
+    /// (12/04/1990). El dia primero, que es como se escribe aqui.
+    const iso = /^(\d{4})-(\d{2})-(\d{2})$/.exec(crudo);
+    const nuestra = /^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/.exec(crudo);
+    const d = iso
+      ? new Date(Date.UTC(+iso[1], +iso[2] - 1, +iso[3]))
+      : nuestra
+        ? new Date(Date.UTC(+nuestra[3], +nuestra[2] - 1, +nuestra[1]))
+        : null;
+    if (!d || Number.isNaN(d.getTime())) {
+      avisos.push(
+        `«${crudo}» no se entiende como fecha de nacimiento (vale 1990-04-12 o 12/04/1990): entra sin fecha.`,
+      );
+      return null;
+    }
+    return d;
+  })();
+
+  const estrato = (() => {
+    const crudo = (v.estrato ?? '').trim();
+    if (!crudo) return null;
+    const n = Number(crudo);
+    if (!Number.isInteger(n) || n < 1 || n > 6) {
+      avisos.push(
+        `«${crudo}» no es un estrato del 1 al 6: entra sin estrato.`,
+      );
+      return null;
+    }
+    return n;
+  })();
+
+  const nivelOcupacionalSepId = (() => {
+    const crudo = (v.nivelOcupacional ?? '').trim();
+    if (!crudo) return null;
+    const n = sinAcentos(crudo);
+    const cual = NIVELES_OCUPACIONALES_SEP.find(
+      (x) => sinAcentos(x.etiqueta) === n,
+    );
+    if (!cual) {
+      avisos.push(
+        `«${crudo}» no es un nivel ocupacional del SEP: entra sin nivel.`,
+      );
+      return null;
+    }
+    return cual.id;
+  })();
+
+  /// VACIO NO ES «NO». Es que nadie lo pregunto, y declarar que no
+  /// se beneficio antes a quien no contesto seria inventarselo.
+  const beneficiarioPrevio = (() => {
+    const crudo = (v.beneficiarioPrevio ?? '').trim();
+    if (!crudo) return null;
+    const n = sinAcentos(crudo);
+    if (['SI', 'S', 'X', 'TRUE', '1'].includes(n)) return true;
+    if (['NO', 'N', 'FALSE', '0'].includes(n)) return false;
+    avisos.push(
+      `«${crudo}» no es un sí o un no en «¿se ha beneficiado antes?»: entra sin responder.`,
+    );
+    return null;
+  })();
+
   const genero = (() => {
     const crudo = (v.genero ?? '').trim();
     if (!crudo) return null;
@@ -278,6 +363,13 @@ export function interpretarLaFila(
       departamentoSepId: donde.departamentoSepId,
       municipioSepId: donde.municipioSepId,
       generoSepId: genero,
+      fechaNacimiento,
+      estrato,
+      barrio: (v.barrio ?? '').trim() || null,
+      direccion: (v.direccion ?? '').trim() || null,
+      cargoEnEmpresa: (v.cargoEnEmpresa ?? '').trim() || null,
+      nivelOcupacionalSepId,
+      beneficiarioPrevio,
     },
     codigoDeLaAccion: pedida?.codigo ?? null,
     observacion,

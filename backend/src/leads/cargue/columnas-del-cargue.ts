@@ -55,6 +55,17 @@ export type ClaveDeColumna =
   /// columna del archivo del cliente caía entre las «sin
   /// reconocer» y su contenido se tiraba.
   | 'genero'
+  /// LAS SIETE QUE SU BASE TRAE Y QUE HASTA HOY CAIAN FUERA.
+  /// Ahora tienen columna propia en el lead, asi que se leen y se
+  /// ven. Antes se archivaban en el volcado y no habia donde
+  /// mirarlas, que para quien usa el panel es igual que perderlas.
+  | 'fechaNacimiento'
+  | 'estrato'
+  | 'barrio'
+  | 'direccion'
+  | 'cargoEnEmpresa'
+  | 'nivelOcupacional'
+  | 'beneficiarioPrevio'
   | 'notas';
 
 export type ColumnaDelCargue = {
@@ -290,6 +301,65 @@ export const COLUMNAS_DEL_CARGUE: ColumnaDelCargue[] = [
     ayuda:
       'MASCULINO, FEMENINO o NO BINARIO, que son los tres del SEP. También vale M o F. Lo que no case se avisa y la persona entra sin género, que es una columna del reporte y no se adivina.',
     ancho: 16,
+  },
+  {
+    clave: 'fechaNacimiento',
+    titulo: 'Fecha de nacimiento',
+    tambienSeLlama: ['fecha de nacimiento', 'nacimiento', 'fecha nacimiento', 'f nacimiento'],
+    ejemplo: '1990-04-12',
+    ayuda:
+      'Vale 1990-04-12 o 12/04/1990. Es columna del reporte al SENA, así que lo que no se entienda se avisa y la persona entra sin fecha.',
+    ancho: 20,
+  },
+  {
+    clave: 'estrato',
+    titulo: 'Estrato',
+    tambienSeLlama: ['estrato', 'estrato socioeconomico', 'nivel socioeconomico'],
+    ejemplo: '3',
+    ayuda: 'Un número del 1 al 6. Otra cosa se avisa y entra sin estrato.',
+    ancho: 12,
+  },
+  {
+    clave: 'barrio',
+    titulo: 'Barrio o vereda',
+    tambienSeLlama: ['barrio', 'barrio o vereda', 'vereda', 'barrio vereda'],
+    ejemplo: 'La Candelaria',
+    ayuda: 'Tal cual lo escriba la persona. No se valida contra nada.',
+    ancho: 24,
+  },
+  {
+    clave: 'direccion',
+    titulo: 'Dirección',
+    tambienSeLlama: ['direccion', 'direccion de residencia', 'domicilio'],
+    ejemplo: 'Calle 10 # 5-20',
+    ayuda: 'La de la casa, no la de la sede del curso.',
+    ancho: 28,
+  },
+  {
+    clave: 'cargoEnEmpresa',
+    titulo: 'Cargo en la organización',
+    tambienSeLlama: ['cargo', 'cargo en la organizacion', 'cargo en la empresa', 'cargo actual'],
+    ejemplo: 'Coordinadora académica',
+    ayuda: 'El cargo de la persona donde trabaja. Texto libre.',
+    ancho: 26,
+  },
+  {
+    clave: 'nivelOcupacional',
+    titulo: 'Nivel ocupacional',
+    tambienSeLlama: ['nivel ocupacional', 'nivel ocupacion', 'ocupacion'],
+    ejemplo: 'MEDIO',
+    ayuda:
+      'Los del SEP: ALTA DIRECCIÓN, MEDIO, OPERATIVO y los demás del catálogo. Lo que no case se avisa y entra sin nivel.',
+    ancho: 22,
+  },
+  {
+    clave: 'beneficiarioPrevio',
+    titulo: '¿Se ha beneficiado antes?',
+    tambienSeLlama: ['se ha beneficiado antes', 'beneficiario previo', 'ya se formo', 'beneficiado antes'],
+    ejemplo: 'No',
+    ayuda:
+      'Sí o No. Vacío NO es «no»: es que nadie lo preguntó, y se deja sin responder.',
+    ancho: 22,
   },
   {
     clave: 'notas',

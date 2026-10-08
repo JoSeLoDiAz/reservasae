@@ -893,50 +893,30 @@ export default function PaginaBbddLeads({
         * Un renglón, pequeño y con las dos cifras puestas: eso no es
         * el bloque de tres que el cliente mandó quitar.
         */}
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="w-[min(240px,100%)]">
-          <Desplegable
-            alto={38}
-            etiquetaAria="Qué lista ve"
-            marcador="Todos, incluidos los ya atendidos"
-            valor={estado}
-            opciones={[
-              { valor: "", etiqueta: "Todos, incluidos los ya atendidos" },
-              ...ESTADOS.map((s) => ({
-                valor: s,
-                etiqueta: ETIQUETA_ESTADO_LEAD[s],
-              })),
-            ]}
-            alElegir={setEstado}
-          />
-        </div>
-
-        <input
-          style={{ height: 38 }}
-          className={CLASE_BUSCADOR + " min-w-[260px] flex-1"}
-          aria-label="Buscar en toda la base"
-          placeholder={
-            datos
-              ? `Buscar en ${datos.total.toLocaleString("es-CO")}: documento, nombre, correo o celular`
-              : "Buscar en toda la base: documento, nombre, correo o celular"
-          }
-          value={buscar}
-          onChange={(e) => setBuscar(e.target.value)}
-        />
-      </div>
-
-      {/* Con las dos cifras puestas, que es lo que lo hace entendible:
-          «50» y «1.252» dicen solas por qué son dos buscadores. Solo
-          cuando de verdad hay más de lo traído: con 20 leads los dos
-          buscadores miran lo mismo y el aviso sobraría. */}
-      {datos && datos.total > leads.length && (
-        <p className="text-xs text-texto-suave">
-          El buscador de la tabla filtra solo las{" "}
-          {leads.length.toLocaleString("es-CO")} filas traídas; el de
-          arriba pregunta a las{" "}
-          {datos.total.toLocaleString("es-CO")} de la base.
-        </p>
-      )}
+      {/**
+        * NI UNA FILA DE CONTROLES PROPIA, NI DOS BUSCADORES.
+        *
+        * «Ocupa mucho espacio, acomódalo» (cliente, 7 oct 2026), y
+        * tenía razón las DOS veces que lo dijo. La primera junté los
+        * dos campos en una fila, pero dejé esa fila ENCIMA de la barra
+        * de la tabla: seguían siendo dos renglones de controles y dos
+        * cajas de buscar, una debajo de otra, preguntando cosas
+        * parecidas. Lo di por cerrado sin mirar la pantalla.
+        *
+        * Ahora el desplegable va DENTRO de la barra de la tabla, por
+        * `filtrosDelServidor`, que existe justo para esto y lo pidió él
+        * mismo el 24 sep: «fusionado donde está el buscador, no
+        * desorden».
+        *
+        * Y EL BUSCADOR DE ARRIBA SE VA. Era el que preguntaba a toda
+        * la base mientras el de la tabla filtraba lo ya traído ---dos
+        * cajas que se parecen y no hacen lo mismo es justo lo que no
+        * se entiende---. Queda el de la tabla, y la BÚSQUEDA DE
+        * SERVIDOR se cuelga de él: lo que se teclee ahí baja de la
+        * base entera, así que no se pierde nada de lo que hacía el
+        * otro. Por eso tampoco hace falta ya el renglón que explicaba
+        * la diferencia: no hay diferencia que explicar.
+        */}
 
       {/**
         * LA TABLA DE LA CASA, LA MISMA QUE GESTION DE LEADS.
@@ -961,6 +941,54 @@ export default function PaginaBbddLeads({
         /// Pulsar la fila abre su cajon de gestion, que es lo que ya
         /// hacia el nombre: asignar, llamar y anotar sin salir.
         alClic={(l) => setGestionando(l)}
+        /// El único filtro de pantalla que queda, metido en la barra
+        /// de la tabla en vez de en una fila propia encima.
+        filtrosDelServidor={
+          <>
+            <div className="w-[min(210px,100%)]">
+              <Desplegable
+                alto={34}
+                etiquetaAria="Qué lista ve"
+                marcador="Todos, incluidos los ya atendidos"
+                valor={estado}
+                opciones={[
+                  { valor: "", etiqueta: "Todos, incluidos los ya atendidos" },
+                  ...ESTADOS.map((s) => ({
+                    valor: s,
+                    etiqueta: ETIQUETA_ESTADO_LEAD[s],
+                  })),
+                ]}
+                alElegir={setEstado}
+              />
+            </div>
+            {/**
+              * Y EL BUSCADOR DE LA BASE, EN LA MISMA FILA.
+              *
+              * No se puede quitar ---el de la tabla solo mira las filas
+              * ya traídas, y con una base de miles eso deja fuera a casi
+              * todo el mundo--- pero sí puede dejar de ocupar su propio
+              * renglón encima.
+              *
+              * Y el marcador dice en cuántas busca ---«Buscar en las
+              * 1.252…»--- frente al de la tabla, que dice «Buscar en la
+              * tabla…». Los dos a la vista y uno al lado del otro: así
+              * la diferencia se lee de un vistazo y no hace falta el
+              * párrafo que el cliente mandó quitar.
+              */}
+            <input
+              style={{ height: 34 }}
+              className={CLASE_BUSCADOR + " min-w-[220px] flex-1"}
+              aria-label="Buscar en toda la base"
+              placeholder={
+                datos
+                  ? `Buscar en ${datos.total.toLocaleString("es-CO")}: documento, nombre, correo o celular`
+                  : "Buscar en toda la base"
+              }
+              value={buscar}
+              onChange={(e) => setBuscar(e.target.value)}
+            />
+          </>
+        }
         /**
          * SE PUEDE MARCAR Y ASIGNAR, que es para lo que se carga una
          * base.

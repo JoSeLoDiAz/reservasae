@@ -52,6 +52,7 @@
     "db:jefe-directo": "ts-node prisma/jefe-directo-de-las-reservas.ts",
     "db:cupos-vs-grupos": "ts-node prisma/cupos-de-la-oferta-contra-los-grupos.ts",
     "db:sondeo-cargue": "ts-node prisma/sondeo-cargue-genero.ts",
+    "db:sondeo-columnas": "ts-node prisma/sondeo-columnas-del-cliente.ts",
     "db:quien-recibe-leads": "ts-node prisma/quien-puede-recibir-leads.ts",
     "db:cuadrar": "ts-node prisma/cuadrar-el-panel-contra-la-base.ts",
     "db:sigue-puesto": "ts-node prisma/sigue-puesto-cada-arreglo.ts",

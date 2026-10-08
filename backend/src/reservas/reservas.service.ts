@@ -701,6 +701,21 @@ export class ReservasService {
       contactoNombre: dto.contactoNombre,
       contactoCargo: dto.contactoCargo ?? null,
       contactoCorreo: dto.contactoCorreo,
+      /**
+       * Y EL TELÉFONO, que era la cuarta mitad del mismo defecto.
+       *
+       * El formulario SÍ pide el celular del contacto y se quedaba
+       * solo en la reserva, igual que el jefe directo antes del 7 oct.
+       * La organización se quedaba sin teléfono, y el F7 lo reclama
+       * ---`formato-f7.ts` lo lista como «sin teléfono»--- así que el
+       * SENA devuelve el cargue.
+       *
+       * Va al TELÉFONO de la organización y no a un campo propio: el
+       * F7 pide un teléfono de la empresa, y el de quien la representa
+       * es el que hay. Si mañana se captura uno de centralita, este
+       * cede ---abajo solo rellena huecos---.
+       */
+      telefono: dto.contactoCelular ?? null,
     };
 
     /// Si la empresa YA EXISTE, lo guardado manda.
