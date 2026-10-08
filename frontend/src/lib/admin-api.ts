@@ -651,12 +651,27 @@ export type AsesorPosible = {
   convenios: string[];
 };
 
+/// Una fila de la huella de un grupo: quién, cuándo y de qué a qué.
+export type CambioDelGrupo = {
+  id: string;
+  actorNombre: string;
+  accion: string;
+  /// «inicio 2026-10-12 → 2026-10-19, sesión 2 …».
+  resumen: string | null;
+  camposTocados: string[];
+  creadoEn: string;
+};
+
 export const cronogramaApi = {
   listar: () => pedir<AccionCronograma[]>("/admin/cronograma"),
 
   /// A quién se le puede asignar un grupo. Pide permiso de
   /// escritura en configuración, el mismo que editarlo.
   asesores: () => pedir<AsesorPosible[]>("/admin/cronograma/asesores"),
+
+  /// Quién movió las fechas de un grupo, lo más nuevo primero.
+  cambiosDelGrupo: (id: string) =>
+    pedir<CambioDelGrupo[]>(`/admin/cronograma/grupos/${id}/cambios`),
 
   /// Los tres textos de «Información Acción de Formación». Lo que no
   /// se manda no se toca, así que se puede guardar uno solo.

@@ -308,6 +308,8 @@ export class CronogramaService {
         fechaFin: true,
         accionFormacion: { select: { convenioId: true } },
         coberturas: { select: { ubicacionId: true } },
+        /// Los días de antes, para que la huella diga de qué a qué.
+        sesiones: { select: { dia: true }, orderBy: { orden: 'asc' } },
       },
     });
     if (!grupo) throw new NotFoundException('Ese grupo no existe.');
@@ -448,12 +450,35 @@ export class CronogramaService {
       /// Las fechas SÍ van en el resumen: no son dato personal, son
       /// calendario del proyecto, y sin el antes y el después esta
       /// fila no responde la única pregunta que se le va a hacer.
-      resumen: fraseDelCambioDeFechas(grupo, inicio, fin),
+      resumen: fraseDelCambioDeFechas(
+        grupo,
+        inicio,
+        fin,
+        dto.sesiones?.map((ses) => (ses.dia ? new Date(ses.dia) : null)),
+      ),
       camposTocados: tocados,
       ip,
     });
 
     return { actualizado: true };
+  }
+
+  /**
+   * QUIÉN MOVIÓ LAS FECHAS DE ESTE GRUPO, lo más nuevo primero.
+   *
+   * La huella se escribía desde que existe `GRUPO_EDITADO`, pero no
+   * había dónde leerla: la pregunta «¿por qué este grupo arranca el 19
+   * y no el 12?» seguía sin respuesta en pantalla. El grupo se busca
+   * dentro del ámbito antes de leer nada, para que nadie lea la
+   * bitácora de un gremio que no es el suyo.
+   */
+  async cambiosDelGrupo(id: string, ambito: string[]) {
+    const grupo = await this.prisma.grupo.findFirst({
+      where: { id, accionFormacion: { convenioId: { in: ambito } } },
+      select: { id: true },
+    });
+    if (!grupo) throw new NotFoundException('Ese grupo no existe.');
+    return this.auditoria.historial(ENTIDADES.GRUPO, id, 50);
   }
 
   /**
@@ -605,10 +630,16 @@ export class CronogramaService {
  * única pregunta que se le va a hacer a esta fila: por qué este grupo
  * arranca el 19 y no el 12.
  */
-function fraseDelCambioDeFechas(
-  antes: { fechaInicio: Date | null; fechaFin: Date | null },
+export function fraseDelCambioDeFechas(
+  antes: {
+    fechaInicio: Date | null;
+    fechaFin: Date | null;
+    sesiones?: Array<{ dia: Date | null }>;
+  },
   inicio: Date | null,
   fin: Date | null,
+  /// Los días de las sesiones que quedan. `undefined`: no se tocaron.
+  dias?: Array<Date | null>,
 ): string {
   const d = (x: Date | null) =>
     x ? x.toISOString().slice(0, 10) : 'sin fecha';
@@ -617,5 +648,21 @@ function fraseDelCambioDeFechas(
     partes.push(`inicio ${d(antes.fechaInicio)} → ${d(inicio)}`);
   if (d(antes.fechaFin) !== d(fin))
     partes.push(`fin ${d(antes.fechaFin)} → ${d(fin)}`);
+  /**
+   * Y LOS DÍAS DE LAS SESIONES, que también son fechas del
+   * cronograma y hasta hoy solo dejaban «sesiones» en los campos
+   * tocados, sin decir de qué día a qué día. Se dicen en orden: la
+   * sesión 2 pasó del 14 al 21.
+   */
+  if (dias) {
+    const viejos = (antes.sesiones ?? []).map((s) => d(s.dia));
+    const nuevos = dias.map(d);
+    const n = Math.max(viejos.length, nuevos.length);
+    for (let i = 0; i < n; i++) {
+      const v = viejos[i] ?? 'no existía';
+      const w = nuevos[i] ?? 'quitada';
+      if (v !== w) partes.push(`sesión ${i + 1} ${v} → ${w}`);
+    }
+  }
   return partes.length ? partes.join(', ') : 'sin cambio de fechas';
 }

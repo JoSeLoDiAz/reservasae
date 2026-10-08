@@ -37,6 +37,18 @@ export class CronogramaController {
     return this.cronograma.asesoresPosibles(ambito.convenios);
   }
 
+  /**
+   * Quién movió las fechas de un grupo y de qué a qué.
+   *
+   * Con el permiso de ver el cronograma, no el de editarlo: saber por
+   * qué un grupo arranca cuando arranca le sirve a quien lo consulta,
+   * no solo a quien lo cambia.
+   */
+  @Get('grupos/:id/cambios')
+  cambiosDelGrupo(@Param('id') id: string, @AmbitoActual() ambito: Ambito) {
+    return this.cronograma.cambiosDelGrupo(id, ambito.convenios);
+  }
+
   // configurar la formacion ya es del lider de sistemas y
   // el calendario es parte de ella. Un cambio aqui mueve
   // el "va al dia" de todo un grupo

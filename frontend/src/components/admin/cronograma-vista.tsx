@@ -24,6 +24,7 @@ import {
   ETIQUETA_ESTADO_GRUPO,
   type AccionCronograma,
   type AsesorPosible,
+  type CambioDelGrupo,
   type EstadoGrupo,
   type GrupoCronograma,
 } from "@/lib/admin-api";
@@ -1082,6 +1083,87 @@ function Grupo({
             </p>
           </div>
         </div>
+      )}
+
+      <CambiosDelGrupo grupoId={grupo.id} />
+    </div>
+  );
+}
+
+/**
+ * QUIÉN MOVIÓ LAS FECHAS, y de qué a qué.
+ *
+ * La huella se escribía y no había dónde leerla. Se pide al abrirla y
+ * no al cargar el cronograma: son decenas de grupos y casi nadie la
+ * mira, así que traerla siempre sería pedir decenas de listas para
+ * nada. Fuera de la impresión: el cronograma impreso es el calendario,
+ * no la bitácora.
+ */
+function CambiosDelGrupo({ grupoId }: { grupoId: string }) {
+  const [abierto, setAbierto] = useState(false);
+  const [cambios, setCambios] = useState<CambioDelGrupo[] | null>(null);
+  const [falla, setFalla] = useState<string | null>(null);
+
+  async function abrir() {
+    setAbierto(true);
+    setFalla(null);
+    try {
+      setCambios(await cronogramaApi.cambiosDelGrupo(grupoId));
+    } catch (e) {
+      setFalla((e as ErrorApi).message);
+    }
+  }
+
+  if (!abierto) {
+    return (
+      <button
+        type="button"
+        onClick={() => void abrir()}
+        className="no-imprimir sin-aro mt-3 text-[0.78125rem] text-texto-suave underline underline-offset-2 hover:text-texto"
+      >
+        ¿Quién movió las fechas?
+      </button>
+    );
+  }
+
+  return (
+    <div className="no-imprimir mt-3 border-t border-borde pt-3 text-[0.78125rem]">
+      <div className="mb-2 flex items-center justify-between">
+        <span className="font-semibold text-titulo">Cambios de este grupo</span>
+        <button
+          type="button"
+          onClick={() => setAbierto(false)}
+          className="sin-aro text-texto-suave underline underline-offset-2 hover:text-texto"
+        >
+          Cerrar
+        </button>
+      </div>
+      {falla ? (
+        <p className="text-error">{falla}</p>
+      ) : cambios === null ? (
+        <p className="text-texto-suave">Cargando…</p>
+      ) : cambios.length === 0 ? (
+        <p className="text-texto-suave">
+          Nadie lo ha cambiado desde que se guarda el rastro.
+        </p>
+      ) : (
+        <ul className="space-y-1.5">
+          {cambios.map((c) => (
+            <li key={c.id}>
+              <span className="text-texto-suave tabular-nums">
+                {new Date(c.creadoEn).toLocaleString("es-CO", {
+                  day: "numeric",
+                  month: "short",
+                  year: "numeric",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
+              </span>{" "}
+              · <span className="font-medium">{c.actorNombre}</span> ·{" "}
+              {c.resumen ?? "editó el grupo"}
+            </li>
+          ))}
+        </ul>
       )}
     </div>
   );
