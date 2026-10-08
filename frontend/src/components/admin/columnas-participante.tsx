@@ -350,14 +350,14 @@ export function columnasDeParticipante(): Columna<FilaParticipante>[] {
       clave: "departamento",
       ancho: "128px",
       titulo: "Departamento",
-      valor: (f) => f.departamento,
+      valor: (f) => f.departamento ?? "Sin departamento",
       filtro: "opciones",
     },
     {
       clave: "municipio",
       ancho: "124px",
       titulo: "Municipio",
-      valor: (f) => f.municipio,
+      valor: (f) => f.municipio ?? "Sin municipio",
       filtro: "opciones",
     },
     {
@@ -500,7 +500,7 @@ export function columnasDeParticipante(): Columna<FilaParticipante>[] {
       nueva: true,
       ancho: "190px",
       titulo: "Formulario",
-      valor: (f) => f.formularioDeEntrada ?? "",
+      valor: (f) => f.formularioDeEntrada ?? "Sin formulario",
       pinta: (f) =>
         f.formularioDeEntrada ? (
           <span className="block truncate">{f.formularioDeEntrada}</span>
@@ -531,7 +531,7 @@ export function columnasDeParticipante(): Columna<FilaParticipante>[] {
       nueva: true,
       ancho: "160px",
       titulo: "Enlace de entrada",
-      valor: (f) => f.enlaceDeEntrada ?? "",
+      valor: (f) => f.enlaceDeEntrada ?? "Sin enlace",
       pinta: (f) =>
         f.enlaceDeEntrada ? (
           <span className="block truncate font-mono text-xs">
@@ -580,7 +580,7 @@ export function columnasDeParticipante(): Columna<FilaParticipante>[] {
       nueva: true,
       ancho: "150px",
       titulo: "Campaña",
-      valor: (f) => f.campanaDeEntrada ?? "",
+      valor: (f) => f.campanaDeEntrada ?? "Sin etiqueta",
       pinta: (f) =>
         f.campanaDeEntrada ? (
           <span className="block truncate font-mono text-xs">

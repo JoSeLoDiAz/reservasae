@@ -300,7 +300,7 @@ export function columnasDelAula(): Columna<FilaAcademica>[] {
       clave: "asesor",
       titulo: "Asesor",
       ancho: "160px",
-      valor: (f) => f.asesor?.nombre ?? null,
+      valor: (f) => f.asesor?.nombre ?? "Sin asignar",
       filtro: "opciones",
       pinta: (f) =>
         f.asesor ? (
@@ -316,7 +316,7 @@ export function columnasDelAula(): Columna<FilaAcademica>[] {
       clave: "departamento",
       titulo: "Departamento",
       ancho: "150px",
-      valor: (f) => f.departamento,
+      valor: (f) => f.departamento ?? "Sin departamento",
       filtro: "opciones",
       pinta: (f) =>
         f.departamento ?? <span className="text-texto-suave">—</span>,

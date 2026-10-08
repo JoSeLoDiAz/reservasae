@@ -11,6 +11,29 @@ exigirBaseSegura('La siembra del catalogo');
 
 const prisma = new PrismaClient();
 
+/**
+ * LA SIEMBRA NO PISA LOS CUPOS, salvo que se le pida con `--cupos`.
+ *
+ * Hasta el 7 oct 2026 el `upsert` de cada cobertura y de cada oferta
+ * llevaba `cuposBase` y `cuposMaximos` en su `update`, o sea que
+ * reescribía con los del Excel lo que hubiera en la base. Y este
+ * repositorio declara la siembra «idempotente y se puede correr en
+ * cada despliegue».
+ *
+ * Juntas, las dos cosas significan que un reparto hecho a mano desde
+ * Cronograma ---bajar Valle, subir Huila--- lo deshace el siguiente
+ * despliegue SIN UN ERROR y sin que nadie se entere. Ya pasó una vez
+ * con el foro de AF7: «sin eso, `prisma db seed` devolvía el foro a
+ * 650 en silencio».
+ *
+ * Ahora la siembra CREA lo que falte y no toca los cupos de lo que ya
+ * está. Para reimportarlos del Excel ---que es una decisión, no un
+ * efecto secundario--- hay que pedirlo:
+ *
+ *   pnpm --filter backend prisma db seed -- --cupos
+ */
+const REIMPORTAR_CUPOS = process.argv.includes('--cupos');
+
 type CoberturaJson = {
   ubicacion: string;
   tipo: 'CIUDAD' | 'DEPARTAMENTO';
@@ -237,10 +260,14 @@ async function main() {
               cuposBase: cobertura.cuposBase,
               cuposMaximos: cobertura.cuposMaximos,
             },
-            update: {
-              cuposBase: cobertura.cuposBase,
-              cuposMaximos: cobertura.cuposMaximos,
-            },
+            /// Sin --cupos no se tocan: un reparto a mano no se
+            /// deshace solo en el siguiente despliegue.
+            update: REIMPORTAR_CUPOS
+              ? {
+                  cuposBase: cobertura.cuposBase,
+                  cuposMaximos: cobertura.cuposMaximos,
+                }
+              : {},
           });
         }
       }
@@ -285,10 +312,14 @@ async function main() {
             cuposMaximos: ofertaJson.cuposMaximos,
           },
           // `cuposOcupados` y `abierta` no se tocan
-          update: {
-            modalidad: ofertaJson.modalidad as Modalidad,
-            cuposMaximos: ofertaJson.cuposMaximos,
-          },
+          /// La modalidad si se corrige siempre ---es catalogo---;
+          /// el tope no, que es la suma de las coberturas.
+          update: REIMPORTAR_CUPOS
+            ? {
+                modalidad: ofertaJson.modalidad as Modalidad,
+                cuposMaximos: ofertaJson.cuposMaximos,
+              }
+            : { modalidad: ofertaJson.modalidad as Modalidad },
         });
       }
     }
