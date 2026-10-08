@@ -180,8 +180,27 @@ export default function PaginaUsuarios() {
     setConvenios(await adminApi.convenios());
   }, []);
 
+  /**
+   * Y SI LA CARGA SE NIEGA, SE DICE EN VEZ DE REVENTAR.
+   *
+   * Quien llega aquí con el área pero sin el rol recibe «No tiene
+   * permiso para esta operación», y esa frase ---que explica
+   * exactamente lo que pasa--- se perdía: el `void` se tragaba el
+   * rechazo, la consola se llenaba de errores sin recoger y la
+   * pantalla se quedaba a medias sin decir nada.
+   *
+   * Encontrado el 7 oct 2026 barriendo las pantallas con una cuenta
+   * que NO es superadministrador: todas mis comprobaciones anteriores
+   * las había hecho con una que lo ve todo, y por eso no salía.
+   */
   useEffect(() => {
-    void cargar();
+    void cargar().catch((e) =>
+      setError(
+        e instanceof ErrorApi
+          ? e.message
+          : "No se pudo cargar la lista de usuarios.",
+      ),
+    );
   }, [cargar]);
 
   async function conError(accion: () => Promise<void>) {
@@ -409,8 +428,14 @@ function FormularioNuevoUsuario({
   // por convenio, el rol elegido. Sin entrada, no entra
   const [porConvenio, setPorConvenio] = useState<Record<string, RolConvenio | "">>({});
 
+  /// Y los gremios, por lo mismo: sin `catch`, a quien se le niegue
+  /// la lista le revienta el formulario sin explicación. Vacío es
+  /// una respuesta honesta; un error sin recoger, no.
   useEffect(() => {
-    void adminApi.convenios().then(setConvenios);
+    void adminApi
+      .convenios()
+      .then(setConvenios)
+      .catch(() => setConvenios([]));
   }, []);
 
   const concesiones = Object.entries(porConvenio)

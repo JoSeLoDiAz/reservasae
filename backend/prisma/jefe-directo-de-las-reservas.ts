@@ -22,8 +22,25 @@
  * VISTA PREVIA POR DEFECTO. Sin `--aplicar` no escribe nada y solo
  * cuenta, que es como se mira antes de tocar producción.
  *
- *   pnpm ts-node prisma/jefe-directo-de-las-reservas.ts
- *   pnpm ts-node prisma/jefe-directo-de-las-reservas.ts --aplicar
+ *   pnpm db:jefe-directo
+ *   pnpm db:jefe-directo --aplicar
+ *
+ * SON DOS PASOS, NO UNO. Detrás de este hay que correr:
+ *
+ *   pnpm db:datos-completos --aplicar
+ *
+ * Lo cazó Josse el 7 oct 2026, y es un fallo del plan y no del script:
+ * «aunque corras --aplicar, ninguna ficha se mueve de Interesado ---la
+ * etapa es columna guardada y nadie la recalcula---».
+ *
+ * Sin el segundo paso las organizaciones quedan completas y las fichas
+ * siguen en «Interesado», que es EXACTAMENTE el síntoma del que viene
+ * todo esto: «las personas están completando pero es como si no migrara
+ * la información». Quedaría igual de roto y encima con el dato ya puesto,
+ * que es peor: parecería que el arreglo no sirvió.
+ *
+ * Va aquí arriba y no solo en el documento, porque quien corre esto a las
+ * once de la noche no está leyendo el documento.
  */
 
 import { PrismaClient } from '../generated/prisma';

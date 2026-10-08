@@ -132,6 +132,25 @@ export class PreinscripcionService {
         /// para reconocer el foro, que es la excepcion de «una sola
         /// accion de formacion».
         evento: true,
+        /**
+         * CON CUAL SE PUEDE CURSAR A LA VEZ, y esto NO es lo mismo
+         * que ser foro.
+         *
+         * «Osea se puede cualquier AF y AF7, osea si me entiendes»
+         * (cliente, 7 oct 2026). Pues no: la pareja esta declarada en
+         * el DATO ---regla de Josse del 24 sep, «solo se puede
+         * repetir si la persona esta en AF1 o AF2 y participa tambien
+         * en AF7»--- y hoy, en ADECOPRIA, solo AF1 y AF2 nombran al
+         * foro. AF3 a AF6 no combinan con nada, y en BRITCHAM no
+         * combina ninguna.
+         *
+         * Sin este campo la pantalla solo podia preguntar «¿es
+         * foro?», y con eso le prometia a quien eligiera AF3 que
+         * podria sumar el foro despues ---cosa que el panel le va a
+         * negar---. Una promesa que otra pantalla incumple es peor
+         * que no decir nada.
+         */
+        combinaConAccionId: true,
         objetivo: true,
         contenido: true,
         competencia: true,
@@ -232,6 +251,8 @@ export class PreinscripcionService {
            * para quien la lee es exactamente igual que no tenerla.
            */
           evento: a.evento,
+          /// Y con cual se cursa a la vez, para no prometer de mas.
+          combinaConAccionId: a.combinaConAccionId,
           /// Lo que la tarjeta ensena. El `objetivo` del
           /// catalogo esta escrito para el convenio y no
           /// sirve aqui: solo se usa si nadie ha escrito el

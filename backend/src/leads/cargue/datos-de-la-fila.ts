@@ -32,6 +32,7 @@ import { correoValido, normalizarCorreo } from '../../comun/correo';
 import { normalizarDocumento } from '../../comun/documento';
 
 import { accionQuePidio, type AccionDelCatalogo } from '../accion-que-pidio';
+import { GENEROS_SEP } from '../../crm/catalogos-sep';
 import { tipoDeDocumento } from '../tipo-de-documento';
 import { ubicacionQueDijo } from '../ubicacion-que-dijo';
 
@@ -55,6 +56,10 @@ export type DatosDeLaFila = {
   accionFormacionId: string | null;
   departamentoSepId: number | null;
   municipioSepId: number | null;
+  /// Los tres del SEP: 1 masculino, 2 femenino, 3 no binario. Null
+  /// cuando no vino o no casó: es columna del reporte y no se
+  /// adivina.
+  generoSepId: number | null;
 };
 
 export type FilaInterpretada = {
@@ -217,6 +222,41 @@ export function interpretarLaFila(
   /// reconozca se apunta y la fila entra: sin ubicación el lead se
   /// puede trabajar, y sin lead no.
   const donde = ubicacionQueDijo(v.departamento ?? null, v.ciudad ?? null);
+
+  /**
+   * EL GÉNERO, contra los tres del SEP.
+   *
+   * Se admite la letra sola ---«M», «F»--- porque medio país llena
+   * esa columna así, y no admitirla dejaría fuera archivos enteros
+   * por una convención de escritura.
+   *
+   * Lo que no case NO se adivina: es una columna del reporte al
+   * SENA, y meter «MASCULINO» porque empieza por eme es reportarle
+   * al Estado algo que nadie dijo. Se avisa y la persona entra sin
+   * género, igual que con el departamento.
+   */
+  /// Sin tildes y en mayúsculas, que es como se comparan los
+  /// catálogos del SEP en el resto de la casa.
+  const sinAcentos = (x: string) =>
+    x
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toUpperCase()
+      .trim();
+
+  const genero = (() => {
+    const crudo = (v.genero ?? '').trim();
+    if (!crudo) return null;
+    const n = sinAcentos(crudo);
+    if (n === 'M') return 1;
+    if (n === 'F') return 2;
+    const cual = GENEROS_SEP.find((g) => sinAcentos(g.etiqueta) === n);
+    if (cual) return cual.id;
+    avisos.push(
+      `«${crudo}» no es un género del SEP (MASCULINO, FEMENINO o NO BINARIO): entra sin género.`,
+    );
+    return null;
+  })();
   for (const x of donde.noReconocido) {
     avisos.push(`${x} no está en el catálogo del SEP, así que no se guardó`);
   }
@@ -237,11 +277,16 @@ export function interpretarLaFila(
       accionFormacionId: pedida?.id ?? null,
       departamentoSepId: donde.departamentoSepId,
       municipioSepId: donde.municipioSepId,
+      generoSepId: genero,
     },
     codigoDeLaAccion: pedida?.codigo ?? null,
     observacion,
     avisos,
-    crudo: { ...v },
+    /// Lo reconocido Y lo que no, que si no el dato se pierde: el
+    /// informe decía «8 columnas sin reconocer» y su contenido no
+    /// quedaba en ninguna parte. Los rótulos sin reconocer van tal
+    /// cual venían en el archivo.
+    crudo: { ...v, ...cruda.extras },
   };
 }
 

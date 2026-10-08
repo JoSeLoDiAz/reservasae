@@ -77,6 +77,26 @@ export type FilaCruda = {
   /// porque arriba había 44 vacías, no la encuentra.
   fila: number;
   valores: Partial<Record<ClaveDeColumna, string>>;
+  /**
+   * LO QUE TRAÍA LA FILA Y NO SE RECONOCIÓ, por el rótulo tal cual
+   * lo escribió quien hizo el archivo.
+   *
+   * Hasta hoy se tiraba: el lector solo leía las celdas de las
+   * columnas reconocidas, así que una columna que el sistema no
+   * entiende ---fecha de nacimiento, estrato, barrio, nivel
+   * ocupacional--- desaparecía sin dejar rastro. El informe decía
+   * «8 columnas sin reconocer» y el dato ya no estaba en ninguna
+   * parte.
+   *
+   * Eso convierte un «todavía no sabemos guardarlo» en un «se
+   * perdió», que son dos cosas muy distintas: lo primero se
+   * arregla con una migración y los datos siguen ahí; lo segundo
+   * obliga a volver a pedirle el archivo al cliente.
+   *
+   * Se archiva en `carga`, que es el JSON del lead, y nada lo lee
+   * todavía: está para el día en que haya dónde ponerlo.
+   */
+  extras: Record<string, string>;
 };
 
 export type ReparoDelCargue = {
@@ -210,6 +230,16 @@ export async function leerElCargue(
       algo = true;
     }
 
+    /// Y lo que no se reconoció, para archivarlo. NO cuenta para
+    /// `algo`: una fila que solo trae columnas desconocidas sigue
+    /// siendo una fila sin persona, y meterla crearía un lead sin
+    /// nombre, sin correo y sin celular.
+    const extras: Record<string, string> = {};
+    for (const [rotulo, columna] of cabecera.extras) {
+      const texto = textoDeCelda(fila.getCell(columna).value);
+      if (texto !== '') extras[rotulo] = texto;
+    }
+
     /// Una fila entera en blanco NO es un error: Excel guarda
     /// filas vacías por debajo de los datos sin avisar, y
     /// reportarlas llenaría el informe de cientos de reparos que
@@ -221,7 +251,7 @@ export async function leerElCargue(
       sobrantes += 1;
       continue;
     }
-    filas.push({ fila: n, valores });
+    filas.push({ fila: n, valores, extras });
   }
 
   if (sobrantes > 0) {
@@ -257,6 +287,9 @@ type Cabecera = {
   fila: number;
   /// Clave de columna -> número de columna en el Excel.
   donde: Map<ClaveDeColumna, number>;
+  /// Las que no se reconocieron, con su columna: el rótulo solo no
+  /// basta para leer la celda.
+  extras: Map<string, number>;
   sinReconocer: string[];
 };
 
@@ -283,6 +316,7 @@ function buscarLaCabecera(hoja: ExcelJS.Worksheet): Cabecera | null {
     const fila = hoja.getRow(n);
     const donde = new Map<ClaveDeColumna, number>();
     const sinReconocer: string[] = [];
+    const extras = new Map<string, number>();
 
     fila.eachCell({ includeEmpty: false }, (celda, columna) => {
       const rotulo = textoDeCelda(celda.value);
@@ -290,6 +324,10 @@ function buscarLaCabecera(hoja: ExcelJS.Worksheet): Cabecera | null {
       const cual = columnaDelRotulo(rotulo);
       if (!cual) {
         sinReconocer.push(rotulo);
+        /// Y se apunta DÓNDE está, para poder archivar su valor.
+        /// Si el mismo rótulo sale dos veces, manda la primera:
+        /// igual que con las reconocidas.
+        if (!extras.has(rotulo)) extras.set(rotulo, columna);
         return;
       }
       /// La primera gana: ver el comentario de arriba.
@@ -298,7 +336,7 @@ function buscarLaCabecera(hoja: ExcelJS.Worksheet): Cabecera | null {
 
     if (donde.size < minimoParaSerCabecera(n)) continue;
     if (!mejor || donde.size > mejor.donde.size) {
-      mejor = { fila: n, donde, sinReconocer };
+      mejor = { fila: n, donde, extras, sinReconocer };
     }
   }
 

@@ -274,6 +274,16 @@ export function repartirInscripciones(
    * ventana, e inscribir es otra cosa que llegar.
    */
   inscritosEnLaVentana?: Map<string, number>,
+  /**
+   * CÓMO SE LLAMA CADA ASESOR, para poder darle fila a quien no
+   * tiene ni un lead llegado en la ventana.
+   *
+   * Los dos mapas de arriba traen cifras y no nombres, así que sin
+   * esto no hay con qué pintar esa fila. Es un mapa y no otra
+   * consulta aquí dentro porque esta función es pura: se prueba sin
+   * base, y así sigue.
+   */
+  nombrePorAsesor?: Map<string, string>,
 ): FilaDeAsesor[] {
   const por = new Map<
     string,
@@ -375,6 +385,50 @@ export function repartirInscripciones(
     }
 
     por.set(llave, fila);
+  }
+
+  /**
+   * Y AHORA LOS QUE TRABAJARON SIN QUE LES LLEGARA NADA NUEVO.
+   *
+   * Es el defecto que el comentario de `tocadosEnLaVentana` ya
+   * anunciaba sin darse cuenta: «quien el viernes trabajó fichas de
+   * agosto no aparecería en ninguna». Se trajo la cifra para
+   * arreglarlo, pero las FILAS se seguían creando solo recorriendo
+   * los leads que LLEGARON en la ventana, así que esa cifra no
+   * tenía dónde salir: quien no recibió lead nuevo no tenía
+   * renglón.
+   *
+   * «Debo saber cuánto hizo cada asesora ayer, antier, hoy»
+   * (cliente, 7 oct 2026). Una asesora que ayer gestionó e
+   * inscribió fichas de agosto ---que es lo normal a mitad de
+   * convocatoria, cuando ya no entran leads nuevos--- desaparecía
+   * de la tabla, y su día entero no se veía.
+   *
+   * La fila nace EN CERO a propósito: su carga es cero porque no
+   * le llegó nada en el periodo, y eso es cierto. Lo que no era
+   * cierto es no estar.
+   */
+  for (const mapa of [tocadosEnLaVentana, inscritosEnLaVentana]) {
+    if (!mapa) continue;
+    for (const [id, cuantos] of mapa) {
+      if (cuantos <= 0 || por.has(id)) continue;
+      por.set(id, {
+        nombre:
+          id === 'SIN_ASESOR'
+            ? 'Sin asesor asignado'
+            : (nombrePorAsesor?.get(id) ?? 'Asesor'),
+        total: 0,
+        resueltos: 0,
+        inscritos: 0,
+        descartados: 0,
+        gestionados: 0,
+        esperando: [],
+        primero: null,
+        proximo: null,
+        ultimoPasado: null,
+        porAccion: new Map(),
+      });
+    }
   }
 
   return (

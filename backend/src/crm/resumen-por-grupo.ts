@@ -242,9 +242,12 @@ export function resumenPorGrupoSql(
                COUNT(*) FILTER (
                  WHERE pa."origen"::text <> ${DE_RESERVA} AND ${llego}
                )::int AS "campana",
-               -- LOS INSCRITOS, por cuando SE INSCRIBIO y sin mirar la
-               -- etapa de hoy: quien se inscribio ese dia se
-               -- inscribio ese dia, aunque despues desertara.
+               -- LOS INSCRITOS: el ancla pone la FECHA y la etapa de
+               -- hoy decide si CUENTA, igual que en la tabla por
+               -- accion. Si las dos no dicen lo mismo, el desglose por
+               -- grupos no suma su propia fila, que es justo el ruido
+               -- que el cliente nos señalo en Trafico. El porque esta
+               -- en el docblock de resumen-por-accion.ts.
                COUNT(*) FILTER (
                  WHERE pa."origen"::text = ${DE_RESERVA}
                    AND ${seInscribio}

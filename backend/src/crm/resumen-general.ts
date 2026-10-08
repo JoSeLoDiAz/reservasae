@@ -156,6 +156,20 @@ export function resumenGeneral(
   /// `undefined` = no hay periodo puesto, y entonces manda el
   /// conteo de siempre.
   inscritosDelPeriodo?: Map<string, number>,
+  /**
+   * CÓMO SE ROTULA CADA ACCIÓN, para poder dibujar la barra de una
+   * que tuvo inscripciones y ningún lead nuevo.
+   *
+   * Las barras se arman recorriendo `filas`, que son los leads que
+   * LLEGARON en el periodo, así que una acción sin lead nuevo no
+   * tiene entrada y sus inscripciones no tenían dónde salir. A
+   * mitad de convocatoria eso es lo normal: ya no entran leads y se
+   * inscribe a los que había.
+   *
+   * Sin estos rótulos no hay con qué pintarla: el código, el nombre
+   * y el gremio salen de los leads, y justo no hay ninguno.
+   */
+  rotulos?: Map<string, { codigo: string; nombre: string; gremio: string }>,
 ): FilaResumenGeneral[] {
   const porAccion = new Map<string, FilaResumenGeneral>();
 
@@ -208,6 +222,36 @@ export function resumenGeneral(
   if (inscritosDelPeriodo) {
     for (const [id, fila] of porAccion) {
       fila.inscritos = inscritosDelPeriodo.get(id) ?? 0;
+    }
+
+    /**
+     * Y LA ACCIÓN QUE TUVO INSCRIPCIONES SIN UN SOLO LEAD NUEVO
+     * TAMBIÉN SALE.
+     *
+     * Si no, el Resumen General dice menos inscritos que la tabla
+     * de abajo de la MISMA pantalla ---aquella sí la cuenta---, que
+     * es justo el descuadre que ya costó una semana.
+     *
+     * Nace con los leads en CERO, y eso es verdad: no le llegó
+     * nadie nuevo en el periodo. Lo que no era verdad era no estar.
+     */
+    for (const [id, cuantos] of inscritosDelPeriodo) {
+      if (cuantos <= 0 || porAccion.has(id)) continue;
+      const r = rotulos?.get(id);
+      if (!r) continue;
+      porAccion.set(id, {
+        accionFormacionId: id,
+        codigo: r.codigo,
+        nombre: r.nombre,
+        gremio: r.gremio,
+        leads: 0,
+        datosCompletos: 0,
+        datosParciales: 0,
+        enProceso: 0,
+        sinGestion: 0,
+        inscritos: cuantos,
+        noInteresados: 0,
+      });
     }
   }
 

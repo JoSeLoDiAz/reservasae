@@ -873,12 +873,25 @@ export default function PaginaBbddLeads({
         * un recuento que ya dicen las cuatro tarjetas de encima. Tres
         * renglones para dos controles.
         *
-        * La ayuda que escribí para distinguir los dos buscadores era
+        * El PÁRRAFO que escribí para distinguir los dos buscadores era
         * parte del problema: si hace falta un párrafo para explicar un
-        * campo, el campo está mal puesto. Ahora lo dice el propio
-        * hueco del buscador ---«Buscar en las 1.252…»--- y el de la
-        * tabla sigue diciendo «Buscar en la tabla…». Dos frases que se
-        * leen de un vistazo y no compiten.
+        * campo, el campo está mal puesto. Lo dice sobre todo el propio
+        * hueco ---«Buscar en 1.252…»--- frente al de la tabla, que sigue
+        * diciendo «Buscar en la tabla…».
+        *
+        * PERO UN RENGLÓN SÍ HACE FALTA, y lo cacé Josse al montarlo:
+        * «dentro de lo que quitaste no todo es forma: la ayuda que
+        * explica que la tabla filtra sobre lo cargado sí hace falta»
+        * (7 oct 2026).
+        *
+        * Y es cierto, porque sin ella hay una trampa que no se ve: el
+        * buscador de la tabla solo mira las filas YA TRAÍDAS, así que
+        * se puede buscar a alguien que SÍ está en la base y que la
+        * tabla diga que no hay nadie. Quitar el párrafo estuvo bien;
+        * quitar también el aviso fue pasarme.
+        *
+        * Un renglón, pequeño y con las dos cifras puestas: eso no es
+        * el bloque de tres que el cliente mandó quitar.
         */}
       <div className="flex flex-wrap items-center gap-2">
         <div className="w-[min(240px,100%)]">
@@ -911,6 +924,19 @@ export default function PaginaBbddLeads({
           onChange={(e) => setBuscar(e.target.value)}
         />
       </div>
+
+      {/* Con las dos cifras puestas, que es lo que lo hace entendible:
+          «50» y «1.252» dicen solas por qué son dos buscadores. Solo
+          cuando de verdad hay más de lo traído: con 20 leads los dos
+          buscadores miran lo mismo y el aviso sobraría. */}
+      {datos && datos.total > leads.length && (
+        <p className="text-xs text-texto-suave">
+          El buscador de la tabla filtra solo las{" "}
+          {leads.length.toLocaleString("es-CO")} filas traídas; el de
+          arriba pregunta a las{" "}
+          {datos.total.toLocaleString("es-CO")} de la base.
+        </p>
+      )}
 
       {/**
         * LA TABLA DE LA CASA, LA MISMA QUE GESTION DE LEADS.

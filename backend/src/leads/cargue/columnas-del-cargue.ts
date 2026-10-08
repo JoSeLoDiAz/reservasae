@@ -50,6 +50,11 @@ export type ClaveDeColumna =
   | 'accion'
   | 'departamento'
   | 'ciudad'
+  /// EL GÉNERO. El lead ya tenía dónde guardarlo ---`generoSepId`
+  /// está en el modelo--- y el cargue no lo leía, así que la
+  /// columna del archivo del cliente caía entre las «sin
+  /// reconocer» y su contenido se tiraba.
+  | 'genero'
   | 'notas';
 
 export type ColumnaDelCargue = {
@@ -270,6 +275,21 @@ export const COLUMNAS_DEL_CARGUE: ColumnaDelCargue[] = [
       'El municipio se busca DENTRO de su departamento: «San Antonio» son ' +
       'ocho municipios distintos y elegir uno al azar inventa un domicilio.',
     ancho: 22,
+  },
+  {
+    clave: 'genero',
+    titulo: 'Género',
+    tambienSeLlama: [
+      'genero',
+      'sexo',
+      'genero sexo',
+      'sexo genero',
+      'identidad de genero',
+    ],
+    ejemplo: 'Femenino',
+    ayuda:
+      'MASCULINO, FEMENINO o NO BINARIO, que son los tres del SEP. También vale M o F. Lo que no case se avisa y la persona entra sin género, que es una columna del reporte y no se adivina.',
+    ancho: 16,
   },
   {
     clave: 'notas',

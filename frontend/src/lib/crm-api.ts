@@ -200,10 +200,26 @@ export const ETAPAS_DE_INSCRIPCION: Etapa[] = [
  * dedo no prueba nada, y es justo lo que hace que la cifra
  * sirva. El backend lo rechaza aunque se mande.
  */
+/**
+ * Y «EN FORMACIÓN» SÍ ESTÁ, que faltaba.
+ *
+ * El servidor la admite ---`ETAPAS_A_MANO` de `crm.service.ts`--- y
+ * dice para qué: «el ingreso tardío y la matrícula adelantada, que el
+ * calendario no cubre». Normalmente se pasa sola cuando arranca el
+ * grupo, pero esos dos casos existen y no tenían forma de registrarse.
+ *
+ * Esta lista es una COPIA A MANO de la del servidor, y le faltaba una.
+ * El síntoma no era un error en pantalla: era que una cosa que el
+ * sistema permite no se podía hacer, y nadie sabía por qué.
+ *
+ * Hay una prueba que compara las dos listas, por lo mismo que la de
+ * los permisos: dos copias sin nada que las sujete acaban discrepando.
+ */
 export const ETAPAS_A_MANO: Etapa[] = [
   "INTERESADO",
   "CONTACTADO",
   "INSCRITO",
+  "EN_FORMACION",
   "PERDIDO",
 ];
 

@@ -41,6 +41,7 @@ function fila(parcial: Partial<DatosDeLaFila>): DatosDeLaFila {
     accionFormacionId: null,
     departamentoSepId: null,
     municipioSepId: null,
+    generoSepId: null,
     ...parcial,
   };
 }
