@@ -652,7 +652,7 @@ export type AsesorPosible = {
 };
 
 
-/** Una ubicación donde la acción se dicta, y si el grupo ya la tiene. */
+/** Una ubicación donde la acción se dicta, y qué tiene el grupo allí. */
 export type SedePosible = {
   ubicacionId: string;
   nombre: string;
@@ -662,6 +662,21 @@ export type SedePosible = {
   /// case con su oferta sale en la tabla y no se puede asignar.
   modalidad: string;
   yaEnElGrupo: boolean;
+  /**
+   * LO QUE EL GRUPO YA TIENE AHÍ, O NULO SI ES UN ALTA.
+   *
+   * «Puedo volver a repetir Antioquia, no hay problema [...] que yo
+   * pueda ajustar los cupos» (Josse, 8 oct 2026). Dos filas de
+   * (grupo, ubicación, modalidad) no caben ---la llave única lo
+   * prohíbe, y hace bien---, así que lo que el formulario hace con
+   * una que ya está es EDITARLA: precarga estos cupos y llama al
+   * PATCH en vez de topar con el 409 del alta.
+   */
+  puesta: {
+    coberturaId: string;
+    cuposBase: number;
+    cuposMaximos: number;
+  } | null;
 };
 export const cronogramaApi = {
   listar: () => pedir<AccionCronograma[]>("/admin/cronograma"),

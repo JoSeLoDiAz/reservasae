@@ -623,7 +623,15 @@ export class CronogramaService {
       where: { id: grupoId, accionFormacion: { convenioId: { in: ambito } } },
       select: {
         accionFormacionId: true,
-        coberturas: { select: { ubicacionId: true, modalidad: true } },
+        coberturas: {
+          select: {
+            id: true,
+            ubicacionId: true,
+            modalidad: true,
+            cuposBase: true,
+            cuposMaximos: true,
+          },
+        },
       },
     });
     if (!grupo) throw new NotFoundException('Ese grupo no existe.');
@@ -639,21 +647,49 @@ export class CronogramaService {
 
     /// La clave unica es (grupo, ubicacion, MODALIDAD), y la modalidad
     /// la pone la oferta: asi que «ya la tiene» se mide con las dos.
-    const puestas = new Set(
-      grupo.coberturas.map((c) => `${c.ubicacionId}·${c.modalidad}`),
+    const puestas = new Map(
+      grupo.coberturas.map((c) => [`${c.ubicacionId}·${c.modalidad}`, c]),
     );
 
-    return ofertas.map((o) => ({
-      ubicacionId: o.ubicacion.id,
-      nombre: o.ubicacion.nombre,
-      tipo: o.ubicacion.tipo,
-      departamento: o.ubicacion.departamento,
-      /// Se deriva de la oferta y no se pide: dejarla teclear permite
-      /// una celda cuya modalidad no case con su oferta, y esa celda
-      /// sale en la tabla y NO SE PUEDE ASIGNAR a nadie.
-      modalidad: o.modalidad as string,
-      yaEnElGrupo: puestas.has(`${o.ubicacion.id}·${o.modalidad}`),
-    }));
+    return ofertas.map((o) => {
+      const ya = puestas.get(`${o.ubicacion.id}·${o.modalidad}`);
+      return {
+        ubicacionId: o.ubicacion.id,
+        nombre: o.ubicacion.nombre,
+        tipo: o.ubicacion.tipo,
+        departamento: o.ubicacion.departamento,
+        /// Se deriva de la oferta y no se pide: dejarla teclear permite
+        /// una celda cuya modalidad no case con su oferta, y esa celda
+        /// sale en la tabla y NO SE PUEDE ASIGNAR a nadie.
+        modalidad: o.modalidad as string,
+        yaEnElGrupo: ya !== undefined,
+        /**
+         * LO QUE YA TIENE, PARA PODER AJUSTARLO EN VEZ DE RECHAZARLO.
+         *
+         * «En el grupo 1 dice que Antioquia ya esta, pero puedo volver
+         * a repetir Antioquia, no hay problema [...] lo unico que
+         * necesitamos es poner que vamos a anadir en el grupo tal, en
+         * tal ubicacion [...] que yo pueda ajustar los cupos» (Josse,
+         * 8 oct 2026).
+         *
+         * Dos filas de (grupo, ubicacion, modalidad) no se pueden: la
+         * llave unica lo prohibe, y hace bien ---dos celdas iguales
+         * dejarian sin respuesta a que celda pertenece una ficha---.
+         * Lo que si se puede, y es lo que pidio, es EDITAR la que hay.
+         * Con el id y sus cupos aqui, el panel precarga lo que tiene y
+         * llama al PATCH que ya existia en vez de topar con el 409.
+         *
+         * Nulo cuando el grupo no la tiene: entonces es un alta.
+         */
+        puesta: ya
+          ? {
+              coberturaId: ya.id,
+              cuposBase: ya.cuposBase,
+              cuposMaximos: ya.cuposMaximos,
+            }
+          : null,
+      };
+    });
   }
   /**
    * CREA UNA SEDE DENTRO DE UN GRUPO QUE YA EXISTE.

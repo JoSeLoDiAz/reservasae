@@ -241,3 +241,94 @@ describe('dónde se le puede añadir una sede', () => {
     ).rejects.toThrow(NotFoundException);
   });
 });
+
+/**
+ * LA QUE YA ESTÁ SE AJUSTA, NO SE RECHAZA (Josse, 8 oct 2026).
+ *
+ * «En el grupo 1 dice que Antioquia ya está, pero puedo volver a
+ * repetir Antioquia, no hay problema [...] lo único que necesitamos
+ * ahí es poner que vamos a añadir en el grupo tal, en tal ubicación
+ * [...] que yo pueda ajustar los cupos».
+ *
+ * Dos filas de (grupo, ubicación, modalidad) NO caben ---la llave
+ * única lo prohíbe, y hace bien: dos celdas iguales dejarían sin
+ * respuesta a cuál pertenece una ficha---. Así que lo que hace el
+ * panel con una que ya está es EDITARLA, y para eso necesita su id y
+ * sus cupos. El 409 del alta se queda para quien llame a la API
+ * directo; lo que cambia es que el panel ya no lo topa.
+ */
+describe('lo que el grupo ya tiene viaja, para poder ajustarlo', () => {
+  const OFERTAS_2 = [
+    {
+      modalidad: 'VIRTUAL',
+      ubicacion: { id: 'u-antioquia', nombre: 'ANTIOQUIA', tipo: 'DEPARTAMENTO', departamento: 'ANTIOQUIA' },
+    },
+    {
+      modalidad: 'VIRTUAL',
+      ubicacion: { id: 'u-huila', nombre: 'HUILA', tipo: 'DEPARTAMENTO', departamento: 'HUILA' },
+    },
+  ];
+
+  function armar(coberturas: unknown[]) {
+    const prisma = {
+      grupo: {
+        findFirst: () => Promise.resolve({ accionFormacionId: 'af2', coberturas }),
+      },
+      oferta: { findMany: () => Promise.resolve(OFERTAS_2) },
+    };
+    return new CronogramaService(prisma as never, { registrar: () => Promise.resolve() } as never);
+  }
+
+  const PUESTA = {
+    id: 'cob-antioquia',
+    ubicacionId: 'u-antioquia',
+    modalidad: 'VIRTUAL',
+    cuposBase: 25,
+    cuposMaximos: 33,
+  };
+
+  it('trae el id y los cupos de la que ya está', async () => {
+    const sedes = await armar([PUESTA]).sedesPosibles('g2', ['c-adecopria']);
+    const antioquia = sedes.find((s) => s.ubicacionId === 'u-antioquia');
+    expect(antioquia?.puesta).toEqual({
+      coberturaId: 'cob-antioquia',
+      cuposBase: 25,
+      cuposMaximos: 33,
+    });
+  });
+
+  /// Nulo y no un objeto en cero: cero es un dato y «no la tiene» es
+  /// la ausencia de dato. El panel distingue el alta del ajuste por
+  /// esto, así que un cero lo haría llamar al PATCH de una cobertura
+  /// que no existe.
+  it('la que no está viene en nulo, no en cero', async () => {
+    const sedes = await armar([PUESTA]).sedesPosibles('g2', ['c-adecopria']);
+    expect(sedes.find((s) => s.ubicacionId === 'u-huila')?.puesta).toBeNull();
+  });
+
+  /// `yaEnElGrupo` y `puesta` responden lo mismo y por eso no pueden
+  /// discrepar: uno es el booleano que la pantalla ya leía y el otro
+  /// el dato. Si se separaran, el rótulo diría «ya la tiene» y el
+  /// formulario la trataría como alta.
+  it('`yaEnElGrupo` y `puesta` no se separan', async () => {
+    const sedes = await armar([PUESTA]).sedesPosibles('g2', ['c-adecopria']);
+    for (const s of sedes) {
+      expect(s.yaEnElGrupo).toBe(s.puesta !== null);
+    }
+  });
+
+  /**
+   * LA MISMA UBICACIÓN CON OTRA MODALIDAD ES OTRA CELDA, y por eso la
+   * llave lleva las tres. Es el caso real de AF7 grupo 1, que junta
+   * Medellín presencial con la virtual del departamento: medir «ya la
+   * tiene» sin la modalidad daría por puesta una celda que no existe
+   * y el panel llamaría al PATCH con el id de la otra.
+   */
+  it('no confunde la misma ubicación con otra modalidad', async () => {
+    const sedes = await armar([{ ...PUESTA, modalidad: 'PRESENCIAL' }]).sedesPosibles(
+      'g2',
+      ['c-adecopria'],
+    );
+    expect(sedes.find((s) => s.ubicacionId === 'u-antioquia')?.puesta).toBeNull();
+  });
+});

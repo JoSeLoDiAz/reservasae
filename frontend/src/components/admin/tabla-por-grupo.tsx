@@ -128,21 +128,43 @@ const MODALIDAD: Record<string, string> = {
 };
 
 /**
- * ANADIR UNA SEDE A UN GRUPO QUE YA EXISTE.
+ * AÑADIR UNA SEDE A UN GRUPO, O AJUSTAR LA QUE YA TIENE.
  *
  * «Debo poder agregar grupos, departamento, la modalidad y distribuir
- * la meta» (Josse, 7 oct 2026), y despues, mirando la pantalla: «no se
- * ve la opcion de agregar grupos».
+ * la meta» (Josse, 7 oct 2026), y despues, al probarlo: «en el grupo 1
+ * dice que Antioquia ya esta, pero puedo volver a repetir Antioquia,
+ * no hay problema [...] lo unico que necesitamos ahi es poner que
+ * vamos a anadir en el grupo tal, en tal ubicacion, sin importar si es
+ * el mismo departamento, que yo pueda ajustar los cupos» (8 oct 2026).
  *
- * LO QUE EL PIDE NO ES UN GRUPO NUEVO, Y ESO HAY QUE DECIRLO. Lo que
- * describe ---«grupo 1 Bogota y grupo 1 Antioquia»--- son DOS FILAS DE
- * LA TABLA, no dos grupos: la clave `(accionFormacionId, numero)`
- * prohibe dos grupos con el mismo numero en una accion. Es UN grupo
- * con DOS coberturas, y la fila que falta crear es la cobertura. Por
- * eso el formulario pide el grupo y la sede, no un numero de grupo.
+ * DOS FILAS DE LA MISMA PAREJA NO CABEN, y eso no es una preferencia:
+ * `GrupoCobertura` lleva `@@unique([grupoId, ubicacionId, modalidad])`.
+ * Y hace bien ---dos celdas iguales dejarian sin respuesta a cual de
+ * las dos pertenece una ficha---. Lo que SI es cierto es que
+ * rechazarlas no le servia de nada: lo que el quiere es ajustar sus
+ * cupos, y para eso ya existia `PATCH coberturas/:id/cupos`.
+ *
+ * ASI QUE EL FORMULARIO ELIGE LA PUERTA, no el usuario: alta si la
+ * ubicacion es nueva en ese grupo, ajuste si ya estaba. Las dos rutas
+ * ya existian, estan probadas y toman el mismo `FOR UPDATE` sobre la
+ * oferta, asi que no hizo falta ninguna ruta nueva. El 409 del alta
+ * SE QUEDA: sigue siendo la respuesta correcta para quien llame a la
+ * API directo, y lo que cambia es que el panel ya no lo topa.
+ *
+ * LO QUE EL GRUPO TIENE SE PRECARGA. Sin eso, elegir Antioquia y
+ * teclear 40 pisaria los 25 que tenia sin que nadie los hubiera visto:
+ * el ajuste quedaria a ciegas, que es peor que el rechazo.
+ *
+ * LO QUE NO PUEDE HACER, y hay que decirlo: una ubicacion donde la
+ * accion NO tiene oferta no sale en la lista y el servidor la
+ * rechazaria. Cali, por ejemplo, solo se dicta en AF3; las virtuales
+ * van por los nueve departamentos. Crear esa oferta cambia lo que el
+ * SITIO PUBLICO ofrece ---`catalogo.service.ts` y el formulario de
+ * preinscripcion leen `ofertas`--- y hoy no entra por ninguna ruta de
+ * la API: solo por la siembra. Es otra decision, no un ajuste de cupos.
  *
  * LA MODALIDAD NO SE PIDE: la pone la oferta, y el formulario la
- * ENSENA en cuanto se elige la sede. Dejarla teclear permitiria crear
+ * ensena en cuanto se elige la sede. Dejarla teclear permitiria crear
  * una celda cuya modalidad no case con su oferta, y esa celda sale en
  * la tabla y NO SE PUEDE ASIGNAR a nadie, sin que nada falle.
  */
@@ -150,8 +172,17 @@ function AnadirSede({
   grupos,
   alCrear,
 }: {
-  /// Los grupos de esta accion, tal como salen de la tabla.
-  grupos: Array<{ grupoId: string; numero: number }>;
+  /**
+   * LOS GRUPOS DE ESTA ACCION, CON LO QUE SUMAN HOY.
+   *
+   * El total va porque es lo que hace posible «distribuir los 65»:
+   * sin el, repartir entre tres ubicaciones es sacar la calculadora
+   * contra la tabla de arriba. NO es un tope ---no existe tal cosa en
+   * la base: los 65 son la suma de las coberturas, y el foro de AF7
+   * se subio a proposito por encima de la suya---, asi que se dice y
+   * no se impone.
+   */
+  grupos: Array<{ grupoId: string; numero: number; base: number; tope: number }>;
   alCrear: () => void;
 }) {
   const toast = useToast();
@@ -166,12 +197,14 @@ function AnadirSede({
    * LAS SEDES SE PIDEN AL ELEGIR EL GRUPO, no al abrir el formulario.
    *
    * Dependen del grupo ---son las ubicaciones donde su accion tiene
-   * oferta, y marca las que ese grupo ya tiene---, asi que pedirlas
-   * antes seria pedir las de ninguno.
+   * oferta, y dice cuales y con cuantos cupos las tiene ese grupo---,
+   * asi que pedirlas antes seria pedir las de ninguno.
    */
   async function elegirGrupo(id: string) {
     setGrupoId(id);
     setUbicacionId("");
+    setBase("");
+    setTope("");
     setSedes(null);
     if (!id) return;
     try {
@@ -181,111 +214,200 @@ function AnadirSede({
     }
   }
 
+  /// Elegir una que ya esta trae SUS cupos; una nueva deja los campos
+  /// vacios. Precargar es lo que impide pisar a ciegas lo que tenia.
+  function elegirUbicacion(id: string) {
+    setUbicacionId(id);
+    const s = sedes?.find((x) => x.ubicacionId === id) ?? null;
+    setBase(s?.puesta ? String(s.puesta.cuposBase) : "");
+    setTope(s?.puesta ? String(s.puesta.cuposMaximos) : "");
+  }
+
   const sede = sedes?.find((s) => s.ubicacionId === ubicacionId) ?? null;
+  const grupo = grupos.find((g) => g.grupoId === grupoId) ?? null;
+  const ajusta = sede?.puesta ?? null;
   const listo =
     grupoId !== "" && ubicacionId !== "" && base.trim() !== "" && tope.trim() !== "";
+
+  /**
+   * LO QUE EL GRUPO SUMARIA CON LO QUE HAY TECLEADO.
+   *
+   * En un alta se suma; en un ajuste se sustituye lo que esa sede
+   * tenia. Sin esa resta, ajustar Antioquia de 25 a 40 diria que el
+   * grupo sube 40 cuando sube 15.
+   */
+  const quedaria =
+    grupo && tope.trim() !== "" && Number.isFinite(Number(tope))
+      ? grupo.tope - (ajusta?.cuposMaximos ?? 0) + Number(tope)
+      : null;
 
   async function guardar() {
     setGuardando(true);
     try {
-      await cronogramaApi.crearCobertura(grupoId, {
-        ubicacionId,
-        cuposBase: Number(base),
-        cuposMaximos: Number(tope),
-      });
-      toast.exito("Sede anadida.");
+      if (ajusta) {
+        await cronogramaApi.actualizarCupos(ajusta.coberturaId, {
+          cuposBase: Number(base),
+          cuposMaximos: Number(tope),
+        });
+        toast.exito("Cupos ajustados.");
+      } else {
+        await cronogramaApi.crearCobertura(grupoId, {
+          ubicacionId,
+          cuposBase: Number(base),
+          cuposMaximos: Number(tope),
+        });
+        toast.exito("Sede añadida.");
+      }
       setUbicacionId("");
       setBase("");
       setTope("");
       setSedes(await cronogramaApi.sedesPosibles(grupoId));
       alCrear();
     } catch (e) {
-      toast.error((e as ErrorApi).message ?? "No se pudo anadir.");
+      toast.error((e as ErrorApi).message ?? "No se pudo guardar.");
     } finally {
       setGuardando(false);
     }
   }
 
   return (
-    <div className="flex flex-wrap items-end gap-3 rounded-lg border border-hairline p-3">
-      <label className="block">
-        <span className="mb-1 block text-xs font-medium">Grupo</span>
-        <select
-          value={grupoId}
-          onChange={(e) => elegirGrupo(e.target.value)}
-          className={`${CLASE_CONTROL} w-[8rem]`}
+    <div className="rounded-lg border border-hairline p-3">
+      <div className="flex flex-wrap items-end gap-3">
+        <label className="block">
+          <span className="mb-1 block text-xs font-medium">Grupo</span>
+          <select
+            value={grupoId}
+            onChange={(e) => elegirGrupo(e.target.value)}
+            className={`${CLASE_CONTROL} w-[8rem]`}
+          >
+            <option value="">Elegir…</option>
+            {grupos.map((g) => (
+              <option key={g.grupoId} value={g.grupoId}>
+                Grupo {g.numero}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label className="block">
+          <span className="mb-1 block text-xs font-medium">Ubicación</span>
+          <select
+            value={ubicacionId}
+            onChange={(e) => elegirUbicacion(e.target.value)}
+            disabled={sedes === null}
+            className={`${CLASE_CONTROL} w-[16rem]`}
+          >
+            <option value="">{sedes === null ? "Elija el grupo primero" : "Elegir…"}</option>
+            {(sedes ?? []).map((s) => (
+              /* LAS QUE YA ESTÁN SE MARCAN Y SE PUEDEN ELEGIR.
+                 Estuvieron bloqueadas un día, y Josse lo corrigió:
+                 «puedo volver a repetir Antioquia, no hay problema».
+                 Elegirla no crea una segunda ---la llave única lo
+                 prohíbe--- sino que ajusta la que hay, con sus cupos
+                 ya precargados. Esconderlas sería peor todavía: quien
+                 busca Medellín y no la encuentra no sabría si es que
+                 no se dicta allí o si es que ya está puesta. */
+              <option key={s.ubicacionId} value={s.ubicacionId}>
+                {s.nombre}
+                {s.puesta
+                  ? ` · ya tiene ${s.puesta.cuposBase}/${s.puesta.cuposMaximos}`
+                  : ""}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        {/* LA MODALIDAD SE LEE, NO SE ELIGE: la pone la oferta de esa
+            (acción, ubicación) y el servidor la deriva igual. Un
+            desplegable aquí dejaría crear una celda que no se puede
+            asignar a nadie. */}
+        <p className="min-w-[6rem] pb-2 text-[0.78125rem]">
+          <span className="mb-1 block text-xs font-medium text-texto-suave">Modalidad</span>
+          {sede ? (MODALIDAD[sede.modalidad] ?? sede.modalidad) : "—"}
+        </p>
+
+        <label className="block">
+          <span className="mb-1 block text-xs font-medium">Comprometido</span>
+          <input
+            type="number"
+            min={0}
+            value={base}
+            onChange={(e) => setBase(e.target.value)}
+            className={`${CLASE_CONTROL} w-[6rem]`}
+            aria-label="Cupos comprometidos en esta sede"
+          />
+        </label>
+
+        <label className="block">
+          <span className="mb-1 block text-xs font-medium">Tope</span>
+          <input
+            type="number"
+            min={0}
+            value={tope}
+            onChange={(e) => setTope(e.target.value)}
+            className={`${CLASE_CONTROL} w-[6rem]`}
+            aria-label="Tope de cupos en esta sede"
+          />
+        </label>
+
+        {/* EL RÓTULO DICE CUÁL DE LAS DOS COSAS VA A PASAR. Con
+            «Añadir» siempre, ajustar una sede que ya estaba se leería
+            como un alta y nadie sabría que está pisando un número. */}
+        <button
+          onClick={guardar}
+          disabled={!listo || guardando}
+          className="sin-aro rounded-lg bg-marca px-3 py-1.5 text-[0.78125rem] font-semibold text-blanco transition disabled:opacity-40"
         >
-          <option value="">Elegir…</option>
-          {grupos.map((g) => (
-            <option key={g.grupoId} value={g.grupoId}>
-              Grupo {g.numero}
-            </option>
-          ))}
-        </select>
-      </label>
+          {guardando
+            ? ajusta
+              ? "Ajustando…"
+              : "Añadiendo…"
+            : ajusta
+              ? "Ajustar"
+              : "Añadir"}
+        </button>
+      </div>
 
-      <label className="block">
-        <span className="mb-1 block text-xs font-medium">Ubicación</span>
-        <select
-          value={ubicacionId}
-          onChange={(e) => setUbicacionId(e.target.value)}
-          disabled={sedes === null}
-          className={`${CLASE_CONTROL} w-[14rem]`}
-        >
-          <option value="">{sedes === null ? "Elija el grupo primero" : "Elegir…"}</option>
-          {(sedes ?? []).map((s) => (
-            /* LAS QUE YA ESTÁN SE MARCAN Y NO SE ESCONDEN: escondida,
-               quien busca Medellín y no la encuentra no sabe si es que
-               no se dicta allí o si es que ya está puesta, y son dos
-               cosas distintas. */
-            <option key={s.ubicacionId} value={s.ubicacionId} disabled={s.yaEnElGrupo}>
-              {s.nombre}
-              {s.yaEnElGrupo ? " · ya la tiene" : ""}
-            </option>
-          ))}
-        </select>
-      </label>
+      {/* LO QUE SUMA EL GRUPO, que es lo que pidió para poder
+          «distribuir los 65 entre Cali, Magdalena y Huila».
 
-      {/* LA MODALIDAD SE LEE, NO SE ELIGE: la pone la oferta de esa
-          (acción, ubicación) y el servidor la deriva igual. Un
-          desplegable aquí dejaría crear una celda que no se puede
-          asignar a nadie. */}
-      <p className="min-w-[6rem] pb-2 text-[0.78125rem]">
-        <span className="mb-1 block text-xs font-medium text-texto-suave">Modalidad</span>
-        {sede ? (MODALIDAD[sede.modalidad] ?? sede.modalidad) : "—"}
-      </p>
+          DICE, NO IMPIDE: en la base no existe un tope del grupo ---los
+          65 son la suma de sus coberturas--- y el foro de AF7 se subió
+          a propósito por encima de la suya. Poner aquí un límite sería
+          inventar una regla que nadie pidió. */}
+      {grupo && (
+        <p className="mt-3 text-xs text-texto-suave">
+          El grupo {grupo.numero} lleva{" "}
+          <strong className="font-semibold tabular-nums text-texto">
+            {n(grupo.base)}
+          </strong>{" "}
+          comprometidos y{" "}
+          <strong className="font-semibold tabular-nums text-texto">
+            {n(grupo.tope)}
+          </strong>{" "}
+          de tope, repartidos entre sus ubicaciones.
+          {quedaria !== null && quedaria !== grupo.tope && (
+            <>
+              {" "}
+              Con lo que está escrito quedaría en{" "}
+              <strong className="font-semibold tabular-nums text-texto">
+                {n(quedaria)}
+              </strong>
+              .
+            </>
+          )}
+        </p>
+      )}
 
-      <label className="block">
-        <span className="mb-1 block text-xs font-medium">Comprometido</span>
-        <input
-          type="number"
-          min={0}
-          value={base}
-          onChange={(e) => setBase(e.target.value)}
-          className={`${CLASE_CONTROL} w-[6rem]`}
-          aria-label="Cupos comprometidos en la sede nueva"
-        />
-      </label>
-
-      <label className="block">
-        <span className="mb-1 block text-xs font-medium">Tope</span>
-        <input
-          type="number"
-          min={0}
-          value={tope}
-          onChange={(e) => setTope(e.target.value)}
-          className={`${CLASE_CONTROL} w-[6rem]`}
-          aria-label="Tope de cupos en la sede nueva"
-        />
-      </label>
-
-      <button
-        onClick={guardar}
-        disabled={!listo || guardando}
-        className="sin-aro rounded-lg bg-marca px-3 py-1.5 text-[0.78125rem] font-semibold text-blanco transition disabled:opacity-40"
-      >
-        {guardando ? "Añadiendo…" : "Añadir"}
-      </button>
+      {/* UNA UBICACIÓN SIN OFERTA NO SALE, Y HAY QUE DECIR POR QUÉ:
+          si no, buscar Cali en una virtual y no encontrarla se lee
+          como un fallo. Crear esa oferta cambia lo que el sitio
+          público ofrece allí, así que no entra por aquí. */}
+      {sedes !== null && (
+        <p className="mt-1 text-xs text-texto-suave">
+          Solo salen las ubicaciones donde esta acción de formación ya se dicta.
+        </p>
+      )}
     </div>
   );
 }
@@ -366,15 +488,37 @@ export function TablaPorGrupo({
   }
 
   /**
-   * LOS GRUPOS, SIN REPETIR, PARA EL DESPLEGABLE.
+   * LOS GRUPOS, SIN REPETIR Y CON LO QUE SUMAN, PARA EL DESPLEGABLE.
    *
-   * `filas` trae UNA FILA POR (grupo, departamento), asi que el grupo
-   * 1 con dos departamentos sale dos veces y el desplegable ofreceria
+   * `filas` trae UNA FILA POR (grupo, departamento), así que el grupo
+   * 1 con dos departamentos sale dos veces y el desplegable ofrecería
    * «Grupo 1» dos veces, las dos lo mismo. La llave es el grupoId.
+   *
+   * Y DE PASO SE SUMA LO QUE LLEVA CADA GRUPO, que es lo que hace
+   * posible «distribuir los 65 entre Cali, Magdalena y Huila» (Josse,
+   * 8 oct 2026) sin sacar la calculadora contra la tabla. Sale de las
+   * coberturas de sus filas ---el dato ya viaja--- y NO de una
+   * consulta nueva: el grupo cruza varias filas de esta misma tabla.
    */
   const gruposUnicos = [
-    ...new Map(filas.map((f) => [f.grupoId, { grupoId: f.grupoId, numero: f.numero }])).values(),
+    ...filas
+      .reduce((m, f) => {
+        const v = m.get(f.grupoId) ?? {
+          grupoId: f.grupoId,
+          numero: f.numero,
+          base: 0,
+          tope: 0,
+        };
+        for (const c of f.coberturas) {
+          v.base += c.cuposBase;
+          v.tope += c.cuposMaximos;
+        }
+        m.set(f.grupoId, v);
+        return m;
+      }, new Map<string, { grupoId: string; numero: number; base: number; tope: number }>())
+      .values(),
   ].sort((a, b) => a.numero - b.numero);
+
 
   const t = filas.reduce(
     (a, f) => ({
