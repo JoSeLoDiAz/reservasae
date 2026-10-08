@@ -269,3 +269,52 @@ describe('el boton dice por que no se puede guardar', () => {
     expect(formulario).toContain('personas dentro');
   });
 });
+
+/**
+ * QUITAR UNA SEDE DESDE LA PANTALLA (Josse, 8 oct 2026).
+ *
+ * Lo que sujeta aqui es que el control exista, que pida confirmacion y
+ * que NOMBRE la sede: un «¿esta seguro?» se acepta sin leer, y esta es
+ * una accion que no se deshace sola.
+ */
+describe('quitar una sede desde la fila', () => {
+  const texto = readFileSync(TABLA, 'utf8');
+  const formulario = texto.slice(
+    texto.indexOf('function AnadirSede('),
+    texto.indexOf('export function TablaPorGrupo('),
+  );
+  /// La tabla, que es donde vive el editor de la fila.
+  const tabla = texto.slice(texto.indexOf('export function TablaPorGrupo('));
+
+  it('llama a la ruta de borrado', () => {
+    expect(tabla).toContain('cronogramaApi.eliminarCobertura(coberturaId)');
+  });
+
+  /// DOS PASOS. El primer clic arma y el segundo quita: sin eso, un
+  /// clic de mas en la fila equivocada se lleva una sede.
+  it('pide confirmación antes de quitar', () => {
+    expect(tabla).toContain('if (porQuitar !== coberturaId)');
+    expect(tabla).toContain('setPorQuitar(coberturaId)');
+  });
+
+  /// Y EL SEGUNDO ROTULO NOMBRA LA SEDE. «Confirmar» a secas no dice
+  /// cual se lleva, que es justo lo que hay que poder leer.
+  it('el segundo rótulo dice qué sede se lleva', () => {
+    expect(tabla).toContain('`Sí, quitar ${c.ubicacion}`');
+  });
+
+  /**
+   * Y EL MENSAJE DEL SERVIDOR SE PINTA TAL CUAL. El servidor se niega
+   * cuando hay gente dentro y dice CUANTA; un «no se pudo» generico
+   * tiraria el unico dato que explica por que.
+   */
+  it('enseña el motivo que da el servidor', () => {
+    expect(tabla).toMatch(/toast\.error\(\(e as ErrorApi\)\.message \?\?/);
+  });
+
+  /// El formulario de alta no borra: son dos cosas distintas y el
+  /// borrado vive en el editor de la fila, junto a los cupos.
+  it('el formulario de añadir no borra nada', () => {
+    expect(formulario).not.toContain('eliminarCobertura');
+  });
+});

@@ -759,6 +759,23 @@ export const cronogramaApi = {
     pedir<SedePosible[]>(`/admin/cronograma/grupos/${grupoId}/sedes-posibles`),
 
   /**
+   * QUITA UNA SEDE DE UN GRUPO.
+   *
+   * «Metí Valle pero lo voy a cambiar por Antioquia» (Josse, 8 oct
+   * 2026). Dejarla en cero no la quita: deja una fila diciendo que ese
+   * grupo se dicta allí con cero cupos.
+   *
+   * El servidor se niega si hay alguien dentro ---y ese candado no lo
+   * da la base: la relación es `onDelete: SetNull`, así que un borrado
+   * con gente les quitaría el grupo en silencio---.
+   */
+  eliminarCobertura: (coberturaId: string) =>
+    pedir<{ eliminada: boolean; topeDeLaOferta: number }>(
+      `/admin/cronograma/coberturas/${coberturaId}`,
+      { method: "DELETE" },
+    ),
+
+  /**
    * UNA SEDE NUEVA EN UN GRUPO QUE YA EXISTE.
    *
    * «Debo poder agregar grupos, departamento, la modalidad y

@@ -115,6 +115,7 @@ export const ACCIONES = [
    */
   'CUPOS_EDITADOS',
   'COBERTURA_CREADA',
+  'COBERTURA_ELIMINADA',
   /**
    * El cronograma del cliente se volcó sobre los grupos.
    *

@@ -593,6 +593,34 @@ export function TablaPorGrupo({
   /// `refrescar` NO va memoizada: la devuelve `useDatosVivos` nueva
   /// en cada render, asi que un useCallback con ella en las
   /// dependencias se rehace igual y solo anade ruido.
+  /**
+   * QUÉ SEDE ESTÁ ESPERANDO CONFIRMACIÓN PARA QUITARSE.
+   *
+   * Dos pasos y no un `confirm()`: en esta casa «un "¿está seguro?" se
+   * acepta sin leer», y además el visor de la aplicación no siempre lo
+   * muestra. El segundo rótulo nombra la sede, así que quien lo pulsa
+   * ve exactamente cuál se lleva.
+   */
+  const [porQuitar, setPorQuitar] = useState<string | null>(null);
+
+  async function quitarSede(coberturaId: string, nombre: string) {
+    if (porQuitar !== coberturaId) {
+      setPorQuitar(coberturaId);
+      return;
+    }
+    try {
+      await cronogramaApi.eliminarCobertura(coberturaId);
+      toast.exito(`${nombre} ya no está en ese grupo.`);
+      vivos.refrescar();
+    } catch (e) {
+      /// El servidor se niega si hay alguien dentro, y su mensaje dice
+      /// cuántos: es lo que hay que leer, no un «no se pudo».
+      toast.error((e as ErrorApi).message ?? 'No se pudo quitar.');
+    } finally {
+      setPorQuitar(null);
+    }
+  }
+
   const alGuardar = async () => {
     vivos.refrescar();
   };
@@ -808,17 +836,48 @@ export function TablaPorGrupo({
                     <td colSpan={COLUMNAS.length} className="bg-fondo p-4">
                       <div className="flex flex-col gap-3">
                         {sedesDe(f).map((c) => (
-                          <CuposDeLaSede
-                            key={c.coberturaId}
-                            sede={{
-                              id: c.coberturaId,
-                              nombre: `${c.ubicacion} · ${MODALIDAD[c.modalidad] ?? c.modalidad}`,
-                              cupos: c.cuposBase,
-                              tope: c.cuposMaximos,
-                            }}
-                            alGuardar={alGuardar}
-                            alFallar={(m) => toast.error(m)}
-                          />
+                          <div key={c.coberturaId} className="flex flex-wrap items-center gap-2">
+                            <div className="min-w-0 grow">
+                              <CuposDeLaSede
+                                sede={{
+                                  id: c.coberturaId,
+                                  nombre: `${c.ubicacion} · ${MODALIDAD[c.modalidad] ?? c.modalidad}`,
+                                  cupos: c.cuposBase,
+                                  tope: c.cuposMaximos,
+                                }}
+                                alGuardar={alGuardar}
+                                alFallar={(m) => toast.error(m)}
+                              />
+                            </div>
+                            {/* QUITAR LA SEDE, en DOS pasos y nombrándola.
+                                «Metí Valle pero lo voy a cambiar por
+                                Antioquia» (Josse, 8 oct 2026): una celda
+                                puesta por error se quedaba puesta, y dejarla
+                                en cero no la quita ---deja una fila diciendo
+                                que ese grupo se dicta allí con cero cupos---.
+
+                                Dos pasos porque un «¿está seguro?» se acepta
+                                sin leer, que es la regla de esta casa para lo
+                                que no se deshace. El segundo rótulo NOMBRA la
+                                sede, así que quien lo pulsa ve cuál se lleva.
+
+                                Y el servidor se niega si hay alguien dentro:
+                                esto es comodidad, no el candado. */}
+                            <button
+                              type="button"
+                              onClick={() => quitarSede(c.coberturaId, c.ubicacion)}
+                              className={
+                                'no-imprimir shrink-0 text-[0.75rem] font-medium underline underline-offset-2 ' +
+                                (porQuitar === c.coberturaId
+                                  ? 'text-error hover:text-error'
+                                  : 'text-texto-suave hover:text-error')
+                              }
+                            >
+                              {porQuitar === c.coberturaId
+                                ? `Sí, quitar ${c.ubicacion}`
+                                : 'Quitar'}
+                            </button>
+                          </div>
                         ))}
                       </div>
                       <p className="mt-3 text-xs text-texto-suave">

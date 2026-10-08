@@ -632,6 +632,126 @@ export class CronogramaService {
 
 
   /**
+   * QUITA UNA SEDE DE UN GRUPO.
+   *
+   * «Metí Valle pero lo voy a cambiar por Antioquia» (Josse, 8 oct
+   * 2026). Hasta hoy no habia forma: se podia añadir y se podian
+   * editar los cupos, pero una celda puesta por error se quedaba
+   * puesta ---y dejarla en cero no la quita, deja una fila diciendo
+   * que ese grupo se dicta alli con cero cupos---.
+   *
+   * SE REFUSA SI HAY ALGUIEN DENTRO, Y ESE CANDADO NO LO DA LA BASE.
+   * `Participante.cobertura` es `onDelete: SetNull`, asi que un
+   * borrado con gente dentro NO falla: les quita el grupo en silencio
+   * y nadie se entera hasta que alguien mira por que esas fichas no
+   * salen en ningun grupo. Por eso se cuenta antes y se nombra cuanta
+   * gente hay.
+   *
+   * SE CUENTAN TODAS LAS ETAPAS, no solo las vivas. Una retirada o una
+   * no aprobada tambien apunta a esta fila y tambien perderia su
+   * grupo; y su historial academico se lee contra el. Que alguien se
+   * haya ido no borra que estuvo ahi.
+   *
+   * SIGUE EL MOLDE DE LAS OTRAS DOS: misma transaccion, mismo
+   * `FOR UPDATE` sobre la oferta, mismo recalculo del tope como suma
+   * de las coberturas que queden, y la misma huella. Y el mismo
+   * candado de lo apartado: si al quitarla el tope cae por debajo de
+   * lo que las empresas ya reservaron, se dice en palabras en vez de
+   * reventar contra el CHECK.
+   */
+  async eliminarCobertura(id: string, ambito: string[], actor: Actor, ip?: string) {
+    const cobertura = await this.prisma.grupoCobertura.findFirst({
+      where: { id, grupo: { accionFormacion: { convenioId: { in: ambito } } } },
+      select: {
+        id: true,
+        cuposBase: true,
+        cuposMaximos: true,
+        ubicacionId: true,
+        ubicacion: { select: { nombre: true } },
+        grupo: {
+          select: {
+            numero: true,
+            accionFormacionId: true,
+            accionFormacion: { select: { codigo: true, convenioId: true } },
+          },
+        },
+        _count: { select: { participantes: true } },
+      },
+    });
+    if (!cobertura) throw new NotFoundException('Ese grupo no existe en esa sede.');
+
+    if (cobertura._count.participantes > 0) {
+      throw new ConflictException(
+        `El grupo ${cobertura.grupo.numero} de ${cobertura.ubicacion.nombre} tiene ` +
+          `${cobertura._count.participantes} persona(s) asignada(s): quitarlo las dejaria ` +
+          'sin grupo. Muevalas a otra sede primero.',
+      );
+    }
+
+    const resultado = await this.prisma.$transaction(async (tx) => {
+      const oferta = await tx.oferta.findUnique({
+        where: {
+          accionFormacionId_ubicacionId: {
+            accionFormacionId: cobertura.grupo.accionFormacionId,
+            ubicacionId: cobertura.ubicacionId,
+          },
+        },
+        select: { id: true, cuposOcupados: true },
+      });
+      if (!oferta) {
+        throw new BadRequestException(
+          'Esa sede no tiene oferta de esta accion: no hay de donde restar los cupos.',
+        );
+      }
+      await tx.$queryRaw`SELECT "id" FROM "ofertas" WHERE "id" = ${oferta.id} FOR UPDATE`;
+
+      await tx.grupoCobertura.delete({ where: { id } });
+
+      /// El tope de la oferta vuelve a ser la suma de las que queden.
+      const suma = await tx.grupoCobertura.aggregate({
+        where: {
+          ubicacionId: cobertura.ubicacionId,
+          grupo: { accionFormacionId: cobertura.grupo.accionFormacionId },
+        },
+        _sum: { cuposMaximos: true },
+      });
+      const nuevoTope = suma._sum.cuposMaximos ?? 0;
+
+      /// El mismo candado que al editar: lo ya apartado manda.
+      if (nuevoTope < oferta.cuposOcupados) {
+        throw new BadRequestException(
+          `${cobertura.ubicacion.nombre} ya tiene ${oferta.cuposOcupados} cupos apartados ` +
+            `por empresas en esta accion: quitando esta sede el tope quedaria en ` +
+            `${nuevoTope}, por debajo de lo reservado.`,
+        );
+      }
+
+      await tx.oferta.update({
+        where: { id: oferta.id },
+        data: { cuposMaximos: nuevoTope },
+      });
+
+      return { topeDeLaOferta: nuevoTope };
+    });
+
+    await this.auditoria.registrar({
+      actor,
+      accion: 'COBERTURA_ELIMINADA',
+      entidad: ENTIDADES.COBERTURA,
+      entidadId: id,
+      convenioId: cobertura.grupo.accionFormacion.convenioId,
+      resumen:
+        `${cobertura.grupo.accionFormacion.codigo}, grupo ${cobertura.grupo.numero}: se quita ` +
+        `${cobertura.ubicacion.nombre} (base ${cobertura.cuposBase}, tope ` +
+        `${cobertura.cuposMaximos}) — la oferta queda en ${resultado.topeDeLaOferta}`,
+      camposTocados: ['ubicacionId'],
+      ip,
+    });
+
+    return { eliminada: true, ...resultado };
+  }
+
+  /**
    * DONDE SE LE PUEDE ANADIR UNA SEDE A ESTE GRUPO.
    *
    * El desplegable tiene que ofrecer EXACTAMENTE lo que `crearCobertura`

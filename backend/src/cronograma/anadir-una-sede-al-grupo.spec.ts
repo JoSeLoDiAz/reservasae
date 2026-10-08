@@ -498,3 +498,151 @@ describe('el tope no baja de lo que las empresas apartaron', () => {
     expect((escrito.oferta as { data: unknown }).data).toEqual({ cuposMaximos: 30 });
   });
 });
+
+/**
+ * QUITAR UNA SEDE DE UN GRUPO (Josse, 8 oct 2026: «meti Valle pero lo
+ * voy a cambiar por Antioquia»).
+ *
+ * Hasta hoy no habia forma: se podia añadir y editar cupos, pero una
+ * celda puesta por error se quedaba. Y dejarla en cero no la quita:
+ * deja una fila diciendo que ese grupo se dicta alli con cero cupos.
+ */
+describe('quitar una sede de un grupo', () => {
+  const COB = {
+    id: 'cob1',
+    cuposBase: 20,
+    cuposMaximos: 26,
+    ubicacionId: 'u-valle',
+    ubicacion: { nombre: 'VALLE DEL CAUCA' },
+    grupo: {
+      numero: 4,
+      accionFormacionId: 'af1',
+      accionFormacion: { codigo: 'AF1', convenioId: 'c-adecopria' },
+    },
+    _count: { participantes: 0 },
+  };
+
+  function armarBorrado(opciones: {
+    cobertura?: unknown;
+    sumaDespues?: number;
+    apartados?: number;
+  } = {}) {
+    const escrito: Record<string, unknown> = {};
+    const tx = {
+      $queryRaw: () => Promise.resolve([]),
+      grupoCobertura: {
+        delete: (a: unknown) => {
+          escrito.borrada = a;
+          return Promise.resolve({});
+        },
+        aggregate: () =>
+          Promise.resolve({ _sum: { cuposMaximos: opciones.sumaDespues ?? 0 } }),
+      },
+      oferta: {
+        findUnique: () =>
+          Promise.resolve({ id: 'of1', cuposOcupados: opciones.apartados ?? 0 }),
+        update: (a: unknown) => {
+          escrito.oferta = a;
+          return Promise.resolve({});
+        },
+      },
+    };
+    const prisma = {
+      grupoCobertura: {
+        findFirst: (a: unknown) => {
+          escrito.pedido = a;
+          return Promise.resolve('cobertura' in opciones ? opciones.cobertura : COB);
+        },
+      },
+      $transaction: (fn: (t: unknown) => Promise<unknown>) => fn(tx),
+    };
+    return {
+      s: new CronogramaService(prisma as never, {
+        registrar: (a: unknown) => {
+          escrito.auditoria = a;
+          return Promise.resolve();
+        },
+      } as never),
+      escrito,
+    };
+  }
+
+  it('la quita y deja la oferta cuadrada con lo que queda', async () => {
+    const { s, escrito } = armarBorrado({ sumaDespues: 39 });
+    const r = await s.eliminarCobertura('cob1', ['c-adecopria'], ACTOR);
+    expect(r).toEqual({ eliminada: true, topeDeLaOferta: 39 });
+    expect((escrito.borrada as { where: { id: string } }).where.id).toBe('cob1');
+    expect((escrito.oferta as { data: unknown }).data).toEqual({ cuposMaximos: 39 });
+  });
+
+  /**
+   * EL CANDADO QUE NO DA LA BASE, y es el que de verdad importa.
+   *
+   * `Participante.cobertura` es `onDelete: SetNull`, asi que borrar
+   * una con gente dentro NO falla: les quita el grupo EN SILENCIO y
+   * nadie se entera hasta que alguien mira por que esas fichas no
+   * salen en ningun grupo.
+   */
+  it('con gente dentro NO la borra, y dice cuánta', async () => {
+    const { s, escrito } = armarBorrado({
+      cobertura: { ...COB, _count: { participantes: 8 } },
+    });
+    const m = await s
+      .eliminarCobertura('cob1', ['c-adecopria'], ACTOR)
+      .catch((e: Error) => e.message);
+    expect(m).toContain('8');
+    expect(m).toContain('VALLE DEL CAUCA');
+    expect(escrito.borrada).toBeUndefined();
+  });
+
+  /**
+   * TODAS LAS ETAPAS, no solo las vivas: una retirada tambien apunta a
+   * esta fila y tambien perderia su grupo, y su historial academico se
+   * lee contra el. Que alguien se haya ido no borra que estuvo ahi.
+   *
+   * SE MIRA EL SELECT Y NO EL CONTEO, y eso es lo que hace que el
+   * aserto valga: el doble devuelve el numero que se le diga, asi que
+   * un `where` por etapa le seria invisible ---lo comprobe mutandolo y
+   * no mato nada---. Lo unico que distingue «cuenta a todos» de
+   * «cuenta a los vivos» es lo que se le PIDE a Prisma.
+   */
+  it('cuenta a los de todas las etapas, no solo a los vivos', async () => {
+    const { s, escrito } = armarBorrado({ sumaDespues: 39 });
+    await s.eliminarCobertura('cob1', ['c-adecopria'], ACTOR);
+    const pedido = escrito.pedido as {
+      select: { _count: { select: { participantes: unknown } } };
+    };
+    expect(pedido.select._count.select.participantes).toBe(true);
+  });
+
+  /// El mismo candado que al editar: si al quitarla el tope cae por
+  /// debajo de lo que las empresas apartaron, se dice en palabras en
+  /// vez de reventar contra el CHECK de la oferta.
+  it('no deja el tope por debajo de lo ya apartado', async () => {
+    const { s, escrito } = armarBorrado({ sumaDespues: 10, apartados: 22 });
+    const m = await s
+      .eliminarCobertura('cob1', ['c-adecopria'], ACTOR)
+      .catch((e: Error) => e.message);
+    expect(m).toContain('22');
+    expect(escrito.oferta).toBeUndefined();
+  });
+
+  it('una de otro gremio es 404 y no borra', async () => {
+    const { s, escrito } = armarBorrado({ cobertura: null });
+    await expect(
+      s.eliminarCobertura('ajena', ['c-adecopria'], ACTOR),
+    ).rejects.toThrow(NotFoundException);
+    expect(escrito.borrada).toBeUndefined();
+  });
+
+  /// Deja huella con lo que tenia: sin los cupos, la bitacora no
+  /// permite deshacerlo a mano.
+  it('deja huella de lo que se quitó', async () => {
+    const { s, escrito } = armarBorrado({ sumaDespues: 39 });
+    await s.eliminarCobertura('cob1', ['c-adecopria'], ACTOR);
+    const a = escrito.auditoria as { accion: string; resumen: string };
+    expect(a.accion).toBe('COBERTURA_ELIMINADA');
+    expect(a.resumen).toContain('VALLE DEL CAUCA');
+    expect(a.resumen).toContain('26');
+  });
+});

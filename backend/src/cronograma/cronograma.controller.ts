@@ -1,4 +1,13 @@
-import { Body, Controller, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
 
 import { RolAdmin, type Admin } from '../../generated/prisma';
 import { AdminActual, AmbitoActual } from '../admin/admin-actual.decorator';
@@ -132,6 +141,29 @@ export class CronogramaController {
     return this.cronograma.crearCobertura(
       id,
       dto,
+      ambito.convenios,
+      { id: admin.id, nombre: admin.nombre },
+      ip,
+    );
+  }
+
+  /**
+   * QUITA UNA SEDE DE UN GRUPO.
+   *
+   * `@Roles(SUPERADMIN)` como todos los borrados de la casa, y
+   * ademas el area: quitar una sede cambia lo que la oferta ofrece.
+   */
+  @Delete('coberturas/:id')
+  @Requiere('configuracion', 'ESCRIBIR')
+  @Roles(RolAdmin.SUPERADMIN)
+  eliminarCobertura(
+    @Param('id') id: string,
+    @AmbitoActual() ambito: Ambito,
+    @AdminActual() admin: Admin,
+    @IpReal() ip: string,
+  ) {
+    return this.cronograma.eliminarCobertura(
+      id,
       ambito.convenios,
       { id: admin.id, nombre: admin.nombre },
       ip,
