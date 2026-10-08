@@ -234,11 +234,11 @@ export function TablaPorAccion({
               <th>AF</th>
               <th className="w-full">Nombre</th>
               <th className="text-center whitespace-nowrap">Meta</th>
-              <th className={ENTRO}>Cupos reservados</th>
-              <th className={ENTRO}>Leads por su cuenta</th>
-              <th className={ENTRO}>Total leads</th>
-              <th className={INSCRIBIO}>Inscritos reservas</th>
-              <th className={INSCRIBIO}>Inscritos por su cuenta</th>
+              <th className={ENTRO}>Cupos reservados afiliados</th>
+              <th className={ENTRO}>Cupos reservados de pauta</th>
+              <th className={ENTRO}>Total leads de pauta</th>
+              <th className={INSCRIBIO}>Inscritos reservas de afiliado</th>
+              <th className={INSCRIBIO}>Inscritos de pauta</th>
               <th className={INSCRIBIO}>Total inscritos</th>
               <th className="text-center whitespace-nowrap">Conversión</th>
               <th className="text-center whitespace-nowrap">Cupos disponibles</th>
