@@ -23,20 +23,46 @@ import {
 } from '@nestjs/common';
 import type { Request } from 'express';
 
+import { proveedorDeLaClave, type Proveedor } from '../integraciones/proveedores';
 import { CABECERA, claveCorrecta } from './secreto-de-leads';
+
+/// La peticion, con el proveedor que la llave identifico.
+export type PeticionDeLead = Request & { proveedorDelLead?: Proveedor };
 
 @Injectable()
 export class LlaveDeLeadsGuard implements CanActivate {
   canActivate(contexto: ExecutionContext): boolean {
-    const req = contexto.switchToHttp().getRequest<Request>();
+    const req = contexto.switchToHttp().getRequest<PeticionDeLead>();
     const clave = req.headers[CABECERA] as string | undefined;
 
-    if (!claveCorrecta(clave)) {
-      /// El mensaje no dice si faltaba la cabecera o si estaba
-      /// mal: las dos respuestas juntas le dirían a quien
-      /// prueba que la cabecera existe y cómo se llama.
-      throw new UnauthorizedException('Llave de webhook inválida.');
+    /**
+     * DOS LLAVES VALEN, Y NO SON LO MISMO.
+     *
+     * La del orquestador (`LEADS_WEBHOOK_SECRET`) sigue eligiendo
+     * su etiqueta por cabecera, y hace bien: ese servicio nos
+     * RELEVA leads de varias procedencias, asi que es el unico que
+     * de verdad sabe de donde viene cada uno.
+     *
+     * La de un PROVEEDOR ---Lucid, Nua--- no elige: su etiqueta la
+     * pone el registro del servidor. De esa etiqueta depende si el
+     * lead cuenta como pauta pagada, y dejarsela elegir a quien
+     * llama es lo que `leads.service` prohibe por escrito: «lo
+     * decide QUIEN LO MANDA, no el cuerpo».
+     *
+     * Se prueban las de proveedor DESPUES: la del orquestador es la
+     * que lleva meses entrando, y asi su camino no cambia de orden.
+     */
+    if (claveCorrecta(clave)) return true;
+
+    const proveedor = proveedorDeLaClave(clave);
+    if (proveedor) {
+      req.proveedorDelLead = proveedor;
+      return true;
     }
-    return true;
+
+    /// El mensaje no dice si faltaba la cabecera o si estaba
+    /// mal: las dos respuestas juntas le dirían a quien
+    /// prueba que la cabecera existe y cómo se llama.
+    throw new UnauthorizedException('Llave de webhook inválida.');
   }
 }
