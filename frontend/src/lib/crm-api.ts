@@ -1595,6 +1595,28 @@ export type FilaResumenGeneral = {
 };
 
 /** Una fila por grupo de una acción: el Bloque 3 de Control de inscritos. */
+/**
+ * UNA SEDE DEL GRUPO, CON SU ID, PARA PODER EDITARLE LA META.
+ *
+ * «Que la meta sea modificable manual» (Josse, 7 oct 2026). La celda
+ * de Meta enseña la SUMA del departamento, y con dos sedes dentro no
+ * se puede escribir encima ---habría que decidir cómo se parte, y eso
+ * es decidir por quien escribe---. Así que la fila lleva sus sedes y
+ * se edita la que toque.
+ *
+ * Medido sobre el catálogo: de 113 filas, 112 son UNA cobertura. La
+ * que no es AF7 grupo 1 ANTIOQUIA, que junta Medellín presencial con
+ * la virtual del departamento.
+ */
+export type SedeDelGrupo = {
+  coberturaId: string;
+  ubicacionId: string;
+  ubicacion: string;
+  modalidad: string;
+  cuposBase: number;
+  cuposMaximos: number;
+};
+
 export type FilaDeGrupo = {
   grupoId: string;
   numero: number;
@@ -1604,6 +1626,8 @@ export type FilaDeGrupo = {
   /// departamento desde el 24 sep 2026.
   departamento: string;
   meta: number;
+  /// Sus sedes, una a una: es lo que hace editable la meta.
+  coberturas: SedeDelGrupo[];
   /// En los grupos NO son cupos reservados sino personas ya nominadas
   /// por la empresa: una reserva se hace sobre la oferta, no sobre un
   /// grupo. Lo explica `backend/src/crm/resumen-por-grupo.ts`.

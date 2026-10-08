@@ -651,6 +651,18 @@ export type AsesorPosible = {
   convenios: string[];
 };
 
+
+/** Una ubicación donde la acción se dicta, y si el grupo ya la tiene. */
+export type SedePosible = {
+  ubicacionId: string;
+  nombre: string;
+  tipo: string;
+  departamento: string | null;
+  /// La pone la OFERTA, no quien crea: una celda cuya modalidad no
+  /// case con su oferta sale en la tabla y no se puede asignar.
+  modalidad: string;
+  yaEnElGrupo: boolean;
+};
 export const cronogramaApi = {
   listar: () => pedir<AccionCronograma[]>("/admin/cronograma"),
 
@@ -717,6 +729,42 @@ export const cronogramaApi = {
       topeDeLaOferta: number;
     }>(`/admin/cronograma/coberturas/${coberturaId}/cupos`, {
       method: "PATCH",
+      body: JSON.stringify(datos),
+    }),
+  /**
+   * DONDE SE LE PUEDE AÑADIR UNA SEDE A ESTE GRUPO.
+   *
+   * Son las ubicaciones donde esa acción ya tiene oferta, que es
+   * EXACTAMENTE lo que `crearCobertura` acepta. Las que el grupo ya
+   * tiene vienen marcadas y no escondidas: escondida, quien busca
+   * Medellín y no la encuentra no sabe si es que no se dicta allí o si
+   * es que ya está puesta.
+   */
+  sedesPosibles: (grupoId: string) =>
+    pedir<SedePosible[]>(`/admin/cronograma/grupos/${grupoId}/sedes-posibles`),
+
+  /**
+   * UNA SEDE NUEVA EN UN GRUPO QUE YA EXISTE.
+   *
+   * «Debo poder agregar grupos, departamento, la modalidad y
+   * distribuir la meta» (Josse, 7 oct 2026). Lo que él describe
+   * ---«grupo 1 Bogotá y grupo 1 Antioquia»--- NO son dos grupos: la
+   * clave `(accionFormacionId, numero)` lo prohíbe. Es UN grupo con
+   * DOS coberturas, y la fila que falta crear es la cobertura.
+   *
+   * LA MODALIDAD NO SE MANDA: la deriva el servidor de la oferta.
+   */
+  crearCobertura: (
+    grupoId: string,
+    datos: { ubicacionId: string; cuposBase: number; cuposMaximos: number },
+  ) =>
+    pedir<{
+      coberturaId: string;
+      cuposBase: number;
+      cuposMaximos: number;
+      topeDeLaOferta: number;
+    }>(`/admin/cronograma/grupos/${grupoId}/coberturas`, {
+      method: "POST",
       body: JSON.stringify(datos),
     }),
 };

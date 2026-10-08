@@ -164,3 +164,80 @@ describe('añadir una sede a un grupo', () => {
     expect(a.resumen).toContain('grupo 1');
   });
 });
+
+/**
+ * EL DESPLEGABLE OFRECE EXACTAMENTE LO QUE EL POST ACEPTA.
+ *
+ * Es lo que llena «Añadir una sede» en Grupos de AF. Si ofreciera una
+ * ubicación sin oferta, elegirla contestaría 400 ---el «botón que da
+ * 403» que este proyecto ya tiene documentado---, y si escondiera las
+ * que el grupo ya tiene, quien busca Medellín y no la encuentra no
+ * sabría si es que no se dicta allí o si es que ya está puesta.
+ */
+describe('dónde se le puede añadir una sede', () => {
+  const OFERTAS = [
+    {
+      modalidad: 'VIRTUAL',
+      ubicacion: { id: 'u-antioquia', nombre: 'ANTIOQUIA', tipo: 'DEPARTAMENTO', departamento: 'ANTIOQUIA' },
+    },
+    {
+      modalidad: 'PRESENCIAL',
+      ubicacion: { id: 'u-medellin', nombre: 'MEDELLÍN', tipo: 'CIUDAD', departamento: 'ANTIOQUIA' },
+    },
+  ];
+
+  function armarSedes(coberturas: Array<{ ubicacionId: string; modalidad: string }>, grupo: unknown = {}) {
+    const prisma = {
+      grupo: {
+        findFirst: () =>
+          Promise.resolve(
+            grupo === null ? null : { accionFormacionId: 'af1', coberturas },
+          ),
+      },
+      oferta: { findMany: () => Promise.resolve(OFERTAS) },
+    };
+    return new CronogramaService(prisma as never, { registrar: () => Promise.resolve() } as never);
+  }
+
+  it('ofrece las ubicaciones donde la acción SÍ tiene oferta', async () => {
+    const sedes = await armarSedes([]).sedesPosibles('g1', ['c-adecopria']);
+    expect(sedes.map((s) => s.ubicacionId)).toEqual(['u-antioquia', 'u-medellin']);
+  });
+
+  /// La pone la OFERTA y el POST la deriva igual: si el desplegable
+  /// dijera otra, la celda nacería con una modalidad que no case con
+  /// su oferta y no se podría asignar a nadie.
+  it('la modalidad es la de la oferta', async () => {
+    const sedes = await armarSedes([]).sedesPosibles('g1', ['c-adecopria']);
+    expect(sedes.find((s) => s.ubicacionId === 'u-medellin')?.modalidad).toBe('PRESENCIAL');
+  });
+
+  it('marca las que el grupo ya tiene, y NO las esconde', async () => {
+    const sedes = await armarSedes([
+      { ubicacionId: 'u-medellin', modalidad: 'PRESENCIAL' },
+    ]).sedesPosibles('g1', ['c-adecopria']);
+    expect(sedes).toHaveLength(2);
+    expect(sedes.find((s) => s.ubicacionId === 'u-medellin')?.yaEnElGrupo).toBe(true);
+    expect(sedes.find((s) => s.ubicacionId === 'u-antioquia')?.yaEnElGrupo).toBe(false);
+  });
+
+  /**
+   * LA CLAVE ÚNICA ES (grupo, ubicación, MODALIDAD), así que «ya la
+   * tiene» se mide con las DOS. Mirando solo la ubicación, una celda
+   * virtual de ANTIOQUIA bloquearía la presencial de ANTIOQUIA, que es
+   * una fila legítima y distinta ---es justo lo que pasa en AF7 grupo
+   * 1, la única fila del catálogo con dos sedes---.
+   */
+  it('la misma ubicación con OTRA modalidad sigue disponible', async () => {
+    const sedes = await armarSedes([
+      { ubicacionId: 'u-antioquia', modalidad: 'PRESENCIAL' },
+    ]).sedesPosibles('g1', ['c-adecopria']);
+    expect(sedes.find((s) => s.ubicacionId === 'u-antioquia')?.yaEnElGrupo).toBe(false);
+  });
+
+  it('un grupo fuera del ámbito es 404', async () => {
+    await expect(
+      armarSedes([], null).sedesPosibles('ajeno', ['c-adecopria']),
+    ).rejects.toThrow(NotFoundException);
+  });
+});

@@ -599,6 +599,62 @@ export class CronogramaService {
     return resultado;
   }
 
+
+  /**
+   * DONDE SE LE PUEDE ANADIR UNA SEDE A ESTE GRUPO.
+   *
+   * El desplegable tiene que ofrecer EXACTAMENTE lo que `crearCobertura`
+   * acepta, que son las ubicaciones donde esa accion YA tiene oferta:
+   * sin oferta no hay donde sumar los cupos y la ruta contesta 400.
+   * Ofrecer una que no esta es pintar un control que no puede funcionar
+   * ---el «boton que da 403» que esta casa ya tiene documentado---.
+   *
+   * Y dice cuales ya tiene el grupo en vez de esconderlas: escondida,
+   * quien busca Medellin y no la encuentra no sabe si es que no se
+   * dicta alli o si es que ya esta puesta, y son dos cosas distintas.
+   * La ruta las marca y el panel las deja sin elegir.
+   *
+   * CUELGA DEL GRUPO Y NO DE LA ACCION, igual que el POST: el grupo es
+   * lo que acota el ambito, y asi la pregunta y la escritura se acotan
+   * por el mismo camino.
+   */
+  async sedesPosibles(grupoId: string, ambito: string[]) {
+    const grupo = await this.prisma.grupo.findFirst({
+      where: { id: grupoId, accionFormacion: { convenioId: { in: ambito } } },
+      select: {
+        accionFormacionId: true,
+        coberturas: { select: { ubicacionId: true, modalidad: true } },
+      },
+    });
+    if (!grupo) throw new NotFoundException('Ese grupo no existe.');
+
+    const ofertas = await this.prisma.oferta.findMany({
+      where: { accionFormacionId: grupo.accionFormacionId },
+      select: {
+        modalidad: true,
+        ubicacion: { select: { id: true, nombre: true, tipo: true, departamento: true } },
+      },
+      orderBy: { ubicacion: { nombre: 'asc' } },
+    });
+
+    /// La clave unica es (grupo, ubicacion, MODALIDAD), y la modalidad
+    /// la pone la oferta: asi que «ya la tiene» se mide con las dos.
+    const puestas = new Set(
+      grupo.coberturas.map((c) => `${c.ubicacionId}·${c.modalidad}`),
+    );
+
+    return ofertas.map((o) => ({
+      ubicacionId: o.ubicacion.id,
+      nombre: o.ubicacion.nombre,
+      tipo: o.ubicacion.tipo,
+      departamento: o.ubicacion.departamento,
+      /// Se deriva de la oferta y no se pide: dejarla teclear permite
+      /// una celda cuya modalidad no case con su oferta, y esa celda
+      /// sale en la tabla y NO SE PUEDE ASIGNAR a nadie.
+      modalidad: o.modalidad as string,
+      yaEnElGrupo: puestas.has(`${o.ubicacion.id}·${o.modalidad}`),
+    }));
+  }
   /**
    * CREA UNA SEDE DENTRO DE UN GRUPO QUE YA EXISTE.
    *

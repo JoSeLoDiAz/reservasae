@@ -101,6 +101,18 @@ export class CronogramaController {
     );
   }
 
+
+  /**
+   * DONDE SE LE PUEDE ANADIR UNA SEDE A ESTE GRUPO.
+   *
+   * Es lo que llena el desplegable, y por eso va con `VER` y no con
+   * `ESCRIBIR`: preguntar donde se dicta una accion no cambia nada.
+   */
+  @Get('grupos/:id/sedes-posibles')
+  @Requiere('configuracion', 'VER')
+  sedesPosibles(@Param('id') id: string, @AmbitoActual() ambito: Ambito) {
+    return this.cronograma.sedesPosibles(id, ambito.convenios);
+  }
   /**
    * ANADE UNA SEDE A UN GRUPO QUE YA EXISTE.
    *

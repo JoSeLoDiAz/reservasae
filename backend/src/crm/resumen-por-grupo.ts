@@ -27,6 +27,30 @@ import { PRIMERA_MATRICULA } from './anclas';
 import type { RecorteDelResumen } from './resumen-por-accion';
 import { cumplimiento } from './proyeccion-metas';
 
+/**
+ * UNA SEDE DEL GRUPO, CON SU ID, PARA PODER EDITARLE LA META.
+ *
+ * «Que la meta sea modificable manual» (Josse, 7 oct 2026). La celda
+ * de Meta enseña la SUMA del departamento, y con dos sedes dentro no
+ * se puede escribir encima ---habria que decidir como se parte, y eso
+ * es decidir por quien escribe---. Asi que la fila lleva sus sedes y
+ * la pantalla edita la que toque, con la ruta que ya existia para el
+ * cronograma (`PATCH coberturas/:id/cupos`): una sola regla, dos
+ * puertas.
+ *
+ * Medido sobre el catalogo: de 113 filas, 112 son UNA cobertura. La
+ * que no es AF7 grupo 1 ANTIOQUIA, que junta Medellin presencial con
+ * la virtual del departamento.
+ */
+export type SedeDelGrupo = {
+  coberturaId: string;
+  ubicacionId: string;
+  ubicacion: string;
+  modalidad: string;
+  cuposBase: number;
+  cuposMaximos: number;
+};
+
 export type FilaDeGrupo = {
   grupoId: string;
   numero: number;
@@ -35,6 +59,8 @@ export type FilaDeGrupo = {
   /// UNO, no la lista. Una fila por departamento: ver el SQL.
   departamento: string;
   meta: number;
+  /// Sus sedes, una a una: es lo que hace editable la meta.
+  coberturas: SedeDelGrupo[];
   nominadosPorEmpresa: number;
   campanaDigital: number;
   totalLeads: number;
@@ -164,6 +190,7 @@ export function resumenPorGrupoSql(
            COALESCE(s.sedes, '')             AS sedes,
            COALESCE(s.departamento, '')      AS departamento,
            COALESCE(s.meta, 0)               AS meta,
+           COALESCE(s.coberturas, '[]'::json) AS coberturas,
            COALESCE(p."nominados", 0)        AS "nominadosPorEmpresa",
            COALESCE(p."campana", 0)          AS "campanaDigital",
            COALESCE(p."inscritosReserva", 0) AS "inscritosReservas",
@@ -172,6 +199,14 @@ export function resumenPorGrupoSql(
       FROM "grupos" g
 
       -- LA META --con el 30 %-- Y DÓNDE SE DICTA, de las coberturas.
+      --
+      -- Y LAS COBERTURAS UNA A UNA, que es lo que hace editable la
+      -- meta. La celda enseña la SUMA del departamento, así que con
+      -- dos sedes dentro no se puede escribir encima: habría que
+      -- decidir cómo se parte, y eso es decidir por quien escribe.
+      -- Medido sobre el catálogo: de 113 filas, 112 son una sola
+      -- cobertura y la que no es AF7 grupo 1 ANTIOQUIA, que junta
+      -- Medellín presencial con la virtual del departamento.
       LEFT JOIN (
         SELECT c."grupoId" AS gid,
                u."departamento" AS departamento,
@@ -179,7 +214,17 @@ export function resumenPorGrupoSql(
                -- Las SEDES sí se pegan: dentro de un departamento
                -- puede haber varias ciudades y siguen siendo la misma
                -- fila.
-               STRING_AGG(DISTINCT u."nombre", ', ') AS sedes
+               STRING_AGG(DISTINCT u."nombre", ', ') AS sedes,
+               JSON_AGG(
+                 JSON_BUILD_OBJECT(
+                   'coberturaId', c."id",
+                   'ubicacionId', u."id",
+                   'ubicacion',   u."nombre",
+                   'modalidad',   c."modalidad"::text,
+                   'cuposBase',   c."cuposBase",
+                   'cuposMaximos', c."cuposMaximos"
+                 ) ORDER BY u."nombre"
+               ) AS coberturas
           FROM "grupos_cobertura" c
           JOIN "ubicaciones" u ON u."id" = c."ubicacionId"
          GROUP BY 1, 2
@@ -255,6 +300,8 @@ type Cruda = {
   /// UNO, no la lista. Una fila por departamento: ver el SQL.
   departamento: string;
   meta: number;
+  /// Sus sedes, una a una: es lo que hace editable la meta.
+  coberturas: SedeDelGrupo[];
   nominadosPorEmpresa: number;
   campanaDigital: number;
   inscritosReservas: number;

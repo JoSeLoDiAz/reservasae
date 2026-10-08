@@ -16,14 +16,19 @@
  * pie lo explica y `backend/src/crm/resumen-por-grupo.ts` lo razona.
  */
 
-import { useCallback } from "react";
+import { Fragment, useCallback, useState } from "react";
 
+import { alcanza } from "@/lib/admin-api";
+import { cronogramaApi, type SedePosible } from "@/lib/admin-api";
+import { ErrorApi } from "@/lib/api";
 import { crmApi, type FilaDeGrupo } from "@/lib/crm-api";
+import { cumplimiento } from "@/lib/cumplimiento";
 import { useDatosVivos } from "@/lib/datos-vivos";
 
-import { Aviso } from "./marco-admin";
+import { CuposDeLaSede } from "./cupos-de-la-sede";
+import { Aviso, CLASE_CONTROL, useAdmin } from "./marco-admin";
 import { Bloque, Esqueleto, Vacio } from "./piezas";
-import { cumplimiento } from "@/lib/cumplimiento";
+import { useToast } from "./toast";
 
 /**
  * LA UBICACION DE LA CELDA, no su departamento.
@@ -68,12 +73,222 @@ const CELDA_INSCRIBIO = "text-center tabular-nums grupo-inscribio";
 
 const tasa = (v: number | null) => (v === null ? "—" : `${Math.round(v * 100)} %`);
 
+/**
+ * LA LLAVE DE UNA FILA, UNA SOLA VEZ.
+ *
+ * Desde que un grupo puede dar dos filas ---una por departamento--- el
+ * id del grupo solo ya no identifica la fila, y React con llaves
+ * repetidas reordena mal y reusa celdas de otra fila sin avisar.
+ *
+ * La usan la `key` y el estado del editor abierto. Escritas dos veces,
+ * el dia que cambie una se pulsaria una fila y se abriria la de al
+ * lado ---o ninguna---.
+ */
+const llaveDeFila = (f: { grupoId: string; departamento: string }) =>
+  `${f.grupoId}·${f.departamento}`;
+
+/**
+ * LAS COLUMNAS, DECLARADAS, Y NO ESCRITAS A MANO EN EL `<thead>`.
+ *
+ * No es orden ni es estilo: es que la fila que se abre debajo lleva un
+ * `colSpan`, y un numero fijo ahi es el defecto de agosto que este
+ * proyecto ya tiene escrito ---la fila desplegable de reservas llevaba
+ * uno y «con columnas que se quitan y se ponen ese numero se descuadra
+ * solo», asi que el detalle acabo en un cajon lateral---. Declaradas,
+ * el `colSpan` es `COLUMNAS.length` y no hay nada que recordar.
+ *
+ * Son las mismas que la tabla de acciones, y sin «Sede» (cliente, 23
+ * sep 2026): la ubicacion ya dice donde.
+ */
+const COLUMNAS: Array<{ titulo: string; clase?: string }> = [
+  { titulo: "Grupo" },
+  /// UBICACION y no «Departamento»: desde la AF3 son CIUDADES, y la
+  /// hibrida trae departamento Y ciudad. Un solo rotulo que vale para
+  /// los tres (Josse, 7 oct 2026).
+  { titulo: "Ubicación", clase: "w-full" },
+  { titulo: "Modalidad", clase: "text-center whitespace-nowrap" },
+  { titulo: "Meta", clase: "text-center whitespace-nowrap" },
+  { titulo: "Cupos reservados afiliados", clase: ENTRO },
+  { titulo: "Cupos reservados de pauta", clase: ENTRO },
+  { titulo: "Total leads de pauta", clase: ENTRO },
+  { titulo: "Inscritos reservas de afiliado", clase: INSCRIBIO },
+  { titulo: "Inscritos de pauta", clase: INSCRIBIO },
+  { titulo: "Total inscritos", clase: INSCRIBIO },
+  { titulo: "Conversión", clase: "text-center whitespace-nowrap" },
+  { titulo: "Cupos disponibles", clase: "text-center whitespace-nowrap" },
+  { titulo: "Estado", clase: "text-center whitespace-nowrap" },
+];
+
+
 /// Como se lee, no como está escrita en la base.
 const MODALIDAD: Record<string, string> = {
   PRESENCIAL: "Presencial",
   VIRTUAL: "Virtual",
   MIXTA: "Mixta",
 };
+
+/**
+ * ANADIR UNA SEDE A UN GRUPO QUE YA EXISTE.
+ *
+ * «Debo poder agregar grupos, departamento, la modalidad y distribuir
+ * la meta» (Josse, 7 oct 2026), y despues, mirando la pantalla: «no se
+ * ve la opcion de agregar grupos».
+ *
+ * LO QUE EL PIDE NO ES UN GRUPO NUEVO, Y ESO HAY QUE DECIRLO. Lo que
+ * describe ---«grupo 1 Bogota y grupo 1 Antioquia»--- son DOS FILAS DE
+ * LA TABLA, no dos grupos: la clave `(accionFormacionId, numero)`
+ * prohibe dos grupos con el mismo numero en una accion. Es UN grupo
+ * con DOS coberturas, y la fila que falta crear es la cobertura. Por
+ * eso el formulario pide el grupo y la sede, no un numero de grupo.
+ *
+ * LA MODALIDAD NO SE PIDE: la pone la oferta, y el formulario la
+ * ENSENA en cuanto se elige la sede. Dejarla teclear permitiria crear
+ * una celda cuya modalidad no case con su oferta, y esa celda sale en
+ * la tabla y NO SE PUEDE ASIGNAR a nadie, sin que nada falle.
+ */
+function AnadirSede({
+  grupos,
+  alCrear,
+}: {
+  /// Los grupos de esta accion, tal como salen de la tabla.
+  grupos: Array<{ grupoId: string; numero: number }>;
+  alCrear: () => void;
+}) {
+  const toast = useToast();
+  const [grupoId, setGrupoId] = useState("");
+  const [sedes, setSedes] = useState<SedePosible[] | null>(null);
+  const [ubicacionId, setUbicacionId] = useState("");
+  const [base, setBase] = useState("");
+  const [tope, setTope] = useState("");
+  const [guardando, setGuardando] = useState(false);
+
+  /**
+   * LAS SEDES SE PIDEN AL ELEGIR EL GRUPO, no al abrir el formulario.
+   *
+   * Dependen del grupo ---son las ubicaciones donde su accion tiene
+   * oferta, y marca las que ese grupo ya tiene---, asi que pedirlas
+   * antes seria pedir las de ninguno.
+   */
+  async function elegirGrupo(id: string) {
+    setGrupoId(id);
+    setUbicacionId("");
+    setSedes(null);
+    if (!id) return;
+    try {
+      setSedes(await cronogramaApi.sedesPosibles(id));
+    } catch (e) {
+      toast.error((e as ErrorApi).message ?? "No se pudieron leer las sedes.");
+    }
+  }
+
+  const sede = sedes?.find((s) => s.ubicacionId === ubicacionId) ?? null;
+  const listo =
+    grupoId !== "" && ubicacionId !== "" && base.trim() !== "" && tope.trim() !== "";
+
+  async function guardar() {
+    setGuardando(true);
+    try {
+      await cronogramaApi.crearCobertura(grupoId, {
+        ubicacionId,
+        cuposBase: Number(base),
+        cuposMaximos: Number(tope),
+      });
+      toast.exito("Sede anadida.");
+      setUbicacionId("");
+      setBase("");
+      setTope("");
+      setSedes(await cronogramaApi.sedesPosibles(grupoId));
+      alCrear();
+    } catch (e) {
+      toast.error((e as ErrorApi).message ?? "No se pudo anadir.");
+    } finally {
+      setGuardando(false);
+    }
+  }
+
+  return (
+    <div className="flex flex-wrap items-end gap-3 rounded-lg border border-hairline p-3">
+      <label className="block">
+        <span className="mb-1 block text-xs font-medium">Grupo</span>
+        <select
+          value={grupoId}
+          onChange={(e) => elegirGrupo(e.target.value)}
+          className={`${CLASE_CONTROL} w-[8rem]`}
+        >
+          <option value="">Elegir…</option>
+          {grupos.map((g) => (
+            <option key={g.grupoId} value={g.grupoId}>
+              Grupo {g.numero}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      <label className="block">
+        <span className="mb-1 block text-xs font-medium">Ubicación</span>
+        <select
+          value={ubicacionId}
+          onChange={(e) => setUbicacionId(e.target.value)}
+          disabled={sedes === null}
+          className={`${CLASE_CONTROL} w-[14rem]`}
+        >
+          <option value="">{sedes === null ? "Elija el grupo primero" : "Elegir…"}</option>
+          {(sedes ?? []).map((s) => (
+            /* LAS QUE YA ESTÁN SE MARCAN Y NO SE ESCONDEN: escondida,
+               quien busca Medellín y no la encuentra no sabe si es que
+               no se dicta allí o si es que ya está puesta, y son dos
+               cosas distintas. */
+            <option key={s.ubicacionId} value={s.ubicacionId} disabled={s.yaEnElGrupo}>
+              {s.nombre}
+              {s.yaEnElGrupo ? " · ya la tiene" : ""}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      {/* LA MODALIDAD SE LEE, NO SE ELIGE: la pone la oferta de esa
+          (acción, ubicación) y el servidor la deriva igual. Un
+          desplegable aquí dejaría crear una celda que no se puede
+          asignar a nadie. */}
+      <p className="min-w-[6rem] pb-2 text-[0.78125rem]">
+        <span className="mb-1 block text-xs font-medium text-texto-suave">Modalidad</span>
+        {sede ? (MODALIDAD[sede.modalidad] ?? sede.modalidad) : "—"}
+      </p>
+
+      <label className="block">
+        <span className="mb-1 block text-xs font-medium">Comprometido</span>
+        <input
+          type="number"
+          min={0}
+          value={base}
+          onChange={(e) => setBase(e.target.value)}
+          className={`${CLASE_CONTROL} w-[6rem]`}
+          aria-label="Cupos comprometidos en la sede nueva"
+        />
+      </label>
+
+      <label className="block">
+        <span className="mb-1 block text-xs font-medium">Tope</span>
+        <input
+          type="number"
+          min={0}
+          value={tope}
+          onChange={(e) => setTope(e.target.value)}
+          className={`${CLASE_CONTROL} w-[6rem]`}
+          aria-label="Tope de cupos en la sede nueva"
+        />
+      </label>
+
+      <button
+        onClick={guardar}
+        disabled={!listo || guardando}
+        className="sin-aro rounded-lg bg-marca px-3 py-1.5 text-[0.78125rem] font-semibold text-blanco transition disabled:opacity-40"
+      >
+        {guardando ? "Añadiendo…" : "Añadir"}
+      </button>
+    </div>
+  );
+}
 
 export function TablaPorGrupo({
   accionFormacionId,
@@ -121,6 +336,23 @@ export function TablaPorGrupo({
     activo: listo,
   });
 
+  /// LOS CUPOS LOS EDITA QUIEN CONFIGURA LA FORMACION, igual que en
+  /// Cronograma: es la misma ruta y el mismo permiso. Quien no puede,
+  /// ve las cifras y ningun control ---un boton que da 403 es peor que
+  /// no tenerlo---.
+  const { admin } = useAdmin();
+  const puedeEditar = alcanza(admin.permisos?.configuracion, "ESCRIBIR");
+  const [anadiendo, setAnadiendo] = useState(false);
+  /// Que fila tiene abierto el editor de su meta, por su llave.
+  const [editando, setEditando] = useState<string | null>(null);
+  /// `refrescar` NO va memoizada: la devuelve `useDatosVivos` nueva
+  /// en cada render, asi que un useCallback con ella en las
+  /// dependencias se rehace igual y solo anade ruido.
+  const alGuardar = async () => {
+    vivos.refrescar();
+  };
+  const toast = useToast();
+
   if (vivos.error) return <Aviso tipo="error">{vivos.error}</Aviso>;
   if (!vivos.datos) return <Esqueleto />;
 
@@ -132,6 +364,17 @@ export function TablaPorGrupo({
       </Vacio>
     );
   }
+
+  /**
+   * LOS GRUPOS, SIN REPETIR, PARA EL DESPLEGABLE.
+   *
+   * `filas` trae UNA FILA POR (grupo, departamento), asi que el grupo
+   * 1 con dos departamentos sale dos veces y el desplegable ofreceria
+   * «Grupo 1» dos veces, las dos lo mismo. La llave es el grupoId.
+   */
+  const gruposUnicos = [
+    ...new Map(filas.map((f) => [f.grupoId, { grupoId: f.grupoId, numero: f.numero }])).values(),
+  ].sort((a, b) => a.numero - b.numero);
 
   const t = filas.reduce(
     (a, f) => ({
@@ -160,31 +403,39 @@ export function TablaPorGrupo({
     <Bloque
       sinRelleno
       titulo={`Grupos de ${titulo}`}
+      /* «NO SE VE LA OPCIÓN DE AGREGAR GRUPOS» (Josse, 7 oct 2026), y
+         tenía razón: esta tabla era de solo lectura y el vacío mandaba
+         a Cronograma, que es otra pantalla y otro menú. El control va
+         donde se lee el dato. */
+      acciones={
+        puedeEditar ? (
+          <button
+            type="button"
+            onClick={() => setAnadiendo((v) => !v)}
+            className="no-imprimir shrink-0 text-[0.75rem] font-medium text-marca underline underline-offset-2 hover:text-marca-fuerte"
+          >
+            {anadiendo ? "Cerrar" : "Añadir una sede"}
+          </button>
+        ) : undefined
+      }
     >
+      {anadiendo && (
+        <div className="px-4 pb-4">
+          <AnadirSede
+            grupos={gruposUnicos}
+            alCrear={() => vivos.refrescar()}
+          />
+        </div>
+      )}
       <div className="caja-scroll overflow-x-auto">
         <table className="tabla-datos tabla-cuadricula w-full">
           <thead>
-            {/* LAS MISMAS COLUMNAS QUE LA TABLA DE ACCIONES, y sin
-                «Sede» (cliente, 23 sep 2026): el departamento ya dice
-                dónde, y la sede repetía casi siempre lo mismo. */}
             <tr>
-              <th>Grupo</th>
-              {/* UBICACIÓN y no «Departamento»: desde la AF3 son
-                  CIUDADES, y la híbrida trae departamento Y ciudad.
-                  Un solo rótulo que vale para los tres (cliente,
-                  7 oct 2026). */}
-              <th className="w-full">Ubicación</th>
-              <th className="text-center whitespace-nowrap">Modalidad</th>
-              <th className="text-center whitespace-nowrap">Meta</th>
-              <th className={ENTRO}>Cupos reservados afiliados</th>
-              <th className={ENTRO}>Cupos reservados de pauta</th>
-              <th className={ENTRO}>Total leads de pauta</th>
-              <th className={INSCRIBIO}>Inscritos reservas de afiliado</th>
-              <th className={INSCRIBIO}>Inscritos de pauta</th>
-              <th className={INSCRIBIO}>Total inscritos</th>
-              <th className="text-center whitespace-nowrap">Conversión</th>
-              <th className="text-center whitespace-nowrap">Cupos disponibles</th>
-              <th className="text-center whitespace-nowrap">Estado</th>
+              {COLUMNAS.map((c) => (
+                <th key={c.titulo} className={c.clase}>
+                  {c.titulo}
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody>
@@ -194,42 +445,110 @@ export function TablaPorGrupo({
               /// del grupo solo ya no identifica la fila, y React con
               /// llaves repetidas reordena mal y reusa celdas de otra
               /// fila sin avisar de nada.
-              <tr key={`${f.grupoId}·${f.departamento}`}>
-                <td className="whitespace-nowrap">Grupo {f.numero}</td>
-                {/* Una raya y no una celda en blanco: en blanco no se
-                    sabe si es que falta el dato o si es que nadie lo
-                    llenó. */}
-                <td className="min-w-[10rem]">{dondeSeDicta(f)}</td>
-                <td className="whitespace-nowrap">{MODALIDAD[f.modalidad] ?? f.modalidad}</td>
-                <td className="text-center tabular-nums">{n(f.meta)}</td>
-                <td className={CELDA_ENTRO}>{n(f.nominadosPorEmpresa)}</td>
-                <td className={CELDA_ENTRO}>{n(f.campanaDigital)}</td>
-                <td className={CELDA_ENTRO_TOTAL}>{n(f.totalLeads)}</td>
-                <td className={CELDA_INSCRIBIO}>{n(f.inscritosReservas)}</td>
-                <td className={CELDA_INSCRIBIO}>{n(f.inscritosCampana)}</td>
-                <td className="text-center font-semibold text-exito tabular-nums grupo-inscribio">
-                  {n(f.totalInscritos)}
-                </td>
-                <td className="text-center tabular-nums">{tasa(f.conversion)}</td>
-                <td
-                  className={
-                    "text-center font-medium tabular-nums " +
-                    (f.cuposDisponibles < 0 ? "text-error" : "")
-                  }
-                >
-                  {n(f.cuposDisponibles)}
-                </td>
-                <td>
-                  <span
+              <Fragment key={llaveDeFila(f)}>
+                <tr>
+                  <td className="whitespace-nowrap">Grupo {f.numero}</td>
+                  {/* Una raya y no una celda en blanco: en blanco no se
+                      sabe si es que falta el dato o si es que nadie lo
+                      llenó. */}
+                  <td className="min-w-[10rem]">{dondeSeDicta(f)}</td>
+                  <td className="whitespace-nowrap">{MODALIDAD[f.modalidad] ?? f.modalidad}</td>
+                  {/* LA META, EDITABLE (Josse, 7 oct 2026: «que la meta
+                      sea modificable manual»).
+
+                      Es un BOTÓN que abre el editor debajo, y no un
+                      campo en la celda: lo que se ve aquí es la SUMA
+                      del departamento, y con dos sedes dentro no se
+                      puede escribir encima ---habría que decidir cómo
+                      se parte, y eso es decidir por quien escribe---.
+                      Abajo sale una por sede.
+
+                      Y sin sedes no hay nada que editar: el grupo sin
+                      coberturas sale a propósito, con la ubicación y la
+                      modalidad vacías. */}
+                  <td className="text-center tabular-nums">
+                    {puedeEditar && f.coberturas.length > 0 ? (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setEditando((v) => (v === llaveDeFila(f) ? null : llaveDeFila(f)))
+                        }
+                        className="no-imprimir underline decoration-dotted underline-offset-2 hover:text-marca"
+                        aria-label={`Editar la meta del grupo ${f.numero} en ${dondeSeDicta(f)}`}
+                      >
+                        {n(f.meta)}
+                      </button>
+                    ) : (
+                      n(f.meta)
+                    )}
+                  </td>
+                  <td className={CELDA_ENTRO}>{n(f.nominadosPorEmpresa)}</td>
+                  <td className={CELDA_ENTRO}>{n(f.campanaDigital)}</td>
+                  <td className={CELDA_ENTRO_TOTAL}>{n(f.totalLeads)}</td>
+                  <td className={CELDA_INSCRIBIO}>{n(f.inscritosReservas)}</td>
+                  <td className={CELDA_INSCRIBIO}>{n(f.inscritosCampana)}</td>
+                  <td className="text-center font-semibold text-exito tabular-nums grupo-inscribio">
+                    {n(f.totalInscritos)}
+                  </td>
+                  <td className="text-center tabular-nums">{tasa(f.conversion)}</td>
+                  <td
                     className={
-                      "text-[0.75rem] font-semibold " +
-                      (f.estado === "CERRADO" ? "text-error" : "text-exito")
+                      "text-center font-medium tabular-nums " +
+                      (f.cuposDisponibles < 0 ? "text-error" : "")
                     }
                   >
-                    {f.estado === "CERRADO" ? "Cerrado" : "Abierto"}
-                  </span>
-                </td>
-              </tr>
+                    {n(f.cuposDisponibles)}
+                  </td>
+                  <td>
+                    <span
+                      className={
+                        "text-[0.75rem] font-semibold " +
+                        (f.estado === "CERRADO" ? "text-error" : "text-exito")
+                      }
+                    >
+                      {f.estado === "CERRADO" ? "Cerrado" : "Abierto"}
+                    </span>
+                  </td>
+                </tr>
+
+                {/* EL EDITOR, EN SU PROPIA FILA Y CON EL `colSpan`
+                    CALCULADO. Un número fijo aquí es el defecto de
+                    agosto, que está escrito en CLAUDE.md: la fila
+                    desplegable de reservas llevaba uno y «con columnas
+                    que se quitan y se ponen ese número se descuadra
+                    solo». `COLUMNAS.length` no se puede quedar atrás.
+
+                    UNA POR SEDE, que es lo que contesta «distribuir la
+                    meta»: el tope de la oferta lo recalcula el servidor
+                    como la suma de las suyas, así que no hay forma de
+                    dejar las dos cifras descuadradas. */}
+                {editando === llaveDeFila(f) && (
+                  <tr>
+                    <td colSpan={COLUMNAS.length} className="bg-fondo p-4">
+                      <div className="flex flex-col gap-3">
+                        {f.coberturas.map((c) => (
+                          <CuposDeLaSede
+                            key={c.coberturaId}
+                            sede={{
+                              id: c.coberturaId,
+                              nombre: `${c.ubicacion} · ${MODALIDAD[c.modalidad] ?? c.modalidad}`,
+                              cupos: c.cuposBase,
+                              tope: c.cuposMaximos,
+                            }}
+                            alGuardar={alGuardar}
+                            alFallar={(m) => toast.error(m)}
+                          />
+                        ))}
+                      </div>
+                      <p className="mt-3 text-xs text-texto-suave">
+                        «Comprometido» es lo pactado en el proyecto y «Tope» lo incluye más el
+                        sobrecupo. La meta de la tabla es el tope. El total de la acción en esa
+                        ubicación lo recalcula el servidor como la suma de sus sedes.
+                      </p>
+                    </td>
+                  </tr>
+                )}
+              </Fragment>
             ))}
 
             <tr className="border-t-2 border-borde font-semibold">
