@@ -386,6 +386,53 @@ bajaba la plantilla equivocada; con el arreglo no bajaba ninguna.
 > pinta como «No se pudo completar la operación»** — parecen fallos de la
 > aplicación y no lo son. Un segundo entre peticiones.
 
+## v0.23.0-JD en PRODUCCIÓN (8 oct 2026)
+
+> Commit `42f5fb6`, etiqueta `v0.23.0`. **Sin migraciones, sin schema y sin
+> variables nuevas.** Copia previa en
+> `~/reservasae-antes-de-la-sede-20261008.sql.gz` (3,8 MB, en crm-nube) y las
+> filas idénticas antes y después: **429 organizaciones, 592 fichas, 602
+> personas, 38 reservas, 114 coberturas**. Las tres sedes en la línea 20 con el
+> mismo LSN.
+>
+> Trae: el desglose de un asesor se abre DENTRO de su fila; en «Grupos de AF»
+> se añade una sede y se ajusta la meta por sede; y los tres defectos que
+> encontró la revisión de lo desplegado el 7 oct.
+
+### `desplegar.sh` EN LA NUBE RECONSTRUYE EL COMMIT VIEJO SI EL PULL FALLA
+
+La trampa de esta ronda, y hay que saberla antes de volver a desplegar: **la VM
+de la nube no tiene llave de GitHub** —esto ya estaba escrito— así que
+`git pull` allí falla con «correct access rights». Lo que **no** estaba escrito
+es que `desplegar.sh` **corre igual**: construyó y recreó los contenedores con
+el commit de ayer, imprimió dos `502` de sus propios `curl` y terminó con
+«✓ desplegado y marcado 01c1cb7». O sea que un despliegue que no desplegó nada
+se anuncia como bueno, y encima marca el commit viejo para que las réplicas lo
+sigan.
+
+**El 502 de esos `curl` es el parpadeo del recreate y no un fallo**: nginx
+tarda unos segundos en resolver los contenedores nuevos. Se comprueba desde
+fuera, no en el log del guion.
+
+**Cómo se lleva el código de verdad**, desde `sep-vm`, que sí tiene el remoto:
+
+```bash
+ssh sep-vm
+cd /opt/sep/reservasae-prueba && git bundle create /tmp/al-dia.bundle pruebas
+scp /tmp/al-dia.bundle sepadmin@crm-nube:/tmp/
+ssh sepadmin@crm-nube 'cd /opt/sep/reservasae \
+  && git fetch /tmp/al-dia.bundle pruebas:refs/remotes/bundle/main \
+  && git merge --ff-only refs/remotes/bundle/main && ./scripts/desplegar.sh'
+```
+
+- **Se entra a la nube por `sepadmin@crm-nube` y DESDE `sep-vm`.** Desde el
+  portátil, ni `josed@` ni `sepadmin@` tienen llave: las dos dan
+  `Permission denied (publickey)`. Este archivo decía «desplegar es
+  `ssh josed@crm-nube`» y eso no funciona desde aquí.
+- **Siempre mirar el commit DESPUÉS del pull** (`git log -1`) antes de dejar
+  correr el guion. Es la única forma de ver que el pull entró.
+
+
 ## Estado actual (3 oct 2026 · el principal vive en la NUBE)
 
 > **`reservasae.com` se sirve desde Google Cloud desde el 3 oct 2026 a las 16:19
