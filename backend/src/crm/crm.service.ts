@@ -915,7 +915,15 @@ export class CrmService {
           ...(desde ? { gte: desde } : {}),
           ...(hasta ? { lt: hasta } : {}),
         },
+        /// ENTRAR a INSCRITO, no quedarse. `etapaDespues: 'INSCRITO'`
+        /// a secas cuenta tambien los movimientos INSCRITO→INSCRITO,
+        /// y ese es justo el que escribe un TRASLADO DE GRUPO: mover
+        /// de cohorte a veinte personas diria que se inscribieron
+        /// veinte ese dia. Es la misma semantica del ancla,
+        /// `etapaAntes IS DISTINCT FROM etapaDespues`, y por eso
+        /// `etapaAntes` NULO SI cuenta: es la primera vez.
         etapaDespues: 'INSCRITO',
+        NOT: { etapaAntes: 'INSCRITO' },
         participante: { AND: [donde, { etapa: { in: OCUPAN_SILLA } }] },
       },
       select: {
@@ -1221,7 +1229,15 @@ export class CrmService {
       this.prisma.movimientoParticipante.findMany({
         where: {
           creadoEn: dentro,
+          /// ENTRAR a INSCRITO, no quedarse. `etapaDespues: 'INSCRITO'`
+          /// a secas cuenta tambien los movimientos INSCRITO→INSCRITO,
+          /// y ese es justo el que escribe un TRASLADO DE GRUPO: mover
+          /// de cohorte a veinte personas diria que se inscribieron
+          /// veinte ese dia. Es la misma semantica del ancla,
+          /// `etapaAntes IS DISTINCT FROM etapaDespues`, y por eso
+          /// `etapaAntes` NULO SI cuenta: es la primera vez.
           etapaDespues: 'INSCRITO',
+          NOT: { etapaAntes: 'INSCRITO' },
           /// Y que la ficha SIGA ocupando silla. Es la corrección del
           /// cliente, y hace que esta cifra cuadre con la tabla del
           /// comité: quien se inscribió el lunes y desertó el martes
