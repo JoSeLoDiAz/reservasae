@@ -635,6 +635,27 @@ function DeInscripciones({
         </span>
       ),
     },
+    /// GESTIONADOS VA AL FINAL DE LAS CUATRO, y no entre asignados e
+    /// inscritos como estaba. Es el orden que pidió el cliente y tiene
+    /// sentido de lectura: primero lo que le entró, luego en qué acabó
+    /// ---inscrito o descartado---, y al final cuántos sigue
+    /// trabajando. Gestionados NO es la suma de los otros dos: son los
+    /// que tienen seguimiento, resueltos o no.
+    {
+      clave: "gestionados",
+      titulo: "Leads gestionados",
+      ancho: "138px",
+      numerica: true,
+      valor: (f) => f.visto.gestionados,
+      pinta: (f) => (
+        <span className="tabular-nums">
+          <Cifra
+            ahora={f.visto.gestionados}
+            antes={antesDe(f)?.gestionados ?? null}
+          />
+        </span>
+      ),
+    },
     /// DOS COLUMNAS Y NO UNA (cliente, 26 sep 2026: «esto es
     /// separado, o sea una columna Inscritos y en otro Descartados»).
     /// Juntas sumaban bien y no decían nada: quince resueltos pueden
@@ -667,129 +688,6 @@ function DeInscripciones({
             ahora={f.visto.descartados}
             antes={antesDe(f)?.descartados ?? null}
           />
-        </span>
-      ),
-    },
-    /// GESTIONADOS VA AL FINAL DE LAS CUATRO, y no entre asignados e
-    /// inscritos como estaba. Es el orden que pidió el cliente y tiene
-    /// sentido de lectura: primero lo que le entró, luego en qué acabó
-    /// ---inscrito o descartado---, y al final cuántos sigue
-    /// trabajando. Gestionados NO es la suma de los otros dos: son los
-    /// que tienen seguimiento, resueltos o no.
-    {
-      clave: "gestionados",
-      titulo: "Leads gestionados",
-      ancho: "138px",
-      numerica: true,
-      valor: (f) => f.visto.gestionados,
-      pinta: (f) => (
-        <span className="tabular-nums">
-          <Cifra
-            ahora={f.visto.gestionados}
-            antes={antesDe(f)?.gestionados ?? null}
-          />
-        </span>
-      ),
-    },
-    /**
-     * LO GESTIONADO DENTRO DEL PERIODO, que es otra cuenta.
-     *
-     * «No me está mostrando lo gestionado el viernes y lo
-     * gestionado hoy» (cliente, 5 oct 2026). La columna de al lado
-     * cuenta, de los leads que LLEGARON en el periodo, a cuántos se
-     * ha tocado alguna vez: con leads de agosto, esa cifra es la
-     * misma el viernes que hoy. Esta cuenta el ACTO de gestionar
-     * ---una nota, un dato tocado, un cambio de etapa hecho por una
-     * persona--- caiga dentro de la ventana, sin importar cuándo
-     * llegó el lead.
-     *
-     * CON UNA ACCIÓN ELEGIDA SALE UNA RAYA, no un cero: la cifra no
-     * está partida por acción, y un cero diría que en esa acción no
-     * se trabajó.
-     */
-    /**
-     * LO QUE INSCRIBIÓ DENTRO DEL PERIODO.
-     *
-     * «Debo saber cuánto hizo cada asesora ayer, antier, hoy.
-     * Vuelvo y reitero: los filtros de tiempo o de fecha no
-     * funcionan» (cliente, 7 oct 2026).
-     *
-     * La columna «Inscritos» de más arriba no lo contesta: cuenta,
-     * de los leads que LLEGARON en el periodo, cuántos están
-     * inscritos hoy. Con una base que lleva meses creciendo, poner
-     * «ayer» daba casi cero siempre, y la columna parecía rota
-     * porque lo estaba para la pregunta que se le hacía.
-     *
-     * VA PEGADA A «Gestionados en el periodo», que es su pareja:
-     * las dos cuentan lo HECHO dentro de la ventana, una tocar y
-     * otra inscribir. Y las dos salen en raya con una acción
-     * elegida, porque ninguna está partida por acción.
-     */
-    {
-      clave: "inscritosEnElPeriodo",
-      titulo: "Inscritos en el periodo",
-      ancho: "150px",
-      numerica: true,
-      valor: (f) => (accion ? "" : (f.inscritosEnElPeriodo ?? "")),
-      pinta: (f) => (
-        <span className="tabular-nums">
-          {accion || f.inscritosEnElPeriodo == null
-            ? "—"
-            : f.inscritosEnElPeriodo}
-        </span>
-      ),
-    },
-    {
-      clave: "gestionadosEnElPeriodo",
-      titulo: "Gestionados en el periodo",
-      ancho: "150px",
-      numerica: true,
-      /// Para que salga también a quien guardó sus columnas antes de
-      /// que la tabla recordara cuáles existían.
-      nueva: true,
-      valor: (f) => (accion ? "" : (f.gestionadosEnElPeriodo ?? "")),
-      pinta: (f) => (
-        <span className="tabular-nums">
-          {accion || f.gestionadosEnElPeriodo == null
-            ? "—"
-            : f.gestionadosEnElPeriodo}
-        </span>
-      ),
-    },
-    {
-      /// EL CIERRE Y LO QUE FALTA, en dos renglones. Era su propio
-      /// componente `Plazo`, que pintaba un `<td>`; con `Tabla` la
-      /// celda la pone ella, así que aquí va solo el contenido.
-      clave: "cierre",
-      titulo: "Cierre",
-      ancho: "140px",
-      valor: (f) => f.limite,
-      pinta: (f) => (
-        <span className="whitespace-nowrap tabular-nums">
-          {dia(f.limite)}
-          {f.ritmo.diasHabiles !== null && (
-            <span className="block text-[0.6875rem] text-texto-suave">
-              {f.ritmo.diasHabiles > 0
-                ? `quedan ${n(f.ritmo.diasHabiles)} ${f.ritmo.diasHabiles === 1 ? "día hábil" : "días hábiles"}`
-                : f.ritmo.diasHabiles === 0
-                  ? "hoy es el último"
-                  : `venció hace ${n(-f.ritmo.diasHabiles)} ${f.ritmo.diasHabiles === -1 ? "día hábil" : "días hábiles"}`}
-            </span>
-          )}
-        </span>
-      ),
-    },
-    {
-      clave: "exigido",
-      /// LOS DOS RÓTULOS DICEN QUÉ SON, y en la misma unidad: así se
-      /// leen uno contra otro, que es para lo que están al lado.
-      titulo: "Meta diaria",
-      ancho: "112px",
-      numerica: true,
-      valor: (f) => f.ritmo.exigidoPorDia,
-      pinta: (f) => (
-        <span className="font-semibold tabular-nums">
-          {metaDiaria(f.ritmo.exigidoPorDia)}
         </span>
       ),
     },
@@ -867,27 +765,26 @@ function DeInscripciones({
       {comoSeVe === "resumen" && (
         <Tabla
           cuadricula
-          /// EL NOMBRE CAMBIA PORQUE CAMBIÓ EL ORDEN DE LAS COLUMNAS.
+          /// `ordenFijo` Y NO UN NOMBRE NUEVO, y esa es la diferencia.
           ///
-          /// La tabla graba en el navegador qué columnas se ven Y EN QUÉ
+          /// La tabla graba en el navegador que columnas se ven Y EN QUE
           /// ORDEN, y lo graba en la PRIMERA visita sin que nadie toque
-          /// nada. Así que quien hubiera abierto esta pantalla antes de
-          /// hoy seguía viendo el orden viejo ---gestionados delante de
-          /// inscritos--- por mucho que el código diga otro. El cliente
-          /// pidió el orden nuevo el 30 sep 2026 y no le llegaba.
+          /// nada. Asi que un orden nuevo no le llega a quien ya entro
+          /// alguna vez. La cura de septiembre fue renombrar la tabla,
+          /// que funciona pero le tira a todo el mundo sus anchos y sus
+          /// vistas guardadas.
           ///
-          /// Es el mismo caso que la tabla de reservas, y la misma cura:
-          /// con nombre nuevo todos arrancan del orden declarado. Lo que
-          /// cada quien hubiera acomodado se queda bajo el nombre viejo,
-          /// sin estorbar.
+          /// `ordenFijo` hace lo mismo sin ese precio: el orden lo dicta
+          /// `columnas` siempre, y lo que cada quien hubiera acomodado
+          /// se respeta en lo demas. Por eso el id se queda en v2.
           ///
-          /// REGLA QUE SALE DE AQUÍ: reordenar columnas obliga a renombrar
-          /// la tabla. Si no, el cambio solo lo ven los que nunca entraron.
-          /// SE QUEDA EN v2: renombrarla por «Gestionados en el
-          /// periodo» le habria tirado a todo el mundo sus columnas y
-          /// sus anchos, y no hace falta. Lo que hace que una columna
-          /// nueva aparezca sola es `nueva: true` ---y, desde que la
-          /// tabla guarda `conocidas` (18 sep 2026), ni eso---.
+          /// EL ORDEN DE HOY CONTRADICE AL DEL 30 SEP, y es deliberado:
+          /// aquel puso inscritos antes que gestionados y Josse pidio lo
+          /// contrario el 7 oct ---«los leads asignados, los
+          /// gestionados, los inscritos, los descartados»---. Lo ultimo
+          /// que dice el cliente manda, y queda escrito para que nadie
+          /// lo revierta creyendo que arregla una regresion.
+          ordenFijo
           id="asesores-inscripciones-v2"
           columnas={columnas}
           filas={filas}

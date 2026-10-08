@@ -25,6 +25,27 @@ import { Aviso } from "./marco-admin";
 import { Bloque, Esqueleto, Vacio } from "./piezas";
 import { cumplimiento } from "@/lib/cumplimiento";
 
+/**
+ * LA UBICACION DE LA CELDA, no su departamento.
+ *
+ * La fila agrupa por departamento, pero lo que la celda dice es DONDE
+ * SE DICTA: desde la AF3 son CIUDADES ---APARTADO, MEDELLIN, SANTA
+ * MARTA, PEREIRA, CALI--- y la columna imprimia ANTIOQUIA, MAGDALENA,
+ * RISARALDA. Un rotulo que cuenta algo distinto de lo que mide, y lo
+ * vio Josse en produccion el 7 oct 2026: «son ciudades».
+ *
+ * El dato ya viajaba: `sedes` trae los nombres de las ubicaciones de
+ * esa fila, pegados ---dentro de un departamento puede haber varias
+ * ciudades y siguen siendo la misma fila---. En las virtuales el
+ * nombre de la ubicacion ES el departamento, asi que esta funcion
+ * acierta en los dos casos sin preguntar por el tipo.
+ *
+ * El departamento queda de respaldo para el grupo SIN coberturas, que
+ * sale a proposito con los dos vacios.
+ */
+const dondeSeDicta = (f: { sedes: string; departamento: string }) =>
+  f.sedes || f.departamento || "—";
+
 const n = (v: number) => v.toLocaleString("es-CO");
 
 /// Los dos bloques de columnas, los mismos de la tabla de acciones.
@@ -178,7 +199,7 @@ export function TablaPorGrupo({
                 {/* Una raya y no una celda en blanco: en blanco no se
                     sabe si es que falta el dato o si es que nadie lo
                     llenó. */}
-                <td className="min-w-[10rem]">{f.departamento || "—"}</td>
+                <td className="min-w-[10rem]">{dondeSeDicta(f)}</td>
                 <td className="whitespace-nowrap">{MODALIDAD[f.modalidad] ?? f.modalidad}</td>
                 <td className="text-center tabular-nums">{n(f.meta)}</td>
                 <td className={CELDA_ENTRO}>{n(f.nominadosPorEmpresa)}</td>
