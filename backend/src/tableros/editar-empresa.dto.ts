@@ -22,6 +22,7 @@
 
 import { Transform } from 'class-transformer';
 import {
+  IsIn,
   IsInt,
   IsOptional,
   IsString,
@@ -31,6 +32,17 @@ import {
   MinLength,
 } from 'class-validator';
 import { normalizarNit } from '../comun/nit';
+
+/**
+ * LOS TRES PAPELES QUE ADMITE EL F7, tal cual los escribe su
+ * cabecera. Texto libre aquí acababa en el reporte con la ortografía
+ * de quien lo tecleó.
+ */
+export const PAPELES_EN_EL_CONVENIO = [
+  'Conviniente',
+  'Beneficiaria',
+  'Perteneciente a la Cadena Productiva',
+] as const;
 
 /** Vacío es vacío: un campo que llega en blanco se borra. */
 const aNuloOTexto = ({ value }: { value: unknown }) =>
@@ -126,8 +138,7 @@ export class EditarEmpresaDto {
 
   @IsOptional()
   @Transform(aNuloOTexto)
-  @IsString()
-  @MaxLength(60)
+  @IsIn(PAPELES_EN_EL_CONVENIO)
   papelEnConvenio?: string | null;
 
   @IsOptional()

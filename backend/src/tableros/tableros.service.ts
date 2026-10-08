@@ -998,6 +998,10 @@ export class TablerosService {
        * columna que las distingue.
        */
       tipoDocumento: tipoDeDocumentoDeLaOrganizacion(e.tipoDocumentoSepId),
+      /// Los dos en crudo, para que el formulario de corregir arranque
+      /// con lo que hay y no con el desplegable en blanco.
+      tipoDocumentoSepId: e.tipoDocumentoSepId,
+      papelEnConvenio: e.papelEnConvenio,
       /// Cuántas personas suyas se están formando en este gremio.
       inscritos: e._count.participantes,
       razonSocial: e.razonSocial,
@@ -1541,6 +1545,17 @@ export class TablerosService {
     ) {
       throw new BadRequestException(
         `El tamaño de empresa «${dto.tamanoSepId}» no está en el catálogo del SEP.`,
+      );
+    }
+    /// Y que el tipo de documento sea de organización: una cédula aquí
+    /// sale en el F7 como si la empresa fuera una persona.
+    if (
+      dto.tipoDocumentoSepId !== undefined &&
+      dto.tipoDocumentoSepId !== null &&
+      !TIPO_DOCUMENTO_POR_ID.get(dto.tipoDocumentoSepId)?.empresa
+    ) {
+      throw new BadRequestException(
+        `El tipo de documento «${dto.tipoDocumentoSepId}» no es de organización en el catálogo del SEP.`,
       );
     }
     if (

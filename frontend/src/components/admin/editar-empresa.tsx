@@ -22,6 +22,7 @@
 import { useState } from "react";
 
 import { Cajon } from "./cajon";
+import { Desplegable } from "./desplegable";
 import { Aviso, Boton, Campo, CLASE_CONTROL } from "./marco-admin";
 import { ErrorApi } from "@/lib/api";
 import { tablerosApi, type FilaEmpresa } from "@/lib/tableros-api";
@@ -63,6 +64,22 @@ const CAMPOS: ReadonlyArray<{
   { clave: "clasificacion", rotulo: "Clasificación" },
 ];
 
+/// NIT o RUT, por su id del catálogo SEP. Son los dos que usan las
+/// organizaciones de los gremios; uno distinto que ya traiga la ficha
+/// se respeta tal cual (ver `opcionesDeTipo`).
+const TIPOS = [
+  { valor: "6", etiqueta: "NIT" },
+  { valor: "21", etiqueta: "RUT" },
+];
+
+/// Los tres papeles que admite el F7, tal cual su cabecera. El
+/// servidor rechaza cualquier otro.
+const PAPELES = [
+  "Conviniente",
+  "Beneficiaria",
+  "Perteneciente a la Cadena Productiva",
+];
+
 export function EditarEmpresa({
   empresa,
   alCerrar,
@@ -84,6 +101,28 @@ export function EditarEmpresa({
       CAMPOS.map((c) => [c.clave, (empresa[c.clave] as string | null) ?? ""]),
     ) as Record<Clave, string>,
   );
+  const tipoDeHoy =
+    empresa.tipoDocumentoSepId === null ? "" : String(empresa.tipoDocumentoSepId);
+  const papelDeHoy = empresa.papelEnConvenio ?? "";
+  const [tipo, setTipo] = useState(tipoDeHoy);
+  const [papel, setPapel] = useState(papelDeHoy);
+  /// Si la ficha trae un tipo o un papel que no está en la lista, se
+  /// enseña como opción para no pintar el desplegable en blanco
+  /// encima de un dato que sí existe.
+  const opcionesDeTipo = [
+    { valor: "", etiqueta: "Sin clasificar" },
+    ...TIPOS,
+    ...(tipoDeHoy && !TIPOS.some((t) => t.valor === tipoDeHoy)
+      ? [{ valor: tipoDeHoy, etiqueta: "El que tiene hoy" }]
+      : []),
+  ];
+  const opcionesDePapel = [
+    { valor: "", etiqueta: "Sin definir" },
+    ...PAPELES.map((p) => ({ valor: p, etiqueta: p })),
+    ...(papelDeHoy && !PAPELES.includes(papelDeHoy)
+      ? [{ valor: papelDeHoy, etiqueta: `${papelDeHoy} (como está hoy)` }]
+      : []),
+  ];
   const [guardando, setGuardando] = useState(false);
   const [falla, setFalla] = useState<string | null>(null);
 
@@ -98,6 +137,11 @@ export function EditarEmpresa({
         digitoVerificacion: dv,
         numeroTrabajadores: trabajadores,
         ...campos,
+        /// Solo si se tocaron: un papel antiguo escrito a mano no es
+        /// de los tres y el servidor lo rechazaría aunque nadie lo
+        /// haya cambiado ahora.
+        ...(tipo !== tipoDeHoy ? { tipoDocumentoSepId: tipo } : {}),
+        ...(papel !== papelDeHoy ? { papelEnConvenio: papel } : {}),
       });
       alGuardar();
       alCerrar();
@@ -149,6 +193,26 @@ export function EditarEmpresa({
             onChange={(e) => setDv(e.target.value.replace(/\D/g, "").slice(0, 1))}
             inputMode="numeric"
             className={CLASE_CONTROL}
+          />
+        </Campo>
+        <Campo etiqueta="NIT o RUT">
+          <Desplegable
+            enPortal
+            etiquetaAria="NIT o RUT"
+            marcador="Sin clasificar"
+            valor={tipo}
+            alElegir={setTipo}
+            opciones={opcionesDeTipo}
+          />
+        </Campo>
+        <Campo etiqueta="Papel en el convenio">
+          <Desplegable
+            enPortal
+            etiquetaAria="Papel en el convenio"
+            marcador="Sin definir"
+            valor={papel}
+            alElegir={setPapel}
+            opciones={opcionesDePapel}
           />
         </Campo>
 

@@ -165,6 +165,9 @@ export type FilaEmpresa = {
   digitoVerificacion: string | null;
   /// NIT o RUT. Null en las que nadie ha clasificado todavia.
   tipoDocumento: "NIT" | "RUT" | null;
+  /// Los dos en crudo, para arrancar el formulario de corregir.
+  tipoDocumentoSepId: number | null;
+  papelEnConvenio: string | null;
   /// Cuantas personas suyas se estan formando en este gremio.
   inscritos: number;
   razonSocial: string;
