@@ -529,7 +529,7 @@ export class CronogramaService {
             ubicacionId: cobertura.ubicacionId,
           },
         },
-        select: { id: true },
+        select: { id: true, cuposOcupados: true },
       });
       if (!oferta) {
         throw new BadRequestException(
@@ -552,6 +552,37 @@ export class CronogramaService {
         _sum: { cuposMaximos: true },
       });
       const nuevoTope = suma._sum.cuposMaximos ?? 0;
+
+      /**
+       * LO YA APARTADO POR EMPRESAS MANDA, Y SE DICE EN PALABRAS.
+       *
+       * `ofertas` lleva `CHECK ("cuposOcupados" <= "cuposMaximos")`
+       * desde la migracion inicial, asi que bajar el tope por debajo de
+       * lo que las empresas ya reservaron aborta la transaccion. El
+       * docblock de abajo ya lo sabia ---«aborta cuando se intenta
+       * dejar el tope por debajo de lo ya apartado»--- y aun asi quien
+       * lo intentaba recibia un 500 sin mensaje: saberlo no es
+       * traducirlo.
+       *
+       * ES OTRA COSA QUE «ya tiene N personas dentro», que se comprueba
+       * arriba: aquella cuenta a la GENTE de esta cobertura y esta los
+       * CUPOS que las empresas apartaron en la oferta entera, que es la
+       * suma de todos sus grupos. Se puede pasar una y chocar con la
+       * otra, asi que son dos comprobaciones y no una.
+       *
+       * Lo encontro una revision adversarial el 8 oct 2026, y lo que la
+       * hizo mirar aqui fue que la puerta nueva del tablero vuelve este
+       * caso facil de alcanzar: repartir los 65 de un grupo es bajarle
+       * el tope a una sede.
+       */
+      if (nuevoTope < oferta.cuposOcupados) {
+        throw new BadRequestException(
+          `${cobertura.ubicacion.nombre} ya tiene ${oferta.cuposOcupados} cupos apartados ` +
+            `por empresas en esta accion: el tope no puede bajar de ahi. ` +
+            `Con lo pedido quedaria en ${nuevoTope}.`,
+        );
+      }
+
 
       await tx.oferta.update({
         where: { id: oferta.id },
@@ -751,6 +782,19 @@ export class CronogramaService {
     }
 
     /// La clave unica, comprobada ANTES para poder decir cual es: un
+    /**
+     * EL MENSAJE DEL CHOQUE, UNA SOLA VEZ.
+     *
+     * Lo dicen dos sitios ---el pre-chequeo y el catch de la carrera---
+     * y tienen que decir lo MISMO: con dos textos, la misma situacion
+     * se leeria distinta segun quien llegue primero.
+     */
+    const yaLaTiene = () =>
+      new ConflictException(
+        `El grupo ${grupo.numero} ya tiene ${oferta.ubicacion.nombre}. ` +
+          'Para cambiarle los cupos, editelos en esa fila.',
+      );
+
     /// P2002 crudo solo dice que algo choco.
     const yaEsta = await this.prisma.grupoCobertura.findUnique({
       where: {
@@ -763,49 +807,78 @@ export class CronogramaService {
       select: { id: true },
     });
     if (yaEsta) {
-      throw new ConflictException(
-        `El grupo ${grupo.numero} ya tiene ${oferta.ubicacion.nombre}. ` +
-          'Para cambiarle los cupos, editelos en esa fila.',
-      );
+      throw yaLaTiene();
     }
 
-    const resultado = await this.prisma.$transaction(async (tx) => {
-      await tx.$queryRaw`SELECT "id" FROM "ofertas" WHERE "id" = ${oferta.id} FOR UPDATE`;
+    /**
+     * LA CARRERA, QUE EL PRE-CHEQUEO NO PUEDE CERRAR.
+     *
+     * El `findUnique` de arriba corre FUERA de la transaccion, asi que
+     * entre que contesta «no la tiene» y el `create` otro
+     * administrador pudo crearla: entonces salta el indice unico, y un
+     * P2002 sin traducir sale como 500. El pre-chequeo sigue valiendo
+     * ---es el que da el mensaje bueno en el caso normal--- y esto
+     * cubre la rendija.
+     *
+     * CONTESTA LO MISMO que el pre-chequeo, por `yaLaTiene()`: la
+     * misma situacion no puede leerse distinta segun quien llegue
+     * primero.
+     *
+     * No se puede cerrar moviendo el chequeo dentro: haria falta un
+     * candado sobre una fila que todavia no existe, y el unico que lo
+     * da de verdad es el indice. Asi que la carrera se traduce, no se
+     * evita.
+     *
+     * Lo encontro una revision adversarial el 8 oct 2026.
+     */
+    const esChoqueDeLaLlave = (e: unknown) =>
+      typeof e === 'object' &&
+      e !== null &&
+      (e as { code?: string }).code === 'P2002';
 
-      const creada = await tx.grupoCobertura.create({
-        data: {
-          grupoId,
-          ubicacionId: dto.ubicacionId,
-          modalidad: oferta.modalidad,
+    let resultado;
+    try {
+      resultado = await this.prisma.$transaction(async (tx) => {
+        await tx.$queryRaw`SELECT "id" FROM "ofertas" WHERE "id" = ${oferta.id} FOR UPDATE`;
+
+        const creada = await tx.grupoCobertura.create({
+          data: {
+            grupoId,
+            ubicacionId: dto.ubicacionId,
+            modalidad: oferta.modalidad,
+            cuposBase: dto.cuposBase,
+            cuposMaximos: dto.cuposMaximos,
+          },
+          select: { id: true },
+        });
+
+        /// El tope de la oferta vuelve a ser la suma de sus coberturas,
+        /// con la fila tomada. Es lo mismo que hace `actualizarCupos`.
+        const suma = await tx.grupoCobertura.aggregate({
+          where: {
+            ubicacionId: dto.ubicacionId,
+            grupo: { accionFormacionId: grupo.accionFormacionId },
+          },
+          _sum: { cuposMaximos: true },
+        });
+        const nuevoTope = suma._sum.cuposMaximos ?? 0;
+
+        await tx.oferta.update({
+          where: { id: oferta.id },
+          data: { cuposMaximos: nuevoTope },
+        });
+
+        return {
+          coberturaId: creada.id,
           cuposBase: dto.cuposBase,
           cuposMaximos: dto.cuposMaximos,
-        },
-        select: { id: true },
+          topeDeLaOferta: nuevoTope,
+        };
       });
-
-      /// El tope de la oferta vuelve a ser la suma de sus coberturas,
-      /// con la fila tomada. Es lo mismo que hace `actualizarCupos`.
-      const suma = await tx.grupoCobertura.aggregate({
-        where: {
-          ubicacionId: dto.ubicacionId,
-          grupo: { accionFormacionId: grupo.accionFormacionId },
-        },
-        _sum: { cuposMaximos: true },
-      });
-      const nuevoTope = suma._sum.cuposMaximos ?? 0;
-
-      await tx.oferta.update({
-        where: { id: oferta.id },
-        data: { cuposMaximos: nuevoTope },
-      });
-
-      return {
-        coberturaId: creada.id,
-        cuposBase: dto.cuposBase,
-        cuposMaximos: dto.cuposMaximos,
-        topeDeLaOferta: nuevoTope,
-      };
-    });
+    } catch (e) {
+      if (esChoqueDeLaLlave(e)) throw yaLaTiene();
+      throw e;
+    }
 
     /// Fuera de la transaccion, por lo mismo que `actualizarCupos`:
     /// una bitacora que apunta cambios que no ocurrieron manda a

@@ -332,3 +332,169 @@ describe('lo que el grupo ya tiene viaja, para poder ajustarlo', () => {
     expect(sedes.find((s) => s.ubicacionId === 'u-antioquia')?.puesta).toBeNull();
   });
 });
+
+/**
+ * LOS DOS 500 QUE ENCONTRO LA REVISION DEL DISEÑO (8 oct 2026).
+ *
+ * 20 conclusiones firmes de 56, y dos eran 500 alcanzables justo por la
+ * puerta nueva del tablero. En esta casa un 500 no es diseño: es un
+ * defecto, y se arregla y se dice cual era.
+ */
+describe('los dos 500 de la puerta nueva', () => {
+  /**
+   * 1 · LA CARRERA DEL ALTA. El pre-chequeo del duplicado corre FUERA
+   * de la transaccion, asi que entre su «no la tiene» y el `create`
+   * otro administrador pudo crearla: salta el indice unico y el P2002
+   * sin traducir sale como 500. No se puede cerrar moviendo el chequeo
+   * dentro ---haria falta un candado sobre una fila que no existe---,
+   * asi que se traduce.
+   */
+  it('dos altas a la vez contestan el mismo 409, no un 500', async () => {
+    const { s } = armar();
+    /// el doble lanza lo que lanzaria Prisma al chocar el indice
+    const prisma = (s as unknown as { prisma: Record<string, unknown> }).prisma;
+    (prisma as { $transaction: unknown }).$transaction = () =>
+      Promise.reject(Object.assign(new Error('Unique constraint failed'), { code: 'P2002' }));
+    await expect(s.crearCobertura('g1', DTO, ['c-adecopria'], ACTOR)).rejects.toThrow(
+      ConflictException,
+    );
+  });
+
+  /// Y DICE LO MISMO que el pre-chequeo: la misma situacion no puede
+  /// leerse distinta segun quien llegue primero.
+  it('el mensaje de la carrera es el del pre-chequeo', async () => {
+    const porLaPuerta = await armar({ yaEsta: { id: 'x' } })
+      .s.crearCobertura('g1', DTO, ['c-adecopria'], ACTOR)
+      .catch((e: Error) => e.message);
+
+    const { s } = armar();
+    const prisma = (s as unknown as { prisma: Record<string, unknown> }).prisma;
+    (prisma as { $transaction: unknown }).$transaction = () =>
+      Promise.reject(Object.assign(new Error('x'), { code: 'P2002' }));
+    const porLaCarrera = await s
+      .crearCobertura('g1', DTO, ['c-adecopria'], ACTOR)
+      .catch((e: Error) => e.message);
+
+    expect(porLaCarrera).toBe(porLaPuerta);
+  });
+
+  /// Un error que NO es el choque de la llave se deja pasar tal cual:
+  /// taparlo todo con un 409 diria «ya la tiene» ante una caida de red.
+  it('otro error no se disfraza de 409', async () => {
+    const { s } = armar();
+    const prisma = (s as unknown as { prisma: Record<string, unknown> }).prisma;
+    (prisma as { $transaction: unknown }).$transaction = () =>
+      Promise.reject(new Error('se cayo la base'));
+    await expect(s.crearCobertura('g1', DTO, ['c-adecopria'], ACTOR)).rejects.toThrow(
+      'se cayo la base',
+    );
+  });
+});
+
+/**
+ * 2 · BAJAR UN TOPE POR DEBAJO DE LO QUE LAS EMPRESAS APARTARON.
+ *
+ * `ofertas` lleva `CHECK ("cuposOcupados" <= "cuposMaximos")` desde la
+ * migracion inicial, y `actualizarCupos` no lo miraba: abortaba la
+ * transaccion y salia un 500 sin mensaje. El docblock de la huella ya
+ * sabia que «aborta cuando se intenta dejar el tope por debajo de lo ya
+ * apartado» ---saberlo no es traducirlo---.
+ *
+ * ES OTRA COMPROBACION que «ya tiene N personas dentro»: aquella cuenta
+ * la GENTE de esa cobertura y esta los CUPOS apartados en la oferta
+ * entera, que es la suma de todos sus grupos. Se puede pasar una y
+ * chocar con la otra.
+ *
+ * Y la puerta nueva del tablero lo volvio facil de alcanzar: repartir
+ * los 65 de un grupo es bajarle el tope a una sede.
+ */
+describe('el tope no baja de lo que las empresas apartaron', () => {
+  function armarCupos(opciones: {
+    apartados: number;
+    sumaDespues: number;
+    dentro?: number;
+  }) {
+    const escrito: Record<string, unknown> = {};
+    const tx = {
+      $queryRaw: () => Promise.resolve([]),
+      grupoCobertura: {
+        update: (a: unknown) => {
+          escrito.cobertura = a;
+          return Promise.resolve({});
+        },
+        aggregate: () =>
+          Promise.resolve({ _sum: { cuposMaximos: opciones.sumaDespues } }),
+      },
+      oferta: {
+        findUnique: () =>
+          Promise.resolve({ id: 'of1', cuposOcupados: opciones.apartados }),
+        update: (a: unknown) => {
+          escrito.oferta = a;
+          return Promise.resolve({});
+        },
+      },
+    };
+    const prisma = {
+      grupoCobertura: {
+        findFirst: () =>
+          Promise.resolve({
+            id: 'cob1',
+            cuposBase: 25,
+            cuposMaximos: 33,
+            ubicacionId: 'u-antioquia',
+            ubicacion: { nombre: 'ANTIOQUIA' },
+            grupo: { numero: 2, accionFormacionId: 'af2' },
+            _count: { participantes: opciones.dentro ?? 0 },
+          }),
+      },
+      $transaction: (fn: (t: unknown) => Promise<unknown>) => fn(tx),
+    };
+    return {
+      s: new CronogramaService(prisma as never, {
+        registrar: () => Promise.resolve(),
+      } as never),
+      escrito,
+    };
+  }
+
+  it('lo dice en palabras en vez de reventar con el CHECK', async () => {
+    const { s } = armarCupos({ apartados: 40, sumaDespues: 30 });
+    await expect(
+      s.actualizarCupos('cob1', { cuposMaximos: 30 }, ['c-adecopria'], ACTOR),
+    ).rejects.toThrow(BadRequestException);
+  });
+
+  /// El mensaje nombra las DOS cifras: sin ellas, «no puede bajar de
+  /// ahi» no dice de donde ni a cuanto, y quien lo lee no sabe que
+  /// numero poner.
+  it('el mensaje dice cuantos hay apartados y en cuanto quedaria', async () => {
+    const { s } = armarCupos({ apartados: 40, sumaDespues: 30 });
+    const m = await s
+      .actualizarCupos('cob1', { cuposMaximos: 30 }, ['c-adecopria'], ACTOR)
+      .catch((e: Error) => e.message);
+    expect(m).toContain('40');
+    expect(m).toContain('30');
+    expect(m).toContain('ANTIOQUIA');
+  });
+
+  /// Y NO ESCRIBE NADA. Es lo que importa: el candado va antes de
+  /// tocar la oferta, asi que la transaccion no deja la cobertura
+  /// cambiada con la oferta sin cuadrar.
+  it('no toca la oferta cuando no cabe', async () => {
+    const { s, escrito } = armarCupos({ apartados: 40, sumaDespues: 30 });
+    await s
+      .actualizarCupos('cob1', { cuposMaximos: 30 }, ['c-adecopria'], ACTOR)
+      .catch(() => null);
+    expect(escrito.oferta).toBeUndefined();
+  });
+
+  /// Lo que SI cabe pasa: el candado no puede cerrar el caso normal.
+  it('deja bajar hasta justo lo apartado', async () => {
+    const { s, escrito } = armarCupos({ apartados: 30, sumaDespues: 30 });
+    await s.actualizarCupos('cob1', { cuposMaximos: 30 }, ['c-adecopria'], ACTOR);
+    /// La oferta queda cuadrada: se mira el `data`, que es lo que se
+    /// escribe, y no el objeto entero ---que lleva tambien el `where`
+    /// y ataria el test a la forma de la llamada de Prisma---.
+    expect((escrito.oferta as { data: unknown }).data).toEqual({ cuposMaximos: 30 });
+  });
+});
