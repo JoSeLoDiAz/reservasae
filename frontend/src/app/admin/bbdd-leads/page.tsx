@@ -10,6 +10,7 @@ import {
   Aviso,
   Boton,
   Campo,
+  CLASE_CONTROL,
   EscogerArchivo,
   useAdmin,
 } from "@/components/admin/marco-admin";
@@ -34,6 +35,7 @@ import {
 import {
   ETIQUETA_ESTADO_LEAD,
   mesaApi,
+  TOPE_DEL_LOTE,
   type EstadoLead,
   type LeadDeLaMesa,
   type ListadoDeLaMesa,
@@ -1004,37 +1006,62 @@ export default function PaginaBbddLeads({
          * una en una por el cajón son 1.252 clics.
          */
         seleccion
-        accionesLote={(ids, limpiar) =>
-          reparte ? (
-            <AsignarLoteDeLaBase
-              ids={ids}
-              asesores={datos?.asesores ?? []}
-              alTerminar={async ({ repartidos, sinTocar }) => {
-                setError(null);
-                limpiar();
-                /// Y SE DICE LO QUE NO SE TOCÓ, que es la mitad que
-                /// importa: el servidor salta a quien ya tiene ficha
-                /// o revocó. Callarlo deja a quien reparte creyendo
-                /// que los 50 quedaron repartidos.
-                setAsignados(
-                  `${repartidos} ${repartidos === 1 ? 'lead' : 'leads'} con asesor nuevo.` +
-                    (sinTocar > 0
-                      ? ` ${sinTocar} sin tocar: ya tienen ficha o no se les puede contactar.`
-                      : ''),
-                );
-                await cargar();
-              }}
-              alFallar={setError}
-            />
-          ) : (
-            /* No se esconde a secas: quien lo busca tiene que saber
-               por qué no está y a quién pedírselo. */
-            <span className="text-sm text-texto-suave">
-              Repartir leads entre asesores lo hace un líder de
-              inscripciones.
-            </span>
-          )
-        }
+        accionesLote={(ids, limpiar) => (
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+            {reparte ? (
+              <AsignarLoteDeLaBase
+                ids={ids}
+                asesores={datos?.asesores ?? []}
+                alTerminar={async ({ repartidos, sinTocar }) => {
+                  setError(null);
+                  limpiar();
+                  /// Y SE DICE LO QUE NO SE TOCÓ, que es la mitad que
+                  /// importa: el servidor salta a quien ya tiene ficha
+                  /// o revocó. Callarlo deja a quien reparte creyendo
+                  /// que los 50 quedaron repartidos.
+                  setAsignados(
+                    `${repartidos} ${repartidos === 1 ? 'lead' : 'leads'} con asesor nuevo.` +
+                      (sinTocar > 0
+                        ? ` ${sinTocar} sin tocar: ya tienen ficha o no se les puede contactar.`
+                        : ''),
+                  );
+                  await cargar();
+                }}
+                alFallar={setError}
+              />
+            ) : (
+              /* No se esconde a secas: quien lo busca tiene que saber
+                 por qué no está y a quién pedírselo. */
+              <span className="text-sm text-texto-suave">
+                Repartir leads entre asesores lo hace un líder de
+                inscripciones.
+              </span>
+            )}
+            {/* DESCARTAR EN LOTE, que en la Mesa ya existía y aquí no:
+                una base cargada trae renglones que no son de nadie
+                ---duplicados, números de prueba--- y sacarlos de uno en
+                uno es el mismo problema que repartirlos de uno en uno.
+                Con el permiso del cargue, que es el que pide el
+                servidor. */}
+            {puedeCargar && (
+              <DescartarLoteDeLaBase
+                ids={ids}
+                alTerminar={async ({ descartados, sinTocar }) => {
+                  setError(null);
+                  limpiar();
+                  setAsignados(
+                    `${descartados} ${descartados === 1 ? "lead descartado" : "leads descartados"}.` +
+                      (sinTocar > 0
+                        ? ` ${sinTocar} sin tocar: ya tienen ficha o no estaban pendientes.`
+                        : ""),
+                  );
+                  await cargar();
+                }}
+                alFallar={setError}
+              />
+            )}
+          </div>
+        )}
         vacio={
           buscado || estado
             ? "Con esos filtros no aparece ninguno."
@@ -1090,6 +1117,106 @@ export default function PaginaBbddLeads({
 }
 
 /**
+ * DE CIEN EN CIEN. El servidor no admite más por petición, y la
+ * tabla deja marcar «las N filtradas», que en una base de 1.252 son
+ * 1.252: sin partirlo, el lote entero se rechazaba.
+ */
+function enTramos(ids: string[]): string[][] {
+  const tramos: string[][] = [];
+  for (let i = 0; i < ids.length; i += TOPE_DEL_LOTE) {
+    tramos.push(ids.slice(i, i + TOPE_DEL_LOTE));
+  }
+  return tramos;
+}
+
+/**
+ * Descartar los marcados, con motivo obligatorio.
+ *
+ * No se borran: salen de la base de trabajo con estado «descartado» y
+ * el motivo queda escrito con el nombre de quien lo hizo. El servidor
+ * solo toca los pendientes sin ficha; los demás se cuentan como «sin
+ * tocar» y se dice.
+ */
+function DescartarLoteDeLaBase({
+  ids,
+  alTerminar,
+  alFallar,
+}: {
+  ids: string[];
+  alTerminar: (r: { descartados: number; sinTocar: number }) => Promise<void>;
+  alFallar: (motivo: string) => void;
+}) {
+  const [abierto, setAbierto] = useState(false);
+  const [motivo, setMotivo] = useState("");
+  const [trabajando, setTrabajando] = useState(false);
+
+  async function descartar() {
+    setTrabajando(true);
+    try {
+      let descartados = 0;
+      let sinTocar = 0;
+      for (const tramo of enTramos(ids)) {
+        const r = await mesaApi.descartarLote(tramo, motivo.trim());
+        descartados += r.descartados;
+        sinTocar += r.sinTocar;
+      }
+      setAbierto(false);
+      setMotivo("");
+      await alTerminar({ descartados, sinTocar });
+    } catch (e) {
+      alFallar(
+        e instanceof ErrorApi ? e.message : "No se pudieron descartar.",
+      );
+    } finally {
+      setTrabajando(false);
+    }
+  }
+
+  if (!abierto) {
+    return (
+      <button
+        type="button"
+        onClick={() => setAbierto(true)}
+        className="text-sm font-medium text-error underline underline-offset-2 hover:no-underline"
+      >
+        Descartar
+      </button>
+    );
+  }
+
+  return (
+    <div className="flex flex-wrap items-center gap-2 text-sm">
+      <input
+        autoFocus
+        aria-label="Por qué se descartan"
+        placeholder="¿Por qué? Duplicado, número de prueba…"
+        value={motivo}
+        maxLength={300}
+        onChange={(e) => setMotivo(e.target.value)}
+        className={CLASE_CONTROL + " min-w-[16rem]"}
+      />
+      <Boton
+        type="button"
+        onClick={() => void descartar()}
+        disabled={trabajando || !motivo.trim()}
+      >
+        {trabajando
+          ? "Descartando…"
+          : `Descartar ${ids.length} ${ids.length === 1 ? "lead" : "leads"}`}
+      </Boton>
+      <button
+        type="button"
+        onClick={() => setAbierto(false)}
+        disabled={trabajando}
+        className="text-texto-suave hover:underline"
+      >
+        Cancelar
+      </button>
+    </div>
+  );
+}
+
+/**
  * LA BARRA DE REPARTIR, la misma que la de Gestión de leads.
  *
  * Se escribe aquí y no se importa de `participantes/page` porque
@@ -1115,8 +1242,14 @@ function AsignarLoteDeLaBase({
   async function asignar(asesorId: string | null) {
     setTrabajando(true);
     try {
-      const r = await mesaApi.asignar(ids, asesorId);
-      await alTerminar(r);
+      let repartidos = 0;
+      let sinTocar = 0;
+      for (const tramo of enTramos(ids)) {
+        const r = await mesaApi.asignar(tramo, asesorId);
+        repartidos += r.repartidos;
+        sinTocar += r.sinTocar;
+      }
+      await alTerminar({ repartidos, sinTocar });
     } catch (e) {
       /// Un fallo aquí NO se traga: se elegía asesor, no pasaba nada
       /// y la pantalla no decía ni bien ni mal. Es el mismo defecto
