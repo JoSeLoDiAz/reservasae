@@ -11,6 +11,12 @@ import {
 import { PildoraEtapa } from "./etapa";
 import type { Columna } from "./tabla";
 
+/// COMO SE LLAMA UN GRUPO, una sola vez: el filtro y la celda
+/// tienen que decir lo mismo o el desplegable ofrece una cosa y la
+/// tabla ensena otra.
+const nombreDelGrupo = (g: number | null) =>
+  g === null ? "Sin grupo" : `Grupo ${g}`;
+
 /// Fecha y hora, no solo fecha: dos leads del mismo dia se
 /// ordenan mal si la hora no viaja, y saber a que hora entro
 /// es lo que deja medir en cuanto se reacciono.
@@ -382,15 +388,34 @@ export function columnasDeParticipante(): Columna<FilaParticipante>[] {
       /// filtro que está pero no se puede leer no sirve de nada.
       ancho: "124px",
       titulo: "Grupo",
-      valor: (f) => f.grupo,
+      /**
+       * EL VALOR DICE LO MISMO QUE LA CELDA, y hasta hoy no.
+       *
+       * Devolvía `f.grupo` pelado, o sea `null` para quien no tiene
+       * cohorte. Y el desplegable del filtro se arma con los valores
+       * NO VACÍOS --`texto(null)` da `""` y `if (t)` lo descarta--,
+       * así que «Sin grupo» no salía como opción: se podía filtrar
+       * por el grupo 1, el 2 y el 3, y no por los que no tienen
+       * ninguno. Justo los que hay que repartir.
+       *
+       * Lo encontró Josse en producción (7 oct 2026). Era «dos
+       * verdades sobre la misma celda»: `pinta` ya decía «Sin grupo»
+       * --con su porqué escrito-- mientras `valor` decía nada.
+       *
+       * `?? ""` NO habría servido: la cadena vacía se descarta igual.
+       * Tiene que ser una etiqueta de verdad.
+       */
+      valor: (f) => nombreDelGrupo(f.grupo),
       pinta: (f) =>
         f.grupo === null ? (
           /// Se dice, no se deja en blanco: sin grupo la persona
           /// no entra en el reporte al SENA, y una celda vacía
           /// se lee como que el dato no se pidió.
-          <span className="text-[0.75rem] text-texto-suave">Sin grupo</span>
+          <span className="text-[0.75rem] text-texto-suave">
+            {nombreDelGrupo(f.grupo)}
+          </span>
         ) : (
-          <span className="tabular-nums">Grupo {f.grupo}</span>
+          <span className="tabular-nums">{nombreDelGrupo(f.grupo)}</span>
         ),
       filtro: "opciones",
     },
