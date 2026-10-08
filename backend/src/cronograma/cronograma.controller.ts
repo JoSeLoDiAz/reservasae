@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
 
 import { RolAdmin, type Admin } from '../../generated/prisma';
 import { AdminActual, AmbitoActual } from '../admin/admin-actual.decorator';
@@ -7,6 +7,7 @@ import { IpReal } from '../comun/ip-real';
 import { CronogramaService } from './cronograma.service';
 import {
   ActualizarCuposDto,
+  CrearCoberturaDto,
   ActualizarGrupoDto,
   ActualizarInformacionDto,
 } from './dto';
@@ -92,6 +93,31 @@ export class CronogramaController {
     @IpReal() ip: string,
   ) {
     return this.cronograma.actualizarCupos(
+      id,
+      dto,
+      ambito.convenios,
+      { id: admin.id, nombre: admin.nombre },
+      ip,
+    );
+  }
+
+  /**
+   * ANADE UNA SEDE A UN GRUPO QUE YA EXISTE.
+   *
+   * Cuelga del grupo y no de `/coberturas` a secas porque el grupo es
+   * lo que acota el ambito: sin el en la ruta habria que deducirlo del
+   * cuerpo, y eso ya se ha equivocado aqui antes.
+   */
+  @Post('grupos/:id/coberturas')
+  @Requiere('configuracion', 'ESCRIBIR')
+  crearCobertura(
+    @Param('id') id: string,
+    @Body() dto: CrearCoberturaDto,
+    @AmbitoActual() ambito: Ambito,
+    @AdminActual() admin: Admin,
+    @IpReal() ip: string,
+  ) {
+    return this.cronograma.crearCobertura(
       id,
       dto,
       ambito.convenios,

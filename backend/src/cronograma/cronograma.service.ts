@@ -2,6 +2,7 @@
 
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -17,6 +18,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import {
   ActualizarCuposDto,
+  CrearCoberturaDto,
   ActualizarGrupoDto,
   ActualizarInformacionDto,
 } from './dto';
@@ -591,6 +593,143 @@ export class CronogramaService {
       camposTocados: Object.keys(dto).filter(
         (k) => dto[k as keyof ActualizarCuposDto] !== undefined,
       ),
+      ip,
+    });
+
+    return resultado;
+  }
+
+  /**
+   * CREA UNA SEDE DENTRO DE UN GRUPO QUE YA EXISTE.
+   *
+   * «Que yo pueda entrar y no depender de que lo ingrese usted»
+   * (Josse, 7 oct 2026). Hasta hoy el UNICO write a `grupos_cobertura`
+   * en toda la API era el `update` de los cupos: crear una celda solo
+   * entraba por la siembra, o sea editando el `catalogo.json` y
+   * resembrando.
+   *
+   * SIGUE EL MOLDE DE `actualizarCupos` Y NO UNO NUEVO: misma
+   * transaccion, mismo `FOR UPDATE` sobre la oferta, mismo recalculo
+   * del tope como suma de las coberturas, y la misma huella. Dos
+   * caminos distintos para dejar cuadrada la misma fila acabarian
+   * discrepando.
+   *
+   * LA MODALIDAD SE DERIVA DE LA OFERTA y no se pide: una celda cuya
+   * modalidad no case con su oferta se crea, sale en la tabla y NO SE
+   * PUEDE ASIGNAR a nadie, sin que nada falle.
+   */
+  async crearCobertura(
+    grupoId: string,
+    dto: CrearCoberturaDto,
+    ambito: string[],
+    actor: Actor,
+    ip?: string,
+  ) {
+    if (dto.cuposMaximos < dto.cuposBase) {
+      throw new BadRequestException(
+        'El tope no puede quedar por debajo de lo comprometido: el sobrecupo suma, no resta.',
+      );
+    }
+
+    const grupo = await this.prisma.grupo.findFirst({
+      where: { id: grupoId, accionFormacion: { convenioId: { in: ambito } } },
+      select: {
+        id: true,
+        numero: true,
+        accionFormacionId: true,
+        accionFormacion: { select: { codigo: true, convenioId: true } },
+      },
+    });
+    if (!grupo) throw new NotFoundException('Ese grupo no existe.');
+
+    /// La oferta manda: da la modalidad y es donde se suman los cupos.
+    const oferta = await this.prisma.oferta.findUnique({
+      where: {
+        accionFormacionId_ubicacionId: {
+          accionFormacionId: grupo.accionFormacionId,
+          ubicacionId: dto.ubicacionId,
+        },
+      },
+      select: { id: true, modalidad: true, ubicacion: { select: { nombre: true } } },
+    });
+    if (!oferta) {
+      throw new BadRequestException(
+        `${grupo.accionFormacion.codigo} no se dicta en esa sede: no hay donde sumar los cupos.`,
+      );
+    }
+
+    /// La clave unica, comprobada ANTES para poder decir cual es: un
+    /// P2002 crudo solo dice que algo choco.
+    const yaEsta = await this.prisma.grupoCobertura.findUnique({
+      where: {
+        grupoId_ubicacionId_modalidad: {
+          grupoId,
+          ubicacionId: dto.ubicacionId,
+          modalidad: oferta.modalidad,
+        },
+      },
+      select: { id: true },
+    });
+    if (yaEsta) {
+      throw new ConflictException(
+        `El grupo ${grupo.numero} ya tiene ${oferta.ubicacion.nombre}. ` +
+          'Para cambiarle los cupos, editelos en esa fila.',
+      );
+    }
+
+    const resultado = await this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT "id" FROM "ofertas" WHERE "id" = ${oferta.id} FOR UPDATE`;
+
+      const creada = await tx.grupoCobertura.create({
+        data: {
+          grupoId,
+          ubicacionId: dto.ubicacionId,
+          modalidad: oferta.modalidad,
+          cuposBase: dto.cuposBase,
+          cuposMaximos: dto.cuposMaximos,
+        },
+        select: { id: true },
+      });
+
+      /// El tope de la oferta vuelve a ser la suma de sus coberturas,
+      /// con la fila tomada. Es lo mismo que hace `actualizarCupos`.
+      const suma = await tx.grupoCobertura.aggregate({
+        where: {
+          ubicacionId: dto.ubicacionId,
+          grupo: { accionFormacionId: grupo.accionFormacionId },
+        },
+        _sum: { cuposMaximos: true },
+      });
+      const nuevoTope = suma._sum.cuposMaximos ?? 0;
+
+      await tx.oferta.update({
+        where: { id: oferta.id },
+        data: { cuposMaximos: nuevoTope },
+      });
+
+      return {
+        coberturaId: creada.id,
+        cuposBase: dto.cuposBase,
+        cuposMaximos: dto.cuposMaximos,
+        topeDeLaOferta: nuevoTope,
+      };
+    });
+
+    /// Fuera de la transaccion, por lo mismo que `actualizarCupos`:
+    /// una bitacora que apunta cambios que no ocurrieron manda a
+    /// buscar la causa de algo que nunca paso.
+    await this.auditoria.registrar({
+      actor,
+      accion: 'COBERTURA_CREADA',
+      entidad: ENTIDADES.COBERTURA,
+      entidadId: resultado.coberturaId,
+      convenioId: grupo.accionFormacion.convenioId,
+      resumen:
+        `${grupo.accionFormacion.codigo}, grupo ${grupo.numero}: se anade ` +
+        `${oferta.ubicacion.nombre} (${oferta.modalidad}) con base ` +
+        `${dto.cuposBase} y tope ${dto.cuposMaximos} ` +
+        `(la oferta queda en ${resultado.topeDeLaOferta})`,
+      camposTocados: ['ubicacionId', 'cuposBase', 'cuposMaximos'],
       ip,
     });
 
