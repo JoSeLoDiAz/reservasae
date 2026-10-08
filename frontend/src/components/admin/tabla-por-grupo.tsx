@@ -11,7 +11,7 @@
  * vez son setenta filas seguidas, que es el chorrero que el cliente ya
  * nos hizo quitar de esta misma pantalla.
  *
- * La columna «Nominados por la empresa» no dice lo mismo que «Cupos
+ * Los «cupos reservados afiliados» de aquí no son los mismos de la
  * reservados» de la tabla de arriba, y por eso se llama distinto: el
  * pie lo explica y `backend/src/crm/resumen-por-grupo.ts` lo razona.
  */
@@ -148,14 +148,18 @@ export function TablaPorGrupo({
                 dónde, y la sede repetía casi siempre lo mismo. */}
             <tr>
               <th>Grupo</th>
-              <th className="w-full">Departamento</th>
+              {/* UBICACIÓN y no «Departamento»: desde la AF3 son
+                  CIUDADES, y la híbrida trae departamento Y ciudad.
+                  Un solo rótulo que vale para los tres (cliente,
+                  7 oct 2026). */}
+              <th className="w-full">Ubicación</th>
               <th className="text-center whitespace-nowrap">Modalidad</th>
               <th className="text-center whitespace-nowrap">Meta</th>
-              <th className={ENTRO}>Nominados por la empresa</th>
-              <th className={ENTRO}>Leads por su cuenta</th>
-              <th className={ENTRO}>Total leads</th>
-              <th className={INSCRIBIO}>Inscritos reservas</th>
-              <th className={INSCRIBIO}>Inscritos por su cuenta</th>
+              <th className={ENTRO}>Cupos reservados afiliados</th>
+              <th className={ENTRO}>Cupos reservados de pauta</th>
+              <th className={ENTRO}>Total leads de pauta</th>
+              <th className={INSCRIBIO}>Inscritos reservas de afiliado</th>
+              <th className={INSCRIBIO}>Inscritos de pauta</th>
               <th className={INSCRIBIO}>Total inscritos</th>
               <th className="text-center whitespace-nowrap">Conversión</th>
               <th className="text-center whitespace-nowrap">Cupos disponibles</th>
@@ -234,12 +238,12 @@ export function TablaPorGrupo({
 
       <p className="text-sm text-texto-suave mt-3 leading-relaxed">
         La meta de cada grupo son sus cupos del cronograma, ya con el 30 % de sobrecupo, y
-        la <strong>conversión</strong> es sus inscritos sobre ella. «Nominados por la
-        empresa» <strong>no</strong> es lo mismo que «Cupos reservados» de la tabla de
-        arriba: una reserva se aparta sobre la acción y la ciudad, no sobre un grupo, así
-        que aquí se cuentan las personas que la empresa ya entregó con nombre propio. Por
-        eso los grupos pueden sumar menos que su acción mientras queden cupos apartados
-        sin nombre.
+        la <strong>conversión</strong> es sus inscritos sobre ella. Los «cupos reservados
+        afiliados» de aquí <strong>no</strong> son los mismos de la tabla de arriba: una
+        reserva se aparta sobre la acción y la ciudad, no sobre un grupo, así que aquí se
+        cuentan las personas que la empresa ya entregó con nombre propio. Por eso los
+        grupos pueden sumar menos que su acción mientras queden cupos apartados sin
+        nombre.
       </p>
     </Bloque>
   );
