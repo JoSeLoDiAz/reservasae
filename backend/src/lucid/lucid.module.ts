@@ -6,6 +6,7 @@ import { BandejaDeConversaciones } from './bandeja.service';
 import { LucidController } from './lucid.controller';
 import { LucidService } from './lucid.service';
 import { OlvidadorDeConversaciones } from './olvidador';
+import { RepescadorDeConversaciones } from './repescador';
 import { proveedoresConLlave } from '../integraciones/proveedores';
 
 /// PrismaModule es @Global: no hay que importarlo.
@@ -24,7 +25,12 @@ import { proveedoresConLlave } from '../integraciones/proveedores';
   /// del panel, y una ruta que acepta dos autenticaciones deja entrar
   /// por la mas debil.
   controllers: [LucidController, BandejaController],
-  providers: [LucidService, BandejaDeConversaciones, OlvidadorDeConversaciones],
+  providers: [
+    LucidService,
+    BandejaDeConversaciones,
+    OlvidadorDeConversaciones,
+    RepescadorDeConversaciones,
+  ],
 })
 export class LucidModule implements OnModuleInit {
   private readonly log = new Logger('Lucid');
