@@ -147,7 +147,7 @@ export function columnasDeLead(): Array<Columna<LeadDeLaMesa>> {
       clave: "asesor",
       titulo: "Asesor",
       ancho: "160px",
-      valor: (l) => l.asesor?.nombre ?? "",
+      valor: (l) => l.asesor?.nombre ?? "Sin asignar",
       pinta: (l) =>
         l.asesor ? (
           <span className="block truncate">{l.asesor.nombre}</span>
@@ -160,7 +160,7 @@ export function columnasDeLead(): Array<Columna<LeadDeLaMesa>> {
       clave: "curso",
       titulo: "Acción de formación",
       ancho: "200px",
-      valor: (l) => l.curso ?? "",
+      valor: (l) => l.curso ?? "Sin curso",
       pinta: (l) => oRaya(l.curso),
       filtro: "opciones",
     },
@@ -192,7 +192,7 @@ export function columnasDeLead(): Array<Columna<LeadDeLaMesa>> {
       clave: "departamento",
       titulo: "Departamento",
       ancho: "160px",
-      valor: (l) => l.departamento ?? "",
+      valor: (l) => l.departamento ?? "Sin departamento",
       pinta: (l) => oRaya(l.departamento),
       filtro: "opciones",
     },
@@ -200,7 +200,7 @@ export function columnasDeLead(): Array<Columna<LeadDeLaMesa>> {
       clave: "ciudad",
       titulo: "Ciudad o municipio",
       ancho: "170px",
-      valor: (l) => l.ciudad ?? "",
+      valor: (l) => l.ciudad ?? "Sin ciudad",
       pinta: (l) => oRaya(l.ciudad),
       filtro: "opciones",
     },
@@ -208,7 +208,7 @@ export function columnasDeLead(): Array<Columna<LeadDeLaMesa>> {
       clave: "sede",
       titulo: "Sede que le tocaría",
       ancho: "170px",
-      valor: (l) => l.sede ?? "",
+      valor: (l) => l.sede ?? "Sin cobertura",
       pinta: (l) =>
         l.sede ? (
           <span className="block truncate">{l.sede}</span>
