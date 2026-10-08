@@ -54,6 +54,7 @@
     "db:sondeo-cargue": "ts-node prisma/sondeo-cargue-genero.ts",
     "db:quien-recibe-leads": "ts-node prisma/quien-puede-recibir-leads.ts",
     "db:cuadrar": "ts-node prisma/cuadrar-el-panel-contra-la-base.ts",
+    "db:sigue-puesto": "ts-node prisma/sigue-puesto-cada-arreglo.ts",
     "db:nit-pegado": "ts-node prisma/unir-nit-pegado.ts",
     "db:cronograma": "ts-node prisma/cronograma-a-los-grupos.ts"
   },
