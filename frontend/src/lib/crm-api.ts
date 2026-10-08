@@ -1626,8 +1626,19 @@ export type FilaDeGrupo = {
   /// departamento desde el 24 sep 2026.
   departamento: string;
   meta: number;
-  /// Sus sedes, una a una: es lo que hace editable la meta.
-  coberturas: SedeDelGrupo[];
+  /**
+   * SUS SEDES, UNA A UNA: es lo que hace editable la meta.
+   *
+   * OPCIONAL, como `porAsesor.pendientes` y `cuposConNombre`: un
+   * backend sin reiniciar no la manda, y esa ventana existe de verdad
+   * ---es la del `docker compose up -d --build`, que recrea los dos
+   * contenedores pero no a la vez---. Declarada obligatoria, un
+   * `f.coberturas.length` sobre un ausente lanza DENTRO del render y
+   * se va el bloque entero de «Grupos de AF», no solo el editor. Con
+   * un número ausente se vería una cifra mala; con un array ausente,
+   * la pantalla en blanco.
+   */
+  coberturas?: SedeDelGrupo[];
   /// En los grupos NO son cupos reservados sino personas ya nominadas
   /// por la empresa: una reserva se hace sobre la oferta, no sobre un
   /// grupo. Lo explica `backend/src/crm/resumen-por-grupo.ts`.

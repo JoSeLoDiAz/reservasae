@@ -74,6 +74,25 @@ const CELDA_INSCRIBIO = "text-center tabular-nums grupo-inscribio";
 const tasa = (v: number | null) => (v === null ? "—" : `${Math.round(v * 100)} %`);
 
 /**
+ * LAS SEDES DE UNA FILA, UNA SOLA VEZ Y CON SU RED.
+ *
+ * `coberturas` es OPCIONAL en el contrato: un backend sin reiniciar no
+ * la manda, y esa ventana es real ---el `docker compose up -d --build`
+ * recrea los dos contenedores, pero no a la vez---. Sin la red, un
+ * `.length` sobre el ausente lanza DENTRO del render y se lleva el
+ * bloque entero, no solo el editor.
+ *
+ * Va en una funcion y no en tres `?? []` sueltos: son tres sitios que
+ * leen lo mismo, y el dia que uno se olvide la red volvemos aqui.
+ */
+const sedesDe = (f: FilaDeGrupo) => f.coberturas ?? [];
+
+/// Si NINGUNA fila trae el detalle, es el backend viejo y no un grupo
+/// sin sedes: hay que decirlo en vez de ensenar metas en cero.
+const faltaElDetalle = (filas: FilaDeGrupo[]) =>
+  filas.length > 0 && filas.every((f) => f.coberturas === undefined);
+
+/**
  * LA LLAVE DE UNA FILA, UNA SOLA VEZ.
  *
  * Desde que un grupo puede dar dos filas ---una por departamento--- el
@@ -192,6 +211,21 @@ function AnadirSede({
   const [base, setBase] = useState("");
   const [tope, setTope] = useState("");
   const [guardando, setGuardando] = useState(false);
+  /**
+   * QUE FALLO AL PEDIR LAS SEDES, APARTE DEL NULO.
+   *
+   * `sedes === null` significaba DOS cosas ---no ha elegido grupo y
+   * la peticion fallo--- y el rotulo afirmaba la primera: con el
+   * grupo ya elegido al lado, el desplegable seguia deshabilitado
+   * diciendo «Elija el grupo primero». El toast avisa una vez y se
+   * va; despues queda un cartel que dice algo falso. Y la salida no
+   * era obvia: volver a elegir el MISMO grupo no dispara `onChange`.
+   *
+   * Pasa con cualquier 403, 404 o 429 ---el limitador de 60/min por
+   * manejador que esta casa ya documenta como «No se pudo completar
+   * la operacion»---.
+   */
+  const [falloSedes, setFalloSedes] = useState<string | null>(null);
 
   /**
    * LAS SEDES SE PIDEN AL ELEGIR EL GRUPO, no al abrir el formulario.
@@ -206,11 +240,14 @@ function AnadirSede({
     setBase("");
     setTope("");
     setSedes(null);
+    setFalloSedes(null);
     if (!id) return;
     try {
       setSedes(await cronogramaApi.sedesPosibles(id));
     } catch (e) {
-      toast.error((e as ErrorApi).message ?? "No se pudieron leer las sedes.");
+      const m = (e as ErrorApi).message ?? "No se pudieron leer las sedes.";
+      setFalloSedes(m);
+      toast.error(m);
     }
   }
 
@@ -297,7 +334,15 @@ function AnadirSede({
             disabled={sedes === null}
             className={`${CLASE_CONTROL} w-[16rem]`}
           >
-            <option value="">{sedes === null ? "Elija el grupo primero" : "Elegir…"}</option>
+            <option value="">
+              {/* TRES ESTADOS Y NO DOS: sin grupo, fallo y listo. El
+                  rotulo de antes afirmaba el primero en los tres. */}
+              {falloSedes !== null
+                ? "No se pudieron leer"
+                : sedes === null
+                  ? "Elija el grupo primero"
+                  : "Elegir…"}
+            </option>
             {(sedes ?? []).map((s) => (
               /* LAS QUE YA ESTÁN SE MARCAN Y SE PUEDEN ELEGIR.
                  Estuvieron bloqueadas un día, y Josse lo corrigió:
@@ -366,7 +411,24 @@ function AnadirSede({
               ? "Ajustar"
               : "Añadir"}
         </button>
+        {/* VOLVER A INTENTARLO, que es la salida que no habia:
+            elegir otra vez el MISMO grupo no dispara `onChange`, asi
+            que sin este boton habia que pasar por «Elegir…» y
+            volver. */}
+        {falloSedes !== null && grupoId !== "" && (
+          <button
+            type="button"
+            onClick={() => elegirGrupo(grupoId)}
+            className="pb-2 text-[0.78125rem] font-medium text-marca underline underline-offset-2 hover:text-marca-fuerte"
+          >
+            Volver a intentarlo
+          </button>
+        )}
       </div>
+
+      {falloSedes !== null && (
+        <p className="mt-3 text-xs text-error">{falloSedes}</p>
+      )}
 
       {/* LO QUE SUMA EL GRUPO, que es lo que pidió para poder
           «distribuir los 65 entre Cali, Magdalena y Huila».
@@ -453,10 +515,6 @@ export function TablaPorGrupo({
     [accionFormacionId, clave], // eslint-disable-line react-hooks/exhaustive-deps
   );
   const listo = ventanaResuelta;
-  const vivos = useDatosVivos<FilaDeGrupo[]>(cargar, {
-    clave: `resumen-por-grupo:${accionFormacionId}:${clave}`,
-    activo: listo,
-  });
 
   /// LOS CUPOS LOS EDITA QUIEN CONFIGURA LA FORMACION, igual que en
   /// Cronograma: es la misma ruta y el mismo permiso. Quien no puede,
@@ -467,13 +525,44 @@ export function TablaPorGrupo({
   const [anadiendo, setAnadiendo] = useState(false);
   /// Que fila tiene abierto el editor de su meta, por su llave.
   const [editando, setEditando] = useState<string | null>(null);
+  const toast = useToast();
+
+  /**
+   * EL REFRESCO SE PARA MIENTRAS HAY UN EDITOR ABIERTO, y esto no es
+   * una optimizacion: es un defecto que una revision adversarial
+   * encontro el 8 oct 2026, y era mio.
+   *
+   * `CuposDeLaSede` guarda sus dos campos en estado al montarse y no
+   * vuelve a sincronizarlos. En su casa de siempre ---la vista del
+   * cronograma--- eso era inofensivo, porque alli NO hay datos vivos.
+   * Esta tabla si los tiene, cada 30 s, y su `cambio` se compara
+   * contra el prop NUEVO: si otra persona tocaba esa misma cobertura,
+   * al refrescar el boton «Guardar» SE ENCENDIA SOLO y, pulsado,
+   * mandaba los valores viejos ---pisando lo del otro y bajando con
+   * ello el tope de la oferta---.
+   *
+   * Es la MISMA foto que el desglose del asesor tenia y que se
+   * arreglo el 7 oct; reaparecio por el otro lado de la misma entrega
+   * al mudar el componente a una pantalla que si se refresca. Van
+   * cuatro veces en este proyecto que un arreglo trae su defecto.
+   *
+   * La cura es la regla que esta casa ya tiene escrita: los datos
+   * vivos «NO se aplican en las pantallas de edicion: pisarian lo que
+   * se escribe». `activo: false` NO tira los datos ---solo se salta el
+   * efecto---, y al cerrar el editor vuelve a pedir, asi que lo que se
+   * ve despues es la verdad.
+   */
+  const vivos = useDatosVivos<FilaDeGrupo[]>(cargar, {
+    clave: `resumen-por-grupo:${accionFormacionId}:${clave}`,
+    activo: listo && editando === null && !anadiendo,
+  });
+
   /// `refrescar` NO va memoizada: la devuelve `useDatosVivos` nueva
   /// en cada render, asi que un useCallback con ella en las
   /// dependencias se rehace igual y solo anade ruido.
   const alGuardar = async () => {
     vivos.refrescar();
   };
-  const toast = useToast();
 
   if (vivos.error) return <Aviso tipo="error">{vivos.error}</Aviso>;
   if (!vivos.datos) return <Esqueleto />;
@@ -509,7 +598,7 @@ export function TablaPorGrupo({
           base: 0,
           tope: 0,
         };
-        for (const c of f.coberturas) {
+        for (const c of sedesDe(f)) {
           v.base += c.cuposBase;
           v.tope += c.cuposMaximos;
         }
@@ -563,6 +652,21 @@ export function TablaPorGrupo({
         ) : undefined
       }
     >
+      {/* EL BACKEND VIEJO SE DICE, NO SE DISIMULA.
+
+          Si NINGUNA fila trae el detalle de sus sedes, es que el
+          servidor todavia no se ha reiniciado ---la ventana del
+          despliegue--- y no que los grupos esten sin sedes. Sin
+          decirlo, la meta no se puede editar y el formulario diria
+          que cada grupo lleva 0 de tope: una cifra falsa es peor que
+          una pantalla que explica lo que le pasa. Es lo mismo que
+          hace el desglose del asesor cuando le falta `porAccion`. */}
+      {faltaElDetalle(filas) && (
+        <p className="px-4 pb-4 text-sm text-texto-suave">
+          El servidor no está enviando el detalle de sedes de cada grupo, así que la meta no se
+          puede editar todavía. Si acaba de actualizarse, hay que reiniciarlo.
+        </p>
+      )}
       {anadiendo && (
         <div className="px-4 pb-4">
           <AnadirSede
@@ -611,7 +715,7 @@ export function TablaPorGrupo({
                       coberturas sale a propósito, con la ubicación y la
                       modalidad vacías. */}
                   <td className="text-center tabular-nums">
-                    {puedeEditar && f.coberturas.length > 0 ? (
+                    {puedeEditar && sedesDe(f).length > 0 ? (
                       <button
                         type="button"
                         onClick={() =>
@@ -670,7 +774,7 @@ export function TablaPorGrupo({
                   <tr>
                     <td colSpan={COLUMNAS.length} className="bg-fondo p-4">
                       <div className="flex flex-col gap-3">
-                        {f.coberturas.map((c) => (
+                        {sedesDe(f).map((c) => (
                           <CuposDeLaSede
                             key={c.coberturaId}
                             sede={{
