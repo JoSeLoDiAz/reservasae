@@ -241,6 +241,17 @@ type ConPeriodo = {
   rotuloAnterior: string;
 };
 
+/**
+ * COMO SE NOMBRA UNA FILA DE ASESOR, UNA SOLA VEZ.
+ *
+ * La usan la `clave` de la tabla, el clic que abre el desglose y el
+ * propio desglose. `asesorId` es nulo ---la fila de «sin asesor»---,
+ * asi que hace falta un respaldo, y escrito tres veces el dia que
+ * cambie una se separa de las otras: la fila se abriria y el
+ * desglose no saldria, o saldria el de otro.
+ */
+const idDeAsesor = (f: FilaDeAsesor) => f.asesorId ?? "sin-asesor";
+
 export function PanelAsesores() {
   const [subvista, setSubvista] = useState<Subvista>("inscripciones");
 
@@ -482,11 +493,20 @@ function DeInscripciones({
   /// sido una consulta más por cada clic para un dato que ya estaba
   /// en la mano.
   const [accion, setAccion] = useState("");
-  /// A quién se le está mirando el desglose.
-  /// QUÉ ASESOR TIENE EL DESGLOSE ABIERTO. Ya no es un cajón: la
-  /// subtabla sale DEBAJO, como en Control de inscritos, y por eso el
-  /// nombre del estado cambió con ella.
-  const [desglosado, setDesglosado] = useState<FilaDeAsesor | null>(null);
+  /// QUÉ ASESOR TIENE EL DESGLOSE ABIERTO, POR SU ID Y NO LA FILA.
+  ///
+  /// Guardaba la fila entera, y eso era una FOTO: esta pantalla se
+  /// refresca sola cada 30 s, así que el desglose seguía contando lo
+  /// de hace un rato. Con el cajón y con la subtabla de debajo no se
+  /// notaba ---nadie compara dos cifras separadas por cinco
+  /// pantallas---, pero dentro de la fila quedan una al lado de la
+  /// otra: la fila diría 41 y su desglose sumaría 38, y eso se lee
+  /// como que el sistema no sabe contar.
+  ///
+  /// Con el id, la fila la pone `desplegado(f)`, que recibe la viva.
+  /// El id es el mismo que la tabla usa como `clave`, para que no
+  /// haya dos formas de nombrar la misma fila.
+  const [desglosado, setDesglosado] = useState<string | null>(null);
 
   if (vivos.error) return <Aviso tipo="error">{vivos.error}</Aviso>;
   if (!vivos.datos) return <Esqueleto />;
@@ -788,11 +808,35 @@ function DeInscripciones({
           id="asesores-inscripciones-v2"
           columnas={columnas}
           filas={filas}
-          clave={(f) => f.asesorId ?? "sin-asesor"}
+          clave={idDeAsesor}
           /// Vuelve a pulsar la misma fila y se cierra: es la única
           /// puerta de salida que se prueba sola.
           alClic={(f) =>
-            setDesglosado((v) => (v && v.asesorId === f.asesorId ? null : f))
+            setDesglosado((v) => (v === idDeAsesor(f) ? null : idDeAsesor(f)))
+          }
+          /// EL DESGLOSE SALE DENTRO DE LA FILA, NO DEBAJO DE LA TABLA.
+          ///
+          /// «Que no es que al darle clic en Juliet Herrera abajo me
+          /// salga otra tabla, sino que me despliegue dentro de la
+          /// misma tabla donde está Juliet» (Josse, 7 oct 2026). Y el
+          /// motivo que dio es el que importa: «es muy largo el
+          /// proceso» ---con veinticinco asesores en pantalla, pulsar
+          /// la fila doce dejaba el desglose a cinco pantallas de
+          /// scroll de la fila que uno acababa de pulsar---.
+          ///
+          /// Esto DESHACE la mudanza del 25 sep («que salga una
+          /// subtabla, o sea como Control de inscritos»), que sacó el
+          /// desglose del cajón lateral. Aquella no estaba mal: el
+          /// cajón partía los nombres de las acciones letra a letra.
+          /// Lo que cambió es que ahora cabe DENTRO de la fila, que es
+          /// lo que ninguna de las dos formas anteriores podía hacer.
+          desplegado={(f) =>
+            desglosado === idDeAsesor(f) ? (
+              <DesgloseDelAsesor
+                fila={f}
+                alCerrar={() => setDesglosado(null)}
+              />
+            ) : null
           }
           porPagina={25}
           vacio={
@@ -828,13 +872,6 @@ function DeInscripciones({
               )}
             </>
           }
-        />
-      )}
-
-      {comoSeVe === "resumen" && desglosado && (
-        <DesgloseDelAsesor
-          fila={desglosado}
-          alCerrar={() => setDesglosado(null)}
         />
       )}
 
