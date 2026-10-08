@@ -40,11 +40,22 @@ describe('la lista de lo que falta y la compuerta son la misma regla', () => {
    * Y PIDEN LOS MISMOS CAMPOS. Si una consulta trajera menos campos
    * de la persona, su lista diría que falta algo que sí está: la
    * regla es la misma pero los datos de entrada no.
+   *
+   * SE CUENTAN LAS QUE **NO** USAN LA CONSTANTE, y no las que sí.
+   * Antes se exigían exactamente dos, así que añadir una tercera
+   * consulta correcta --`loQueLeFaltaALaPersona`-- tumbaba el test
+   * sin que nada estuviera mal. Así es más fuerte: con esta forma,
+   * una consulta nueva que se escriba los campos a mano cae, y una
+   * que use la constante pasa, que es justo lo que se quiere.
    */
-  it('las dos consultas piden los mismos campos de la persona', () => {
-    const veces = FUENTE.split('persona: { select: CAMPOS_DE_LA_PERSONA }')
-      .length - 1;
-    expect(veces).toBe(2);
+  it('ninguna consulta pide los campos de la persona a mano', () => {
+    const conLaConstante = (
+      FUENTE.match(/persona: \{ select: CAMPOS_DE_LA_PERSONA \}/g) ?? []
+    ).length;
+    expect(conLaConstante).toBeGreaterThanOrEqual(2);
+
+    /// Cualquier `persona: { select: {` literal es una segunda lista.
+    expect(FUENTE).not.toMatch(/persona: \{\s*select: \{/);
   });
 
   it('y la misma cadena de empresa, con la de la reserva detrás', () => {
@@ -88,7 +99,10 @@ describe('los dos avisos del enlace público lo dicen', () => {
   it('cuando no falta nada, el aviso se queda como estaba', () => {
     const i = PREINSCRIPCION.indexOf('private async conLoQueFalte');
     expect(i).toBeGreaterThan(-1);
-    expect(PREINSCRIPCION.slice(i, i + 700)).toContain(
+    /// Hasta el cierre del método, no 700 caracteres: un docblock
+    /// nuevo movía el corte y el test caía sin que nada cambiara.
+    const j = PREINSCRIPCION.indexOf('\n  private async', i + 10);
+    expect(PREINSCRIPCION.slice(i, j === -1 ? undefined : j)).toContain(
       'if (falta.length === 0) return detalle;',
     );
   });

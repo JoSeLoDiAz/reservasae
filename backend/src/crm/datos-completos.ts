@@ -20,7 +20,7 @@
  */
 
 import type { EtapaParticipante, PrismaClient } from '../../generated/prisma';
-import { faltaDeLaFicha } from './completitud';
+import { faltaDeLaFicha, faltaDeLaPersona } from './completitud';
 
 /// Solo desde el embudo del asesor. Quien ya está inscrito o en
 /// el aula no retrocede por completar unos datos.
@@ -100,6 +100,36 @@ export async function loQueLeFaltaALaFicha(
     nivelOcupacionalSepId: p.nivelOcupacionalSepId,
     empresa: p.empresa ?? p.reserva?.empresa ?? null,
     documentoDeLaPersona: p.persona.numeroDocumento,
+  });
+}
+
+/**
+ * LO QUE LE FALTA SOLO A LA PERSONA, sin mirar su organizacion.
+ *
+ * Existe para un caso y conviene que se note: quien acaba de declarar
+ * que NO TIENE organizacion. Pedirle «los datos de su organizacion»
+ * justo despues es contarle lo contrario de lo que acaba de pasar, y
+ * es el mismo defecto que ya costo 44 avisos diciendo lo que no era.
+ *
+ * Reusa `faltaDeLaPersona`, que es la misma mitad que usa
+ * `faltaDeLaFicha`: una segunda lista escrita aparte acabaria
+ * diciendo que no falta nada mientras la otra no deja pasar.
+ */
+export async function loQueLeFaltaALaPersona(
+  prisma: Prisma,
+  participanteId: string,
+): Promise<string[]> {
+  const p = await prisma.participante.findUnique({
+    where: { id: participanteId },
+    select: {
+      nivelOcupacionalSepId: true,
+      persona: { select: CAMPOS_DE_LA_PERSONA },
+    },
+  });
+  if (!p) return [];
+  return faltaDeLaPersona({
+    persona: p.persona,
+    nivelOcupacionalSepId: p.nivelOcupacionalSepId,
   });
 }
 

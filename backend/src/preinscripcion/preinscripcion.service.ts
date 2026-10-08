@@ -41,6 +41,7 @@ import {
 import { faltaDeLaPersona } from '../crm/completitud';
 import {
   loQueLeFaltaALaFicha,
+  loQueLeFaltaALaPersona,
   pasarSiNoLeFaltaNada,
 } from '../crm/datos-completos';
 import { NotificacionesService } from '../notificaciones/notificaciones.service';
@@ -1888,6 +1889,7 @@ export class PreinscripcionService {
         detalle: await this.conLoQueFalte(
           enlace.participanteId,
           'Terminó: declaró que no tiene organización.',
+          true,
         ),
         claveEvento: enlace.id,
       });
@@ -2361,8 +2363,19 @@ export class PreinscripcionService {
   private async conLoQueFalte(
     participanteId: string,
     detalle: string,
+    /// A QUIEN DECLARA QUE NO TIENE ORGANIZACION NO SE LE PIDE UNA.
+    ///
+    /// `loQueLeFaltaALaFicha` incluye la mitad de la empresa, y sin
+    /// empresa esa mitad devuelve «los datos de su organizacion». O
+    /// sea que el aviso quedaba «Declaro que no tiene organizacion.
+    /// Le falta los datos de su organizacion…», que es contarle lo
+    /// contrario de lo que acaba de pasar ---el mismo defecto que ya
+    /// costo 44 avisos diciendo lo que no era---.
+    soloLaPersona = false,
   ): Promise<string> {
-    const falta = await loQueLeFaltaALaFicha(this.prisma, participanteId);
+    const falta = soloLaPersona
+      ? await loQueLeFaltaALaPersona(this.prisma, participanteId)
+      : await loQueLeFaltaALaFicha(this.prisma, participanteId);
     if (falta.length === 0) return detalle;
     return `${detalle} Le falta ${falta.join(", ")} para quedar en datos completos.`;
   }
