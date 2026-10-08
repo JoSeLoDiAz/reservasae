@@ -662,6 +662,33 @@ export type CambioDelGrupo = {
   creadoEn: string;
 };
 
+
+/** Una ubicación donde la acción se dicta, y qué tiene el grupo allí. */
+export type SedePosible = {
+  ubicacionId: string;
+  nombre: string;
+  tipo: string;
+  departamento: string | null;
+  /// La pone la OFERTA, no quien crea: una celda cuya modalidad no
+  /// case con su oferta sale en la tabla y no se puede asignar.
+  modalidad: string;
+  yaEnElGrupo: boolean;
+  /**
+   * LO QUE EL GRUPO YA TIENE AHÍ, O NULO SI ES UN ALTA.
+   *
+   * «Puedo volver a repetir Antioquia, no hay problema [...] que yo
+   * pueda ajustar los cupos» (Josse, 8 oct 2026). Dos filas de
+   * (grupo, ubicación, modalidad) no caben ---la llave única lo
+   * prohíbe, y hace bien---, así que lo que el formulario hace con
+   * una que ya está es EDITARLA: precarga estos cupos y llama al
+   * PATCH en vez de topar con el 409 del alta.
+   */
+  puesta: {
+    coberturaId: string;
+    cuposBase: number;
+    cuposMaximos: number;
+  } | null;
+};
 export const cronogramaApi = {
   listar: () => pedir<AccionCronograma[]>("/admin/cronograma"),
 
@@ -732,6 +759,59 @@ export const cronogramaApi = {
       topeDeLaOferta: number;
     }>(`/admin/cronograma/coberturas/${coberturaId}/cupos`, {
       method: "PATCH",
+      body: JSON.stringify(datos),
+    }),
+  /**
+   * DONDE SE LE PUEDE AÑADIR UNA SEDE A ESTE GRUPO.
+   *
+   * Son las ubicaciones donde esa acción ya tiene oferta, que es
+   * EXACTAMENTE lo que `crearCobertura` acepta. Las que el grupo ya
+   * tiene vienen marcadas y no escondidas: escondida, quien busca
+   * Medellín y no la encuentra no sabe si es que no se dicta allí o si
+   * es que ya está puesta.
+   */
+  sedesPosibles: (grupoId: string) =>
+    pedir<SedePosible[]>(`/admin/cronograma/grupos/${grupoId}/sedes-posibles`),
+
+  /**
+   * QUITA UNA SEDE DE UN GRUPO.
+   *
+   * «Metí Valle pero lo voy a cambiar por Antioquia» (Josse, 8 oct
+   * 2026). Dejarla en cero no la quita: deja una fila diciendo que ese
+   * grupo se dicta allí con cero cupos.
+   *
+   * El servidor se niega si hay alguien dentro ---y ese candado no lo
+   * da la base: la relación es `onDelete: SetNull`, así que un borrado
+   * con gente les quitaría el grupo en silencio---.
+   */
+  eliminarCobertura: (coberturaId: string) =>
+    pedir<{ eliminada: boolean; topeDeLaOferta: number }>(
+      `/admin/cronograma/coberturas/${coberturaId}`,
+      { method: "DELETE" },
+    ),
+
+  /**
+   * UNA SEDE NUEVA EN UN GRUPO QUE YA EXISTE.
+   *
+   * «Debo poder agregar grupos, departamento, la modalidad y
+   * distribuir la meta» (Josse, 7 oct 2026). Lo que él describe
+   * ---«grupo 1 Bogotá y grupo 1 Antioquia»--- NO son dos grupos: la
+   * clave `(accionFormacionId, numero)` lo prohíbe. Es UN grupo con
+   * DOS coberturas, y la fila que falta crear es la cobertura.
+   *
+   * LA MODALIDAD NO SE MANDA: la deriva el servidor de la oferta.
+   */
+  crearCobertura: (
+    grupoId: string,
+    datos: { ubicacionId: string; cuposBase: number; cuposMaximos: number },
+  ) =>
+    pedir<{
+      coberturaId: string;
+      cuposBase: number;
+      cuposMaximos: number;
+      topeDeLaOferta: number;
+    }>(`/admin/cronograma/grupos/${grupoId}/coberturas`, {
+      method: "POST",
       body: JSON.stringify(datos),
     }),
 };

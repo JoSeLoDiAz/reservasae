@@ -18,14 +18,24 @@
  * grupos---. Por grupo salen filas de uno o dos leads y ninguna
  * responde dónde se le está acumulando.
  *
- * SUBTABLA DEBAJO Y NO CAJÓN LATERAL (cliente, 25 sep 2026: «pero
- * así no, que salga una subtabla, o sea como Control de inscritos»).
- * Nació en el `Cajon` de la casa, y ahí el nombre de la acción caía
- * en una columna de 110 px que lo partía letra a letra ---«GESTIÓ N
- * DE LA ATENCIÓN Y NEUROEDU CACIÓN»---. A lo ancho de la página cabe
- * entero, y además se lee CONTRA la fila de arriba sin taparla, que
- * es justo lo que hace Control de inscritos cuando abre los grupos de
- * una acción.
+ * DENTRO DE LA FILA, y van TRES SITIOS en quince dias. Nacio en el
+ * `Cajon` lateral; el 25 sep el cliente lo bajo a una subtabla ---«que
+ * salga una subtabla, o sea como Control de inscritos»---; y el 7 oct
+ * Josse lo metio dentro de la propia fila: «que no es que al darle
+ * clic en Juliet Herrera abajo me salga otra tabla, sino que me
+ * despliegue dentro de la misma tabla donde esta Juliet».
+ *
+ * Las dos formas anteriores tenian su razon y las dos se quedaron
+ * cortas por lo mismo ---la DISTANCIA---: en el cajon el nombre de la
+ * accion caia en una columna de 110 px que lo partia letra a letra
+ * («GESTIO N DE LA ATENCION Y NEUROEDU CACION»), y la subtabla de
+ * debajo, con veinticinco asesores en pantalla, dejaba el desglose a
+ * cinco pantallas de scroll de la fila que uno acababa de pulsar. Lo
+ * que la fila da es el ancho de la pagina Y el sitio.
+ *
+ * ESTE COMPONENTE NO SABE DONDE ESTA, y asi se queda: recibe la fila
+ * y pinta. Quien decide donde sale es `panel-asesores`, con el
+ * `desplegado` de la `Tabla`. Por eso la mudanza costo una linea.
  */
 
 import type { FilaDeAsesor } from "@/lib/crm-api";
@@ -85,7 +95,19 @@ export function DesgloseDelAsesor({
                 <th className="w-full">Acción de formación</th>
                 <th className="text-right whitespace-nowrap">Leads</th>
                 <th className="text-right whitespace-nowrap">Gestionados</th>
-                <th className="text-right whitespace-nowrap">Inscritos y descartados</th>
+                {/* INSCRITOS Y DESCARTADOS, EN DOS COLUMNAS.
+                    Iban sumados en una sola ---«Inscritos y
+                    descartados»--- y los dos numeros ya viajaban por
+                    separado: lo que la columna enseñaba era
+                    `resueltos`, o sea la suma. Josse los pidio
+                    separados el 7 oct ---«los leads asignados, los
+                    gestionados, los inscritos, los descartados»--- y
+                    tiene razon de sobra: diez inscritos y cero
+                    descartados no es el mismo asesor que cero
+                    inscritos y diez descartados, y sumados se leen
+                    igual. */}
+                <th className="text-right whitespace-nowrap">Inscritos</th>
+                <th className="text-right whitespace-nowrap">Descartados</th>
                 <th className="text-right whitespace-nowrap">Pendientes</th>
               </tr>
             </thead>
@@ -108,8 +130,9 @@ export function DesgloseDelAsesor({
                   <td className="text-right tabular-nums">{n(a.total)}</td>
                   <td className="text-right tabular-nums">{n(a.gestionados)}</td>
                   <td className="text-right font-medium text-exito tabular-nums">
-                    {n(a.resueltos)}
+                    {n(a.inscritos)}
                   </td>
+                  <td className="text-right tabular-nums">{n(a.descartados)}</td>
                   {/* EL PENDIENTE EN ROJO, que es a lo que se viene:
                       con cinco columnas de números, el que decide
                       tiene que saltar a la vista sin leerlas todas. */}
@@ -137,7 +160,10 @@ export function DesgloseDelAsesor({
                   {n(porAccion.reduce((s, a) => s + a.gestionados, 0))}
                 </td>
                 <td className="text-right tabular-nums">
-                  {n(porAccion.reduce((s, a) => s + a.resueltos, 0))}
+                  {n(porAccion.reduce((s, a) => s + a.inscritos, 0))}
+                </td>
+                <td className="text-right tabular-nums">
+                  {n(porAccion.reduce((s, a) => s + a.descartados, 0))}
                 </td>
                 <td className="text-right tabular-nums">
                   {n(porAccion.reduce((s, a) => s + a.pendientes, 0))}

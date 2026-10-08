@@ -60,15 +60,65 @@ export type Proveedor = 'lucid' | 'nua';
  * en el servicio: el nombre del autor y la llave con la que se
  * escribio tienen que salir del mismo sitio o vuelven a poder
  * discrepar.
+ *
+ * `etiquetaDeLead` ES LA MISMA IDEA, UNA PUERTA MAS ALLA, Y
+ * CIERRA UN AGUJERO QUE QUEDABA ABIERTO.
+ *
+ * La puerta de conversaciones ya derivaba el proveedor de la
+ * llave; la de LEADS seguia leyendolo de `x-origen-sistema`, una
+ * cabecera que elige quien llama. Y de ese texto depende si el
+ * lead cuenta como PAUTA PAGADA: `SISTEMAS_DE_PAUTA` de
+ * `leads.service` casa por subcadena contra `meta`, `facebook`,
+ * `instagram`, `pauta` y `ads`. O sea que quien tuviera la llave
+ * podia marcarse sus propios leads como pagados con solo
+ * escribir «ads» en una cabecera, y la metrica de cuanto cuesta
+ * un inscrito dejaba de valer.
+ *
+ * Es literalmente lo que `leads.service` prohibe por escrito:
+ * «Pagado u organico, y lo decide QUIEN LO MANDA, no el cuerpo».
+ * Una cabecera es el cuerpo.
+ *
+ * Con la etiqueta aqui, la decision es CONFIGURACION DEL
+ * SERVIDOR: esta en el `.env` de cada sede, fuera de git, y quien
+ * llama no la puede tocar.
+ *
+ * LA DE LUCID LLEVA `-ads` A PROPOSITO, y es decision de Josse
+ * (8 oct 2026): esos leads entran por un anuncio de Facebook con
+ * «clic para enviar mensaje», asi que son pauta. Se decidio
+ * sabiendo el costo, que queda escrito: Lucid NO puede distinguir
+ * al que llego del anuncio del que escribio al WhatsApp por su
+ * cuenta ---comprobado contra su API, que no expone ni la
+ * procedencia ni el historial---, asi que los pocos organicos
+ * cuentan como pauta. `la-etiqueta-sale-de-la-llave.spec.ts` ata
+ * ese `-ads` a que de verdad se clasifique como pagado: si alguien
+ * renombra la etiqueta, el test dice que la pauta dejo de contar.
  */
 export const PROVEEDORES: ReadonlyArray<{
   nombre: Proveedor;
   variable: string;
   firma: string;
+  /// Con que `origenSistema` entran sus LEADS. Fuera del alcance
+  /// de quien llama: es lo que decide si cuentan como pauta.
+  etiquetaDeLead: string;
 }> = [
-  { nombre: 'lucid', variable: 'LUCID_WEBHOOK_SECRET', firma: 'Lucid (WhatsApp)' },
-  { nombre: 'nua', variable: 'NUA_WEBHOOK_SECRET', firma: 'Nua Talker (WhatsApp)' },
+  {
+    nombre: 'lucid',
+    variable: 'LUCID_WEBHOOK_SECRET',
+    firma: 'Lucid (WhatsApp)',
+    etiquetaDeLead: 'lucid-ads',
+  },
+  {
+    nombre: 'nua',
+    variable: 'NUA_WEBHOOK_SECRET',
+    firma: 'Nua Talker (WhatsApp)',
+    etiquetaDeLead: 'nua',
+  },
 ];
+
+/** Con que etiqueta entran los leads de este proveedor. */
+export function etiquetaDeLeadDe(nombre: Proveedor): string {
+  return PROVEEDORES.find((p) => p.nombre === nombre)?.etiquetaDeLead ?? nombre;
+}
 
 export type Entorno = Record<string, string | undefined>;
 

@@ -6,6 +6,7 @@ import {
   IsInt,
   IsISO8601,
   IsOptional,
+  IsNotEmpty,
   IsString,
   Matches,
   MaxLength,
@@ -162,4 +163,42 @@ export class ActualizarCuposDto {
   @IsInt()
   @Min(0)
   cuposMaximos?: number;
+}
+
+/**
+ * UNA SEDE NUEVA DENTRO DE UN GRUPO QUE YA EXISTE.
+ *
+ * «Debo poder agregar grupos, departamento, la modalidad y distribuir
+ * la meta» (Josse, 7 oct 2026). Medido: lo que el describe ---«grupo 1
+ * Bogota y grupo 1 Antioquia»--- NO son dos grupos: la clave
+ * `(accionFormacionId, numero)` lo prohibe. Es UN grupo con DOS
+ * coberturas, y la fila que falta crear es la cobertura.
+ *
+ * LA MODALIDAD NO SE PIDE: se deriva de la Oferta que ya existe para
+ * esa (accion, ubicacion). Dejarla teclear permitiria crear una celda
+ * cuya modalidad no case con su oferta, y entonces la celda existe,
+ * sale en la tabla, y NO SE PUEDE ASIGNAR a nadie ---sin que nada
+ * falle---.
+ */
+export class CrearCoberturaDto {
+  /// Donde se dicta. Tiene que tener oferta de esta accion.
+  @IsString()
+  @IsNotEmpty()
+  ubicacionId!: string;
+
+  /// Lo comprometido en el proyecto, sin sobrecupo.
+  @Transform(({ value }) =>
+    value === '' || value === null ? undefined : Number(value),
+  )
+  @IsInt()
+  @Min(0)
+  cuposBase!: number;
+
+  /// El tope duro, sobrecupo incluido. Nunca por debajo del base.
+  @Transform(({ value }) =>
+    value === '' || value === null ? undefined : Number(value),
+  )
+  @IsInt()
+  @Min(0)
+  cuposMaximos!: number;
 }

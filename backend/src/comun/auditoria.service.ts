@@ -114,6 +114,8 @@ export const ACCIONES = [
    * cambio aquí es un cambio en lo que se le promete a la gente.
    */
   'CUPOS_EDITADOS',
+  'COBERTURA_CREADA',
+  'COBERTURA_ELIMINADA',
   /**
    * El cronograma del cliente se volcó sobre los grupos.
    *

@@ -29,7 +29,8 @@ import type { Request, Response } from 'express';
 import { etiquetaDelHost } from '../admin/gremio-del-host';
 import { EntraLeadDto, EntraLoteDto } from './dto';
 import { LeadsService } from './leads.service';
-import { LlaveDeLeadsGuard } from './llave-de-leads.guard';
+import { LlaveDeLeadsGuard, type PeticionDeLead } from './llave-de-leads.guard';
+import { etiquetaDeLeadDe } from '../integraciones/proveedores';
 import {
   avisosDeLead,
   CABECERA_FIRMA,
@@ -74,6 +75,7 @@ export class LeadsController {
     @Body() dto: EntraLeadDto,
     @Headers('x-origen-sistema') origen: string | undefined,
     @Headers('host') host: string | undefined,
+    @Req() pedido: PeticionDeLead,
   ) {
     /// La llave la comprueba `LlaveDeLeadsGuard`, no una línea
     /// de aquí dentro: un guard corre ANTES del
@@ -81,8 +83,23 @@ export class LeadsController {
     ///
     /// Quien lo manda, para la idempotencia. Por defecto el
     /// orquestador, que era el único hasta que llegó Meta.
-    const sistema =
-      (origen ?? 'orquestador').trim().slice(0, 80) || 'orquestador';
+    /**
+     * LA ETIQUETA SALE DE LA LLAVE CUANDO LA LLAVE ES DE UN
+     * PROVEEDOR, y de la cabecera solo para el orquestador.
+     *
+     * De este texto depende si el lead cuenta como PAUTA PAGADA
+     * ---`SISTEMAS_DE_PAUTA` casa por subcadena---, asi que
+     * dejarselo elegir a quien llama era lo que `leads.service`
+     * prohibe por escrito: «lo decide QUIEN LO MANDA, no el
+     * cuerpo». Una cabecera es el cuerpo.
+     *
+     * El orquestador SI la elige, y hace bien: nos releva leads de
+     * varias procedencias y es el unico que sabe de donde viene
+     * cada uno.
+     */
+    const sistema = pedido.proveedorDelLead
+      ? etiquetaDeLeadDe(pedido.proveedorDelLead)
+      : (origen ?? 'orquestador').trim().slice(0, 80) || 'orquestador';
 
     /// El gremio que AFIRMA la direccion.
     ///
@@ -109,9 +126,25 @@ export class LeadsController {
     @Body() dto: EntraLoteDto,
     @Headers('x-origen-sistema') origen: string | undefined,
     @Headers('host') host: string | undefined,
+    @Req() pedido: PeticionDeLead,
   ) {
-    const sistema =
-      (origen ?? 'orquestador').trim().slice(0, 80) || 'orquestador';
+    /**
+     * LA ETIQUETA SALE DE LA LLAVE CUANDO LA LLAVE ES DE UN
+     * PROVEEDOR, y de la cabecera solo para el orquestador.
+     *
+     * De este texto depende si el lead cuenta como PAUTA PAGADA
+     * ---`SISTEMAS_DE_PAUTA` casa por subcadena---, asi que
+     * dejarselo elegir a quien llama era lo que `leads.service`
+     * prohibe por escrito: «lo decide QUIEN LO MANDA, no el
+     * cuerpo». Una cabecera es el cuerpo.
+     *
+     * El orquestador SI la elige, y hace bien: nos releva leads de
+     * varias procedencias y es el unico que sabe de donde viene
+     * cada uno.
+     */
+    const sistema = pedido.proveedorDelLead
+      ? etiquetaDeLeadDe(pedido.proveedorDelLead)
+      : (origen ?? 'orquestador').trim().slice(0, 80) || 'orquestador';
     return this.leads.entraLote(dto.leads, sistema, etiquetaDelHost(host));
   }
 

@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  Fragment,
   useCallback,
   useEffect,
   useMemo,
@@ -437,6 +438,7 @@ export function Tabla<T>({
   total,
   porPagina = 50,
   alClic,
+  desplegado,
   vacio,
   acciones,
   filtrosDelServidor,
@@ -470,6 +472,21 @@ export function Tabla<T>({
   total?: number;
   porPagina?: number;
   alClic?: (f: T) => void;
+  /**
+   * LO QUE SE DESPLIEGA DEBAJO DE UNA FILA, DENTRO DE LA TABLA.
+   *
+   * Devuelve nulo y no se pinta nada: la tabla no guarda cual esta
+   * abierta ---eso lo sabe la pantalla, que es la que tiene el clic---.
+   *
+   * EL `colSpan` LO CALCULA ESTE COMPONENTE Y NO EL LLAMADOR, y esa
+   * es toda la diferencia con el defecto de agosto: entonces la fila
+   * desplegable llevaba un numero fijo y «con columnas que se quitan
+   * y se ponen ese numero se descuadra solo», asi que el detalle de
+   * una reserva acabo en un cajon lateral. Aqui el numero lo sabe
+   * quien pinta las columnas, que es el unico que no puede
+   * equivocarse.
+   */
+  desplegado?: (f: T) => ReactNode;
   vacio?: ReactNode;
   acciones?: ReactNode;
   /// Los filtros DE LA PANTALLA, fusionados en la fila del
@@ -1344,45 +1361,60 @@ export function Tabla<T>({
               )}
             </thead>
             <tbody>
-              {enPagina.map(({ f, v, id: fid }) => (
-                <tr
-                  key={fid}
-                  onClick={alClic ? () => alClic(f) : undefined}
-                  className={alClic ? "cursor-pointer" : undefined}
-                >
-                  {seleccion && (
-                    <td onClick={(e) => e.stopPropagation()}>
-                      <input
-                        type="checkbox"
-                        aria-label="Seleccionar esta fila"
-                        checked={marcadas.has(fid)}
-                        onChange={() =>
-                          setMarcadas((m) => {
-                            const n = new Set(m);
-                            if (n.has(fid)) n.delete(fid);
-                            else n.add(fid);
-                            return n;
-                          })
-                        }
-                      />
-                    </td>
-                  )}
-                  {enPantalla.map((c) => (
-                    <td
-                      key={c.clave}
-                      className={
-                        (c.numerica ? "text-right tabular-nums" : "") +
-                        (c.separaAntes ? " frontera-de-grupo" : "") +
-                        (c.clave === primeraFija
-                          ? " sticky left-0 z-20 bg-inherit"
-                          : "") || undefined
-                      }
+              {enPagina.map(({ f, v, id: fid }) => {
+                /// se llama UNA vez: dos llamadas serian dos arboles
+                const abajo = desplegado?.(f);
+                return (
+                  <Fragment key={fid}>
+                    <tr
+                      onClick={alClic ? () => alClic(f) : undefined}
+                      className={alClic ? "cursor-pointer" : undefined}
                     >
-                      {c.pinta ? c.pinta(f) : texto(v[c.clave])}
-                    </td>
-                  ))}
-                </tr>
-              ))}
+                      {seleccion && (
+                        <td onClick={(e) => e.stopPropagation()}>
+                          <input
+                            type="checkbox"
+                            aria-label="Seleccionar esta fila"
+                            checked={marcadas.has(fid)}
+                            onChange={() =>
+                              setMarcadas((m) => {
+                                const n = new Set(m);
+                                if (n.has(fid)) n.delete(fid);
+                                else n.add(fid);
+                                return n;
+                              })
+                            }
+                          />
+                        </td>
+                      )}
+                      {enPantalla.map((c) => (
+                        <td
+                          key={c.clave}
+                          className={
+                            (c.numerica ? "text-right tabular-nums" : "") +
+                            (c.separaAntes ? " frontera-de-grupo" : "") +
+                            (c.clave === primeraFija
+                              ? " sticky left-0 z-20 bg-inherit"
+                              : "") || undefined
+                          }
+                        >
+                          {c.pinta ? c.pinta(f) : texto(v[c.clave])}
+                        </td>
+                      ))}
+                    </tr>
+                    {abajo ? (
+                      <tr>
+                        <td
+                          colSpan={enPantalla.length + (seleccion ? 1 : 0)}
+                          className="p-0"
+                        >
+                          {abajo}
+                        </td>
+                      </tr>
+                    ) : null}
+                  </Fragment>
+                );
+              })}
             </tbody>
           </table>
         </div>

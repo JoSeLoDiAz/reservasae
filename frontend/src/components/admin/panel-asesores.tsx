@@ -241,6 +241,17 @@ type ConPeriodo = {
   rotuloAnterior: string;
 };
 
+/**
+ * COMO SE NOMBRA UNA FILA DE ASESOR, UNA SOLA VEZ.
+ *
+ * La usan la `clave` de la tabla, el clic que abre el desglose y el
+ * propio desglose. `asesorId` es nulo ---la fila de «sin asesor»---,
+ * asi que hace falta un respaldo, y escrito tres veces el dia que
+ * cambie una se separa de las otras: la fila se abriria y el
+ * desglose no saldria, o saldria el de otro.
+ */
+const idDeAsesor = (f: FilaDeAsesor) => f.asesorId ?? "sin-asesor";
+
 export function PanelAsesores() {
   const [subvista, setSubvista] = useState<Subvista>("inscripciones");
 
@@ -482,11 +493,20 @@ function DeInscripciones({
   /// sido una consulta más por cada clic para un dato que ya estaba
   /// en la mano.
   const [accion, setAccion] = useState("");
-  /// A quién se le está mirando el desglose.
-  /// QUÉ ASESOR TIENE EL DESGLOSE ABIERTO. Ya no es un cajón: la
-  /// subtabla sale DEBAJO, como en Control de inscritos, y por eso el
-  /// nombre del estado cambió con ella.
-  const [desglosado, setDesglosado] = useState<FilaDeAsesor | null>(null);
+  /// QUÉ ASESOR TIENE EL DESGLOSE ABIERTO, POR SU ID Y NO LA FILA.
+  ///
+  /// Guardaba la fila entera, y eso era una FOTO: esta pantalla se
+  /// refresca sola cada 30 s, así que el desglose seguía contando lo
+  /// de hace un rato. Con el cajón y con la subtabla de debajo no se
+  /// notaba ---nadie compara dos cifras separadas por cinco
+  /// pantallas---, pero dentro de la fila quedan una al lado de la
+  /// otra: la fila diría 41 y su desglose sumaría 38, y eso se lee
+  /// como que el sistema no sabe contar.
+  ///
+  /// Con el id, la fila la pone `desplegado(f)`, que recibe la viva.
+  /// El id es el mismo que la tabla usa como `clave`, para que no
+  /// haya dos formas de nombrar la misma fila.
+  const [desglosado, setDesglosado] = useState<string | null>(null);
 
   if (vivos.error) return <Aviso tipo="error">{vivos.error}</Aviso>;
   if (!vivos.datos) return <Esqueleto />;
@@ -635,6 +655,27 @@ function DeInscripciones({
         </span>
       ),
     },
+    /// GESTIONADOS VA AL FINAL DE LAS CUATRO, y no entre asignados e
+    /// inscritos como estaba. Es el orden que pidió el cliente y tiene
+    /// sentido de lectura: primero lo que le entró, luego en qué acabó
+    /// ---inscrito o descartado---, y al final cuántos sigue
+    /// trabajando. Gestionados NO es la suma de los otros dos: son los
+    /// que tienen seguimiento, resueltos o no.
+    {
+      clave: "gestionados",
+      titulo: "Leads gestionados",
+      ancho: "138px",
+      numerica: true,
+      valor: (f) => f.visto.gestionados,
+      pinta: (f) => (
+        <span className="tabular-nums">
+          <Cifra
+            ahora={f.visto.gestionados}
+            antes={antesDe(f)?.gestionados ?? null}
+          />
+        </span>
+      ),
+    },
     /// DOS COLUMNAS Y NO UNA (cliente, 26 sep 2026: «esto es
     /// separado, o sea una columna Inscritos y en otro Descartados»).
     /// Juntas sumaban bien y no decían nada: quince resueltos pueden
@@ -667,129 +708,6 @@ function DeInscripciones({
             ahora={f.visto.descartados}
             antes={antesDe(f)?.descartados ?? null}
           />
-        </span>
-      ),
-    },
-    /// GESTIONADOS VA AL FINAL DE LAS CUATRO, y no entre asignados e
-    /// inscritos como estaba. Es el orden que pidió el cliente y tiene
-    /// sentido de lectura: primero lo que le entró, luego en qué acabó
-    /// ---inscrito o descartado---, y al final cuántos sigue
-    /// trabajando. Gestionados NO es la suma de los otros dos: son los
-    /// que tienen seguimiento, resueltos o no.
-    {
-      clave: "gestionados",
-      titulo: "Leads gestionados",
-      ancho: "138px",
-      numerica: true,
-      valor: (f) => f.visto.gestionados,
-      pinta: (f) => (
-        <span className="tabular-nums">
-          <Cifra
-            ahora={f.visto.gestionados}
-            antes={antesDe(f)?.gestionados ?? null}
-          />
-        </span>
-      ),
-    },
-    /**
-     * LO GESTIONADO DENTRO DEL PERIODO, que es otra cuenta.
-     *
-     * «No me está mostrando lo gestionado el viernes y lo
-     * gestionado hoy» (cliente, 5 oct 2026). La columna de al lado
-     * cuenta, de los leads que LLEGARON en el periodo, a cuántos se
-     * ha tocado alguna vez: con leads de agosto, esa cifra es la
-     * misma el viernes que hoy. Esta cuenta el ACTO de gestionar
-     * ---una nota, un dato tocado, un cambio de etapa hecho por una
-     * persona--- caiga dentro de la ventana, sin importar cuándo
-     * llegó el lead.
-     *
-     * CON UNA ACCIÓN ELEGIDA SALE UNA RAYA, no un cero: la cifra no
-     * está partida por acción, y un cero diría que en esa acción no
-     * se trabajó.
-     */
-    /**
-     * LO QUE INSCRIBIÓ DENTRO DEL PERIODO.
-     *
-     * «Debo saber cuánto hizo cada asesora ayer, antier, hoy.
-     * Vuelvo y reitero: los filtros de tiempo o de fecha no
-     * funcionan» (cliente, 7 oct 2026).
-     *
-     * La columna «Inscritos» de más arriba no lo contesta: cuenta,
-     * de los leads que LLEGARON en el periodo, cuántos están
-     * inscritos hoy. Con una base que lleva meses creciendo, poner
-     * «ayer» daba casi cero siempre, y la columna parecía rota
-     * porque lo estaba para la pregunta que se le hacía.
-     *
-     * VA PEGADA A «Gestionados en el periodo», que es su pareja:
-     * las dos cuentan lo HECHO dentro de la ventana, una tocar y
-     * otra inscribir. Y las dos salen en raya con una acción
-     * elegida, porque ninguna está partida por acción.
-     */
-    {
-      clave: "inscritosEnElPeriodo",
-      titulo: "Inscritos en el periodo",
-      ancho: "150px",
-      numerica: true,
-      valor: (f) => (accion ? "" : (f.inscritosEnElPeriodo ?? "")),
-      pinta: (f) => (
-        <span className="tabular-nums">
-          {accion || f.inscritosEnElPeriodo == null
-            ? "—"
-            : f.inscritosEnElPeriodo}
-        </span>
-      ),
-    },
-    {
-      clave: "gestionadosEnElPeriodo",
-      titulo: "Gestionados en el periodo",
-      ancho: "150px",
-      numerica: true,
-      /// Para que salga también a quien guardó sus columnas antes de
-      /// que la tabla recordara cuáles existían.
-      nueva: true,
-      valor: (f) => (accion ? "" : (f.gestionadosEnElPeriodo ?? "")),
-      pinta: (f) => (
-        <span className="tabular-nums">
-          {accion || f.gestionadosEnElPeriodo == null
-            ? "—"
-            : f.gestionadosEnElPeriodo}
-        </span>
-      ),
-    },
-    {
-      /// EL CIERRE Y LO QUE FALTA, en dos renglones. Era su propio
-      /// componente `Plazo`, que pintaba un `<td>`; con `Tabla` la
-      /// celda la pone ella, así que aquí va solo el contenido.
-      clave: "cierre",
-      titulo: "Cierre",
-      ancho: "140px",
-      valor: (f) => f.limite,
-      pinta: (f) => (
-        <span className="whitespace-nowrap tabular-nums">
-          {dia(f.limite)}
-          {f.ritmo.diasHabiles !== null && (
-            <span className="block text-[0.6875rem] text-texto-suave">
-              {f.ritmo.diasHabiles > 0
-                ? `quedan ${n(f.ritmo.diasHabiles)} ${f.ritmo.diasHabiles === 1 ? "día hábil" : "días hábiles"}`
-                : f.ritmo.diasHabiles === 0
-                  ? "hoy es el último"
-                  : `venció hace ${n(-f.ritmo.diasHabiles)} ${f.ritmo.diasHabiles === -1 ? "día hábil" : "días hábiles"}`}
-            </span>
-          )}
-        </span>
-      ),
-    },
-    {
-      clave: "exigido",
-      /// LOS DOS RÓTULOS DICEN QUÉ SON, y en la misma unidad: así se
-      /// leen uno contra otro, que es para lo que están al lado.
-      titulo: "Meta diaria",
-      ancho: "112px",
-      numerica: true,
-      valor: (f) => f.ritmo.exigidoPorDia,
-      pinta: (f) => (
-        <span className="font-semibold tabular-nums">
-          {metaDiaria(f.ritmo.exigidoPorDia)}
         </span>
       ),
     },
@@ -867,35 +785,58 @@ function DeInscripciones({
       {comoSeVe === "resumen" && (
         <Tabla
           cuadricula
-          /// EL NOMBRE CAMBIA PORQUE CAMBIÓ EL ORDEN DE LAS COLUMNAS.
+          /// `ordenFijo` Y NO UN NOMBRE NUEVO, y esa es la diferencia.
           ///
-          /// La tabla graba en el navegador qué columnas se ven Y EN QUÉ
+          /// La tabla graba en el navegador que columnas se ven Y EN QUE
           /// ORDEN, y lo graba en la PRIMERA visita sin que nadie toque
-          /// nada. Así que quien hubiera abierto esta pantalla antes de
-          /// hoy seguía viendo el orden viejo ---gestionados delante de
-          /// inscritos--- por mucho que el código diga otro. El cliente
-          /// pidió el orden nuevo el 30 sep 2026 y no le llegaba.
+          /// nada. Asi que un orden nuevo no le llega a quien ya entro
+          /// alguna vez. La cura de septiembre fue renombrar la tabla,
+          /// que funciona pero le tira a todo el mundo sus anchos y sus
+          /// vistas guardadas.
           ///
-          /// Es el mismo caso que la tabla de reservas, y la misma cura:
-          /// con nombre nuevo todos arrancan del orden declarado. Lo que
-          /// cada quien hubiera acomodado se queda bajo el nombre viejo,
-          /// sin estorbar.
+          /// `ordenFijo` hace lo mismo sin ese precio: el orden lo dicta
+          /// `columnas` siempre, y lo que cada quien hubiera acomodado
+          /// se respeta en lo demas. Por eso el id se queda en v2.
           ///
-          /// REGLA QUE SALE DE AQUÍ: reordenar columnas obliga a renombrar
-          /// la tabla. Si no, el cambio solo lo ven los que nunca entraron.
-          /// SE QUEDA EN v2: renombrarla por «Gestionados en el
-          /// periodo» le habria tirado a todo el mundo sus columnas y
-          /// sus anchos, y no hace falta. Lo que hace que una columna
-          /// nueva aparezca sola es `nueva: true` ---y, desde que la
-          /// tabla guarda `conocidas` (18 sep 2026), ni eso---.
+          /// EL ORDEN DE HOY CONTRADICE AL DEL 30 SEP, y es deliberado:
+          /// aquel puso inscritos antes que gestionados y Josse pidio lo
+          /// contrario el 7 oct ---«los leads asignados, los
+          /// gestionados, los inscritos, los descartados»---. Lo ultimo
+          /// que dice el cliente manda, y queda escrito para que nadie
+          /// lo revierta creyendo que arregla una regresion.
+          ordenFijo
           id="asesores-inscripciones-v2"
           columnas={columnas}
           filas={filas}
-          clave={(f) => f.asesorId ?? "sin-asesor"}
+          clave={idDeAsesor}
           /// Vuelve a pulsar la misma fila y se cierra: es la única
           /// puerta de salida que se prueba sola.
           alClic={(f) =>
-            setDesglosado((v) => (v && v.asesorId === f.asesorId ? null : f))
+            setDesglosado((v) => (v === idDeAsesor(f) ? null : idDeAsesor(f)))
+          }
+          /// EL DESGLOSE SALE DENTRO DE LA FILA, NO DEBAJO DE LA TABLA.
+          ///
+          /// «Que no es que al darle clic en Juliet Herrera abajo me
+          /// salga otra tabla, sino que me despliegue dentro de la
+          /// misma tabla donde está Juliet» (Josse, 7 oct 2026). Y el
+          /// motivo que dio es el que importa: «es muy largo el
+          /// proceso» ---con veinticinco asesores en pantalla, pulsar
+          /// la fila doce dejaba el desglose a cinco pantallas de
+          /// scroll de la fila que uno acababa de pulsar---.
+          ///
+          /// Esto DESHACE la mudanza del 25 sep («que salga una
+          /// subtabla, o sea como Control de inscritos»), que sacó el
+          /// desglose del cajón lateral. Aquella no estaba mal: el
+          /// cajón partía los nombres de las acciones letra a letra.
+          /// Lo que cambió es que ahora cabe DENTRO de la fila, que es
+          /// lo que ninguna de las dos formas anteriores podía hacer.
+          desplegado={(f) =>
+            desglosado === idDeAsesor(f) ? (
+              <DesgloseDelAsesor
+                fila={f}
+                alCerrar={() => setDesglosado(null)}
+              />
+            ) : null
           }
           porPagina={25}
           vacio={
@@ -931,13 +872,6 @@ function DeInscripciones({
               )}
             </>
           }
-        />
-      )}
-
-      {comoSeVe === "resumen" && desglosado && (
-        <DesgloseDelAsesor
-          fila={desglosado}
-          alCerrar={() => setDesglosado(null)}
         />
       )}
 

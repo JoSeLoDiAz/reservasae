@@ -24,7 +24,7 @@ import {
   LlaveDeProveedorGuard,
   type PeticionConProveedor,
 } from '../integraciones/llave-de-proveedor.guard';
-import { NotaDeLucidDto } from './dto';
+import { LoteDeNotasDto, NotaDeLucidDto } from './dto';
 import { LucidService } from './lucid.service';
 
 /// Mismo techo que la puerta de leads y por lo mismo: por aqui
@@ -53,5 +53,22 @@ export class LucidController {
     @Headers('host') host?: string,
   ) {
     return this.lucid.entra(dto, pedido.proveedor ?? 'lucid', etiquetaDelHost(host));
+  }
+
+  /**
+   * VARIAS CONVERSACIONES DE UNA VEZ, para cargar un historico.
+   *
+   * Misma llave y mismo gremio por subdominio que la de una. Se
+   * contesta fila por fila: ver `entraLote`.
+   */
+  @Post('notas/lote')
+  @UseGuards(LlaveDeProveedorGuard)
+  @HttpCode(200)
+  notasEnLote(
+    @Body() dto: LoteDeNotasDto,
+    @Req() pedido: PeticionConProveedor,
+    @Headers('host') host?: string,
+  ) {
+    return this.lucid.entraLote(dto, pedido.proveedor ?? 'lucid', etiquetaDelHost(host));
   }
 }

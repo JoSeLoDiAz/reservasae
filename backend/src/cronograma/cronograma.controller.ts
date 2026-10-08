@@ -1,4 +1,13 @@
-import { Body, Controller, Get, Param, Patch, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
 
 import { RolAdmin, type Admin } from '../../generated/prisma';
 import { AdminActual, AmbitoActual } from '../admin/admin-actual.decorator';
@@ -7,6 +16,7 @@ import { IpReal } from '../comun/ip-real';
 import { CronogramaService } from './cronograma.service';
 import {
   ActualizarCuposDto,
+  CrearCoberturaDto,
   ActualizarGrupoDto,
   ActualizarInformacionDto,
 } from './dto';
@@ -106,6 +116,66 @@ export class CronogramaController {
     return this.cronograma.actualizarCupos(
       id,
       dto,
+      ambito.convenios,
+      { id: admin.id, nombre: admin.nombre },
+      ip,
+    );
+  }
+
+
+  /**
+   * DONDE SE LE PUEDE ANADIR UNA SEDE A ESTE GRUPO.
+   *
+   * Es lo que llena el desplegable, y por eso va con `VER` y no con
+   * `ESCRIBIR`: preguntar donde se dicta una accion no cambia nada.
+   */
+  @Get('grupos/:id/sedes-posibles')
+  @Requiere('configuracion', 'VER')
+  sedesPosibles(@Param('id') id: string, @AmbitoActual() ambito: Ambito) {
+    return this.cronograma.sedesPosibles(id, ambito.convenios);
+  }
+  /**
+   * ANADE UNA SEDE A UN GRUPO QUE YA EXISTE.
+   *
+   * Cuelga del grupo y no de `/coberturas` a secas porque el grupo es
+   * lo que acota el ambito: sin el en la ruta habria que deducirlo del
+   * cuerpo, y eso ya se ha equivocado aqui antes.
+   */
+  @Post('grupos/:id/coberturas')
+  @Requiere('configuracion', 'ESCRIBIR')
+  crearCobertura(
+    @Param('id') id: string,
+    @Body() dto: CrearCoberturaDto,
+    @AmbitoActual() ambito: Ambito,
+    @AdminActual() admin: Admin,
+    @IpReal() ip: string,
+  ) {
+    return this.cronograma.crearCobertura(
+      id,
+      dto,
+      ambito.convenios,
+      { id: admin.id, nombre: admin.nombre },
+      ip,
+    );
+  }
+
+  /**
+   * QUITA UNA SEDE DE UN GRUPO.
+   *
+   * `@Roles(SUPERADMIN)` como todos los borrados de la casa, y
+   * ademas el area: quitar una sede cambia lo que la oferta ofrece.
+   */
+  @Delete('coberturas/:id')
+  @Requiere('configuracion', 'ESCRIBIR')
+  @Roles(RolAdmin.SUPERADMIN)
+  eliminarCobertura(
+    @Param('id') id: string,
+    @AmbitoActual() ambito: Ambito,
+    @AdminActual() admin: Admin,
+    @IpReal() ip: string,
+  ) {
+    return this.cronograma.eliminarCobertura(
+      id,
       ambito.convenios,
       { id: admin.id, nombre: admin.nombre },
       ip,
