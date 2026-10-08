@@ -42,13 +42,44 @@ export default function PaginaConstructor({
   const [error, setError] = useState<string | null>(null);
   const [ocupado, setOcupado] = useState(false);
 
+  /**
+   * Y SI LA CARGA FALLA, SE DICE.
+   *
+   * Esto no llevaba `try`, así que un fallo dejaba `formulario` en
+   * null para siempre y la pantalla se quedaba enseñando los
+   * esqueletos grises. Sin mensaje, sin error visible y sin forma de
+   * saber si estaba cargando o rota.
+   *
+   * Le pasa a quien tiene el área pero no el rol: el servidor
+   * contesta «Su rol permite consultar esta sección, no modificarla»
+   * y esa frase ---que explica exactamente lo que ocurre--- no
+   * llegaba a ninguna parte.
+   *
+   * Lo encontré el 7 oct 2026 entrando como líder de inscripciones, y
+   * se me había escapado porque todas mis comprobaciones de pantalla
+   * las hacía con una cuenta de superadministrador, que lo ve todo.
+   */
   const cargar = useCallback(async () => {
-    setFormulario(await formulariosApi.obtener(id));
+    try {
+      setFormulario(await formulariosApi.obtener(id));
+      setError(null);
+    } catch (e) {
+      setError(
+        e instanceof ErrorApi
+          ? e.message
+          : "No se pudo abrir este formulario.",
+      );
+    }
   }, [id]);
 
   useEffect(() => {
     void cargar();
-    void formulariosApi.camposNucleo().then(setCampos);
+    /// Los campos núcleo también pueden negarse, y si se tragan el
+    /// fallo la lista de «disponibles» sale vacía sin explicación.
+    void formulariosApi
+      .camposNucleo()
+      .then(setCampos)
+      .catch(() => setCampos([]));
   }, [cargar]);
 
   /** Ejecuta una acción y reemplaza el formulario. */
@@ -66,7 +97,22 @@ export default function PaginaConstructor({
     }
   }, []);
 
-  if (!formulario) return <Esqueleto filas={5} />;
+  /// El error MANDA sobre el esqueleto: si la carga falló, seguir
+  /// enseñando «cargando» es mentir.
+  if (!formulario) {
+    return error ? (
+      <div className="mx-3">
+        <Link href="/admin/formularios" className="text-sm text-marca hover:underline">
+          ← Formularios
+        </Link>
+        <div className="mt-3">
+          <Aviso tipo="error">{error}</Aviso>
+        </div>
+      </div>
+    ) : (
+      <Esqueleto filas={5} />
+    );
+  }
 
   const activas = formulario.preguntas.filter((p) => !p.archivada);
   const archivadas = formulario.preguntas.filter((p) => p.archivada);
