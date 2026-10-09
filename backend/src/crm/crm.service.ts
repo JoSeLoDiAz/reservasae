@@ -2951,7 +2951,9 @@ export class CrmService {
 
       if (
         coberturaPedida !== (p.coberturaId ?? null) &&
-        (await cabenEnLaCobertura(this.prisma, destino, id)) <= 0
+        /// `p.etapa` decide contra que se mide: quien ya ocupa silla
+        /// se mide en sillas. Ver `cuantosCaben`.
+        (await cabenEnLaCobertura(this.prisma, destino, id, p.etapa)) <= 0
       ) {
         throw new ConflictException(
           `El grupo ${destino.numero} de ${destino.nombre} ya tiene sus ` +
@@ -6770,6 +6772,22 @@ export class CrmService {
       ? await this.dondeVive(participanteId)
       : { departamento: null, ciudad: null };
 
+    /// LA ETAPA DE QUIEN SE VA A ASIGNAR, para medir el hueco contra
+    /// lo que esa persona va a consumir --- una silla si ya la ocupa,
+    /// el cupo de la cohorte si todavia es un lead. Ver
+    /// `cuantosCaben`.
+    ///
+    /// Sin ficha es un alta, y una ficha nueva nace INTERESADO: se
+    /// mide como un lead, que es lo conservador.
+    const entra: EtapaParticipante = participanteId
+      ? ((
+          await this.prisma.participante.findUnique({
+            where: { id: participanteId },
+            select: { etapa: true },
+          })
+        )?.etapa ?? 'INTERESADO')
+      : 'INTERESADO';
+
     const ofertas = await this.prisma.oferta.findMany({
       where: { accionFormacion: { convenioId } },
       orderBy: [
@@ -6972,7 +6990,18 @@ export class CrmService {
         /// Lo pidio el cliente: «cada vez que una persona se
         /// inscribe y se asigna a un grupo, que nos muestre
         /// cuantos cupos quedan».
-        caben: Math.max(0, g.cuposMaximos - (apuntadosPorCelda.get(g.id) ?? 0)),
+        ///
+        /// VA POR `cuantosCaben` Y NO A MANO: era la sexta copia de
+        /// la misma cuenta, y la pantalla tiene que decir lo que el
+        /// candado va a contestar. Restando siempre los apuntados,
+        /// aqui salia «0 cupos libres» en un grupo donde el servidor
+        /// si deja entrar a quien ya ocupa silla.
+        caben: cuantosCaben({
+          cuposMaximos: g.cuposMaximos,
+          apuntados: apuntadosPorCelda.get(g.id) ?? 0,
+          sillas: g._count.participantes,
+          entra,
+        }),
         fechaInicio: g.grupo.fechaInicio,
         fechaFin: g.grupo.fechaFin,
       })),
@@ -7183,11 +7212,17 @@ export class CrmService {
       /// control en pie y vacio de efecto, y justo el camino por el
       /// que se mueve gente a mano.
       ///
-      /// Se cuenta con RETIENEN_ASIENTO y con cuantosCaben(), los
-      /// MISMOS que el lote: dos cuentas de lo mismo acaban
-      /// discrepando, y la que sobra es la nueva.
+      /// Se cuenta con cuantosCaben(), el MISMO que el lote y que el
+      /// selector de la pantalla: dos cuentas de lo mismo acaban
+      /// discrepando, y la que sobra es la nueva. Contra que se mide
+      /// lo decide la etapa de quien entra.
       if (dto.coberturaId !== p.coberturaId) {
-        const caben = await cabenEnLaCobertura(this.prisma, cobertura, id);
+        const caben = await cabenEnLaCobertura(
+          this.prisma,
+          cobertura,
+          id,
+          p.etapa,
+        );
 
         if (caben <= 0) {
           /// Se permite pasarse, pero con motivo: es la misma salida
@@ -7289,6 +7324,7 @@ export class CrmService {
               tx as never,
               { id: cobertura, cuposMaximos: celda.cuposMaximos },
               id,
+              p.etapa,
             )
           : 1;
         if (quedan <= 0 && !sobrecupo) {

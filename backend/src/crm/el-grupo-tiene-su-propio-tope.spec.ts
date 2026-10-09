@@ -28,10 +28,13 @@ const codigo = (t: string) =>
 
 describe('la cuenta de lo que cabe es una sola', () => {
   it('lleno es lleno, y nunca sale negativo', () => {
-    expect(cuantosCaben({ cuposMaximos: 50, apuntados: 50 })).toBe(0);
-    expect(cuantosCaben({ cuposMaximos: 50, apuntados: 49 })).toBe(1);
+    /// Un lead se mide contra los apuntados.
+    const lead = (cuposMaximos: number, apuntados: number) =>
+      cuantosCaben({ cuposMaximos, apuntados, sillas: 0, entra: 'INTERESADO' });
+    expect(lead(50, 50)).toBe(0);
+    expect(lead(50, 49)).toBe(1);
     /// Un grupo pasado no «debe» sillas.
-    expect(cuantosCaben({ cuposMaximos: 50, apuntados: 58 })).toBe(0);
+    expect(lead(50, 58)).toBe(0);
   });
 
   /// Quien RETIENE asiento no son los que ocupan silla: un interesado
@@ -52,6 +55,26 @@ describe('la cuenta de lo que cabe es una sola', () => {
     expect(c).toMatch(/etapa:\s*\{\s*in:\s*RETIENEN_ASIENTO\s*\}/);
     expect(c).toMatch(/id:\s*\{\s*not:\s*salvoEsteParticipante\s*\}/);
     expect(c).toMatch(/return cuantosCaben\(/);
+  });
+
+  /// ESTE ASERTO SALIÓ DE UNA MUTACIÓN QUE NO MATÓ NADA (9 oct 2026).
+  ///
+  /// Sustituyendo la consulta de sillas por `const sillas = apuntados`
+  /// ---o sea devolviendo el defecto de producción, con las dos
+  /// cuentas iguales--- los 57 tests del aforo siguieron en verde. La
+  /// función que de verdad lee la base no estaba sujeta por ningún
+  /// lado, y es la que usa la ficha.
+  it('TRAE LAS DOS CUENTAS, y las dos descuentan a esta ficha', () => {
+    const c = codigo(leer('cobertura.ts'));
+    expect(c).toMatch(/etapa:\s*\{\s*in:\s*OCUPAN_SILLA\s*\}/);
+    /// Una por cada cuenta: sin la exclusión, mover a alguien dentro
+    /// de su propio grupo se contaría a sí mismo y el último hueco
+    /// nunca cabría.
+    const exclusiones = c.match(/id:\s*\{\s*not:\s*salvoEsteParticipante\s*\}/g);
+    expect(exclusiones).toHaveLength(2);
+    /// Y que no se cuele una tercera copia de la cuenta: lo que se le
+    /// pasa a `cuantosCaben` son las dos variables, no un cálculo.
+    expect(c).toMatch(/apuntados,\s*sillas,\s*entra,/);
   });
 });
 
@@ -128,5 +151,90 @@ describe('cambiar de grupo deja de estar prohibido, y deja huella', () => {
     );
     expect(esquema).toMatch(/coberturaAntes\s+String\?/);
     expect(esquema).toMatch(/coberturaDespues\s+String\?/);
+  });
+});
+
+/**
+ * CADA PUERTA MIDE CON LA ETAPA DE QUIEN ENTRA (9 oct 2026).
+ *
+ * ESTE BLOQUE EXISTE PORQUE UNA MUTACIÓN NO MATÓ NADA. Al cambiar
+ * `p.etapa` por `'INTERESADO'` en la llamada de `asignar` ---que es
+ * justo el camino por el que se mueve gente a mano, y el que falló en
+ * producción--- los 37 tests del aforo siguieron en verde. O sea que
+ * el arreglo no estaba sujeto por el único sitio donde importa.
+ *
+ * `cuantosCaben` mide contra las SILLAS a quien ya las ocupa y contra
+ * los APUNTADOS a un lead; el porqué entero vive en su docblock. Una
+ * puerta que le pase una etapa fija vuelve a medir mal a la mitad de
+ * la gente, y no falla nada.
+ *
+ * Se recorre la SUPERFICIE y no las tres llamadas de hoy: la lección
+ * de `fuera-del-ambito` y de `escribir-pide-escribir` es que un
+ * arreglo puerta por puerta se olvida de alguna.
+ */
+describe('la etapa de quien entra llega a todas las puertas', () => {
+  const ETAPAS = [
+    'INTERESADO',
+    'CONTACTADO',
+    'DATOS_COMPLETOS',
+    'INSCRITO',
+    'EN_FORMACION',
+    'CERTIFICADO',
+  ];
+
+  /// La única llamada que puede pasar una etapa escrita, con su
+  /// porqué: `elegiblesDelGrupo` solo trae gente que YA ocupa silla,
+  /// así que ahí no hay etapa que leer y medir en sillas es correcto.
+  const EXCEPCIONES = ['asignar-grupo.service.ts'];
+
+  const fuentes = ['crm.service.ts', 'cobertura.ts', 'asignar-grupo.service.ts'];
+
+  it('ninguna puerta llama a cabenEnLaCobertura con una etapa escrita', () => {
+    for (const f of fuentes) {
+      const c = codigo(leer(f));
+      /// El cuarto argumento de cada llamada.
+      const llamadas = c.match(/cabenEnLaCobertura\([\s\S]{0,200}?\)/g) ?? [];
+      for (const l of llamadas) {
+        for (const e of ETAPAS) {
+          expect(l).not.toContain(`'${e}'`);
+        }
+      }
+    }
+  });
+
+  it('`asignar` y `actualizar` le pasan la etapa de la FICHA', () => {
+    const c = codigo(leer('crm.service.ts'));
+    const llamadas = c.match(/cabenEnLaCobertura\([\s\S]{0,200}?\)/g) ?? [];
+    /// Las tres de hoy: `actualizar`, y `asignar` fuera y dentro de
+    /// su transacción. Sin el suelo, renombrar la función dejaría el
+    /// test en verde sin mirar nada.
+    expect(llamadas.length).toBeGreaterThanOrEqual(3);
+    for (const l of llamadas) {
+      expect(l).toMatch(/p\.etapa/);
+    }
+  });
+
+  it('toda llamada a cuantosCaben dice contra qué mide', () => {
+    /// Sin `entra` no compila ---va obligatorio en el objeto--- pero
+    /// esto caza a quien lo rellene con una etapa fija fuera del lote.
+    for (const f of fuentes) {
+      const c = codigo(leer(f));
+      const llamadas = c.match(/cuantosCaben\(\{[\s\S]{0,300}?\}\)/g) ?? [];
+      for (const l of llamadas) {
+        expect(l).toContain('entra');
+        if (EXCEPCIONES.includes(f)) continue;
+        for (const e of ETAPAS) {
+          expect(l).not.toContain(`'${e}'`);
+        }
+      }
+    }
+  });
+
+  it('y el lote es la ÚNICA excepción, porque solo mueve inscritos', () => {
+    /// Si alguien le quita ese filtro, el lote empezaría a mover
+    /// leads midiendo en sillas, que es medir de menos.
+    const c = codigo(leer('elegibles-del-grupo.ts'));
+    expect(c).toMatch(/etapa:\s*\{\s*in:\s*OCUPAN_SILLA\s*\}/);
+    expect(EXCEPCIONES).toHaveLength(1);
   });
 });

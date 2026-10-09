@@ -193,10 +193,29 @@ describe('no sobrevende', () => {
     expect(asignados()).toHaveLength(3);
   });
 
-  it('cuenta a los APUNTADOS, no a los que ocupan silla', async () => {
-    /// El defecto que avisaron los cuatro escépticos. Con dos
-    /// interesados ya en la celda, solo cabe uno más. Contando con
-    /// `OCUPAN_SILLA` la celda se vería vacía y entrarían tres.
+  it('UN LEAD DENTRO NO LE QUITA LA SILLA A UN INSCRITO', async () => {
+    /// LA REGLA CAMBIO EL 9 OCT 2026 Y ESTE TEST LO DICE.
+    ///
+    /// Hasta ese dia aqui se esperaba 1 y 4 sin cupo: la celda, de
+    /// tope 3 y con dos leads dentro, solo admitia uno. El motivo
+    /// escrito era real a medias ---sin contar a los apuntados, una
+    /// celda con doscientos interesados se ve vacia--- pero tenia el
+    /// precio al reves: dejaba a cuatro INSCRITOS sin grupo para
+    /// guardarle el sitio a dos leads.
+    ///
+    /// Un inscrito es un HECHO: esta en el aula y hay que reportarlo
+    /// con su grupo. Un interesado es una EXPECTATIVA. Preferir la
+    /// expectativa al hecho es el defecto que encontro Josse en
+    /// produccion ---grupo 3 de ANTIOQUIA, 52 sillas y 13 leads en un
+    /// tope de 65, y no dejaba mover a nadie--- y es la misma regla
+    /// que esta casa ya tenia escrita del otro lado: <<un interesado
+    /// no ocupa nada>>.
+    ///
+    /// LO QUE NO SE PIERDE: las sillas siguen topadas en 3 ---lo fija
+    /// el test de abajo--- y apuntar un LEAD si respeta a los leads
+    /// que ya estan, porque esa cuenta no cambio. Lo que pasa es que
+    /// el lote no apunta leads: solo mueve gente ya inscrita.
+    /// El porque entero vive en `cuantosCaben`.
     const yaDentro: Ficha[] = [
       /// Interesados A PROPOSITO: por la ficha se les puede poner
       /// grupo de a uno, y entonces RETIENEN el asiento aunque el
@@ -226,8 +245,33 @@ describe('no sobrevende', () => {
       ['c-1'],
     );
 
-    expect(r.asignadas).toBe(1);
-    expect(r.sinCupo).toBe(4);
+    /// Entran los TRES que caben por sillas, no uno.
+    expect(r.asignadas).toBe(3);
+    expect(r.sinCupo).toBe(2);
+  });
+
+  it('pero las SILLAS siguen topadas: con la celda llena, ninguno', async () => {
+    /// El complemento del de arriba, y es el que impide que el
+    /// cambio se lea como <<ya no hay tope>>. Tres inscritos dentro
+    /// sobre un tope de tres: no entra nadie mas.
+    const llena: Ficha[] = ['y1', 'y2', 'y3'].map((id) => ({
+      id,
+      convenioId: 'c-1',
+      ofertaId: 'of-1',
+      coberturaId: 'cel-1',
+      etapa: 'INSCRITO' as const,
+    }));
+    const { s } = armar([...llena, ...CINCO]);
+
+    const r = await s.asignar(
+      'cel-1',
+      CINCO.map((f) => f.id),
+      ADMIN,
+      ['c-1'],
+    );
+
+    expect(r.asignadas).toBe(0);
+    expect(r.sinCupo).toBe(5);
   });
 
   it('quien se retiró de esa celda libera su asiento', async () => {

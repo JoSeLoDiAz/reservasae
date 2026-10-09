@@ -155,19 +155,35 @@ describe('la celda tiene que cuadrar con la oferta', () => {
   });
 });
 
-describe('cuántos caben', () => {
-  it('el tope menos los apuntados', () => {
-    expect(cuantosCaben({ cuposMaximos: 65, apuntados: 42 })).toBe(23);
+describe('cuántos caben, PARA EL LOTE', () => {
+  /// El lote solo mueve gente que YA ocupa silla ---lo fija
+  /// `elegiblesDelGrupo` ahi arriba---, asi que su cuenta es la de
+  /// sillas. Por eso estos casos entran con `INSCRITO`.
+  const enElLote = (cuposMaximos: number, apuntados: number, sillas: number) =>
+    cuantosCaben({ cuposMaximos, apuntados, sillas, entra: 'INSCRITO' });
+
+  it('el tope menos las sillas', () => {
+    expect(enElLote(65, 42, 42)).toBe(23);
   });
 
   it('nunca negativo, aunque haya sobrecupo autorizado', () => {
     /// El sobrecupo se permite y deja firma, así que una celda puede
-    /// tener más apuntados que su tope. Devolver -5 haría que el
+    /// tener más gente que su tope. Devolver -5 haría que el
     /// `slice` del lote se comiera el final de la lista.
-    expect(cuantosCaben({ cuposMaximos: 30, apuntados: 35 })).toBe(0);
+    expect(enElLote(30, 35, 35)).toBe(0);
   });
 
   it('y con la celda vacía, caben todos', () => {
-    expect(cuantosCaben({ cuposMaximos: 65, apuntados: 0 })).toBe(65);
+    expect(enElLote(65, 0, 0)).toBe(65);
+  });
+
+  /// EL CASO QUE EL LOTE NO PODIA HACER Y AHORA SI.
+  ///
+  /// Trece leads apuntados sobre cincuenta y dos sillas en un tope de
+  /// 65: el grupo 3 de ANTIOQUIA en produccion, 9 oct 2026. Con la
+  /// cuenta vieja el lote veia 0 y no movia a nadie, mientras el
+  /// candado del aforo decia 52 de 65.
+  it('los leads apuntados no le cierran la puerta a un inscrito', () => {
+    expect(enElLote(65, 65, 52)).toBe(13);
   });
 });

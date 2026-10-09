@@ -28,9 +28,9 @@
  * propia sería la cuarta verdad sobre la misma decisión.
  */
 
-import { OCUPAN_SILLA } from './etapas';
+import { OCUPAN_SILLA, ocupaSilla } from './etapas';
 
-import type { Prisma } from '../../generated/prisma';
+import type { EtapaParticipante, Prisma } from '../../generated/prisma';
 
 /// El destino, ya resuelto: una celda de un grupo.
 export type CeldaDestino = {
@@ -118,16 +118,45 @@ export function porQueNoCuadraLaCelda(
 }
 
 /**
- * Cuántos caben todavía en la celda.
+ * Cuántos caben todavía en la celda, PARA QUIEN ENTRA.
  *
- * `apuntados` NO son los que ocupan silla: son los que tienen esa
- * cobertura escrita y no han salido. Contar con `OCUPAN_SILLA` haría
- * ver vacío un grupo con doscientos interesados dentro, y el lote
- * metería otros doscientos encima.
+ * SE MIDE CONTRA LO QUE ESA PERSONA VA A CONSUMIR, y por eso la
+ * etapa es un parámetro y no un detalle.
+ *
+ * Quien ya ocupa silla consume una SILLA, y las sillas son el aforo:
+ * el límite duro del aula. Un lead apuntado a la cohorte todavía no
+ * consume nada —puede no inscribirse nunca— así que lo que limita
+ * apuntarlo es el CUPO RESERVADO de la cohorte, que es otra cosa.
+ *
+ * LAS DOS CUENTAS HACÍAN FALTA Y ANTES SOLO HABÍA UNA. Con
+ * `RETIENEN_ASIENTO` para todo el mundo, el grupo 3 de ANTIOQUIA
+ * ---52 inscritos y 13 interesados sobre un tope de 65--- se
+ * declaraba LLENO y no admitía mover a nadie, mientras
+ * `exigirQueQuepa`, que es el candado que de verdad impide la
+ * sobreventa al inscribir, cuenta SILLAS y decía 52 de 65: trece
+ * libres. O sea que el sistema se negaba a meter a alguien en un
+ * grupo donde él mismo lo habría inscrito. Lo encontró Josse el 9
+ * oct 2026, y su cuenta era exacta: «52 más 13 me da 65».
+ *
+ * EL AFORO NO SE RELAJA, y esto es lo que lo sostiene: lo único que
+ * convierte un apuntado en silla es pasar a `INSCRITO`, y esa puerta
+ * cuenta sillas. Un grupo de 65 puede tener cien leads encima y
+ * nunca tendrá 66 inscritos.
+ *
+ * Y NO SON DOS FUNCIONES porque la etapa se conoce en EJECUCIÓN:
+ * partirla obligaría a cada llamador a escribir la rama, y serían
+ * tres copias de la misma decisión. Va obligatoria en el objeto, así
+ * que el compilador caza al llamador que se olvide.
  */
 export function cuantosCaben(celda: {
   cuposMaximos: number;
+  /// Los que tienen esa cobertura escrita y no han salido.
   apuntados: number;
+  /// De entre esos, los que ya consumieron aula.
+  sillas: number;
+  /// La etapa de quien entra: decide contra cuál de los dos se mide.
+  entra: EtapaParticipante;
 }): number {
-  return Math.max(0, celda.cuposMaximos - celda.apuntados);
+  const consume = ocupaSilla(celda.entra) ? celda.sillas : celda.apuntados;
+  return Math.max(0, celda.cuposMaximos - consume);
 }

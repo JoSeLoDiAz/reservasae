@@ -19,8 +19,9 @@
 
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 
+import type { EtapaParticipante } from '../../generated/prisma';
 import type { PrismaService } from '../prisma/prisma.service';
-import { RETIENEN_ASIENTO } from './etapas';
+import { OCUPAN_SILLA, RETIENEN_ASIENTO } from './etapas';
 import { cuantosCaben } from './elegibles-del-grupo';
 
 export type DondeSeDicta = {
@@ -197,14 +198,26 @@ export async function exigirCoberturaDeLaOferta(
  * haber son dos formas de contar: ya pasó con el tope de la oferta,
  * donde el lote contaba y la ficha no.
  *
- * `RETIENEN_ASIENTO` y no `OCUPAN_SILLA`: un interesado apuntado a la
- * cohorte ya la está llenando. Con la otra lista, un grupo con
- * doscientos dentro se vería vacío.
+ * SE TRAEN LAS DOS CUENTAS y decide `cuantosCaben` con la etapa de
+ * quien entra. Antes solo se traía `RETIENEN_ASIENTO`, y eso le
+ * negaba el paso a quien YA ocupa silla por culpa de leads que no la
+ * ocupan --- el defecto del 9 oct 2026, con su porqué en
+ * `cuantosCaben`.
+ *
+ * LAS DOS EXCLUYEN A ESTA FICHA. Sin eso, mover a alguien dentro de
+ * su propio grupo se contaría a sí mismo y el último hueco nunca
+ * cabría.
+ *
+ * VAN SECUENCIALES Y NO EN `Promise.all` a propósito: esto corre
+ * también dentro de la transacción que tiene la oferta y la celda
+ * tomadas con `FOR UPDATE`, y dos consultas a la vez sobre el cliente
+ * de una transacción comparten una sola conexión.
  */
 export async function cabenEnLaCobertura(
   prisma: PrismaService,
   cobertura: { id: string; cuposMaximos: number },
   salvoEsteParticipante: string,
+  entra: EtapaParticipante,
 ): Promise<number> {
   const apuntados = await prisma.participante.count({
     where: {
@@ -213,5 +226,17 @@ export async function cabenEnLaCobertura(
       id: { not: salvoEsteParticipante },
     },
   });
-  return cuantosCaben({ cuposMaximos: cobertura.cuposMaximos, apuntados });
+  const sillas = await prisma.participante.count({
+    where: {
+      coberturaId: cobertura.id,
+      etapa: { in: OCUPAN_SILLA },
+      id: { not: salvoEsteParticipante },
+    },
+  });
+  return cuantosCaben({
+    cuposMaximos: cobertura.cuposMaximos,
+    apuntados,
+    sillas,
+    entra,
+  });
 }

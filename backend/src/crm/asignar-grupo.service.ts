@@ -183,9 +183,17 @@ export class AsignarGrupo {
             comprometidos: c.cuposBase,
             apuntados: c._count.participantes,
             sillasOcupadas: porCelda.get(c.id) ?? 0,
+            /// SE MIDE EN SILLAS, y no es una excepcion: los
+            /// candidatos de esta pantalla son todos OCUPAN_SILLA
+            /// ---lo fija `elegiblesDelGrupo`---, asi que lo que van a
+            /// consumir es una silla. Midiendo apuntados, un grupo con
+            /// leads encima se declaraba lleno y no admitia mover a
+            /// nadie: ver `cuantosCaben`.
             caben: cuantosCaben({
               cuposMaximos: c.cuposMaximos,
               apuntados: c._count.participantes,
+              sillas: porCelda.get(c.id) ?? 0,
+              entra: 'INSCRITO',
             }),
           })),
       })),
@@ -339,12 +347,22 @@ export class AsignarGrupo {
       });
 
       /// Cuántos caben AHORA, con la fila tomada.
+      ///
+      /// Las dos cuentas, y mide la de SILLAS: `elegiblesDelGrupo`
+      /// solo trae gente que ya ocupa silla, asi que es lo que van a
+      /// consumir. Los apuntados se siguen trayendo porque son los
+      /// que limitan apuntar un lead, y la regla vive en un sitio.
       const apuntados = await tx.participante.count({
         where: { coberturaId: celda.id, etapa: { in: RETIENEN_ASIENTO } },
+      });
+      const sillas = await tx.participante.count({
+        where: { coberturaId: celda.id, etapa: { in: OCUPAN_SILLA } },
       });
       const caben = cuantosCaben({
         cuposMaximos: celda.cuposMaximos,
         apuntados,
+        sillas,
+        entra: 'INSCRITO',
       });
 
       const entran = suyos.slice(0, caben);
