@@ -386,6 +386,90 @@ bajaba la plantilla equivocada; con el arreglo no bajaba ninguna.
 > pinta como «No se pudo completar la operación»** — parecen fallos de la
 > aplicación y no lo son. Un segundo entre peticiones.
 
+## v0.27.0-JD en PRODUCCIÓN (9 oct 2026)
+
+> Commit `7d2c33f`, etiqueta `v0.27.0`. **Sin migraciones, sin schema y sin
+> variables nuevas.** Copia previa en
+> `~/reservasae-antes-de-v0.27.0-20261009.sql.gz` (4,1 MB, en crm-nube) y las
+> filas idénticas antes y después: **453 organizaciones, 677 fichas, 686
+> personas, 38 reservas, 116 coberturas**. Las tres sedes en la línea 20.
+>
+> **La versión venía en `0.23.0-JD` mientras las etiquetas iban por `v0.26.0`**:
+> v0.24, v0.25 y v0.26 se etiquetaron sin subir los dos `package.json`, así que
+> `/api/estado` y el perfil del panel reportaban tres entregas por detrás. Queda
+> cuadrada aquí; ojo con eso al publicar.
+
+### UN LEAD APUNTADO LE QUITABA LA SILLA A UN INSCRITO (9 oct 2026)
+
+*«Él está tomando como efectivamente Antioquia tiene 65… 52 más 13 me da 65…
+este grupo 3 debería ser independiente al grupo 4… porque ya no nos deja meter
+nada en Antioquia»*. **La cuenta de Josse era exacta y el mecanismo no era el
+que parecía**, y por eso queda escrito: leyendo solo su descripción, el
+siguiente iría a buscar el defecto donde no estaba.
+
+**No había nada asociado entre grupos.** Cada `GrupoCobertura` lleva su propio
+tope y el invariante de la oferta se sostenía — medido en producción, AF1 ×
+ANTIOQUIA: 65 + 65 + 45 = **175**, el tope de la oferta. Lo que había eran **dos
+cuentas del MISMO aforo que discrepaban**:
+
+| | cuenta | sobre el grupo 3 de ANTIOQUIA |
+|---|---|---|
+| `exigirQueQuepa` (al inscribir) | `OCUPAN_SILLA` | 52 de 65 → **trece libres** |
+| `cabenEnLaCobertura` (al poner a alguien) | `RETIENEN_ASIENTO` | 65 de 65 → **lleno** |
+
+O sea que **el sistema se negaba a meter a alguien en un grupo donde él mismo lo
+habría inscrito.** Los 65 eran 52 INSCRITOS + 13 INTERESADOS, que es el «52 más
+13». Y el docblock de `cabenEnLaCobertura` ya avisaba de esto mismo —«lo que no
+puede haber son dos formas de contar: ya pasó con el tope de la oferta»—
+**siendo él la segunda**.
+
+**La regla nueva: se mide contra lo que esa persona va a CONSUMIR.** Quien ya
+ocupa silla se mide en sillas; un lead, en apuntados. La decisión vive una sola
+vez, en `cuantosCaben`, y la etapa va **obligatoria** en el objeto para que el
+compilador cace al llamador que se olvide —cazó los cinco que había—.
+
+- **EL AFORO NO SE RELAJA, y eso es lo que lo hace seguro.** Lo único que
+  convierte un apuntado en silla es pasar a `INSCRITO`, y esa puerta cuenta
+  sillas. Un grupo de 65 puede tener cien leads encima y **nunca tendrá 66
+  inscritos**.
+- **No son dos funciones** —contra la regla de `aDiaBogota`/`aDiaDeCalendario`—
+  porque aquí la etapa se conoce **en ejecución**: partirla obligaría a cada
+  puerta a escribir la rama, y serían tres copias de la misma decisión.
+- **El lote es la única excepción y pasa `'INSCRITO'` escrito**, porque
+  `elegiblesDelGrupo` solo le trae gente que ya ocupa silla («SOLO LOS YA
+  INSCRITOS»): allí no hay etapa que leer.
+- **Un inscrito es un HECHO y un interesado una EXPECTATIVA.** Preferir la
+  expectativa al hecho dejaba inscritos **sin cohorte** —y una ficha sin grupo no
+  entra al reporte con grupo— para guardarle el sitio a leads que quizá no
+  lleguen. Es el reverso de la regla que esta casa ya tenía escrita del otro
+  lado: «un interesado no ocupa nada».
+- **Cae la SEXTA copia de la cuenta**: el selector de la ficha la hacía a mano
+  (`Math.max(0, cuposMaximos - apuntados)`) y por eso decía **«0 cupos libres»**
+  donde el servidor sí deja entrar. Ahora llama a `cuantosCaben` con la etapa de
+  la ficha; sin ficha es un alta y se mide como lead, que es lo conservador.
+- **Cambia a propósito un contrato que dos specs fijaban**, y va escrito en
+  ellos. El de `asignar-grupo-no-sobrevende` esperaba `asignadas: 1` con dos
+  leads dentro de una celda de tres; ahora espera **3**, con su porqué y con el
+  complemento al lado: con las tres sillas llenas no entra nadie.
+
+> **DOS MUTACIONES NO MATARON NADA, y de ahí salieron los dos tests que
+> faltaban.** Cambiar `p.etapa` por `'INTERESADO'` en la llamada de `asignar`
+> —**el camino exacto que falló en producción**— dejó 37 tests en verde; y
+> sustituir la consulta de sillas de `cabenEnLaCobertura` por
+> `const sillas = apuntados` —o sea devolver el defecto— dejó 57 en verde. Las
+> dos mutaciones se comprobaron aplicadas. Ahora las seis matan tests, y los dos
+> nuevos **recorren la superficie**: ninguna llamada puede pasar una etapa
+> escrita fuera del lote.
+
+> **Comprobado contra el contenedor desplegado**, no leyendo: `cuantosCaben` del
+> `dist` de producción contesta 13 para mover un inscrito al grupo 3, 0 para
+> apuntar un lead ahí, 32 para el grupo 4 y 0 con las sillas llenas.
+
+> **Lo que queda es un movimiento de DATOS y lo decide Josse**: los 13 inscritos
+> del grupo 4 pasan al grupo 3 desde la ficha, y los 13 interesados que siguen
+> apuntados al grupo 3 —que ya no caben allí— hay que llevarlos al 4. No se
+> toca por cuenta propia: es decidir por quién va en qué cohorte.
+
 ## v0.23.0-JD en PRODUCCIÓN (8 oct 2026)
 
 > Commit `42f5fb6`, etiqueta `v0.23.0`. **Sin migraciones, sin schema y sin
