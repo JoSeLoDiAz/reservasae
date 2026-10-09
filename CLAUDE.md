@@ -5581,6 +5581,70 @@ contra 8.8.8.8. Sus MX apuntan a `smtp.google.com`, así que:
 
 ## El entorno de pruebas (15 ago 2026)
 
+> ### PRUEBAS YA NO TIENE DATOS INVENTADOS: ES UN ESPEJO DE PRODUCCIÓN (9 oct 2026)
+>
+> Lo pidió Josse: *«quiero que pruebas quede exactamente igual a como está
+> ahorita producción… eliminar todos los datos grandes de pruebas y dejar un
+> espejo de producción, para comparar»*. **Esto invierte lo que dice el párrafo
+> de abajo y casi todo lo de esta sección.**
+>
+> | | antes | ahora |
+> |---|---|---|
+> | fichas | **50.046** (la prueba de volumen) | **707**, las de producción |
+> | los datos | inventados, con `esDePrueba` | **REALES**: cédulas, nombres, celulares, correos |
+> | las cuentas | seis `@ejemplo.test` con `Prueba2026*` | **las de producción**, con sus claves |
+> | la versión | `0.12.0-JD-prueba` (quince por detrás) | `0.27.0-JD-prueba` |
+>
+> Las **18 tablas cuadran** una a una en los dos lados, `_prisma_migrations`
+> incluida (86), así que el esquema y el código están a la par. Dos copias:
+> `~/pruebas-antes-del-espejo-20261009.sql.gz` (7,9 MB, lo que había) y el
+> volcado de producción con el que se hizo.
+>
+> **LAS CUENTAS DE `@ejemplo.test` YA NO EXISTEN.** A pruebas se entra con una
+> cuenta de producción, y por eso ya no se puede repartir su acceso como antes.
+> Ojo además: allí `PANEL_GENERAL_SOLO_SUPERADMIN` no está puesta, así que la
+> puerta general sigue abierta a cualquier cuenta.
+>
+> #### Lo que hubo que desarmar ANTES de copiar, y por qué
+>
+> Pruebas tenía **`RUI_WORKER=1` con `RUI_PROVEEDOR=VENTANILLA`**, o sea el
+> portal del DNP de verdad. Eso era inofensivo mientras sus fichas fueran
+> inventadas ---`esDePrueba` las aparta---, y **deja de serlo en cuanto las
+> fichas son de personas reales**. Quedaron así, y el propio log de arranque lo
+> dice en cada una:
+>
+> | | |
+> |---|---|
+> | `RUI_WORKER=0` | el que podía pedirle al Estado la identidad de 707 personas |
+> | `WEB_WORKER=0` | saca NIT y cédulas a internet |
+> | `CORREO_AUTOMATICO=no` | con la cola de producción dentro, ver abajo |
+> | `CONVERSION_AUTOMATICA=no` | convertiría leads y el espejo dejaría de ser espejo |
+> | `REPESCAR_CONVERSACIONES=no` | lo mismo: escribe notas |
+>
+> **Y el candado del RUI era más fuerte de lo que parecía, que es lo que de
+> verdad protege esto:** `permisoDeRui` falla CERRADO con `ENTORNO=prueba` ---solo
+> consulta lo que esté en `RUI_SOLO_ESTOS_DOCUMENTOS`, hoy un solo documento
+> autorizado, y todo lo demás va al simulador---. Su docblock ya avisaba de que
+> «el candado de `esDePrueba` no basta: solo cubre las filas que escribió la
+> siembra». Así que la protección es del ENTORNO y no de la marca por fila, que
+> es justo lo que hace posible este espejo.
+>
+> **`correos_automaticos` trae 88 filas sin cerrar de producción.** El trabajador
+> está apagado y el correo va **desviado** a Josse y a Diana por
+> `CORREO_REDIRIGIR_A`, así que son dos cinturones; pero si alguien enciende
+> `CORREO_AUTOMATICO` ahí, esas 88 se procesan. No se vaciaron a propósito:
+> vaciarlas sería dejar de ser un espejo.
+>
+> #### Lo que NO hay que hacer aquí
+>
+> - **`db:sembrar-prueba --rehacer` DESTRUYE el espejo** y vuelve a meter datos
+>   inventados y la paleta de la siembra. Lo mismo `db:sembrar-volumen`.
+> - **No volver a encender `RUI_WORKER` ni `WEB_WORKER`** sin decidir antes qué
+>   pasa con 707 cédulas reales.
+> - La franja amarilla sigue puesta ---sale de `ENTORNO` como `ARG` del
+>   Dockerfile, no de la base--- y **es lo único que distingue las dos
+>   pantallas a la vista.** Comprobado: pruebas la tiene y producción no.
+
 `https://prueba.reservasae.com` — **montaje paralelo en Bogotá**, con datos
 inventados, para enseñar y probar sin tocar nada real.
 
