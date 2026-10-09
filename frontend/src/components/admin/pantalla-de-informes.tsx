@@ -406,6 +406,31 @@ export function PantallaDeInformes({ vista }: { vista?: Pestana }) {
         ((vivos.datos.ventana.desde ?? "") === desde &&
           (vivos.datos.ventana.hasta ?? "") === hasta)));
 
+  /**
+   * EL RÓTULO DEL PERIODO COMPARADO, CUANDO LO ELIGIÓ EL USUARIO,
+   * SALE DEL SERVIDOR (9 oct 2026).
+   *
+   * `anteriorDe` describe el anterior AUTOMÁTICO del periodo
+   * principal ---«Los 30 días anteriores», «Anteayer», «El mes de
+   * antes»---, y eso es FALSO en cuanto alguien elige sus propias dos
+   * fechas para comparar: las cifras salían de esas fechas y el
+   * rótulo nombraba otro tramo. Es el defecto de siempre con otra
+   * cara ---un rótulo que cuenta algo distinto de lo que mide--- y lo
+   * reportó el equipo: «los comparadores no sirven bien».
+   *
+   * No hace falta calcularlo aquí: `compararDos` ya resuelve la
+   * segunda ventana y manda su nombre en `etiquetaAnterior` ---«del 8
+   * al 20 de septiembre»---. La pantalla lo tenía en la mano y lo
+   * tiraba. Escribirlo otra vez sería la segunda verdad sobre el
+   * mismo tramo, que es justo lo que puso el rótulo malo aquí.
+   *
+   * Mientras la respuesta no ha llegado NO se cae a `anteriorDe`: ese
+   * es el rótulo falso. Se dice lo único cierto en ese instante.
+   */
+  const rotuloAnterior = eligio
+    ? (vivos.datos?.ventana.etiquetaAnterior ?? 'el periodo elegido para comparar')
+    : anterior;
+
   const diasA = diasDeRango(rango, desde, hasta);
   const diasB = eligio ? diasDeRango(contra as Rango, contraDesde, contraHasta) : diasA;
   // tambien en automatico: mes pasado
@@ -769,7 +794,7 @@ export function PantallaDeInformes({ vista }: { vista?: Pestana }) {
         alCambiarFiltros={setCortes}
         control={vivos.datos}
         comparar={!sinComparar}
-        etiquetaAnterior={anterior}
+        etiquetaAnterior={rotuloAnterior}
         /// Cómo se llama lo ELEGIDO aquí arriba, al instante. El
         /// panel no rotula ninguna cifra con esto --cada cifra
         /// lleva el nombre del periodo del que salió--: le sirve
